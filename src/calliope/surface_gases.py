@@ -5,7 +5,6 @@ import numpy as np
 from scipy.optimize import fsolve
 
 from .constants import (
-    dirs,
     element_list,
     molar_mass,
     ocean_moles,
