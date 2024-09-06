@@ -5,11 +5,21 @@ import logging
 import numpy as np
 from scipy.optimize import fsolve
 
+from .chemistry import ModifiedKeq
 from .constants import (
     element_list,
     molar_mass,
     ocean_moles,
     volatile_species,
+)
+from .oxygen_fugacity import OxygenFugacity
+from .solubility import (
+    SolubilityCH4,
+    SolubilityCO,
+    SolubilityCO2,
+    SolubilityH2O,
+    SolubilityN2,
+    SolubilityS2,
 )
 
 log = logging.getLogger("fwl."+__name__)
@@ -24,231 +34,6 @@ log = logging.getLogger("fwl."+__name__)
 # Solve for the equilibrium chemistry of a magma ocean atmosphere
 # for a given set of solubility and redox relations
 
-def CalculateMantleMass(radius:float, mass:float, corefrac:float)->float:
-    '''
-    A very simple interior structure model.
-
-    This calculates mantle mass given planetary mass, radius, and core fraction. This
-    assumes a core density equal to that of Earth's, and that the planet mass is simply
-    the sum of mantle and core.
-    '''
-
-    earth_fr = 0.55     # earth core radius fraction
-    earth_fm = 0.325    # earth core mass fraction  (https://arxiv.org/pdf/1708.08718.pdf)
-    earth_m  = 5.97e24  # kg
-    earth_r  = 6.37e6   # m
-
-    core_rho = (3.0 * earth_fm * earth_m) / (4.0 * np.pi * ( earth_fr * earth_r )**3.0 )  # core density [kg m-3]
-    log.debug("Core density = %.2f kg m-3" % core_rho)
-
-    # Calculate mantle mass by subtracting core from total
-    core_mass = core_rho * 4.0/3.0 * np.pi * (radius * corefrac )**3.0
-    mantle_mass = mass - core_mass
-    log.info("Total mantle mass = %.2e kg" % mantle_mass)
-    if (mantle_mass <= 0.0):
-        raise Exception("Something has gone wrong (mantle mass is negative)")
-
-    return mantle_mass
-
-
-class OxygenFugacity:
-    """log10 oxygen fugacity as a function of temperature"""
-
-    def __init__(self, model='oneill'):
-        self.callmodel = getattr(self, model)
-
-    def __call__(self, T, fO2_shift=0):
-        '''Return log10 fO2'''
-        return self.callmodel(T) + fO2_shift
-
-    def fischer(self, T):
-        '''Fischer et al. (2011) IW'''
-        return 6.94059 -28.1808*1E3/T
-
-    def oneill(self, T):
-        '''O'Neill and Eggins (2002) IW'''
-        return 2*(-244118+115.559*T-8.474*T*np.log(T))/(np.log(10)*8.31441*T)
-
-class ModifiedKeq:
-    """Modified equilibrium constant (includes fO2)"""
-
-    def __init__(self, Keq_model, fO2_model='oneill'):
-        self.fO2 = OxygenFugacity(fO2_model)
-        self.callmodel = getattr(self, Keq_model)
-
-    def __call__(self, T, fO2_shift=0):
-        fO2 = self.fO2(T, fO2_shift)
-        Keq, fO2_stoich = self.callmodel(T)
-        Geq = 10**(Keq-fO2_stoich*fO2)
-        return Geq
-
-    def schaefer_CH4(self, T):
-        '''Schaefer log10Keq for CO2 + 2H2 = CH4 + fO2'''
-        # second argument returns stoichiometry of O2
-        return (-16276/T - 5.4738, 1)
-
-    def schaefer_C(self, T):
-        '''Schaefer log10Keq for CO2 = CO + 0.5 fO2'''
-        return (-14787/T + 4.5472, 0.5)
-
-    def schaefer_H(self, T):
-        '''Schaefer log10Keq for H2O = H2 + 0.5 fO2'''
-        return (-12794/T + 2.7768, 0.5)
-
-    def janaf_C(self, T):
-        '''JANAF log10Keq, 1500 < K < 3000 for CO2 = CO + 0.5 fO2'''
-        return (-14467.511400133637/T + 4.348135473316284, 0.5)
-
-    def janaf_H(self, T):
-        '''JANAF log10Keq, 1500 < K < 3000 for H2O = H2 + 0.5 fO2'''
-        return (-13152.477779978302/T + 3.038586383273608, 0.5)
-
-    def janaf_S(self, T):
-        # JANAF log10Keq, 900 < K < 2000 for 0.5 S2 + O2 = SO2
-        # https://doi.org/10.1016/j.gca.2022.08.032
-        return (18887.0/T - 3.8064, 1)
-
-class Solubility:
-    """Solubility base class.  All p in bar"""
-
-    def __init__(self, composition):
-        self.callmodel = getattr(self, composition)
-
-    def power_law(self, p, const, exponent):
-        return const*p**exponent
-
-    def __call__(self, p, *args):
-        '''Dissolved concentration in ppmw in the melt'''
-        return self.callmodel(p, *args)
-
-class SolubilityH2O(Solubility):
-    """H2O solubility models"""
-
-    # below default gives the default model used
-    def __init__(self, composition='peridotite'):
-        super().__init__(composition)
-
-    def anorthite_diopside(self, p):
-        '''Newcombe et al. (2017)'''
-        return self.power_law(p, 727, 0.5)
-
-    def peridotite(self, p):
-        '''Sossi et al. (2022)'''
-        return self.power_law(p, 524, 0.5)
-
-    def basalt_dixon(self, p):
-        '''Dixon et al. (1995) refit by Paolo Sossi'''
-        return self.power_law(p, 965, 0.5)
-
-    def basalt_wilson(self, p):
-        '''Hamilton (1964) and Wilson and Head (1981)'''
-        return self.power_law(p, 215, 0.7)
-
-    def lunar_glass(self, p):
-        '''Newcombe et al. (2017)'''
-        return self.power_law(p, 683, 0.5)
-
-
-class SolubilityS2(Solubility):
-    """S2 solubility models"""
-
-    # below default gives the default model used
-    def __init__(self, composition='gaillard'):
-        self.fO2_model = OxygenFugacity()
-        super().__init__(composition)
-
-    def gaillard(self, p, temp, fO2_shift):
-        # Gaillard et al., 2022
-        # https://doi.org/10.1016/j.epsl.2021.117255
-        # https://ars.els-cdn.com/content/image/1-s2.0-S0012821X21005112-mmc1.pdf
-
-        if p < 1.0e-20:
-            return 0.0
-
-        # melt composition [wt%]
-        x_FeO  = 10.0
-
-        # calculate fO2 [bar]
-        fO2 = 10**self.fO2_model(temp, fO2_shift)
-
-        # calculate log(Ss)
-        out = 13.8426 - 26.476e3/temp + 0.124*x_FeO + 0.5*np.log(p/fO2)
-
-        # convert to concentration ppmw
-        out = np.exp(out) #* 10000.0
-
-        return out
-
-
-class SolubilityCO2(Solubility):
-    """CO2 solubility models"""
-
-    def __init__(self, composition='basalt_dixon'):
-        super().__init__(composition)
-
-    def basalt_dixon(self, p, temp):
-        '''Dixon et al. (1995)'''
-        ppmw = (3.8E-7)*p*np.exp(-23*(p-1)/(83.15*temp))
-        ppmw = 1.0E4*(4400*ppmw) / (36.6-44*ppmw)
-        return ppmw
-
-
-class SolubilityN2(Solubility):
-    """N2 solubility models"""
-
-    def __init__(self, composition='libourel'):
-        super().__init__(composition)
-
-        # melt composition
-        x_SiO2  = 0.56
-        x_Al2O3 = 0.11
-        x_TiO2  = 0.01
-        self.dasfac_2 = np.exp(4.67 + 7.11*x_SiO2 - 13.06*x_Al2O3 - 120.67*x_TiO2)
-
-    def libourel(self, p):
-        '''Libourel et al. (2003)'''
-        ppmw = self.power_law(p, 0.0611, 1.0)
-        return ppmw
-
-    def dasgupta(self, p, ptot, temp, fO2_shift):
-        '''Dasgupta et al. (2022)'''
-
-        # convert bar to GPa
-        pb_N2  = p * 1.0e-4
-        pb_tot = ptot * 1.0e-4
-
-        pb_tot = max(pb_tot, 1e-15)
-
-        # calculate N2 concentration in melt
-        ppmw  = pb_N2**0.5 * np.exp(5908.0 * pb_tot**0.5/temp - 1.6*fO2_shift)
-        ppmw += pb_N2 * self.dasfac_2
-
-        return ppmw
-
-class SolubilityCH4(Solubility):
-    """CH4 solubility models"""
-
-    def __init__(self, composition='basalt_ardia'):
-        super().__init__(composition)
-
-    def basalt_ardia(self, p, p_total):
-        '''Ardia 2013'''
-        p_total *= 1e-4  # Convert to GPa
-        p *= 1e-4 # Convert to GPa
-        ppmw = p*np.exp(4.93 - (0.000193 * p_total))
-        return ppmw
-
-
-class SolubilityCO(Solubility):
-    """CO solubility models"""
-
-    def __init__(self, composition='mafic_armstrong'):
-        super().__init__(composition)
-
-    def mafic_armstrong(self, p, p_total):
-        '''Armstrong 2015'''
-        ppmw = 10 ** (-0.738 + 0.876 * np.log10(p) - 5.44e-5 * p_total)
-        return ppmw
 
 def is_included(gas, ddict):
     return bool(ddict[gas+"_included"]>0)

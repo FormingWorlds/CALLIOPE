@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+
+authors:
+- family-names: "Nicholls"
+  given-names: "Harrison"
+  orcid: "https://orcid.org/0000-0002-8368-4641"
+
+- family-names: "Bower"
+  given-names: "Dan"
+  orcid: "https://orcid.org/0000-0002-0673-4860"
+
+- family-names: "Lichtenberg"
+  given-names: "Tim"
+  orcid: "https://orcid.org/0000-0002-3286-7683"
+
+- given-names: "Stef"
+  family-names: "Smeets"
+  affiliation: "Netherlands eScience Center"
+  orcid: "https://orcid.org/0000-0001-5107-3531"
+
+title: "CALLIOPE"
+version: 24.07.25
+doi: 10.xx/xx.xx
+date-released: 2024-09-06
+url: "https://github.com/FormingWorlds/CALLIOPE"

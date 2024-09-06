@@ -39,3 +39,17 @@ molar_mass  = {
 # Supported volatiles and elements
 volatile_species = [ "H2O", "CO2", "H2", "CH4", "CO", "N2", "S2", "SO2"]
 element_list     = [ "H", "O", "C", "N", "S" ]
+
+# Plotting colours
+dict_colors  = {
+    "H2O": "#027FB1",
+    "CO2": "#D24901",
+    "H2" : "#008C01",
+    "CH4": "#C720DD",
+    "CO" : "#D1AC02",
+    "N2" : "#870036",
+    "S2" : "#FF8FA1",
+    "SO2": "#00008B",
+    "He" : "#30FF71",
+    "NH3": "#675200",
+}
