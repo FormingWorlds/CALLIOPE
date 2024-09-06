@@ -33,4 +33,3 @@ def calculate_mantle_mass(radius:float, mass:float, corefrac:float)->float:
         raise Exception("Something has gone wrong (mantle mass is negative)")
 
     return mantle_mass
-
