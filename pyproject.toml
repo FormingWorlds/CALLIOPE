@@ -1,0 +1,129 @@
+[build-system]
+requires = ["setuptools>=61.2"]
+build-backend = "setuptools.build_meta"
+
+# https://packaging.python.org/en/latest/specifications/declaring-project-metadata/
+[project]
+name = "fwl-calliope"
+version = "24.07.25"
+description = "Planetary accretion and volatile delivery model"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+	{name = "Harrison Nicholls, email = harrison.nicholls@physics.ox.ac.uk"},
+]
+keywords = [
+    "Astronomy",
+    "Exoplanets",
+    "Model-coupling",
+]
+license = {text = "Apache 2.0 License"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Astronomy",
+]
+dependencies = [
+    "matplotlib",
+    "numpy",
+    "scipy",
+]
+
+[project.urls]
+homepage = "https://github.com/FormingWorlds/CALLIOPE"
+issues = "https://github.com/FormingWorlds/CALLIOPE/issues"
+documentation = "https://fwl-proteus.readthedocs.io"
+changelog = "https://github.com/FormingWorlds/CALLIOPE/releases"
+
+[project.optional-dependencies]
+develop = [
+    "bump-my-version",
+    "coverage[toml]",
+    "pip-tools",
+    "pytest >= 8.1",
+    "pre-commit",
+    "ruff",
+]
+
+docs = [
+    "markdown-include",
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings[python]",
+]
+
+# [project.scripts]
+# proteus = "proteus.cli:cli"
+
+# [tool.setuptools]
+# package-dir = {"proteus" = "src/proteus" }
+# include-package-data = true
+
+# [tool.coverage.run]
+# branch = true
+# source = ["proteus"]
+
+# [tool.pytest.ini_options]
+# testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 96
+target-version = "py310"
+extend-exclude = ["*ipynb"]
+
+[tool.ruff.lint]
+select = [
+	"F",  # Pyflakes
+	"E",  # pycodestyle (error)
+	"W",  # pycodestyle (warning)
+    "I",    # isort
+]
+ignore = [
+    "E501", # Line too long
+]
+
+# [tool.ruff.lint.isort]
+# known-first-party=["calliope"]
+# required-imports = ["from __future__ import annotations"]
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+
+[tool.bumpversion]
+# https://callowayproject.github.io/bump-my-version/howtos/calver/
+current_version = "24.07.25"
+parse = """(?x)                      # Verbose mode
+    (?P<release>                     # The release part
+        (?:[1-9][0-9])\\.            # YY.
+        (?:1[0-2]|0[1-9])\\.         # MM.
+        (?:3[0-1]|[1-2][0-9]|0[1-9]) # DD
+    )
+    (?:\\.(?P<patch>\\d+))?         # .patch, optional
+"""
+serialize = ["{release}.{patch}", "{release}"]
+
+[tool.bumpversion.parts.release]
+calver_format = "{YY}.{0M}.{0D}"
+
+[[tool.bumpversion.files]]
+filename = "src/calliope/__init__.py"
+search = "__version__ = '{current_version}'"
+replace = "__version__ = '{new_version}'"
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+search = "version = \"{current_version}\""
+replace = "version = \"{new_version}\""
+
+# [[tool.bumpversion.files]]
+# filename = "CITATION.cff"
+# search = "version: {current_version}"
+# replace = "version: {new_version}"
