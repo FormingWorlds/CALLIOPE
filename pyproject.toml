@@ -90,9 +90,9 @@ ignore = [
     "E501", # Line too long
 ]
 
-# [tool.ruff.lint.isort]
-# known-first-party=["calliope"]
-# required-imports = ["from __future__ import annotations"]
+[tool.ruff.lint.isort]
+known-first-party=["calliope"]
+required-imports = ["from __future__ import annotations"]
 
 [tool.ruff.format]
 quote-style = "single"
