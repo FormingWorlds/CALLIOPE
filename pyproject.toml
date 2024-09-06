@@ -63,16 +63,16 @@ docs = [
 # [project.scripts]
 # proteus = "proteus.cli:cli"
 
-# [tool.setuptools]
-# package-dir = {"proteus" = "src/proteus" }
-# include-package-data = true
+[tool.setuptools]
+package-dir = {"proteus" = "src/calliope" }
+include-package-data = true
 
-# [tool.coverage.run]
-# branch = true
-# source = ["proteus"]
+[tool.coverage.run]
+branch = true
+source = ["calliope"]
 
-# [tool.pytest.ini_options]
-# testpaths = ["tests"]
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 96
