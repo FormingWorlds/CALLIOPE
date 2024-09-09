@@ -10,3 +10,17 @@ Prounounced: *kal-IGH-uh-pee*.
 ## Installation
 
 Simply run `pip install -e .` in this folder and `calliope` will be added to your Python environment.
+
+## Citations
+
+Publications using this code should cite the following articles
+* https://www.sciencedirect.com/science/article/pii/S0012821X22005301
+* https://www.sciencedirect.com/science/article/pii/S0009254101004144
+* https://doi.org/10.1016/j.epsl.2021.117255
+* https://academic.oup.com/petrology/article/36/6/1607/1493308
+* https://www.sciencedirect.com/science/article/pii/S0016703722004896
+* https://www.sciencedirect.com/science/article/pii/S0016703713001841
+* https://www.sciencedirect.com/science/article/pii/S0016703715004391
+* JANAF tables
+
+
