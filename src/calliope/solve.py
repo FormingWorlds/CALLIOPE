@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 
 import numpy as np
 from scipy.optimize import fsolve
@@ -359,7 +360,7 @@ def get_target_from_pressures(ddict):
 
     return target_d
 
-def equilibrium_atmosphere(target_d, ddict):
+def equilibrium_atmosphere(target_d, ddict, hide_warnings=True):
     """Solves for surface partial pressures assuming melt-vapour eqm
 
 
@@ -378,30 +379,40 @@ def equilibrium_atmosphere(target_d, ddict):
     log.info("Solving for equilibrium partial pressures at surface")
     log.debug("    target masses: %s"%str(target_d))
 
+    # solver parameters
     count = 0
     max_attempts = 7000
     ier = 0
-    # could in principle result in an infinite loop, if randomising
-    # the ic never finds the physical solution (but in practice,
-    # this doesn't seem to happen)
-    while ier != 1:
-        x0 = get_initial_pressures(target_d)
-        sol, info, ier, msg = fsolve(func, x0, args=(ddict, target_d), full_output=True)
-        count += 1
 
-        # if any negative pressures, report ier!=1
-        if any(sol<0):
-            # sometimes, a solution exists with negative pressures, which is clearly non-physical.  Here, assert we must have positive pressures.
-            ier = 0
+    # do calculation
+    with warnings.catch_warnings():
+        # Suppress warnings from solver, since they are triggered when
+        # the model makes a poor guess for the composition. These are then discarded,
+        # so the warning should not propagate anywhere. Errors are still printed.
+        if hide_warnings:
+            warnings.filterwarnings("ignore", category=RuntimeWarning)
 
-        # check residuals
-        this_resid = func(sol, ddict, target_d)
-        if np.amax(np.abs(this_resid)) > 1.0:
-            ier = 0
+        # could in principle result in an infinite loop, if randomising
+        # the ic never finds the physical solution (but in practice,
+        # this doesn't seem to happen)
+        while ier != 1:
+            x0 = get_initial_pressures(target_d)
+            sol, info, ier, msg = fsolve(func, x0, args=(ddict, target_d), full_output=True)
+            count += 1
 
-        # give up after a while
-        if count > max_attempts:
-            raise Exception("Could not find solution for volatile abundances (max attempts reached)")
+            # if any negative pressures, report ier!=1
+            if any(sol<0):
+                # sometimes, a solution exists with negative pressures, which is clearly non-physical.  Here, assert we must have positive pressures.
+                ier = 0
+
+            # check residuals
+            this_resid = func(sol, ddict, target_d)
+            if np.amax(np.abs(this_resid)) > 1.0:
+                ier = 0
+
+            # give up after a while
+            if count > max_attempts:
+                raise Exception("Could not find solution for volatile abundances (max attempts reached)")
 
     log.debug("    Initial guess attempt number = %d" % count)
 
@@ -441,8 +452,6 @@ def equilibrium_atmosphere(target_d, ddict):
         if s in p_d.keys():
             outdict[s+"_bar"] = p_d[s]  # store as bar
             outdict["P_surf"] += outdict[s+"_bar"]
-
-    # outdict["O2_bar"] = p_d['O2']
 
     # Store VMRs (=mole fractions) and total atmosphere
     for s in volatile_species:
