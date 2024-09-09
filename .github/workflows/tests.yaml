@@ -18,7 +18,6 @@ jobs:
   test:
     if: github.event.pull_request.draft == false
     name: Run Coverage and Tests
-    runs-on: ubuntu-latest
     strategy:
       matrix:
         os: ['ubuntu-latest', 'ubuntu-20.04', 'macos-latest']
