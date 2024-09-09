@@ -25,7 +25,8 @@ Simply run `pip install -e .` in this folder and `calliope` will be added to you
 
 ## Citations
 
-Publications using this code should cite the following articles
+Publications using this code should cite the following articles:
+
 * Nicholls et al., (submitted to JGR: planets)
 * https://www.sciencedirect.com/science/article/pii/S0012821X22005301
 * https://www.sciencedirect.com/science/article/pii/S0009254101004144
