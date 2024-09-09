@@ -1,7 +1,7 @@
-[![Tests for CALLIOPE](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml/badge.svg)](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-
 # CALLIOPE
+[![Tests for CALLIOPE](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml/badge.svg)](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml)
+[![Documentation Status](https://readthedocs.org/projects/fwl-calliope/badge/?version=latest)](https://fwl-calliope.readthedocs.io/en/latest/?badge=latest)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 Numerical model for the equilibrium outgassing of volatiles from a magma ocean.
 
 Named after the [Greek muse of eloquence and epic poetry](https://en.wikipedia.org/wiki/Calliope).
@@ -14,6 +14,7 @@ Simply run `pip install -e .` in this folder and `calliope` will be added to you
 ## Citations
 
 Publications using this code should cite the following articles
+* Nicholls et al., (submitted to JGR: planets)
 * https://www.sciencedirect.com/science/article/pii/S0012821X22005301
 * https://www.sciencedirect.com/science/article/pii/S0009254101004144
 * https://doi.org/10.1016/j.epsl.2021.117255
