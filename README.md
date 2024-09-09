@@ -22,5 +22,3 @@ Publications using this code should cite the following articles
 * https://www.sciencedirect.com/science/article/pii/S0016703713001841
 * https://www.sciencedirect.com/science/article/pii/S0016703715004391
 * JANAF tables
-
-
