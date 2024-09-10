@@ -64,7 +64,7 @@ docs = [
 # proteus = "proteus.cli:cli"
 
 [tool.setuptools]
-package-dir = {"proteus" = "src/calliope" }
+package-dir = {"calliope" = "src/calliope" }
 include-package-data = true
 
 [tool.coverage.run]
@@ -73,9 +73,6 @@ source = ["calliope"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = [
-  ".", "src",
-]
 
 [tool.ruff]
 line-length = 96
