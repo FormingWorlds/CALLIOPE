@@ -14,7 +14,7 @@ class ModifiedKeq:
         self.fO2 = OxygenFugacity(fO2_model)
         self.callmodel = getattr(self, Keq_model)
 
-    def __call__(self, T, fO2_shift=0):
+    def __call__(self, T, fO2_shift):
         fO2 = self.fO2(T, fO2_shift)
         Keq, fO2_stoich = self.callmodel(T)
         Geq = 10**(Keq-fO2_stoich*fO2)
@@ -41,7 +41,12 @@ class ModifiedKeq:
         '''JANAF log10Keq, 1500 < K < 3000 for H2O = H2 + 0.5 fO2'''
         return (-13152.477779978302/T + 3.038586383273608, 0.5)
 
-    def janaf_S(self, T):
+    def janaf_SO2(self, T):
         # JANAF log10Keq, 900 < K < 2000 for 0.5 S2 + O2 = SO2
         # https://doi.org/10.1016/j.gca.2022.08.032
         return (18887.0/T - 3.8064, 1)
+
+    def janaf_H2S(self, T):
+        # JANAF log10Keq, 200 < K < 4000 for 0.5 S2 + H2 = 0.5 H2S
+        # See notebook in `tools/`
+        return (6731.01547/T - 3.62273031, 0)
