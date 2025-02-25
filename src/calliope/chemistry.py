@@ -33,11 +33,11 @@ class ModifiedKeq:
         '''Schaefer log10Keq for H2O = H2 + 0.5 fO2'''
         return (-12794/T + 2.7768, 0.5)
 
-    def janaf_C(self, T):
+    def janaf_CO(self, T):
         '''JANAF log10Keq, 1500 < K < 3000 for CO2 = CO + 0.5 fO2'''
         return (-14467.511400133637/T + 4.348135473316284, 0.5)
 
-    def janaf_H(self, T):
+    def janaf_H2(self, T):
         '''JANAF log10Keq, 1500 < K < 3000 for H2O = H2 + 0.5 fO2'''
         return (-13152.477779978302/T + 3.038586383273608, 0.5)
 
@@ -50,3 +50,8 @@ class ModifiedKeq:
         # JANAF log10Keq, 200 < K < 4000 for 0.5 S2 + H2 = 0.5 H2S
         # See notebook in `tools/`
         return (6731.01547/T - 3.62273031, 0)
+
+    def janaf_NH3(self, T):
+        # JANAF log10Keq, 200 < K < 4000 for N2 + 3 H2 = 2 NH3
+        # See notebook in `tools/`
+        return ( 2664.015623/T - 5.99238046, 0)

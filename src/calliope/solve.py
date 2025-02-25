@@ -56,7 +56,7 @@ def get_partial_pressures(pin, ddict):
 
     # H2
     if is_included("H2", ddict):
-        gamma = ModifiedKeq('janaf_H')
+        gamma = ModifiedKeq('janaf_H2')
         gamma = gamma(ddict['T_magma'], fO2_shift)
         p_d['H2'] = gamma*pin["H2O"]
 
@@ -65,7 +65,7 @@ def get_partial_pressures(pin, ddict):
 
     # CO
     if is_included("CO", ddict):
-        gamma = ModifiedKeq('janaf_C')
+        gamma = ModifiedKeq('janaf_CO')
         gamma = gamma(ddict['T_magma'], fO2_shift)
         p_d['CO'] = gamma*pin["CO2"]
 
@@ -77,6 +77,12 @@ def get_partial_pressures(pin, ddict):
 
     # N2
     p_d['N2']  = pin['N2']
+
+    # NH3
+    if is_included("NH3", ddict):
+        gamma = ModifiedKeq('janaf_NH3')
+        gamma = gamma(ddict['T_magma'], fO2_shift)
+        p_d['NH3']  = (gamma*pin['N2']*p_d['H2']**3)**0.5
 
     # O2
     fO2_model = OxygenFugacity()
@@ -140,6 +146,8 @@ def atmosphere_mass(pin, ddict):
         mass_atm_d['H'] += 4*mass_atm_d['CH4'] / molar_mass['CH4']    # note factor 4 to account for stoichiometry
     if is_included("H2S", ddict):
         mass_atm_d['H'] += 2*mass_atm_d['H2S'] / molar_mass['H2S']
+    if is_included("NH3", ddict):
+        mass_atm_d['H'] += 3*mass_atm_d['NH3'] / molar_mass['NH3']
     # below converts moles of H2 to mass of H
     mass_atm_d['H'] *= molar_mass['H']
 
@@ -153,7 +161,10 @@ def atmosphere_mass(pin, ddict):
     mass_atm_d['C'] *= molar_mass['C']
 
     # total mass of N
-    mass_atm_d['N'] = mass_atm_d['N2']
+    mass_atm_d['N'] = 2*mass_atm_d['N2']/molar_mass['N2']
+    if is_included("NH3", ddict):
+        mass_atm_d['N'] += 3*mass_atm_d['NH3'] / molar_mass['NH3']
+    mass_atm_d['N'] *= molar_mass['N']
 
     # total mass of O
     mass_atm_d['O'] = mass_atm_d['H2O'] / molar_mass['H2O']
@@ -358,6 +369,8 @@ def get_target_from_pressures(ddict):
 
     # Check if no nitrogen is present
     ptot_N = pin_dict["N2"]
+    if is_included("NH3", ddict):
+        ptot_N += pin_dict["NH3"]
     if ptot_N < 1.0e-20:
         target_d['N'] = 0.0
 
