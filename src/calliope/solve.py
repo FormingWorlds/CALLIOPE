@@ -87,9 +87,15 @@ def get_partial_pressures(pin, ddict):
 
     # SO2
     if is_included("SO2", ddict):
-        gamma = ModifiedKeq('janaf_S')
+        gamma = ModifiedKeq('janaf_SO2')
         gamma = gamma(ddict['T_magma'], fO2_shift)
         p_d['SO2']  = (gamma*pin['S2']*p_d['O2']**2)**0.5
+
+    # H2S
+    if is_included("H2S", ddict):
+        gamma = ModifiedKeq('janaf_H2S')
+        gamma = gamma(ddict['T_magma'], fO2_shift)
+        p_d['H2S']  = (gamma*pin['S2']*p_d['H2']**2)**0.5
 
     return p_d
 
@@ -132,6 +138,8 @@ def atmosphere_mass(pin, ddict):
         mass_atm_d['H'] += 2*mass_atm_d['H2'] / molar_mass['H2']
     if is_included('CH4', ddict):
         mass_atm_d['H'] += 4*mass_atm_d['CH4'] / molar_mass['CH4']    # note factor 4 to account for stoichiometry
+    if is_included("H2S", ddict):
+        mass_atm_d['H'] += 2*mass_atm_d['H2S'] / molar_mass['H2S']
     # below converts moles of H2 to mass of H
     mass_atm_d['H'] *= molar_mass['H']
 
@@ -162,6 +170,8 @@ def atmosphere_mass(pin, ddict):
     mass_atm_d['S'] = mass_atm_d['S2'] / molar_mass['S2']
     if is_included("SO2", ddict):
         mass_atm_d['S'] += mass_atm_d['SO2'] / molar_mass['SO2']
+    if is_included("H2S", ddict):
+        mass_atm_d['S'] += mass_atm_d['H2S'] / molar_mass['H2S']
     mass_atm_d['S'] *= molar_mass['S']
 
     return mass_atm_d
@@ -334,6 +344,8 @@ def get_target_from_pressures(ddict):
     ptot_S = pin_dict["S2"]
     if is_included("SO2", ddict):
         ptot_S += pin_dict["SO2"]
+    if is_included("H2S", ddict):
+        ptot_S += pin_dict["H2S"]
     if ptot_S < 1.0e-20:
         target_d['S'] = 0.0
 
