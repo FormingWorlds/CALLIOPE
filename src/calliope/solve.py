@@ -35,6 +35,7 @@ log = logging.getLogger("fwl."+__name__)
 # Solve for the equilibrium chemistry of a magma ocean atmosphere
 # for a given set of solubility and redox relations
 
+TRUNC_MASS = 1e2
 
 def is_included(gas, ddict):
     return bool(ddict[gas+"_included"]>0)
@@ -276,12 +277,7 @@ def func(pin_arr, ddict, mass_target_d):
     res_l = []
     for vol in ['H','C','N','S']:
         # absolute residual
-        res = mass_atm_d[vol] + mass_int_d[vol] - mass_target_d[vol]
-        # if target is not zero, compute relative residual
-        # otherwise, zero target is already solved with zero pressures
-        if mass_target_d[vol]:
-            res /= mass_target_d[vol]
-        res_l.append(res)
+        res_l.append(mass_atm_d[vol] + mass_int_d[vol] - mass_target_d[vol])
 
     # Debug
     # H_kg = (2*mass_atm_d["H2O"]/molar_mass["H2O"] + 2*mass_atm_d["H2"]/molar_mass["H2"] + 4*mass_atm_d["CH4"]/molar_mass["CH4"]) *molar_mass['H']
@@ -309,15 +305,13 @@ def get_initial_pressures(target_d):
     pN2  = get_log_rand(cN2 )
     pS2  = get_log_rand(cS2)
 
-    mass_min = 1.0 # kg
-
-    if target_d['H'] < mass_min:
+    if target_d['H'] < TRUNC_MASS:
         pH2O = 0.0
-    if target_d['C'] < mass_min:
+    if target_d['C'] < TRUNC_MASS:
         pCO2 = 0.0
-    if target_d['N'] < mass_min:
+    if target_d['N'] < TRUNC_MASS:
         pN2  = 0.0
-    if target_d['S'] < mass_min:
+    if target_d['S'] < TRUNC_MASS:
         pS2 = 0.0
 
     return pH2O, pCO2, pN2, pS2
@@ -385,14 +379,23 @@ def get_target_from_pressures(ddict):
 
     return target_d
 
-def equilibrium_atmosphere(target_d, ddict, hide_warnings=True):
+def equilibrium_atmosphere(target_d, ddict, hide_warnings=True, rtol=1e-5, p_guess=None):
     """Solves for surface partial pressures assuming melt-vapour eqm
 
 
     Parameters
     ----------
+        target_d : dict
+            Target elemental mass inventories [kg]
         ddict : dict
             Dictionary of coupler options variables
+
+        hide_warnings : bool
+            Hide floating point runtime warnings
+        rtol : float
+            Relative tolerance for convergence
+        p_guess : dict
+            Dictionary of initial guess for partial pressures [bar]
 
     Returns
     ----------
@@ -409,6 +412,11 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True):
     max_attempts = 7000
     ier = 0
 
+    # guess
+    x0 = None
+    if p_guess is not None:
+        x0 = (p_guess["H2O"], p_guess["CO2"], p_guess["N2"], p_guess["S2"])
+
     # do calculation
     with warnings.catch_warnings():
         # Suppress warnings from solver, since they are triggered when
@@ -422,7 +430,7 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True):
         # this doesn't seem to happen)
         while ier != 1:
             x0 = get_initial_pressures(target_d)
-            sol, info, ier, msg = fsolve(func, x0, args=(ddict, target_d), full_output=True)
+            sol, info, ier, msg = fsolve(func, x0, args=(ddict, target_d), full_output=True, xtol=rtol)
             count += 1
 
             # if any negative pressures, report ier!=1
@@ -432,7 +440,8 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True):
 
             # check residuals
             this_resid = func(sol, ddict, target_d)
-            if np.amax(np.abs(this_resid)) > 1.0:
+            tolerance = np.amax(list(target_d.values())) * rtol + TRUNC_MASS # rtol + atol
+            if np.amax(np.abs(this_resid)) > tolerance:
                 ier = 0
 
             # give up after a while
