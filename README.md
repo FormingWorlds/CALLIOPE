@@ -15,11 +15,11 @@ https://fwl-calliope.readthedocs.io/en/latest/
 ## Contributors
 | Name  | Email address |
 | -     | -             |
-Harrison Nicholls       | harrison.nicholls[at]physics.ox.ac.uk |
-Dan J. Bower            | dbower[at]ethz.ch |
-Tim Lichtenberg         | tim.lichtenberg[at]rug.nl |
-Laurent Soucasse        | l.soucasse[at]esciencecenter.nl |
-Stef Smeets             | s.smeets[at]esciencecenter.nl |
+| Harrison Nicholls       | harrison.nicholls[at]physics.ox.ac.uk |
+| Dan J. Bower            | dbower[at]ethz.ch |
+| Tim Lichtenberg         | tim.lichtenberg[at]rug.nl |
+| Laurent Soucasse        | l.soucasse[at]esciencecenter.nl |
+| Stef Smeets             | s.smeets[at]esciencecenter.nl |
 
 ## Installation
 
@@ -29,8 +29,12 @@ Simply run `pip install -e .` in this folder and `calliope` will be added to you
 
 Publications using this code should cite the following articles:
 
-* Nicholls et al., (submitted to JGR: planets)
+* [Nicholls et al. (2024)](https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2024JE008576)
+* [Nicholls et al. (2025)](https://academic.oup.com/mnras/article/536/3/2957/7926963?login=true)
 * https://www.sciencedirect.com/science/article/pii/S0012821X22005301
+
+Further references:
+
 * https://www.sciencedirect.com/science/article/pii/S0009254101004144
 * https://doi.org/10.1016/j.epsl.2021.117255
 * https://academic.oup.com/petrology/article/36/6/1607/1493308

@@ -50,11 +50,11 @@ pip-compile -o requirements_full.txt pyproject.toml
 
 ```console
 bump-my-version bump release
-# 25.03.14
+# 25.04.28
 ```
 
 2. Commit and push your changes.
 
-3. Make a new [release](https://github.com/FormingWorlds/CALLIOPE/releases). Make sure to set the tag to the specified version, e.g. `25.03.14`.
+3. Make a new [release](https://github.com/FormingWorlds/CALLIOPE/releases). Make sure to set the tag to the specified version, e.g. `25.04.28`.
 
 4. The [upload to pypi](https://pypi.org/project/fwl-calliope) is triggered when a release is published and handled by [this workflow](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/publish.yaml).

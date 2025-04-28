@@ -412,12 +412,14 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True, rtol=1e-5, p_gue
     max_attempts = 7000
     ier = 0
 
-    # guess
-    x0 = None
-    if p_guess is not None:
+    # initial guess
+    if p_guess is None:
+        x0 = get_initial_pressures(target_d)
+    else:
         x0 = (p_guess["H2O"], p_guess["CO2"], p_guess["N2"], p_guess["S2"])
 
     # do calculation
+    success = False
     with warnings.catch_warnings():
         # Suppress warnings from solver, since they are triggered when
         # the model makes a poor guess for the composition. These are then discarded,
@@ -428,25 +430,30 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True, rtol=1e-5, p_gue
         # could in principle result in an infinite loop, if randomising
         # the ic never finds the physical solution (but in practice,
         # this doesn't seem to happen)
-        while ier != 1:
-            x0 = get_initial_pressures(target_d)
+        for count in range(max_attempts):
             sol, info, ier, msg = fsolve(func, x0, args=(ddict, target_d), full_output=True, xtol=rtol)
-            count += 1
 
             # if any negative pressures, report ier!=1
             if any(sol<0):
                 # sometimes, a solution exists with negative pressures, which is clearly non-physical.  Here, assert we must have positive pressures.
-                ier = 0
+                success = False
 
             # check residuals
             this_resid = func(sol, ddict, target_d)
             tolerance = np.amax(list(target_d.values())) * rtol + TRUNC_MASS # rtol + atol
             if np.amax(np.abs(this_resid)) > tolerance:
-                ier = 0
+                success = False
 
-            # give up after a while
-            if count > max_attempts:
-                raise Exception("Could not find solution for volatile abundances (max attempts reached)")
+            # otherwise, success!
+            if ier == 1:
+                success = True
+                break
+
+            # new initial guess for solver
+            x0 = get_initial_pressures(target_d)
+
+    if not success:
+        raise RuntimeError("Could not find solution for volatile abundances (max attempts, %d)" % max_attempts)
 
     log.debug("    Initial guess attempt number = %d" % count)
 
