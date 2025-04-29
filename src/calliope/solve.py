@@ -35,7 +35,7 @@ log = logging.getLogger("fwl."+__name__)
 # Solve for the equilibrium chemistry of a magma ocean atmosphere
 # for a given set of solubility and redox relations
 
-TRUNC_MASS = 1e2
+TRUNC_MASS = 1e1
 
 def is_included(gas, ddict):
     return bool(ddict[gas+"_included"]>0)
@@ -186,6 +186,9 @@ def atmosphere_mass(pin, ddict):
         mass_atm_d['S'] += mass_atm_d['H2S'] / molar_mass['H2S']
     mass_atm_d['S'] *= molar_mass['S']
 
+    for e in element_list:
+        mass_atm_d[e] = max(0.0, mass_atm_d[e])
+
     return mass_atm_d
 
 
@@ -255,6 +258,9 @@ def dissolved_mass(pin, ddict):
 
     mass_int_d['S'] = mass_int_d['S2']
 
+    for e in element_list:
+        mass_int_d[e] = max(0.0, mass_int_d[e])
+
     return mass_int_d
 
 def func(pin_arr, ddict, mass_target_d):
@@ -295,10 +301,10 @@ def get_initial_pressures(target_d):
     """Get initial guesses of partial pressures"""
 
     # all in bar
-    cH2O = [-10, +5]  # range in log10 units
-    cCO2 = [-10, +5]
-    cN2  = [-10, +5]
-    cS2  = [-10, +5]
+    cH2O = [-12, +5]  # range in log10 units
+    cCO2 = [-12, +5]
+    cN2  = [-12, +5]
+    cS2  = [-12, +5]
 
     pH2O = get_log_rand(cH2O)
     pCO2 = get_log_rand(cCO2)
@@ -379,7 +385,9 @@ def get_target_from_pressures(ddict):
 
     return target_d
 
-def equilibrium_atmosphere(target_d, ddict, hide_warnings=True, rtol=1e-5, p_guess=None):
+def equilibrium_atmosphere(target_d, ddict, hide_warnings=True,
+                            rtol=1e-5, atol=1e10, xtol=1e-9,
+                            p_guess=None, nsolve=1500, nguess=7500):
     """Solves for surface partial pressures assuming melt-vapour eqm
 
 
@@ -393,9 +401,17 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True, rtol=1e-5, p_gue
         hide_warnings : bool
             Hide floating point runtime warnings
         rtol : float
-            Relative tolerance for convergence
+            Relative tolerance for mass conservation
+        atol : float
+            Absolute tolerance for mass conservation
+        xtol : float
+            Relative tolerance for fsolve
         p_guess : dict
             Dictionary of initial guess for partial pressures [bar]
+        nsolve : int
+            Maximum number of iterations allowed by fsolve
+        nguess : int
+            Maximum number of guesses before giving up
 
     Returns
     ----------
@@ -409,7 +425,6 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True, rtol=1e-5, p_gue
 
     # solver parameters
     count = 0
-    max_attempts = 7000
     ier = 0
 
     # initial guess
@@ -430,30 +445,49 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True, rtol=1e-5, p_gue
         # could in principle result in an infinite loop, if randomising
         # the ic never finds the physical solution (but in practice,
         # this doesn't seem to happen)
-        for count in range(max_attempts):
-            sol, info, ier, msg = fsolve(func, x0, args=(ddict, target_d), full_output=True, xtol=rtol)
+        for count in range(nguess):
+
+            # for non-dimensionalising within the solver
+            scalars = [1.0, 1.0, 1.0, 1.0]
+            for i,x in enumerate(x0):
+                if x < TRUNC_MASS:
+                    scalars[i] = 1e-6
+                else:
+                    scalars[i] = x*0.5
+
+            # call solver
+            sol, info, ier, msg = fsolve(func, x0, args=(ddict, target_d),
+                                            full_output=True,
+                                            epsfcn=1e-1, diag=scalars,
+                                            xtol=xtol, maxfev=nsolve)
+
+            # solver converged?
+            success = bool(ier == 1)
 
             # if any negative pressures, report ier!=1
             if any(sol<0):
-                # sometimes, a solution exists with negative pressures, which is clearly non-physical.  Here, assert we must have positive pressures.
+                # sometimes, a solution exists with negative pressures, which is clearly non-physical.
+                # Here, assert we must have positive pressures.
                 success = False
 
             # check residuals
             this_resid = func(sol, ddict, target_d)
-            tolerance = np.amax(list(target_d.values())) * rtol + TRUNC_MASS # rtol + atol
-            if np.amax(np.abs(this_resid)) > tolerance:
+            tolerance = np.amax(list(target_d.values())) * rtol + atol + TRUNC_MASS
+            loss = np.amax(np.abs(this_resid))
+            if loss > tolerance:
+                if success:
+                    log.debug("Rejected by residual, d(i=%d) = %.2e kg"%(np.argmax(this_resid), loss))
                 success = False
 
-            # otherwise, success!
-            if ier == 1:
-                success = True
+            # break if success!
+            if success:
                 break
 
             # new initial guess for solver
             x0 = get_initial_pressures(target_d)
 
     if not success:
-        raise RuntimeError("Could not find solution for volatile abundances (max attempts, %d)" % max_attempts)
+        raise RuntimeError("Could not find solution for volatile abundances (max attempts, %d)" % nguess)
 
     log.debug("    Initial guess attempt number = %d" % count)
 
