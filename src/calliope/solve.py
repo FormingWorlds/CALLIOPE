@@ -446,10 +446,22 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True,
         # the ic never finds the physical solution (but in practice,
         # this doesn't seem to happen)
         for count in range(nguess):
-            sol, info, ier, msg = fsolve(func, x0, args=(ddict, target_d),
-                                            epsfcn=TRUNC_MASS,
-                                            full_output=True, xtol=xtol, maxfev=nsolve)
 
+            # for non-dimensionalising within the solver
+            scalars = [1.0, 1.0, 1.0, 1.0]
+            for i,x in enumerate(x0):
+                if x < TRUNC_MASS:
+                    scalars[i] = 1e-6
+                else:
+                    scalars[i] = x*0.5
+
+            # call solver
+            sol, info, ier, msg = fsolve(func, x0, args=(ddict, target_d),
+                                            full_output=True,
+                                            epsfcn=1e-1, diag=scalars,
+                                            xtol=xtol, maxfev=nsolve)
+
+            # solver converged?
             success = bool(ier == 1)
 
             # if any negative pressures, report ier!=1
