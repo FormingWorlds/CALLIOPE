@@ -405,7 +405,8 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True,
     """
 
 
-    log.info("Solving for equilibrium partial pressures at surface")
+    if print_result:
+        log.info("Solving for equilibrium partial pressures at surface")
     log.debug("    target masses: %s"%str(target_d))
 
     # Default bounds on volatile partial pressures [bar]
