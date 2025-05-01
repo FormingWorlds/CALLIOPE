@@ -4,7 +4,7 @@ import logging
 import warnings
 
 import numpy as np
-from scipy.optimize import fsolve
+import scipy.optimize as opt
 
 from .chemistry import ModifiedKeq
 from .constants import (
@@ -270,7 +270,7 @@ def func(pin_arr, ddict, mass_target_d):
         "H2O" : pin_arr[0],
         "CO2" : pin_arr[1],
         "N2"  : pin_arr[2],
-        "S2" : pin_arr[3]
+        "S2" :  pin_arr[3]
     }
 
     # get atmospheric masses
@@ -280,45 +280,27 @@ def func(pin_arr, ddict, mass_target_d):
     mass_int_d = dissolved_mass(pin_dict, ddict)
 
     # compute residuals
-    res_l = []
-    for vol in ['H','C','N','S']:
-        # absolute residual
-        res_l.append(mass_atm_d[vol] + mass_int_d[vol] - mass_target_d[vol])
-
-    # Debug
-    # H_kg = (2*mass_atm_d["H2O"]/molar_mass["H2O"] + 2*mass_atm_d["H2"]/molar_mass["H2"] + 4*mass_atm_d["CH4"]/molar_mass["CH4"]) *molar_mass['H']
-    # C_kg = (mass_atm_d["CO2"]/molar_mass["CO2"] + mass_atm_d["CO"]/molar_mass["CO"] + mass_atm_d["CH4"]/molar_mass["CH4"]) * molar_mass['C']
-    # N_kg = mass_atm_d["N2"]
-    # print("Post:", H_kg, C_kg, N_kg)
+    res_l = [0.0]*4
+    for i,vol in enumerate(['H','C','N','S']):
+        res_l[i] = mass_atm_d[vol] + mass_int_d[vol] - mass_target_d[vol]
 
     return res_l
 
-def get_log_rand(rng):
-    r = np.random.uniform(low=rng[0], high=rng[1])
-    return 10.0**r
+def obj(pin_arr, ddict, mass_target_d):
+    """Function to compute the residual of the mass balance given the partial pressures [bar]"""
+
+    res_l = func(pin_arr, ddict, mass_target_d)
+    return np.dot(res_l, res_l)**0.5
+
 
 def get_initial_pressures(target_d):
     """Get initial guesses of partial pressures"""
 
-    # all in bar
-    cH2O = [-12, +5]  # range in log10 units
-    cCO2 = [-12, +5]
-    cN2  = [-12, +5]
-    cS2  = [-12, +5]
-
-    pH2O = get_log_rand(cH2O)
-    pCO2 = get_log_rand(cCO2)
-    pN2  = get_log_rand(cN2 )
-    pS2  = get_log_rand(cS2)
-
-    if target_d['H'] < TRUNC_MASS:
-        pH2O = 0.0
-    if target_d['C'] < TRUNC_MASS:
-        pCO2 = 0.0
-    if target_d['N'] < TRUNC_MASS:
-        pN2  = 0.0
-    if target_d['S'] < TRUNC_MASS:
-        pS2 = 0.0
+    # all in log-bar
+    pH2O = 10**np.random.uniform(low=-12, high=5)
+    pCO2 = 10**np.random.uniform(low=-12, high=5)
+    pN2  = 10**np.random.uniform(low=-12, high=5)
+    pS2  = 10**np.random.uniform(low=-12, high=5)
 
     return pH2O, pCO2, pN2, pS2
 
@@ -386,7 +368,7 @@ def get_target_from_pressures(ddict):
     return target_d
 
 def equilibrium_atmosphere(target_d, ddict, hide_warnings=True,
-                            rtol=1e-5, atol=1e10, xtol=1e-9,
+                            rtol=1e-5, atol=1e10, xtol=1e-8,
                             p_guess=None, nsolve=1500, nguess=7500):
     """Solves for surface partial pressures assuming melt-vapour eqm
 
@@ -423,67 +405,64 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True,
     log.info("Solving for equilibrium partial pressures at surface")
     log.debug("    target masses: %s"%str(target_d))
 
-    # solver parameters
-    count = 0
-    ier = 0
+    # Default bounds on volatile partial pressures [bar]
+    lb = [0.0]*4
+    ub = [1e6]*4
 
-    # initial guess
+    # Initial guess for partial pressure [bar]
     if p_guess is None:
         x0 = get_initial_pressures(target_d)
     else:
         x0 = (p_guess["H2O"], p_guess["CO2"], p_guess["N2"], p_guess["S2"])
 
-    # do calculation
-    success = False
+        # if guess for partial pressure is zero, do not use a large constraint
+        for i in range(4):
+            ub[i] = 1e6 if (x0[i] > 1e-10) else 1.0
+
+    # Create bounds object
+    bounds = opt.Bounds(lb=lb, ub=ub)
+
+    # Tolerance on mass residual
+    tolerance = np.amax(list(target_d.values())) * rtol + atol + TRUNC_MASS
+    log.debug("Required tolerance: %g"%tolerance)
+
+    # Do the calculation
     with warnings.catch_warnings():
         # Suppress warnings from solver, since they are triggered when
         # the model makes a poor guess for the composition. These are then discarded,
         # so the warning should not propagate anywhere. Errors are still printed.
         if hide_warnings:
             warnings.filterwarnings("ignore", category=RuntimeWarning)
+            warnings.filterwarnings("ignore", category=UserWarning)
 
-        # could in principle result in an infinite loop, if randomising
-        # the ic never finds the physical solution (but in practice,
-        # this doesn't seem to happen)
+        # Monte-carlo initial guess for solver
         for count in range(nguess):
 
-            # for non-dimensionalising within the solver
-            scalars = [1.0, 1.0, 1.0, 1.0]
-            for i,x in enumerate(x0):
-                if x < TRUNC_MASS:
-                    scalars[i] = 1e-6
-                else:
-                    scalars[i] = x*0.5
+            # Call solver
+            result = opt.minimize(obj, x0, args=(ddict, target_d),
+                                    method='trust-constr',
+                                    bounds=bounds,
+                                    options={"maxiter":nsolve, "xtol":xtol})
 
-            # call solver
-            sol, info, ier, msg = fsolve(func, x0, args=(ddict, target_d),
-                                            full_output=True,
-                                            epsfcn=1e-1, diag=scalars,
-                                            xtol=xtol, maxfev=nsolve)
+            # Extract result from solver
+            success = result.success
+            sol = result.x
+            print(result)
 
-            # solver converged?
-            success = bool(ier == 1)
-
-            # if any negative pressures, report ier!=1
-            if any(sol<0):
-                # sometimes, a solution exists with negative pressures, which is clearly non-physical.
-                # Here, assert we must have positive pressures.
-                success = False
-
-            # check residuals
+            # Check that residuals satisfy the tolerance
             this_resid = func(sol, ddict, target_d)
-            tolerance = np.amax(list(target_d.values())) * rtol + atol + TRUNC_MASS
             loss = np.amax(np.abs(this_resid))
             if loss > tolerance:
                 if success:
-                    log.debug("Rejected by residual, d(i=%d) = %.2e kg"%(np.argmax(this_resid), loss))
+                    log.debug("Solution rejected by residual")
+                    log.debug("    d(i=%d) = %.2e kg"%(np.argmax(this_resid), loss))
                 success = False
 
-            # break if success!
+            # Break loop if successful
             if success:
                 break
 
-            # new initial guess for solver
+            # Not successful => new initial guess for solver
             x0 = get_initial_pressures(target_d)
 
     if not success:
@@ -491,23 +470,24 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True,
 
     log.debug("    Initial guess attempt number = %d" % count)
 
+    # Residuals, mass loss of each element in [kg]
+    res_l      = func(sol, ddict, target_d)
+    log.debug("    Residuals: %s"%res_l)
+
+    # Store as dictionary of pressures [bar]
     sol_dict = {
         "H2O" : sol[0],
         "CO2" : sol[1],
         "N2"  : sol[2],
-        "S2" : sol[3]
+        "S2" :  sol[3]
     }
 
     # Final partial pressures [bar]
-    p_d        = get_partial_pressures(sol_dict, ddict)
+    p_d = get_partial_pressures(sol_dict, ddict)
 
     # Final masses [kg]
     mass_atm_d = atmosphere_mass(p_d, ddict)
     mass_int_d = dissolved_mass(p_d, ddict)
-
-    # Residuals [relative]
-    res_l      = func(sol, ddict, target_d)
-    log.debug("    Residuals: %s"%res_l)
 
     # Output dict
     outdict = {"M_atm":0.0}
