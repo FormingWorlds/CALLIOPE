@@ -369,7 +369,8 @@ def get_target_from_pressures(ddict):
 
 def equilibrium_atmosphere(target_d, ddict, hide_warnings=True,
                             rtol=1e-5, atol=1e10, xtol=1e-8,
-                            p_guess=None, nsolve=1500, nguess=7500):
+                            p_guess=None, nsolve=1500, nguess=7500,
+                            print_result=True):
     """Solves for surface partial pressures assuming melt-vapour eqm
 
 
@@ -394,6 +395,8 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True,
             Maximum number of iterations allowed by fsolve
         nguess : int
             Maximum number of guesses before giving up
+        print_result: bool
+            Print outgassed partial pressures?
 
     Returns
     ----------
@@ -447,7 +450,6 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True,
             # Extract result from solver
             success = result.success
             sol = result.x
-            print(result)
 
             # Check that residuals satisfy the tolerance
             this_resid = func(sol, ddict, target_d)
@@ -512,7 +514,9 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True,
     for s in volatile_species:
         outdict[s+"_vmr"] = outdict[s+"_bar"]/outdict["P_surf"]
 
-        log.info("    %-6s : %-8.2f bar (%.2e VMR)" % (s,outdict[s+"_bar"], outdict[s+"_vmr"]))
+        if print_result:
+            log.info("    %-6s : %-8.2f bar (%.2e VMR)" %
+                         (s,outdict[s+"_bar"], outdict[s+"_vmr"]))
 
     # Store masses of both gases and elements
     all = [s for s in volatile_species]
