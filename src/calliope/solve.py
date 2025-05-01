@@ -411,7 +411,7 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True,
 
     # Default bounds on volatile partial pressures [bar]
     lb = [0.0]*4
-    ub = [1e6]*4
+    ub = [1e7]*4
 
     # Initial guess for partial pressure [bar]
     if p_guess is None:
@@ -421,7 +421,7 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True,
 
         # if guess for partial pressure is zero, do not use a large constraint
         for i in range(4):
-            ub[i] = 1e6 if (x0[i] > 1e-10) else 1.0
+            ub[i] = ub[i] if (x0[i] > 1e-10) else 1.0
 
     # Create bounds object
     bounds = opt.Bounds(lb=lb, ub=ub)
@@ -440,17 +440,28 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True,
             warnings.filterwarnings("ignore", category=UserWarning)
 
         # Monte-carlo initial guess for solver
+        solver:int = 0
         for count in range(nguess):
 
-            # Call solver
-            result = opt.minimize(obj, x0, args=(ddict, target_d),
-                                    method='trust-constr',
-                                    bounds=bounds,
-                                    options={"maxiter":nsolve, "xtol":xtol})
+            # Use root finding solver
+            if solver == 0:
+                sol, _, ier, _ = opt.fsolve(func, x0, args=(ddict, target_d),
+                                                maxfev=nsolve,
+                                                xtol=xtol, full_output=True)
+                success = bool(ier == 1)
 
-            # Extract result from solver
-            success = result.success
-            sol = result.x
+            # Use minimisation solver
+            elif solver == 1:
+                result = opt.minimize(obj, x0, args=(ddict, target_d),
+                                        method='trust-constr',
+                                        bounds=bounds,
+                                        options={"maxiter":nsolve, "xtol":xtol})
+                success = result.success
+                sol = result.x
+
+            # Catch invalid cases
+            else:
+                raise ValueError(f"Invalid solver: {solver}")
 
             # Check that residuals satisfy the tolerance
             this_resid = func(sol, ddict, target_d)
@@ -467,6 +478,12 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True,
 
             # Not successful => new initial guess for solver
             x0 = get_initial_pressures(target_d)
+
+            # Switch solver
+            if solver == 0:
+                solver = 1
+            else:
+                solver = 0
 
     if not success:
         raise RuntimeError("Could not find solution for volatile abundances (max attempts, %d)" % nguess)
