@@ -52,6 +52,10 @@ def get_partial_pressures(pin, ddict):
     # corresponds to which volatile
     p_d = {}
 
+    # set zeros
+    for s in volatile_species:
+        p_d[s] = 0.0
+
     # H2O
     p_d['H2O'] = pin['H2O']
 
@@ -99,10 +103,14 @@ def get_partial_pressures(pin, ddict):
         p_d['SO2']  = (gamma*pin['S2']*p_d['O2']**2)**0.5
 
     # H2S
-    if is_included("H2S", ddict):
+    if is_included("H2S", ddict) and is_included("H2", ddict):
         gamma = ModifiedKeq('janaf_H2S')
         gamma = gamma(ddict['T_magma'], fO2_shift)
         p_d['H2S']  = (gamma*pin['S2']*p_d['H2']**2)**0.5
+
+    # Ensure positive
+    for k in p_d.keys():
+        p_d[k] = max(0.0, p_d[k])
 
     return p_d
 
@@ -169,6 +177,7 @@ def atmosphere_mass(pin, ddict):
 
     # total mass of O
     mass_atm_d['O'] = mass_atm_d['H2O'] / molar_mass['H2O']
+    mass_atm_d['O'] += mass_atm_d['O2'] / molar_mass['O2']
     if is_included("CO", ddict):
         mass_atm_d['O'] += mass_atm_d['CO'] / molar_mass['CO']
     if is_included("CO2", ddict):
@@ -218,12 +227,16 @@ def dissolved_mass(pin, ddict):
         sol_CO = SolubilityCO() # gets the default solubility model
         ppmw_CO = sol_CO(p_d["CO"], ptot)
         mass_int_d['CO'] = prefactor*ppmw_CO
+    else:
+        mass_int_d['CO'] = 0.0
 
     # CH4
     if is_included("CH4", ddict):
         sol_CH4 = SolubilityCH4() # gets the default solubility model
         ppmw_CH4 = sol_CH4(p_d["CH4"], ptot)
         mass_int_d['CH4'] = prefactor*ppmw_CH4
+    else:
+        mass_int_d['CH4'] = 0.0
 
     # N2
     sol_N2 = SolubilityN2("dasgupta") # calculate fO2-dependent solubility
@@ -370,7 +383,7 @@ def get_target_from_pressures(ddict):
 def equilibrium_atmosphere(target_d, ddict, hide_warnings=True,
                             rtol=1e-5, atol=1e10, xtol=1e-8,
                             p_guess=None, nsolve=1500, nguess=7500,
-                            print_result=True):
+                            print_result=True, opt_solver=True):
     """Solves for surface partial pressures assuming melt-vapour eqm
 
 
@@ -397,6 +410,8 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True,
             Maximum number of guesses before giving up
         print_result: bool
             Print outgassed partial pressures?
+        opt_solver: bool
+            Allow use of optimization solver
 
     Returns
     ----------
@@ -480,10 +495,11 @@ def equilibrium_atmosphere(target_d, ddict, hide_warnings=True,
             x0 = get_initial_pressures(target_d)
 
             # Switch solver
-            if solver == 0:
-                solver = 1
-            else:
-                solver = 0
+            if opt_solver:
+                if solver == 0:
+                    solver = 1
+                else:
+                    solver = 0
 
     if not success:
         raise RuntimeError("Could not find solution for volatile abundances (max attempts, %d)" % nguess)
