@@ -4,13 +4,16 @@
 
 # CALLIOPE
 
-Numerical model for the equilibrium outgassing of volatiles from a magma ocean.
+Numerical solver for the equilibrium outgassing of volatiles on semi-molten planets.
+Accounts for the dissolution of volatile atmospheric gases into an underlying magma ocean alongside gas-phase thermochemistry.
 
 Named after the [Greek muse of eloquence and epic poetry](https://en.wikipedia.org/wiki/Calliope).
 Prounounced: *kal-IGH-uh-pee*.
 
+Supported gases: H₂O, CO₂, O₂, H₂, CH₄, CO, N₂, NH₃, S₂, SO₂, H₂S.
+
 ## Documentation
-https://fwl-calliope.readthedocs.io/en/latest/
+https://fwl-calliope.readthedocs.io/
 
 ## Contributors
 | Name  | Email address |
