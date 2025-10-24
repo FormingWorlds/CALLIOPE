@@ -40,13 +40,13 @@ dependencies = [
 [project.urls]
 homepage = "https://github.com/FormingWorlds/CALLIOPE"
 issues = "https://github.com/FormingWorlds/CALLIOPE/issues"
-documentation = "https://fwl-proteus.readthedocs.io"
+documentation = "https://fwl-calliope.readthedocs.io"
 changelog = "https://github.com/FormingWorlds/CALLIOPE/releases"
 
 [project.optional-dependencies]
 develop = [
     "bump-my-version",
-    "coverage[toml]",
+    "coverage",
     "pip-tools",
     "pytest >= 8.1",
     "pre-commit",
