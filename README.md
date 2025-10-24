@@ -1,6 +1,7 @@
 [![Tests for CALLIOPE](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml/badge.svg)](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml)
 [![Documentation Status](https://readthedocs.org/projects/fwl-calliope/badge/?version=latest)](https://fwl-calliope.readthedocs.io/en/latest/?badge=latest)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![badge](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/nichollsh/735833097e88c92da096591d3e6b270a/raw/covbadge.svg)](https://github.com/FormingWorlds/CALLIOPE/actions)
 
 # CALLIOPE
 
