@@ -1,21 +1,21 @@
 from __future__ import annotations
 
 import math
+
 import pytest
 
+from calliope.chemistry import ModifiedKeq
 from calliope.constants import (
     M_earth,
     R_earth,
-    ocean_moles,
-    molar_mass,
-    volatile_species,
     element_list,
+    molar_mass,
+    ocean_moles,
+    volatile_species,
 )
 from calliope.oxygen_fugacity import OxygenFugacity
-from calliope.chemistry import ModifiedKeq
-from calliope.structure import calculate_mantle_mass
 from calliope.solubility import SolubilityH2O
-
+from calliope.structure import calculate_mantle_mass
 
 # ---------- Oxygen fugacity tests ----------
 
