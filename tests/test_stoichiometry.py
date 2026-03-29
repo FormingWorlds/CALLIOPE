@@ -115,10 +115,6 @@ class TestAtmosphericStoichiometry:
         # Compute N mass analytically from all N-bearing species
         from calliope.solve import atmosphere_mean_molar_mass
         mu = atmosphere_mean_molar_mass(p_d)
-        n_moles_from_N2 = 2 * _column_mass(p_d["N2"]) * molar_mass["N2"] / (mu * molar_mass["N2"])
-        n_moles_from_NH3 = 1 * _column_mass(p_d["NH3"]) * molar_mass["NH3"] / (mu * molar_mass["NH3"])
-
-        # Simplify: N moles = 2*(mass_N2/M_N2) + 1*(mass_NH3/M_NH3)
         mass_N2_kg = p_d["N2"] * 1e5 / 9.81 * 4 * np.pi * (6.371e6)**2 * molar_mass["N2"] / mu
         mass_NH3_kg = p_d["NH3"] * 1e5 / 9.81 * 4 * np.pi * (6.371e6)**2 * molar_mass["NH3"] / mu
 
