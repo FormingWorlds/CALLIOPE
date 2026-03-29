@@ -128,23 +128,27 @@ class TestAtmosphericStoichiometry:
         assert mass["N"] == pytest.approx(expected_N_kg, rel=1e-6)
 
     def test_O_from_O2_uses_factor_2(self):
-        """O2 has 2 O atoms. The O tally must use factor 2."""
+        """O2 has 2 O atoms. The O tally must use factor 2.
+
+        With all primary species near zero, the only O source is O2
+        from the fO2 buffer. The expected O mass = 2*M_O/M_O2 * mass_O2.
+        """
         ddict = _make_ddict()
         pin = {"H2O": 1e-30, "CO2": 1e-30, "N2": 1e-30, "S2": 1e-30}
         p_d, mass = self._get_elemental_masses(pin, ddict)
 
-        # O2 comes from fO2 buffer; at IW it's ~10^-7.4 bar
         from calliope.solve import atmosphere_mean_molar_mass
         mu = atmosphere_mean_molar_mass(p_d)
         mass_O2_kg = p_d["O2"] * 1e5 / 9.81 * 4 * np.pi * (6.371e6)**2 * molar_mass["O2"] / mu
 
-        # O from O2 should be 2 * (mass_O2 / M_O2) * M_O
-        expected_O_from_O2 = 2 * mass_O2_kg / molar_mass["O2"] * molar_mass["O"]
+        # Expected: factor 2 for diatomic O2
+        expected_O = 2 * mass_O2_kg / molar_mass["O2"] * molar_mass["O"]
 
-        # With near-zero other species, O should be dominated by O2 + H2O
-        # Just check O is positive and finite
-        assert mass["O"] > 0
-        assert math.isfinite(mass["O"])
+        # With only O2 contributing (H2O ~ 0), mass["O"] should match
+        assert mass["O"] == pytest.approx(expected_O, rel=0.01), (
+            f"O mass {mass['O']:.4e} != expected {expected_O:.4e} "
+            "(factor-2 for O2 not applied?)"
+        )
 
     def test_elemental_masses_all_positive(self):
         """All elemental masses should be non-negative."""
@@ -276,10 +280,55 @@ class TestEquilibriumChemistry:
         g_h2 = mk_h2(T, 0.0)
         g_co = mk_co(T, 0.0)
 
-        # These should match the precomputed values from before the fix
+        # Precomputed values from before the fix (must not change)
         assert g_h2 == pytest.approx(1.469, rel=1e-2)
-        assert g_co > 0.0
-        assert math.isfinite(g_co)
+        assert g_co == pytest.approx(6.581, rel=1e-2)
+
+    def test_get_partial_pressures_end_to_end(self):
+        """End-to-end test: get_partial_pressures should produce positive,
+        finite pressures for all species and satisfy p_total > 0."""
+        from calliope.solve import get_partial_pressures, get_total_pressure
+
+        ddict = _make_ddict(T=2000.0, fO2_shift=0.0)
+        pin = {"H2O": 100.0, "CO2": 10.0, "N2": 1.0, "S2": 0.1}
+        p_d = get_partial_pressures(pin, ddict)
+
+        # All pressures non-negative and finite
+        for sp, p in p_d.items():
+            assert p >= 0.0, f"{sp} pressure is negative"
+            assert math.isfinite(p), f"{sp} pressure is not finite"
+
+        # Primary species preserved
+        assert p_d["H2O"] == pytest.approx(100.0, rel=1e-10)
+        assert p_d["CO2"] == pytest.approx(10.0, rel=1e-10)
+
+        # Derived species should be present
+        assert p_d["H2"] > 0
+        assert p_d["CO"] > 0
+        assert p_d["SO2"] > 0
+        assert p_d["H2S"] > 0
+        assert p_d["NH3"] > 0
+        assert p_d["O2"] > 0
+
+        # Total pressure should exceed sum of primaries
+        p_total = get_total_pressure(p_d)
+        assert p_total > 111.1  # > H2O + CO2 + N2 + S2
+
+    def test_SO2_end_to_end_matches_analytical(self):
+        """Verify get_partial_pressures produces SO2 consistent with Kf."""
+        from calliope.solve import get_partial_pressures
+
+        T = 2000.0
+        ddict = _make_ddict(T=T, fO2_shift=0.0)
+        pin = {"H2O": 1e-30, "CO2": 1e-30, "N2": 1e-30, "S2": 0.01}
+        p_d = get_partial_pressures(pin, ddict)
+
+        # Analytical Kf for 0.5 S2 + O2 -> SO2
+        log10_Kf = 18887.0 / T - 3.8064
+        Kf = 10.0**log10_Kf
+        p_analytical = Kf * p_d["S2"]**0.5 * p_d["O2"]
+
+        assert p_d["SO2"] == pytest.approx(p_analytical, rel=1e-6)
 
 
 # ===================================================================
