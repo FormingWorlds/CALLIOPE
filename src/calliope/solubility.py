@@ -136,7 +136,7 @@ class SolubilityCH4(Solubility):
         '''Ardia 2013'''
         p_total *= 1e-4  # Convert to GPa
         p *= 1e-4 # Convert to GPa
-        ppmw = p*np.exp(4.93 - (0.000193 * p_total))
+        ppmw = p*np.exp(4.93 - (1.93 * p_total))
         return ppmw
 
 

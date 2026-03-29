@@ -172,12 +172,12 @@ def atmosphere_mass(pin, ddict):
     # total mass of N
     mass_atm_d['N'] = 2*mass_atm_d['N2']/molar_mass['N2']
     if is_included("NH3", ddict):
-        mass_atm_d['N'] += 3*mass_atm_d['NH3'] / molar_mass['NH3']
+        mass_atm_d['N'] += mass_atm_d['NH3'] / molar_mass['NH3']
     mass_atm_d['N'] *= molar_mass['N']
 
     # total mass of O
     mass_atm_d['O'] = mass_atm_d['H2O'] / molar_mass['H2O']
-    mass_atm_d['O'] += mass_atm_d['O2'] / molar_mass['O2']
+    mass_atm_d['O'] += 2*mass_atm_d['O2'] / molar_mass['O2']
     if is_included("CO", ddict):
         mass_atm_d['O'] += mass_atm_d['CO'] / molar_mass['CO']
     if is_included("CO2", ddict):
@@ -188,7 +188,7 @@ def atmosphere_mass(pin, ddict):
     mass_atm_d['O'] *= molar_mass['O']
 
     # total mass of S
-    mass_atm_d['S'] = mass_atm_d['S2'] / molar_mass['S2']
+    mass_atm_d['S'] = 2*mass_atm_d['S2'] / molar_mass['S2']
     if is_included("SO2", ddict):
         mass_atm_d['S'] += mass_atm_d['SO2'] / molar_mass['SO2']
     if is_included("H2S", ddict):

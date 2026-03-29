@@ -42,16 +42,20 @@ class ModifiedKeq:
         return (-13152.477779978302/T + 3.038586383273608, 0.5)
 
     def janaf_SO2(self, T):
-        # JANAF log10Keq, 900 < K < 2000 for 0.5 S2 + O2 = SO2
+        # JANAF log10Keq for S2 + 2 O2 = 2 SO2 (doubled form)
+        # Coefficients = 2x the formation constant for 0.5 S2 + O2 = SO2
+        # fO2_stoich=0: O2 dependence handled by p_O2^2 in the sqrt expression
         # https://doi.org/10.1016/j.gca.2022.08.032
-        return (18887.0/T - 3.8064, 1)
+        return (37774.0/T - 7.6128, 0)
 
     def janaf_H2S(self, T):
-        # JANAF log10Keq, 200 < K < 4000 for 0.5 S2 + H2 = 0.5 H2S
+        # JANAF log10Keq for S2 + 2 H2 = 2 H2S (doubled form)
+        # Coefficients = 2x the formation constant for 0.5 S2 + H2 = H2S
         # See notebook in `tools/`
-        return (6731.01547/T - 3.62273031, 0)
+        return (13462.03094/T - 7.24546062, 0)
 
     def janaf_NH3(self, T):
-        # JANAF log10Keq, 200 < K < 4000 for N2 + 3 H2 = 2 NH3
+        # JANAF log10Keq for N2 + 3 H2 = 2 NH3 (doubled form)
+        # Coefficients = 2x the formation constant
         # See notebook in `tools/`
-        return ( 2664.015623/T - 5.99238046, 0)
+        return (5328.031246/T - 11.98476092, 0)
