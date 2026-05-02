@@ -1,9 +1,9 @@
 # Testing
 
 [![Tests](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml/badge.svg)](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml)
-[![Coverage](https://gist.githubusercontent.com/nichollsh/735833097e88c92da096591d3e6b270a/raw/covbadge.svg)](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml)
+[![Coverage](https://codecov.io/gh/FormingWorlds/CALLIOPE/branch/main/graph/badge.svg)](https://app.codecov.io/gh/FormingWorlds/CALLIOPE/tree/main)
 
-CALLIOPE uses [pytest](https://docs.pytest.org/en/latest/) for automated tests and [coverage.py](https://coverage.readthedocs.io/) for coverage measurement. The badges above reflect the live state of the `main` branch on GitHub Actions and the linked coverage Gist.
+CALLIOPE uses [pytest](https://docs.pytest.org/en/latest/) for automated tests and [coverage.py](https://coverage.readthedocs.io/) for coverage measurement. The badges above reflect the live state of the `main` branch on GitHub Actions and Codecov.
 
 ## Running the test suite
 
@@ -54,7 +54,7 @@ coverage report          # text summary in the terminal
 coverage html            # HTML report under htmlcov/
 ```
 
-CI publishes the badge from `coverage report` to a [Gist](https://gist.githubusercontent.com/nichollsh/735833097e88c92da096591d3e6b270a/raw/covbadge.svg) on every push to `main`; the same badge is rendered at the top of this page.
+CI uploads `coverage.xml` to [Codecov](https://app.codecov.io/gh/FormingWorlds/CALLIOPE/tree/main) on every push to `main` (Linux + Python 3.13 only, to avoid double-counting across the OS-and-version matrix). The Codecov badge above is rendered live from that report. A legacy gist-driven badge is also written and surfaced on the GitHub Actions page; both are kept in sync.
 
 ## Linting
 

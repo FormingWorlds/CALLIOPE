@@ -49,6 +49,7 @@ jobs:
       - name: Report coverage
         run: |
           coverage json
+          coverage xml
           export TOTAL=$(python -c "import json;print(json.load(open('coverage.json'))['totals']['percent_covered_display'])")
           echo "total=$TOTAL" >> $GITHUB_ENV
           echo "### Total coverage: ${TOTAL}%" >> $GITHUB_STEP_SUMMARY
@@ -58,8 +59,18 @@ jobs:
           echo "Total coverage: ${TOTAL}%"
           coverage report
 
+      - name: Upload coverage to Codecov
+        if: ${{ matrix.python-version == '3.13' && matrix.os == 'ubuntu-latest' }}
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          flags: unittests
+          name: codecov-calliope
+          fail_ci_if_error: false
+
       - name: Make coverage badge
-        if: ${{ github.ref == 'refs/heads/main' && matrix.python-version == '3.13' }}
+        if: ${{ github.ref == 'refs/heads/main' && matrix.python-version == '3.13' && matrix.os == 'ubuntu-latest' }}
         uses: schneegans/dynamic-badges-action@v1.7.0
         with:
           auth: ${{ secrets.GIST_TOKEN }}
