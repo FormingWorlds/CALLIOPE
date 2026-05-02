@@ -57,7 +57,7 @@ coverage report          # text summary in the terminal
 coverage html            # HTML report under htmlcov/
 ```
 
-The current floor is **95% combined line + branch coverage**, enforced by `[tool.coverage.report] fail_under = 95` in `pyproject.toml`. The local measurement on this branch is 99%; the floor sits a few points below so unrelated refactors that touch a defensive path don't immediately fail CI. Bump the floor up (never down) when the suite improves.
+The floor is **95% combined line + branch coverage**, enforced by `[tool.coverage.report] fail_under = 95` in `pyproject.toml`. The local measurement on this branch is 99%; the floor sits a few points below so unrelated refactors that touch a defensive path don't immediately fail CI. 95% is already a high bar and is not intended to be raised further; the goal is regression protection, not chasing 100%.
 
 CI uploads `coverage.xml` to [Codecov](https://app.codecov.io/gh/FormingWorlds/CALLIOPE/tree/main) on every push to `main` (Linux + Python 3.13 only, to avoid double-counting across the OS-and-version matrix). The Codecov badge at the top of this page is rendered live from that report.
 
