@@ -19,6 +19,8 @@ from calliope.constants import element_list, molar_mass, volatile_species
 from calliope.oxygen_fugacity import OxygenFugacity
 from calliope.solubility import SolubilityCH4, SolubilityCO
 
+pytestmark = pytest.mark.unit
+
 
 # ---------------------------------------------------------------------------
 # Helpers
