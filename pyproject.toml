@@ -40,7 +40,7 @@ dependencies = [
 [project.urls]
 homepage = "https://github.com/FormingWorlds/CALLIOPE"
 issues = "https://github.com/FormingWorlds/CALLIOPE/issues"
-documentation = "https://fwl-calliope.readthedocs.io"
+documentation = "https://proteus-framework.org/CALLIOPE/"
 changelog = "https://github.com/FormingWorlds/CALLIOPE/releases"
 
 [project.optional-dependencies]
