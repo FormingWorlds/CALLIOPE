@@ -10,7 +10,7 @@ from .constants import M_earth, R_earth
 log = logging.getLogger('fwl.' + __name__)
 
 
-def calculate_mantle_mass(radius: float, mass: float, corefrac: float) -> float:
+def calculate_mantle_mass(radius: float, mass: float, core_frac: float) -> float:
     """
     A very simple interior structure model.
 
@@ -28,7 +28,7 @@ def calculate_mantle_mass(radius: float, mass: float, corefrac: float) -> float:
     log.debug('Core density = %.2f kg m-3' % core_rho)
 
     # Calculate mantle mass by subtracting core from total
-    core_mass = core_rho * 4.0 / 3.0 * np.pi * (radius * corefrac) ** 3.0
+    core_mass = core_rho * 4.0 / 3.0 * np.pi * (radius * core_frac) ** 3.0
     mantle_mass = mass - core_mass
     log.info('Total mantle mass = %.2e kg' % mantle_mass)
     if mantle_mass <= 0.0:
