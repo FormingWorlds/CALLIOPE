@@ -96,7 +96,7 @@ When `volatile_mode = "gas_prs"`, the wrapper calls `get_target_from_pressures(d
 | $-3$ | Reduced (Mars-mantle estimates, [Wadhwa 2001](https://ui.adsabs.harvard.edu/abs/2001Sci...291.1527W)) |
 | $-1$ | Moderately reduced |
 | $0$  | At iron-wüstite buffer (core formation equilibrium at depth) |
-| $+3.5$ | [Sossi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) preferred Earth surface value (their $\Delta\mathrm{IW} = +3.5 \pm 0.5$) |
+| $+3.5$ | [Sossi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) preferred Earth's mantle $f_{\mathrm{O}_2}$ (their $\Delta\mathrm{IW} = +3.5 \pm 0.5$) |
 | $+4$ | CALLIOPE PROTEUS-side default; near-modern Earth upper mantle (within FMQ$\,\pm\,2$ per [Frost & McCammon 2008](https://ui.adsabs.harvard.edu/abs/2008AREPS..36..389F)) |
 
 The [Sossi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) compilation places Earth's near-surface mantle at $\Delta\mathrm{IW} \approx +3$ to $+5$ (their preferred value $+3.5$); CALLIOPE defaults sit at $\Delta\mathrm{IW} = 4.0$, consistent with a modern terrestrial composition.

@@ -82,7 +82,7 @@ Similarly, the [Dasgupta et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022Ge
 | Asteroidal material | $\sim -2$ | [Doyle et al. (2019)](https://ui.adsabs.harvard.edu/abs/2019Sci...366..356D) |
 | Mars mantle | $-3$ to $0$ | [Wadhwa (2001)](https://ui.adsabs.harvard.edu/abs/2001Sci...291.1527W) |
 | Iron-wüstite buffer | $0$ | by definition |
-| Earth modern surface | $+3.5$ | [Sossi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) |
+| Earth's mantle $f_{\mathrm{O}_2}$ | $+3.5 \pm 0.5$ | [Sossi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) |
 | Earth upper mantle | $+1$ to $+5$ (i.e. FMQ$\,\pm\,2$) | [Frost & McCammon (2008)](https://ui.adsabs.harvard.edu/abs/2008AREPS..36..389F) |
 | Earth deep (lower) mantle | $\sim -2$ to $-3$ ($\sim 5$ log units below FMQ at $\sim 8$ GPa) | [Frost & McCammon (2008)](https://ui.adsabs.harvard.edu/abs/2008AREPS..36..389F) |
 
