@@ -5,7 +5,6 @@
   <a href="https://app.codecov.io/gh/FormingWorlds/CALLIOPE/tree/main"><img src="https://codecov.io/gh/FormingWorlds/CALLIOPE/branch/main/graph/badge.svg" alt="Coverage"></a>
   <a href="https://proteus-framework.org/CALLIOPE/"><img src="https://img.shields.io/website?url=https%3A%2F%2Fproteus-framework.org%2FCALLIOPE%2F&label=docs" alt="Documentation"></a>
   <a href="https://pypi.org/project/fwl-calliope/"><img src="https://img.shields.io/pypi/v/fwl-calliope?label=PyPI" alt="PyPI"></a>
-  <a href="https://www.python.org/"><img src="https://img.shields.io/pypi/pyversions/fwl-calliope" alt="Python versions"></a>
   <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0"></a>
 </p>
 

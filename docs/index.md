@@ -1,7 +1,6 @@
 [![Tests](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml/badge.svg)](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml)
 [![Coverage](https://codecov.io/gh/FormingWorlds/CALLIOPE/branch/main/graph/badge.svg)](https://app.codecov.io/gh/FormingWorlds/CALLIOPE/tree/main)
 [![PyPI](https://img.shields.io/pypi/v/fwl-calliope?label=PyPI)](https://pypi.org/project/fwl-calliope/)
-[![Python versions](https://img.shields.io/pypi/pyversions/fwl-calliope)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 # CALLIOPE
