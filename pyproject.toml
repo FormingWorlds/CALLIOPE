@@ -73,6 +73,9 @@ source = ["calliope"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "unit: fast in-process unit tests (default selection in CI)",
+]
 
 [tool.ruff]
 line-length = 96
