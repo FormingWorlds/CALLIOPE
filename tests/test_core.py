@@ -50,6 +50,20 @@ def test_oxygen_fugacity_monotonic_in_T():
     assert high > low
 
 
+@pytest.mark.parametrize('bad_T', [0.0, -1.0, -300.0])
+def test_oxygen_fugacity_nonpositive_T_raises(bad_T):
+    """Both IW formulae diverge at T<=0 (T*log(T) and 1/T terms).
+    Without a guard, T=0 silently propagates NaN through every
+    equilibrium constant. Pin the explicit ValueError as a contract.
+    """
+    of = OxygenFugacity('oneill')
+    with pytest.raises(ValueError, match='Temperature must be positive'):
+        of(bad_T)
+    of_fischer = OxygenFugacity('fischer')
+    with pytest.raises(ValueError, match='Temperature must be positive'):
+        of_fischer(bad_T)
+
+
 # ---------- Modified equilibrium constant tests ----------
 
 
