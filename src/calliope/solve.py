@@ -533,9 +533,12 @@ def equilibrium_atmosphere(
     # Final partial pressures [bar]
     p_d = get_partial_pressures(sol_dict, ddict)
 
-    # Final masses [kg]
-    mass_atm_d = atmosphere_mass(p_d, ddict)
-    mass_int_d = dissolved_mass(p_d, ddict)
+    # Pass the 4-key primary dict (sol_dict), not the expanded p_d:
+    # atmosphere_mass and dissolved_mass each call get_partial_pressures
+    # internally, so feeding them p_d would re-run gas-phase chemistry
+    # on a dict that already contains the secondaries (read but ignored).
+    mass_atm_d = atmosphere_mass(sol_dict, ddict)
+    mass_int_d = dissolved_mass(sol_dict, ddict)
 
     # Output dict
     outdict = {'M_atm': 0.0}
