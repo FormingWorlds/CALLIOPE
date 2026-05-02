@@ -157,7 +157,7 @@ When `config.interior_struct.zalmoxis.global_miscibility = true` (Zalmoxis radia
 
 ## Crystallised vs. desiccated states
 
-`wrapper.run_crystallized` and `wrapper.run_desiccated` substitute for `run_outgassing` when the planet has either solidified ($\Phi_\mathrm{global} < \phi_\text{crit}$) or lost all volatiles. Neither calls CALLIOPE: the former preserves the existing reservoirs, the latter zeros them. The desiccation gate is inactive while any element is still above `mass_thresh`, and is additionally guarded by an escape-balance check that refuses to claim desiccation if the implied mass loss exceeds `1.5 * esc_kg_cumulative + 1000 kg`. This guard, added after the CHILI R7/R21 incident in 2026, prevents an upstream AGNI failure from falsely zeroing the atmosphere via CALLIOPE.
+`wrapper.run_crystallized` and `wrapper.run_desiccated` substitute for `run_outgassing` when the planet has either solidified ($\Phi_\mathrm{global} < \phi_\text{crit}$) or lost all volatiles. Neither calls CALLIOPE: the former preserves the existing reservoirs, the latter zeros them. The desiccation gate is inactive while any element is still above `mass_thresh`, and is additionally guarded by an escape-balance check that refuses to claim desiccation if the implied mass loss exceeds `1.5 * esc_kg_cumulative + 1000 kg`. This guard prevents an upstream module failure from silently zeroing the atmosphere via CALLIOPE: a real desiccation event must be backed by accounted-for atmospheric escape.
 
 ## See also
 

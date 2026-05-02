@@ -96,7 +96,7 @@ When `volatile_mode = "gas_prs"`, the wrapper calls `get_target_from_pressures(d
 | $-3$ | Reduced (Mars-mantle estimates, Wadhwa 2001) |
 | $-1$ | Moderately reduced |
 | $0$  | At iron-wüstite buffer (core formation equilibrium at depth) |
-| $+0.5$ | Sossi et al. (2020) preferred Earth surface value |
+| $+3.5$ | Sossi et al. (2020) preferred Earth surface value (their $\Delta\mathrm{IW} = +3.5 \pm 0.5$) |
 | $+4$ | Modern Earth mantle (Frost & McCammon 2008) |
 
 The Sossi et al. (2020) compilation places Earth's near-surface mantle at $\Delta\mathrm{IW} \approx +3$ to $+5$ (their preferred value $+3.5$); CALLIOPE defaults sit at $\Delta\mathrm{IW} = 4.0$, consistent with a modern terrestrial composition.
@@ -128,7 +128,7 @@ For `Time > 1` yr, the wrapper builds `p_guess` from the previous-iteration `H2O
 
 - **`Missing required volatile`** at startup: one of H2O / CO2 / N2 / S2 is set to `include = false`. Fix: re-enable it (it can still be set to a tiny initial pressure if you want to suppress its mass).
 - **`Could not find solution for volatile abundances`** mid-run: CALLIOPE exhausted its `nguess` Monte-Carlo restarts. Almost always caused by an upstream NaN or unphysical state in `hf_row` (e.g. `T_magma < T_floor` after AGNI failed, `M_mantle = 0` after a structure-solve failure). Inspect `proteus_00.log` for the iteration immediately before the CALLIOPE failure; do not bump `nguess` blindly.
-- **Atmosphere mass collapses to zero** without escape accounting it: the `check_desiccation` gate in `proteus.outgas.wrapper` will refuse to mark the planet desiccated if the loss is unexplained by cumulative escape; this is by design (it caught the CHILI R7/R21 failure mode where AGNI side-effects wiped the atmosphere). If you see this gate firing, the upstream module failed silently.
+- **Atmosphere mass collapses to zero** without escape accounting it: the `check_desiccation` gate in `proteus.outgas.wrapper` will refuse to mark the planet desiccated if the loss is unexplained by cumulative escape. This is by design: a real desiccation event must be supported by tracked atmospheric escape, so the gate firing means an upstream module silently zeroed the atmosphere and the failure is upstream of CALLIOPE.
 - **`Hydrogen inventory must be > 0`**: `H_budget = 0` or `H_mode` mistyped. CALLIOPE refuses to solve a zero-H system because the speciation is degenerate.
 - **Solubility off but `Phi_global > 0`**: not an error, but the wrapper will silently force `Phi_global = 0` when `[outgas.calliope].solubility = false`, so dissolved masses will all be zero regardless of the live melt fraction.
 

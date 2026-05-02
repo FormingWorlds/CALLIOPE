@@ -63,7 +63,7 @@ The four pieces of physics decompose cleanly:
 
 ## Validity range
 
-CALLIOPE is calibrated for surface temperatures of roughly $1000 \le T_\mathrm{magma} \le 4000$ K and surface pressures of roughly $0.1 \le p_\mathrm{surf} \le 5000$ bar. Outside this range:
+CALLIOPE is calibrated for surface temperatures of roughly $1000 \le T_\mathrm{magma} \le 4000$ K and surface pressures of roughly $0.1 \le p_\mathrm{surf} \le 5000$ bar. The lower end of the pressure range is set by numerical stability of the speciation walk; the upper end is the loose envelope above which one or more solubility laws extrapolate. Individual solubility laws have tighter calibration windows than the envelope (Dixon CO$_2$: $\le$815 bar; Sossi H$_2$O: a few kbar; Ardia CH$_4$: 0.7-3 GPa total pressure), see the per-law table in [Solubility laws](solubility.md). Outside the envelope above:
 
 - Below $T \sim 1000$ K the JANAF fits used for the equilibrium constants extrapolate beyond their validation range; the PROTEUS wrapper enforces a configurable `T_floor` (default 700 K) below which outgassing is skipped.
 - Above $T \sim 4000$ K the gas-phase ideal-gas approximation breaks down; switch to atmodeller (Bower et al. 2025), which uses real-gas EOS.

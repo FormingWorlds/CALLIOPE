@@ -1,6 +1,6 @@
 # Installation
 
-CALLIOPE is a pure-Python package with three runtime dependencies (`numpy`, `scipy`, `matplotlib`, plus `cmcrameri` for plotting). It supports CPython 3.11, 3.12, and 3.13.
+CALLIOPE is a pure-Python package with four runtime dependencies (`numpy`, `scipy`, `matplotlib`, and `cmcrameri` for plotting). It supports CPython 3.11, 3.12, and 3.13.
 
 ## From PyPI (recommended for end users)
 

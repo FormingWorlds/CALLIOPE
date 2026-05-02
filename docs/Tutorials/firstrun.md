@@ -24,8 +24,9 @@ ddict = {
     # magma ocean state
     'T_magma':      2500.0,  # K, hot magma ocean
     'Phi_global':   1.0,     # fully molten
-    'fO2_shift_IW': 0.5,     # Bower+2022 nominal value (Sossi+2020 estimate
-                             # for Earth's surface mantle is +3 to +5)
+    'fO2_shift_IW': 0.5,     # illustrative value: between IW (Bower+2022 use
+                             # IW and IW+4 in their grid) and Sossi+2020's
+                             # +3.5 estimate for Earth's surface mantle
 
     # bulk composition (Earth-ocean H, Earth-like C/H, primitive N and S)
     'hydrogen_earth_oceans': 1.0,
