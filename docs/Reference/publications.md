@@ -41,7 +41,7 @@ CALLIOPE inherits its calibration from the following experimental and thermochem
 These are publications that have applied CALLIOPE within coupled PROTEUS runs.
 
 - **Nicholls, H., Pierrehumbert, R.T., Lichtenberg, T., Soucasse, L., & Smeets, S. (2025).** Convective shutdown in the atmospheres of lava worlds. *Monthly Notices of the Royal Astronomical Society, 536*(3), 2957-2971. \[[ADS](https://ui.adsabs.harvard.edu/abs/2025MNRAS.536.2957N) | [DOI](https://doi.org/10.1093/mnras/stae2772) | [arXiv](https://arxiv.org/abs/2412.11987)\]
-- **Hammond, M., Guimond, C.M., Lichtenberg, T., Nicholls, H., Fisher, C., Luque, R., Meier, T.G., Taylor, J., Changeat, Q., Dang, L., Herbort, O., & Teske, J. (2025).** Reliable detections of atmospheres on rocky exoplanets with photometric JWST phase curves. *The Astrophysical Journal Letters, 978*, L40. \[[ADS](https://ui.adsabs.harvard.edu/abs/2025ApJ...978L..40H) | [arXiv](https://arxiv.org/abs/2409.04386)\]
+- **Hammond, M., Guimond, C.M., Lichtenberg, T., Nicholls, H., Fisher, C., Luque, R., Meier, T.G., Taylor, J., Changeat, Q., Dang, L., Hay, H.C.F.C., Herbort, O., & Teske, J. (2025).** Reliable detections of atmospheres on rocky exoplanets with photometric JWST phase curves. *The Astrophysical Journal Letters, 978*, L40. \[[ADS](https://ui.adsabs.harvard.edu/abs/2025ApJ...978L..40H) | [arXiv](https://arxiv.org/abs/2409.04386)\]
 - **Nicholls, H., Lichtenberg, T., Chatterjee, R.D., Guimond, C.M., Postolec, E., & Pierrehumbert, R.T. (2026).** Volatile-rich evolution of molten super-Earth L 98-59 d. *Nature Astronomy*. \[[ADS](https://ui.adsabs.harvard.edu/abs/2026NatAs.tmp...61N) | [DOI](https://doi.org/10.1038/s41550-026-02815-8)\]
 
 ## Related software
