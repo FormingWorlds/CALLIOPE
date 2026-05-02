@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml"><img src="https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml/badge.svg" alt="Tests"></a>
-  <a href="https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml"><img src="https://gist.githubusercontent.com/nichollsh/735833097e88c92da096591d3e6b270a/raw/covbadge.svg" alt="Coverage"></a>
+  <a href="https://app.codecov.io/gh/FormingWorlds/CALLIOPE/tree/main"><img src="https://codecov.io/gh/FormingWorlds/CALLIOPE/branch/main/graph/badge.svg" alt="Coverage"></a>
   <a href="https://proteus-framework.org/CALLIOPE/"><img src="https://img.shields.io/website?url=https%3A%2F%2Fproteus-framework.org%2FCALLIOPE%2F&label=docs" alt="Documentation"></a>
   <a href="https://pypi.org/project/fwl-calliope/"><img src="https://img.shields.io/pypi/v/fwl-calliope?label=PyPI" alt="PyPI"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/pypi/pyversions/fwl-calliope" alt="Python versions"></a>
