@@ -10,10 +10,11 @@ For the underlying control flow (per-iteration sequence diagram, what the wrappe
 [outgas]
 module       = "calliope"     # or "atmodeller" or "dummy"
 fO2_shift_IW = 0.0            # log10 shift relative to IW buffer
-mass_thresh  = 1e16           # kg, below this an element is treated as zero
+mass_thresh  = 1e16           # kg; doubles as the absolute mass-balance
+                              # tolerance and the per-element zero threshold
 T_floor      = 700.0          # K, magma temperatures below this are clipped
 solver_rtol  = 1e-4           # relative tolerance on mass balance
-solver_atol  = 1e-6           # absolute tolerance (rarely changed)
+solver_atol  = 1e-6           # fsolve step tolerance (mapped to xtol, not atol)
 h2_binodal   = false          # apply Rogers+2025 H2-MgSiO3 binodal override
 
   [outgas.calliope]
@@ -111,7 +112,13 @@ The PROTEUS wrapper hard-codes a few solver knobs that override the CALLIOPE lib
 | `opt_solver` | `False` | Skip the alternating-solver fallback; if `fsolve` cannot converge from a warm start, it almost always means an upstream bug rather than a basin-of-attraction problem. |
 | `print_result` | `False` | Suppress the per-call INFO log; the PROTEUS main loop already prints the partial pressures. |
 
-`solver_rtol` and `solver_atol` are exposed on the TOML side and forwarded directly.
+The TOML field names map to `equilibrium_atmosphere` keyword arguments as follows:
+
+| TOML field | Solver argument | Role |
+|---|---|---|
+| `solver_rtol` | `rtol` | Relative tolerance on the elemental mass-balance residual. |
+| `solver_atol` | `xtol` | Step tolerance on the inner `fsolve` Powell-hybrid iteration. The name is historical; it does *not* set the absolute mass-balance tolerance. |
+| `mass_thresh` | `atol` | Absolute tolerance on mass balance, in kg. Also the per-element threshold below which a species' inventory is treated as zero. |
 
 ## Warm-start behaviour
 

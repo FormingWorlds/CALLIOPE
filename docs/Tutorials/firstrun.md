@@ -24,7 +24,8 @@ ddict = {
     # magma ocean state
     'T_magma':      2500.0,  # K, hot magma ocean
     'Phi_global':   1.0,     # fully molten
-    'fO2_shift_IW': 0.5,     # Sossi+2020 preferred Earth value
+    'fO2_shift_IW': 0.5,     # Bower+2022 nominal value (Sossi+2020 estimate
+                             # for Earth's surface mantle is +3 to +5)
 
     # bulk composition (Earth-ocean H, Earth-like C/H, primitive N and S)
     'hydrogen_earth_oceans': 1.0,
@@ -35,7 +36,8 @@ ddict = {
 
 for sp in volatile_species:
     ddict[f'{sp}_included']    = 1     # include all 11 species
-    ddict[f'{sp}_initial_bar'] = 0.0   # zero, not used in this mode
+    ddict[f'{sp}_initial_bar'] = 0.0   # zero, not used in this mode (only
+                                       # consulted by get_target_from_pressures)
 ```
 
 `★ Insight ─────────────────────────────────────`
@@ -87,6 +89,8 @@ for el in ['H', 'C', 'N', 'S']:
 A successful solve has $|\text{res}_e| / \text{target}_e \lesssim 10^{-5}$ for every element. Larger residuals mean the tolerance was loose or the solver bottomed out on a local minimum; tighten `rtol` and re-run, or pass a `p_guess` from a known-good run.
 
 ## Step 5: plot
+
+O$_2$ is set diagnostically by the $f_{\mathrm{O}_2}$ buffer (it is not solved for), so the bar chart focuses on the ten reactive species:
 
 ```python
 species_to_plot = ['H2O', 'CO2', 'H2', 'CO', 'CH4', 'N2', 'NH3', 'S2', 'SO2', 'H2S']

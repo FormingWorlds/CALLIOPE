@@ -47,11 +47,11 @@ Single class `OxygenFugacity` with two model methods (`oneill` default, `fischer
 
 ### `chemistry.py`
 
-Single class `ModifiedKeq` with six model methods (`schaefer_C`, `schaefer_H`, `schaefer_CH4`, `janaf_CO`, `janaf_H2`, `janaf_SO2`, `janaf_H2S`, `janaf_NH3`). Composes with `OxygenFugacity` to produce the modified equilibrium constant $G_\mathrm{eq}(T, f_{\mathrm{O}_2})$. See [Equilibrium chemistry](equilibrium_chemistry.md).
+Single class `ModifiedKeq` with eight model methods (`schaefer_C`, `schaefer_H`, `schaefer_CH4`, `janaf_CO`, `janaf_H2`, `janaf_SO2`, `janaf_H2S`, `janaf_NH3`). Composes with `OxygenFugacity` to produce the modified equilibrium constant $G_\mathrm{eq}(T, f_{\mathrm{O}_2})$. See [Equilibrium chemistry](equilibrium_chemistry.md).
 
 ### `solubility.py`
 
-Five concrete subclasses of an abstract `Solubility` base: `SolubilityH2O`, `SolubilityCO2`, `SolubilityCO`, `SolubilityCH4`, `SolubilityN2`, `SolubilityS2`. Each carries multiple alternative composition methods selectable through the constructor. The `__call__` interface is uniform (`solubility(p, *args)` returns ppmw) but the `*args` differ per species: H$_2$O takes only $p$, CO$_2$ takes $(p, T)$, S$_2$ takes $(p, T, \Delta\mathrm{IW})$, etc. This irregularity is by design; flat-out wrapping into a uniform signature would hide the actual physical dependences.
+Six concrete subclasses of an abstract `Solubility` base: `SolubilityH2O`, `SolubilityCO2`, `SolubilityCO`, `SolubilityCH4`, `SolubilityN2`, `SolubilityS2`. Each carries multiple alternative composition methods selectable through the constructor. The `__call__` interface is uniform (`solubility(p, *args)` returns ppmw) but the `*args` differ per species: H$_2$O takes only $p$, CO$_2$ takes $(p, T)$, S$_2$ takes $(p, T, \Delta\mathrm{IW})$, etc. This irregularity is by design; flat-out wrapping into a uniform signature would hide the actual physical dependences.
 
 See [Solubility laws](solubility.md) for the equations.
 
