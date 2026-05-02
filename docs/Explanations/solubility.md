@@ -6,7 +6,7 @@ $$
 X_i^\mathrm{melt} = \alpha_i\, p_i^{\,1/\beta_i},
 $$
 
-with $X_i^\mathrm{melt}$ in ppmw, $p_i$ in bar, and species-specific empirical constants $\alpha_i, \beta_i$. Bower et al. (2022) Equation (1) writes the same relation in terms of fugacity; CALLIOPE assumes ideal-gas behaviour so $f \equiv p$.
+with $X_i^\mathrm{melt}$ in ppmw, $p_i$ in bar, and species-specific empirical constants $\alpha_i, \beta_i$. [Bower et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) Equation (1) writes the same relation in terms of fugacity; CALLIOPE assumes ideal-gas behaviour so $f \equiv p$.
 
 This page lists the implemented laws, the experimental sources behind each, and the alternative compositions a user can select. The corresponding code lives in `solubility.py`; the speciation-time call paths are in `solve.dissolved_mass`.
 
@@ -16,43 +16,43 @@ This page lists the implemented laws, the experimental sources behind each, and 
 
 | Composition | Law | Source | $\alpha$ (ppmw bar$^{-1/\beta}$) | $\beta$ |
 |---|---|---|---:|---:|
-| `peridotite` (default) | $524\, p^{0.5}$ | Sossi et al. (2023) | 524 | 2 |
-| `basalt_dixon` | $965\, p^{0.5}$ | Dixon et al. (1995, refit by Sossi) | 965 | 2 |
-| `basalt_wilson` | $215\, p^{0.7}$ | Hamilton (1964); Wilson & Head (1981) | 215 | 1/0.7 |
-| `anorthite_diopside` | $727\, p^{0.5}$ | Newcombe et al. (2017) | 727 | 2 |
-| `lunar_glass` | $683\, p^{0.5}$ | Newcombe et al. (2017) | 683 | 2 |
+| `peridotite` (default) | $524\, p^{0.5}$ | [Sossi et al. (2023)](https://ui.adsabs.harvard.edu/abs/2023E%26PSL.60117894S) | 524 | 2 |
+| `basalt_dixon` | $965\, p^{0.5}$ | [Dixon et al. (1995)](https://ui.adsabs.harvard.edu/abs/1995JPet...36.1607D), refit by Sossi | 965 | 2 |
+| `basalt_wilson` | $215\, p^{0.7}$ | [Hamilton (1964)](https://doi.org/10.1093/petrology/5.1.21); [Wilson & Head (1981)](https://ui.adsabs.harvard.edu/abs/1981JGR....86.2971W) | 215 | 1/0.7 |
+| `anorthite_diopside` | $727\, p^{0.5}$ | [Newcombe et al. (2017)](https://ui.adsabs.harvard.edu/abs/2017GeCoA.200..330N) | 727 | 2 |
+| `lunar_glass` | $683\, p^{0.5}$ | [Newcombe et al. (2017)](https://ui.adsabs.harvard.edu/abs/2017GeCoA.200..330N) | 683 | 2 |
 
-The choice between peridotite (default) and basalt is one of the larger uncertainties in early magma-ocean modelling. Bower et al. (2022) Table 1 compares all five compositions across the relevant pressure range; Nicholls et al. (2024) uses peridotite as the fiducial, consistent with CALLIOPE's default.
+The choice between peridotite (default) and basalt is one of the larger uncertainties in early magma-ocean modelling. [Bower et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) Table 1 compares all five compositions across the relevant pressure range; [Nicholls et al. (2024)](https://ui.adsabs.harvard.edu/abs/2024JGRE..12908576N) uses peridotite as the fiducial, consistent with CALLIOPE's default.
 
 ### CO$_2$ - `SolubilityCO2(composition='basalt_dixon')`
 
-Dixon et al. (1995) MORB fit, with an explicit Poynting-like temperature/pressure correction:
+[Dixon et al. (1995)](https://ui.adsabs.harvard.edu/abs/1995JPet...36.1607D) MORB fit, with an explicit Poynting-like temperature/pressure correction:
 
 $$
 X_{\mathrm{CO_2}}^\mathrm{melt}\,[\text{mol fr.}] = 3.8 \times 10^{-7} \cdot p_{\mathrm{CO_2}} \cdot \exp\left(-\frac{23 (p_{\mathrm{CO_2}} - 1)}{83.15\, T_\mathrm{magma}}\right)
 $$
 
-then converted from molar to ppmw via the algebraic conversion in Bower et al. (2022) Equation (3):
+then converted from molar to ppmw via the algebraic conversion in [Bower et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) Equation (3):
 
 $$
 X_{\mathrm{CO_2}}^\mathrm{melt}\,[\text{ppmw}] = 10^4 \cdot \frac{4400 X_{\mathrm{CO_2}}^\mathrm{melt}}{36.6 - 44 X_{\mathrm{CO_2}}^\mathrm{melt}}.
 $$
 
-This is the only solubility law in CALLIOPE that depends on $T_\mathrm{magma}$; the others ignore the temperature term that experimental data only weakly constrains (Bower et al. 2022 §2.2.1 discussion).
+This is the only solubility law in CALLIOPE that depends on $T_\mathrm{magma}$; the others ignore the temperature term that experimental data only weakly constrains ([Bower et al. 2022](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) §2.2.1 discussion).
 
 ### CO - `SolubilityCO(composition='mafic_armstrong')`
 
-Armstrong et al. (2015) mafic-melt fit:
+[Armstrong et al. (2015)](https://ui.adsabs.harvard.edu/abs/2015GeCoA.171..283A) mafic-melt fit:
 
 $$
 \log_{10} X_\mathrm{CO}^\mathrm{melt}\,[\text{ppmw}] = -0.738 + 0.876\, \log_{10} p_\mathrm{CO} - 5.44 \times 10^{-5} \cdot p_\mathrm{tot}
 $$
 
-The $-5.44 \times 10^{-5} \cdot p_\mathrm{tot}$ term is a total-pressure (Poynting) correction that reduces solubility at high pressures. CO solubility is generally an order of magnitude or more lower than CO$_2$, consistent with the experimental constraints summarised in Yoshioka et al. (2019).
+The $-5.44 \times 10^{-5} \cdot p_\mathrm{tot}$ term is a total-pressure (Poynting) correction that reduces solubility at high pressures. CO solubility is generally an order of magnitude or more lower than CO$_2$, consistent with the experimental constraints summarised in [Yoshioka et al. (2019)](https://ui.adsabs.harvard.edu/abs/2019GeCoA.259..129Y).
 
 ### CH$_4$ - `SolubilityCH4(composition='basalt_ardia')`
 
-Ardia et al. (2013) basalt fit (their Fig. 6 best-fit, 0.7-3 GPa):
+[Ardia et al. (2013)](https://ui.adsabs.harvard.edu/abs/2013GeCoA.114...52A) basalt fit (their Fig. 6 best-fit, 0.7-3 GPa):
 
 $$
 X_\mathrm{CH_4}^\mathrm{melt}\,[\text{ppmw}] = p_\mathrm{CH_4} \cdot \exp\left(4.93 - 1.93\,p_\mathrm{tot}^{[\mathrm{GPa}]}\right)
@@ -66,10 +66,10 @@ CALLIOPE provides two N$_2$ solubility laws but `dissolved_mass` hard-codes `das
 
 | Composition | Law | Source |
 |---|---|---|
-| `libourel` | $0.0611\, p_\mathrm{N_2}$ (linear Henry's law) | Libourel et al. (2003) |
-| `dasgupta` (default) | physical-state-dependent (see below) | Dasgupta et al. (2022) |
+| `libourel` | $0.0611\, p_\mathrm{N_2}$ (linear Henry's law) | [Libourel et al. (2003)](https://ui.adsabs.harvard.edu/abs/2003GeCoA..67.4123L) |
+| `dasgupta` (default) | physical-state-dependent (see below) | [Dasgupta et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022GeCoA.336..291D) |
 
-The Dasgupta et al. (2022) law adds an $f_{\mathrm{O}_2}$-dependent reduced-N contribution on top of the molecular dissolution:
+The [Dasgupta et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022GeCoA.336..291D) law adds an $f_{\mathrm{O}_2}$-dependent reduced-N contribution on top of the molecular dissolution:
 
 $$
 X_\mathrm{N_2}^\mathrm{melt}\,[\text{ppmw}] = \sqrt{p_\mathrm{N_2}^{[\mathrm{GPa}]}} \cdot \exp\left(\frac{5908\sqrt{p_\mathrm{tot}^{[\mathrm{GPa}]}}}{T_\mathrm{magma}} - 1.6\,\Delta\mathrm{IW}\right) + p_\mathrm{N_2}^{[\mathrm{GPa}]} \cdot c_\mathrm{melt}
@@ -79,7 +79,7 @@ where the prefactor $c_\mathrm{melt}$ depends on the silicate composition (CALLI
 
 ### S$_2$ - `SolubilityS2(composition='gaillard')`
 
-Gaillard et al. (2022) sulfide-saturated mafic-melt law:
+[Gaillard et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022E%26PSL.57717255G) sulfide-saturated mafic-melt law:
 
 $$
 \log_{e} X_\mathrm{S_2}^\mathrm{melt}\,[\text{ppmw}] = 13.8426 - \frac{26476}{T_\mathrm{magma}} + 0.124\,x_\mathrm{FeO}^{[\text{wt\%}]} + 0.5\,\ln\frac{p_\mathrm{S_2}}{f_{\mathrm{O}_2}}
@@ -91,9 +91,9 @@ The implementation refuses to evaluate at $p_\mathrm{S_2} < 10^{-20}$ bar (retur
 
 ## What about the missing laws?
 
-CALLIOPE does not include explicit solubility laws for H$_2$, NH$_3$, SO$_2$, H$_2$S, or O$_2$. Their dissolved masses are computed from the *primary*-species solubilities (H$_2$O for H-bearing species, CO$_2$ for C-bearing species, S$_2$ for S-bearing species, N$_2$ for N-bearing species) via stoichiometric atom-counting in `dissolved_mass()`. This is consistent with Bower et al. (2022) Section 2.2.3 which sets $\alpha_\mathrm{H_2} = \alpha_\mathrm{CO} = \alpha_\mathrm{CH_4} = 0$ on the grounds that experimentally constrained solubilities are 1-2 dex smaller than those of H$_2$O / CO$_2$ at equivalent fugacities (Hirschmann et al. 2012; Li et al. 2015; Yoshioka et al. 2019; Ardia et al. 2013); within the CALLIOPE framework the same logic justifies omitting solubility for the three S species and ammonia.
+CALLIOPE does not include explicit solubility laws for H$_2$, NH$_3$, SO$_2$, H$_2$S, or O$_2$. Their dissolved masses are computed from the *primary*-species solubilities (H$_2$O for H-bearing species, CO$_2$ for C-bearing species, S$_2$ for S-bearing species, N$_2$ for N-bearing species) via stoichiometric atom-counting in `dissolved_mass()`. This is consistent with [Bower et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) Section 2.2.3 which sets $\alpha_\mathrm{H_2} = \alpha_\mathrm{CO} = \alpha_\mathrm{CH_4} = 0$ on the grounds that experimentally constrained solubilities are 1-2 dex smaller than those of H$_2$O / CO$_2$ at equivalent fugacities ([Hirschmann et al. 2012](https://ui.adsabs.harvard.edu/abs/2012E%26PSL.345...38H); [Li et al. 2015](https://ui.adsabs.harvard.edu/abs/2015E%26PSL.415...54L); [Yoshioka et al. 2019](https://ui.adsabs.harvard.edu/abs/2019GeCoA.259..129Y); [Ardia et al. 2013](https://ui.adsabs.harvard.edu/abs/2013GeCoA.114...52A)); within the CALLIOPE framework the same logic justifies omitting solubility for the three S species and ammonia.
 
-If you need explicit dissolution of reduced species into the melt, the [atmodeller](https://atmodeller.readthedocs.io/) project provides full per-species solubility laws including H$_2$ (Hirschmann et al. 2012), CO (Yoshioka et al. 2019), and CH$_4$ (Ardia et al. 2013), with non-ideal real-gas activity coefficients.
+If you need explicit dissolution of reduced species into the melt, the [atmodeller](https://atmodeller.readthedocs.io/) project provides full per-species solubility laws including H$_2$ ([Hirschmann et al. 2012](https://ui.adsabs.harvard.edu/abs/2012E%26PSL.345...38H)), CO ([Yoshioka et al. 2019](https://ui.adsabs.harvard.edu/abs/2019GeCoA.259..129Y)), and CH$_4$ ([Ardia et al. 2013](https://ui.adsabs.harvard.edu/abs/2013GeCoA.114...52A)), with non-ideal real-gas activity coefficients.
 
 ## Validity envelope
 

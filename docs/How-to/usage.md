@@ -110,12 +110,12 @@ To override the default solubility law for a species, instantiate the law explic
 
 | Species | Default class | Default composition | Source |
 |---|---|---|---|
-| H$_2$O | `SolubilityH2O` | `peridotite` | Sossi et al. (2023) |
-| CO$_2$ | `SolubilityCO2` | `basalt_dixon` | Dixon et al. (1995) |
-| CO | `SolubilityCO` | `mafic_armstrong` | Armstrong et al. (2015) |
-| CH$_4$ | `SolubilityCH4` | `basalt_ardia` | Ardia et al. (2013) |
-| N$_2$ | `SolubilityN2` | `dasgupta` (in `dissolved_mass`) | Dasgupta et al. (2022) |
-| S$_2$ | `SolubilityS2` | `gaillard` | Gaillard et al. (2022) |
+| H$_2$O | `SolubilityH2O` | `peridotite` | [Sossi et al. (2023)](https://ui.adsabs.harvard.edu/abs/2023E%26PSL.60117894S) |
+| CO$_2$ | `SolubilityCO2` | `basalt_dixon` | [Dixon et al. (1995)](https://ui.adsabs.harvard.edu/abs/1995JPet...36.1607D) |
+| CO | `SolubilityCO` | `mafic_armstrong` | [Armstrong et al. (2015)](https://ui.adsabs.harvard.edu/abs/2015GeCoA.171..283A) |
+| CH$_4$ | `SolubilityCH4` | `basalt_ardia` | [Ardia et al. (2013)](https://ui.adsabs.harvard.edu/abs/2013GeCoA.114...52A) |
+| N$_2$ | `SolubilityN2` | `dasgupta` (in `dissolved_mass`) | [Dasgupta et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022GeCoA.336..291D) |
+| S$_2$ | `SolubilityS2` | `gaillard` | [Gaillard et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022E%26PSL.57717255G) |
 
 Alternative compositions (e.g. `SolubilityH2O('basalt_dixon')`, `SolubilityH2O('lunar_glass')`) are documented in the [API reference](../Reference/api/calliope.solubility.md) and discussed in [Solubility laws](../Explanations/solubility.md).
 
