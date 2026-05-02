@@ -35,11 +35,11 @@ class ModifiedKeq:
         return (-12794 / T + 2.7768, 0.5)
 
     def janaf_CO(self, T):
-        """JANAF log10Keq, 1500 < K < 3000 for CO2 = CO + 0.5 fO2"""
+        """JANAF log10Keq for CO2 = CO + 0.5 fO2 (CALLIOPE use range 1500-3000 K)"""
         return (-14467.511400133637 / T + 4.348135473316284, 0.5)
 
     def janaf_H2(self, T):
-        """JANAF log10Keq, 1500 < K < 3000 for H2O = H2 + 0.5 fO2"""
+        """JANAF log10Keq for H2O = H2 + 0.5 fO2 (CALLIOPE use range 1500-3000 K)"""
         return (-13152.477779978302 / T + 3.038586383273608, 0.5)
 
     def janaf_SO2(self, T):

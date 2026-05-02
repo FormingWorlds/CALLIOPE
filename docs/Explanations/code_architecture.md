@@ -1,6 +1,6 @@
 # Code architecture
 
-CALLIOPE is a small package: six Python modules, ~700 lines of code, no compiled extensions, no thread or process pools. This page maps each module to its responsibility and shows how they call each other.
+CALLIOPE is a small package: seven Python modules totaling under 1000 raw lines, no compiled extensions, no thread or process pools. This page maps each module to its responsibility and shows how they call each other.
 
 ## Package layout
 
