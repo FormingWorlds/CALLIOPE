@@ -1,0 +1,130 @@
+# Coupling to PROTEUS
+
+This page is the **practical recipe** for using CALLIOPE inside a PROTEUS coupled run: which TOML blocks matter, which knobs are documented where, and which combinations are known to be safe.
+
+For the underlying control flow (per-iteration sequence diagram, what the wrapper passes to `equilibrium_atmosphere()`, how warm-starts are constructed, what gets written back into `hf_row`), see the [theory page](../Explanations/proteus_coupling.md).
+
+## Minimal `[outgas]` block
+
+```toml
+[outgas]
+module       = "calliope"     # or "atmodeller" or "dummy"
+fO2_shift_IW = 0.0            # log10 shift relative to IW buffer
+mass_thresh  = 1e16           # kg, below this an element is treated as zero
+T_floor      = 700.0          # K, magma temperatures below this are clipped
+solver_rtol  = 1e-4           # relative tolerance on mass balance
+solver_atol  = 1e-6           # absolute tolerance (rarely changed)
+h2_binodal   = false          # apply Rogers+2025 H2-MgSiO3 binodal override
+
+  [outgas.calliope]
+  include_H2O = true
+  include_CO2 = true
+  include_N2  = true
+  include_S2  = true
+  include_SO2 = true
+  include_H2S = true
+  include_NH3 = true
+  include_H2  = true
+  include_CH4 = true
+  include_CO  = true
+  solubility  = true          # if false, force Phi_global = 0 (no melt dissolution)
+```
+
+The four primary species (`H2O`, `CO2`, `N2`, `S2`) **must** be included; the wrapper will refuse to run with any of them set to `false`. The seven secondary species can be disabled individually if you want a constrained sub-system (e.g. `include_NH3 = false` to suppress ammonia chemistry).
+
+## Choosing the elemental-budget mode
+
+CALLIOPE needs total H, C, N, S inventories in kilograms. PROTEUS gives you two ways to specify them via `[planet]`:
+
+```toml
+[planet]
+volatile_mode       = "elements"        # or "gas_prs"
+volatile_reservoir  = "mantle"          # or "mantle+core"; sets the reservoir for ppmw
+```
+
+### `volatile_mode = "elements"` (most common)
+
+```toml
+[planet.elements]
+use_metallicity = false      # if true, scales C/N/S to H from solar abundances
+
+H_mode   = "oceans"          # "oceans" | "ppmw" | "kg"
+H_budget = 1.0               # interpreted per H_mode
+
+C_mode   = "C/H"             # "C/H" | "ppmw" | "kg"
+C_budget = 0.1
+
+N_mode   = "ppmw"
+N_budget = 2.0
+
+S_mode   = "ppmw"
+S_budget = 200.0
+```
+
+The wrapper translates these into the four budget fields CALLIOPE expects:
+
+- `H_mode = "oceans"` → `hydrogen_earth_oceans = H_budget`
+- `H_mode = "ppmw"`   → `H_kg = H_budget * 1e-6 * M_reservoir`
+- `H_mode = "kg"`     → `H_kg = H_budget`
+
+C, N, S follow the same pattern; `C/H` is interpreted as a mass ratio relative to H.
+
+### `volatile_mode = "gas_prs"` (initial-pressure mode)
+
+```toml
+[planet]
+volatile_mode = "gas_prs"
+
+[planet.gas_prs]
+H2O = 220.0     # bar
+CO2 = 100.0
+N2  = 1.0
+S2  = 0.01
+# secondary species default to 0.0 unless explicitly set
+```
+
+When `volatile_mode = "gas_prs"`, the wrapper calls `get_target_from_pressures(ddict)` to back out the elemental inventory implied by the prescribed initial atmosphere; on every subsequent iteration the same elemental inventory is preserved.
+
+## Redox state
+
+`fO2_shift_IW` is in $\log_{10}$ units relative to the O'Neill & Eggins (2002) IW buffer. Common reference values:
+
+| $\Delta\mathrm{IW}$ | Description |
+|---|---|
+| $-5$ | Highly reduced (Mercury-like, Cartier & Wood 2019) |
+| $-3$ | Reduced (Mars-mantle estimates, Wadhwa 2001) |
+| $-1$ | Moderately reduced |
+| $0$  | At iron-wüstite buffer (core formation equilibrium at depth) |
+| $+0.5$ | Sossi et al. (2020) preferred Earth surface value |
+| $+4$ | Modern Earth mantle (Frost & McCammon 2008) |
+
+The Sossi et al. (2020) compilation places Earth's near-surface mantle at $\Delta\mathrm{IW} \approx +3$ to $+5$ (their preferred value $+3.5$); CALLIOPE defaults sit at $\Delta\mathrm{IW} = 4.0$, consistent with a modern terrestrial composition.
+
+## Solver tolerances
+
+The PROTEUS wrapper hard-codes a few solver knobs that override the CALLIOPE library defaults:
+
+| Wrapper override | Value | Reason |
+|---|---|---|
+| `nguess` | $10^3$ | The PROTEUS warm-start almost always lands on the right basin in the first attempt; $10^3$ Monte-Carlo restarts is plenty of margin without spending wall-time on degenerate cases. |
+| `nsolve` | $3 \times 10^3$ | Per-restart `fsolve` iteration cap. |
+| `opt_solver` | `False` | Skip the alternating-solver fallback; if `fsolve` cannot converge from a warm start, it almost always means an upstream bug rather than a basin-of-attraction problem. |
+| `print_result` | `False` | Suppress the per-call INFO log; the PROTEUS main loop already prints the partial pressures. |
+
+`solver_rtol` and `solver_atol` are exposed on the TOML side and forwarded directly.
+
+## Warm-start behaviour
+
+For `Time > 1` yr, the wrapper builds `p_guess` from the previous-iteration `H2O_bar`, `CO2_bar`, `N2_bar`, `S2_bar` rows. For `Time = 0` (first call) the wrapper passes `p_guess = None` and lets CALLIOPE's Monte-Carlo initial-guess generator find the basin. If an element's target inventory drops below `mass_thresh`, the corresponding `p_guess` is forced to zero so that the solver does not waste iterations chasing a vanishing species.
+
+## Common pitfalls
+
+- **`Missing required volatile`** at startup: one of H2O / CO2 / N2 / S2 is set to `include = false`. Fix: re-enable it (it can still be set to a tiny initial pressure if you want to suppress its mass).
+- **`Could not find solution for volatile abundances`** mid-run: CALLIOPE exhausted its `nguess` Monte-Carlo restarts. Almost always caused by an upstream NaN or unphysical state in `hf_row` (e.g. `T_magma < T_floor` after AGNI failed, `M_mantle = 0` after a structure-solve failure). Inspect `proteus_00.log` for the iteration immediately before the CALLIOPE failure; do not bump `nguess` blindly.
+- **Atmosphere mass collapses to zero** without escape accounting it: the `check_desiccation` gate in `proteus.outgas.wrapper` will refuse to mark the planet desiccated if the loss is unexplained by cumulative escape; this is by design (it caught the CHILI R7/R21 failure mode where AGNI side-effects wiped the atmosphere). If you see this gate firing, the upstream module failed silently.
+- **`Hydrogen inventory must be > 0`**: `H_budget = 0` or `H_mode` mistyped. CALLIOPE refuses to solve a zero-H system because the speciation is degenerate.
+- **Solubility off but `Phi_global > 0`**: not an error, but the wrapper will silently force `Phi_global = 0` when `[outgas.calliope].solubility = false`, so dissolved masses will all be zero regardless of the live melt fraction.
+
+## Next step
+
+For what the wrapper actually does on each iteration (sequence diagram, mapping table, hf_row keys), read [Coupling to PROTEUS (theory)](../Explanations/proteus_coupling.md).
