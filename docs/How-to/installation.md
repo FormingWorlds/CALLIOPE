@@ -32,7 +32,7 @@ To install the documentation tooling on top of that:
 pip install -e .[develop,docs]
 ```
 
-The `docs` extra pulls in `mkdocs`, `mkdocs-material`, `mkdocstrings[python]`, and `markdown-include`, which are everything you need to build this site locally.
+The `docs` extra pulls in [Zensical](https://zensical.org/) (the static site generator from the Material for MkDocs team, used to build this site), `mkdocs`, `mkdocs-material`, `mkdocstrings[python]`, and `markdown-include`. With these installed you can run `zensical serve` from the repository root to serve a live-reloading copy of this documentation locally.
 
 ## Verifying the install
 

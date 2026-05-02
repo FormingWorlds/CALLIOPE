@@ -54,6 +54,7 @@ develop = [
 ]
 
 docs = [
+    "zensical",
     "markdown-include",
     "mkdocs",
     "mkdocs-material",
