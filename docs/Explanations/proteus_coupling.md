@@ -115,9 +115,9 @@ The previous-iteration partial pressures are an excellent warm start because the
 solvevol_result = equilibrium_atmosphere(
     target,
     opts,
-    xtol=config.outgas.solver_atol,
-    rtol=config.outgas.solver_rtol,
-    atol=config.outgas.mass_thresh,
+    xtol=config.outgas.solver_atol,    # fsolve step tolerance (despite the TOML name)
+    rtol=config.outgas.solver_rtol,    # relative mass-balance tolerance
+    atol=config.outgas.mass_thresh,    # absolute mass-balance tolerance
     nguess=int(1e3),
     nsolve=int(3e3),
     p_guess=p_guess,
