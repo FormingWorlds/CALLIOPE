@@ -34,15 +34,18 @@ pytest -x --showlocals
 
 ## What the suite covers
 
-The `tests/` directory contains three files:
+The `tests/` directory contains six files:
 
 | File | Coverage |
 |---|---|
 | `test_init.py` | Smoke check that the package imports and exposes `__version__`. |
 | `test_core.py` | Per-component tests of the oxygen-fugacity buffer, modified equilibrium constants, the simple structure model, the H$_2$O solubility laws, and the constants table. |
 | `test_stoichiometry.py` | Atom-by-atom mass tallies in `atmosphere_mass()`, equilibrium-constant consistency for SO$_2$ / H$_2$S / NH$_3$, CH$_4$ pressure correction, and end-to-end mass conservation through `equilibrium_atmosphere()`. |
+| `test_partial_species.py` | Species-exclusion (`is_included=0`) branches of `get_partial_pressures`, `atmosphere_mass`, and `dissolved_mass`; the `SolubilityN2.libourel` Henry's-law mode. |
+| `test_targets.py` | The `get_target_from_params` (oceans + CH ratio + ppmw) and `get_target_from_pressures` (round-trip from initial pressures) entry points, including the no-S / no-C / no-N short-circuit branches. |
+| `test_equilibrium_paths.py` | `equilibrium_atmosphere` edge paths: warm-start `p_guess`, `opt_solver=False`, `print_result` log emission, `RuntimeError` on convergence failure, `hide_warnings` toggle. |
 
-The `test_stoichiometry.py` tests deliberately use parameter values away from grid nodes and contain at least one physically-motivated invariant per chemistry path (see the project [test-quality rules](https://github.com/FormingWorlds/PROTEUS/blob/main/.claude/rules/proteus-tests.md)).
+Every test follows the project [test-quality rules](https://github.com/FormingWorlds/PROTEUS/blob/main/.claude/rules/proteus-tests.md): one edge case + one physically-unreasonable input per class, discriminating values that distinguish the correct formula from plausible wrong formulas, `pytest.approx` for all float comparisons.
 
 ## Coverage
 
@@ -53,6 +56,8 @@ coverage run -m pytest
 coverage report          # text summary in the terminal
 coverage html            # HTML report under htmlcov/
 ```
+
+The current floor is **95% combined line + branch coverage**, enforced by `[tool.coverage.report] fail_under = 95` in `pyproject.toml`. The local measurement on this branch is 99%; the floor sits a few points below so unrelated refactors that touch a defensive path don't immediately fail CI. Bump the floor up (never down) when the suite improves.
 
 CI uploads `coverage.xml` to [Codecov](https://app.codecov.io/gh/FormingWorlds/CALLIOPE/tree/main) on every push to `main` (Linux + Python 3.13 only, to avoid double-counting across the OS-and-version matrix). The Codecov badge at the top of this page is rendered live from that report.
 
