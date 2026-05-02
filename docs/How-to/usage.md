@@ -86,7 +86,7 @@ target = get_target_from_pressures(ddict)
 result = equilibrium_atmosphere(target, ddict, print_result=True)
 ```
 
-`get_target_from_pressures()` computes the implied total elemental masses by summing atmospheric column mass (Bower 2019 Eq. 2) and dissolved mass (Henry's law) across every included species at the prescribed initial pressures.
+`get_target_from_pressures()` computes the implied total elemental masses by summing atmospheric column mass ([Bower et al. (2019)](https://ui.adsabs.harvard.edu/abs/2019A%26A...631A.103B) Eq. 2) and dissolved mass (Henry's law) across every included species at the prescribed initial pressures.
 
 ## Warm-starting from a previous solve
 

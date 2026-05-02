@@ -12,9 +12,9 @@ This page summarises the model assumptions, the variables it solves for, and how
 
     | Reaction | Source |
     |---|---|
-    | $\mathrm{H_2O} \rightleftharpoons \mathrm{H_2} + \tfrac{1}{2}\,\mathrm{O_2}$ | JANAF (`janaf_H2`) and Schaefer & Fegley 2017 (`schaefer_H`) |
-    | $\mathrm{CO_2} \rightleftharpoons \mathrm{CO} + \tfrac{1}{2}\,\mathrm{O_2}$ | JANAF (`janaf_CO`) and Schaefer & Fegley 2017 (`schaefer_C`) |
-    | $\mathrm{CO_2} + 2\,\mathrm{H_2} \rightleftharpoons \mathrm{CH_4} + \mathrm{O_2}$ | Schaefer & Fegley 2017 (`schaefer_CH4`) |
+    | $\mathrm{H_2O} \rightleftharpoons \mathrm{H_2} + \tfrac{1}{2}\,\mathrm{O_2}$ | [JANAF](https://janaf.nist.gov/) (`janaf_H2`) and [Schaefer & Fegley 2017](https://ui.adsabs.harvard.edu/abs/2017ApJ...843..120S) (`schaefer_H`) |
+    | $\mathrm{CO_2} \rightleftharpoons \mathrm{CO} + \tfrac{1}{2}\,\mathrm{O_2}$ | [JANAF](https://janaf.nist.gov/) (`janaf_CO`) and [Schaefer & Fegley 2017](https://ui.adsabs.harvard.edu/abs/2017ApJ...843..120S) (`schaefer_C`) |
+    | $\mathrm{CO_2} + 2\,\mathrm{H_2} \rightleftharpoons \mathrm{CH_4} + \mathrm{O_2}$ | [Schaefer & Fegley 2017](https://ui.adsabs.harvard.edu/abs/2017ApJ...843..120S) (`schaefer_CH4`) |
     | $\tfrac{1}{2}\,\mathrm{S_2} + \mathrm{O_2} \rightleftharpoons \mathrm{SO_2}$ | JANAF, doubled form (`janaf_SO2`) |
     | $\tfrac{1}{2}\,\mathrm{S_2} + \mathrm{H_2} \rightleftharpoons \mathrm{H_2S}$ | JANAF, doubled form (`janaf_H2S`) |
     | $\tfrac{1}{2}\,\mathrm{N_2} + \tfrac{3}{2}\,\mathrm{H_2} \rightleftharpoons \mathrm{NH_3}$ | JANAF, doubled form (`janaf_NH3`) |
