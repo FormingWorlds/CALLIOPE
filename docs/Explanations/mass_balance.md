@@ -81,9 +81,8 @@ The residual function $\mathbf{r}(\mathbf{p})$ has multiple physically valid roo
 
 The Monte-Carlo restart cures both pathologies: by sweeping log-uniformly over 17 orders of magnitude, the solver eventually lands in the basin of the *physically* correct root from a starting point close enough that `fsolve` converges before any negative excursion occurs. With a good warm start (PROTEUS pattern), the first attempt succeeds in 99%+ of cases; without one, $\sim 10$-50 restarts are typical.
 
-`★ Insight ─────────────────────────────────────`
-The 1500-iteration `nsolve` cap and the 7500-restart `nguess` cap in the library defaults are both deliberately loose: they bound the wall-time at $\sim$10 seconds per call (a conservative ceiling) without cutting off pathological cases that genuinely need more attempts. The PROTEUS wrapper tightens both ($n_\text{solve} = 3000$, $n_\text{guess} = 1000$) because the warm-start strategy makes the long tails irrelevant in normal operation. If you see the wrapper hit `nguess = 1000`, the upstream physics is broken, not the solver.
-`─────────────────────────────────────────────────`
+!!! note "On the iteration caps"
+    The 1500-iteration `nsolve` cap and the 7500-restart `nguess` cap in the library defaults are both deliberately loose: they bound the wall-time at $\sim$10 seconds per call (a conservative ceiling) without cutting off pathological cases that genuinely need more attempts. The PROTEUS wrapper tightens both ($n_\text{solve} = 3000$, $n_\text{guess} = 1000$) because the warm-start strategy makes the long tails irrelevant in normal operation. If you see the wrapper hit `nguess = 1000`, the upstream physics is broken, not the solver.
 
 ## Convergence diagnostics
 

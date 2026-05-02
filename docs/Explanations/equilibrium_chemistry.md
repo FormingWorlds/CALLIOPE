@@ -100,9 +100,8 @@ $$
 p_{\mathrm{NH_3}} = \sqrt{G_\mathrm{eq}^{\mathrm{NH_3}} \cdot p_{\mathrm{N_2}} \cdot p_{\mathrm{H_2}}^3}.
 $$
 
-`★ Insight ─────────────────────────────────────`
-The "doubled form" for SO$_2$, H$_2$S, NH$_3$ is a notational trick: rather than parameterising the formation constant $K_f$ for $\tfrac{1}{2}A + B \to AB$, CALLIOPE stores $K_f^2$ (which is $K$ for $A + 2B \to 2AB$). This lets the `Geq * p_S2 * p_O2^2` product in `solve.py` be square-rooted in one go to recover the formation product, which is more numerically stable when partial pressures span 12 dex than computing the formation constant and multiplying by a half-power directly. Whatever it gains in stability, it costs in clarity, which is why the test file ties the analytical $K_f$ form back to the code form for every doubled-form species.
-`─────────────────────────────────────────────────`
+!!! note "On the doubled-form notation"
+    The "doubled form" for SO$_2$, H$_2$S, NH$_3$ is a notational trick: rather than parameterising the formation constant $K_f$ for $\tfrac{1}{2}A + B \to AB$, CALLIOPE stores $K_f^2$ (which is $K$ for $A + 2B \to 2AB$). This lets the `Geq * p_S2 * p_O2^2` product in `solve.py` be square-rooted in one go to recover the formation product, which is more numerically stable when partial pressures span 12 dex than computing the formation constant and multiplying by a half-power directly. Whatever it gains in stability it costs in clarity, which is why the test file ties the analytical $K_f$ form back to the code form for every doubled-form species.
 
 ## Speciation tree
 

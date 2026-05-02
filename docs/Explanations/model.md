@@ -58,9 +58,8 @@ The four pieces of physics decompose cleanly:
 - **Nicholls et al. (2024)** introduced N$_2$ via the Libourel et al. (2003) and Dasgupta et al. (2022) solubility laws, which is the species set in `calliope.solve.equilibrium_atmosphere` today.
 - **Nicholls et al. (2025) and Nicholls et al. (2026)** demonstrated the sulfur extension (S$_2$, SO$_2$, H$_2$S) on TRAPPIST-1 c, HD 63433 d, and L 98-59 d, validating the equilibrium constants and the Gaillard et al. (2022) S$_2$ solubility law against in-situ photochemical inferences.
 
-`★ Insight ─────────────────────────────────────`
-CALLIOPE's prognostic variables are the four primary partial pressures, not the eleven species partial pressures. This is why N has only one solved degree of freedom even though it appears in both N$_2$ and NH$_3$, and why O is not solved at all: the gas-phase chemistry collapses the eleven species into four independent mass-balance constraints. Adding a new oxygen-bearing species (e.g. NO) would not require a new constraint - only a new entry in `get_partial_pressures()` and the corresponding contribution to atmospheric and dissolved mass.
-`─────────────────────────────────────────────────`
+!!! note "Why four primaries"
+    CALLIOPE's prognostic variables are the four primary partial pressures, not the eleven species partial pressures. This is why N has only one solved degree of freedom even though it appears in both N$_2$ and NH$_3$, and why O is not solved at all: the gas-phase chemistry collapses the eleven species into four independent mass-balance constraints. Adding a new oxygen-bearing species (e.g. NO) would not require a new constraint, only a new entry in `get_partial_pressures()` and the corresponding contribution to atmospheric and dissolved mass.
 
 ## Validity range
 
