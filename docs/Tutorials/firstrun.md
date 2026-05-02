@@ -40,9 +40,8 @@ for sp in volatile_species:
                                        # consulted by get_target_from_pressures)
 ```
 
-`★ Insight ─────────────────────────────────────`
-`hydrogen_earth_oceans = 1.0` corresponds to ~$1.55 \times 10^{20}$ kg of H, which the wrapper translates via `H_kg = N_ocean_moles * ocean_moles * molar_mass['H2']`. `CH_ratio = 0.1` is a mass ratio chosen to roughly match estimates of Earth's bulk silicate Earth C/H. `nitrogen_ppmw = 2.0` matches the Wang et al. (2018) primitive-mantle estimate that Nicholls et al. (2024) used as their fiducial value.
-`─────────────────────────────────────────────────`
+!!! note "What these numbers mean"
+    `hydrogen_earth_oceans = 1.0` corresponds to $\sim 1.55 \times 10^{20}$ kg of H, which the wrapper translates via `H_kg = N_ocean_moles * ocean_moles * molar_mass['H2']`. `CH_ratio = 0.1` is a mass ratio chosen to roughly match estimates of Earth's bulk silicate Earth C/H. `nitrogen_ppmw = 2.0` matches the Wang et al. (2018) primitive-mantle estimate that Nicholls et al. (2024) used as their fiducial value.
 
 ## Step 2: build the elemental targets and solve
 

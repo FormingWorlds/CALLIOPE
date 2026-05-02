@@ -38,9 +38,8 @@ $$
 
 Implemented as `OxygenFugacity.fischer(T)`.
 
-`★ Insight ─────────────────────────────────────`
-The two parameterisations agree to $\le$0.2 dex over the full magma-ocean temperature range (1500-3500 K), and their numerical predictions at fixed $T$ differ by less than the typical uncertainty in $\Delta\mathrm{IW}$ inferred from petrological observations (Sossi et al. 2020 give $\Delta\mathrm{IW} = +3.5 \pm 0.5$ for Earth's modern surface mantle). The choice between them rarely matters for final partial pressures; CALLIOPE defaults to O'Neill & Eggins because Bower et al. (2022) used it and it was validated end-to-end against PROTEUS coupled runs.
-`─────────────────────────────────────────────────`
+!!! note "Choice of buffer"
+    The two parameterisations agree to $\le$0.2 dex over the full magma-ocean temperature range (1500-3500 K), and their numerical predictions at fixed $T$ differ by less than the typical uncertainty in $\Delta\mathrm{IW}$ inferred from petrological observations (Sossi et al. 2020 give $\Delta\mathrm{IW} = +3.5 \pm 0.5$ for Earth's modern surface mantle). The choice between them rarely matters for final partial pressures; CALLIOPE defaults to O'Neill & Eggins because Bower et al. (2022) used it and it was validated end-to-end against PROTEUS coupled runs.
 
 ## How $\Delta\mathrm{IW}$ enters the chemistry
 
