@@ -54,7 +54,7 @@ coverage report          # text summary in the terminal
 coverage html            # HTML report under htmlcov/
 ```
 
-CI uploads `coverage.xml` to [Codecov](https://app.codecov.io/gh/FormingWorlds/CALLIOPE/tree/main) on every push to `main` (Linux + Python 3.13 only, to avoid double-counting across the OS-and-version matrix). The Codecov badge above is rendered live from that report. A legacy gist-driven badge is also written and surfaced on the GitHub Actions page; both are kept in sync.
+CI uploads `coverage.xml` to [Codecov](https://app.codecov.io/gh/FormingWorlds/CALLIOPE/tree/main) on every push to `main` (Linux + Python 3.13 only, to avoid double-counting across the OS-and-version matrix). The Codecov badge at the top of this page is rendered live from that report.
 
 ## Linting
 
