@@ -16,7 +16,7 @@ This page lists the implemented laws, the experimental sources behind each, and 
 
 | Composition | Law | Source | $\alpha$ (ppmw bar$^{-1/\beta}$) | $\beta$ |
 |---|---|---|---:|---:|
-| `peridotite` (default) | $524\, p^{0.5}$ | Sossi et al. (2022) | 524 | 2 |
+| `peridotite` (default) | $524\, p^{0.5}$ | Sossi et al. (2023) | 524 | 2 |
 | `basalt_dixon` | $965\, p^{0.5}$ | Dixon et al. (1995, refit by Sossi) | 965 | 2 |
 | `basalt_wilson` | $215\, p^{0.7}$ | Hamilton (1964); Wilson & Head (1981) | 215 | 1/0.7 |
 | `anorthite_diopside` | $727\, p^{0.5}$ | Newcombe et al. (2017) | 727 | 2 |

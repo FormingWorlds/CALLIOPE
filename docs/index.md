@@ -1,6 +1,8 @@
-![Tests](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml/badge.svg)
-[![Documentation Status](https://readthedocs.org/projects/fwl-calliope/badge/?version=latest)](https://fwl-calliope.readthedocs.io/en/latest/?badge=latest)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Tests](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml/badge.svg)](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml)
+[![Coverage](https://gist.githubusercontent.com/nichollsh/735833097e88c92da096591d3e6b270a/raw/covbadge.svg)](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml)
+[![PyPI](https://img.shields.io/pypi/v/fwl-calliope?label=PyPI)](https://pypi.org/project/fwl-calliope/)
+[![Python versions](https://img.shields.io/pypi/pyversions/fwl-calliope)](https://www.python.org/)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 # CALLIOPE
 
@@ -17,9 +19,9 @@ Named after the [Greek muse of eloquence and epic poetry](https://en.wikipedia.o
 
 - **Eleven volatile species**: H$_2$O, CO$_2$, N$_2$, S$_2$ as primary unknowns; H$_2$, CH$_4$, CO, NH$_3$, SO$_2$, H$_2$S, O$_2$ derived from gas-phase equilibrium
 - **Five elemental conservation channels**: H, C, N, S as solved constraints; O fixed by the $f_{\mathrm{O}_2}$ buffer
-- **Configurable redox state**: O'Neill & Eggins (2002) iron-wüstite (IW) buffer with arbitrary $\Delta\mathrm{IW}$ shift, or Fischer et al. (2011) IW
+- **Configurable redox state**: O'Neill & Eggins (2002) iron-wüstite (IW) buffer with arbitrary $\Delta\mathrm{IW}$ shift, or Fischer et al. (2013) IW
 - **Calibrated equilibrium constants**: JANAF and Schaefer & Fegley (2017) fits for the H$_2$O–H$_2$, CO$_2$–CO, CO$_2$+H$_2$–CH$_4$, S$_2$–SO$_2$, S$_2$+H$_2$–H$_2$S, and N$_2$+H$_2$–NH$_3$ couples
-- **Multiple solubility laws per species**: peridotite (default H$_2$O, Sossi et al. 2022), basalt (Dixon et al. 1995, Wilson & Head 1981, Hamilton 1964), anorthite-diopside (Newcombe et al. 2017), lunar glass (Newcombe et al. 2017); CO$_2$ (Dixon et al. 1995); CO (Armstrong et al. 2015); CH$_4$ (Ardia et al. 2013); N$_2$ (Libourel et al. 2003 or Dasgupta et al. 2022); S$_2$ (Gaillard et al. 2022)
+- **Multiple solubility laws per species**: peridotite (default H$_2$O, Sossi et al. 2023), basalt (Dixon et al. 1995, Wilson & Head 1981, Hamilton et al. 1964), anorthite-diopside (Newcombe et al. 2017), lunar glass (Newcombe et al. 2017); CO$_2$ (Dixon et al. 1995); CO (Armstrong et al. 2015); CH$_4$ (Ardia et al. 2013); N$_2$ (Libourel et al. 2003 or Dasgupta et al. 2022); S$_2$ (Gaillard et al. 2022)
 - **Robust hybrid solver**: alternating `scipy.optimize.fsolve` (Powell hybrid) and `trust-constr` minimisation, with Monte-Carlo restart on failure
 - **PROTEUS-coupled or standalone**: the same equilibrium kernel powers both the in-loop call from PROTEUS and one-off scripts
 

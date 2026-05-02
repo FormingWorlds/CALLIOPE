@@ -110,7 +110,7 @@ To override the default solubility law for a species, instantiate the law explic
 
 | Species | Default class | Default composition | Source |
 |---|---|---|---|
-| H$_2$O | `SolubilityH2O` | `peridotite` | Sossi et al. (2022) |
+| H$_2$O | `SolubilityH2O` | `peridotite` | Sossi et al. (2023) |
 | CO$_2$ | `SolubilityCO2` | `basalt_dixon` | Dixon et al. (1995) |
 | CO | `SolubilityCO` | `mafic_armstrong` | Armstrong et al. (2015) |
 | CH$_4$ | `SolubilityCH4` | `basalt_ardia` | Ardia et al. (2013) |

@@ -36,7 +36,7 @@ class SolubilityH2O(Solubility):
         return self.power_law(p, 727, 0.5)
 
     def peridotite(self, p):
-        """Sossi et al. (2022)"""
+        """Sossi et al. (2023)"""
         return self.power_law(p, 524, 0.5)
 
     def basalt_dixon(self, p):

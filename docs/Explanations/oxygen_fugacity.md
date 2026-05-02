@@ -28,7 +28,7 @@ $$
 
 with $R = 8.31441$ J K$^{-1}$ mol$^{-1}$. Bower et al. (2022) adopted this as the "IW buffer to which $f_{\mathrm{O}_2}$ is referenced". This is the function `OxygenFugacity.oneill(T)` in `oxygen_fugacity.py`.
 
-### Fischer et al. (2011), `fischer`
+### Fischer et al. (2013), `fischer`
 
 A simpler two-parameter fit calibrated against high-pressure ($\sim$25 GPa) experimental data:
 
