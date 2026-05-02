@@ -19,7 +19,7 @@ This page summarises the model assumptions, the variables it solves for, and how
     | $\tfrac{1}{2}\,\mathrm{S_2} + \mathrm{H_2} \rightleftharpoons \mathrm{H_2S}$ | JANAF, doubled form (`janaf_H2S`) |
     | $\tfrac{1}{2}\,\mathrm{N_2} + \tfrac{3}{2}\,\mathrm{H_2} \rightleftharpoons \mathrm{NH_3}$ | JANAF, doubled form (`janaf_NH3`) |
 
-- **One oxygen-fugacity buffer**: O'Neill & Eggins (2002) iron-wüstite (default), or Fischer et al. (2011) IW. The model takes a user-prescribed shift $\Delta\mathrm{IW}$ that sets $\log_{10} f_{\mathrm{O}_2}$ relative to the buffer; this is *not* solved for, it parameterises the redox state of the magma ocean.
+- **One oxygen-fugacity buffer**: O'Neill & Eggins (2002) iron-wüstite (default), or Fischer et al. (2013) IW. The model takes a user-prescribed shift $\Delta\mathrm{IW}$ that sets $\log_{10} f_{\mathrm{O}_2}$ relative to the buffer; this is *not* solved for, it parameterises the redox state of the magma ocean.
 - **One solubility law per species** with multiple alternative compositions (peridotite, basalt, lunar glass, anorthite-diopside) selectable via constructor argument.
 
 ## What is *not* in the model
@@ -67,5 +67,5 @@ CALLIOPE is calibrated for surface temperatures of roughly $1000 \le T_\mathrm{m
 
 - Below $T \sim 1000$ K the JANAF fits used for the equilibrium constants extrapolate beyond their validation range; the PROTEUS wrapper enforces a configurable `T_floor` (default 700 K) below which outgassing is skipped.
 - Above $T \sim 4000$ K the gas-phase ideal-gas approximation breaks down; switch to atmodeller (Bower et al. 2025), which uses real-gas EOS.
-- At surface pressures above ~5 kbar, the H$_2$O solubility laws (Sossi et al. 2022, Newcombe et al. 2017) extrapolate beyond their experimental calibration window; results are still self-consistent but should be checked against atmodeller for robustness.
+- At surface pressures above ~5 kbar, the H$_2$O solubility laws (Sossi et al. 2023, Newcombe et al. 2017) extrapolate beyond their experimental calibration window; results are still self-consistent but should be checked against atmodeller for robustness.
 - Solid-phase partitioning is ignored; CALLIOPE strictly handles melt + gas. Use it only when $\Phi_\mathrm{global} > 0$, or accept that all dissolved masses will be zero.

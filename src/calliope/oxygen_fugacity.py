@@ -19,7 +19,7 @@ class OxygenFugacity:
         return self.callmodel(T) + fO2_shift
 
     def fischer(self, T):
-        """Fischer et al. (2011) IW"""
+        """Fischer et al. (2013) IW"""
         return 6.94059 - 28.1808 * 1e3 / T
 
     def oneill(self, T):
