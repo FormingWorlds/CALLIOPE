@@ -72,6 +72,16 @@ include-package-data = true
 branch = true
 source = ["calliope"]
 
+[tool.coverage.report]
+# Floor enforced in CI. Bump up (never down) when the suite improves.
+fail_under = 95
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
