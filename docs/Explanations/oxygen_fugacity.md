@@ -28,7 +28,7 @@ $$
 
 with $R = 8.31441$ J K$^{-1}$ mol$^{-1}$. [Bower et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) adopted this as the "IW buffer to which $f_{\mathrm{O}_2}$ is referenced". This is the function `OxygenFugacity.oneill(T)` in `oxygen_fugacity.py`.
 
-### [Fischer et al. (2013)](https://ui.adsabs.harvard.edu/abs/2013E%26PSL.373...54F), `fischer`
+### [Fischer et al. (2011)](https://ui.adsabs.harvard.edu/abs/2011E%26PSL.304..496F), `fischer`
 
 A simpler two-parameter fit calibrated against high-pressure ($\sim$25 GPa) experimental data:
 
@@ -83,8 +83,8 @@ Similarly, the [Dasgupta et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022Ge
 | Mars mantle | $-3$ to $0$ | [Wadhwa (2001)](https://ui.adsabs.harvard.edu/abs/2001Sci...291.1527W) |
 | Iron-wüstite buffer | $0$ | by definition |
 | Earth modern surface | $+3.5$ | [Sossi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) |
-| Earth modern surface (preferred) | $+3$ to $+5$ | [Sossi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) compilation |
-| Modern Earth (deep mantle) | $\sim 0$ | [Frost & McCammon (2008)](https://ui.adsabs.harvard.edu/abs/2008AREPS..36..389F) |
+| Earth upper mantle | $+1$ to $+5$ (i.e. FMQ$\,\pm\,2$) | [Frost & McCammon (2008)](https://ui.adsabs.harvard.edu/abs/2008AREPS..36..389F) |
+| Earth deep (lower) mantle | $\sim -2$ to $-3$ ($\sim 5$ log units below FMQ at $\sim 8$ GPa) | [Frost & McCammon (2008)](https://ui.adsabs.harvard.edu/abs/2008AREPS..36..389F) |
 
 CALLIOPE's PROTEUS-side default is `fO2_shift_IW = 4.0`, consistent with a near-surface terrestrial composition. [Nicholls et al. (2024)](https://ui.adsabs.harvard.edu/abs/2024JGRE..12908576N) explored $\Delta\mathrm{IW} \in \{-5, -3, -1, 0, +1, +3, +5\}$ on a 7-point grid and demonstrated that the resulting atmospheric composition spans the full range from H$_2$-dominated reduced atmospheres (TRAPPIST-1 c-like) to H$_2$O/CO$_2$-dominated oxidised atmospheres (Earth-like).
 

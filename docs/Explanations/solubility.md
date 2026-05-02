@@ -22,6 +22,9 @@ This page lists the implemented laws, the experimental sources behind each, and 
 | `anorthite_diopside` | $727\, p^{0.5}$ | [Newcombe et al. (2017)](https://ui.adsabs.harvard.edu/abs/2017GeCoA.200..330N) | 727 | 2 |
 | `lunar_glass` | $683\, p^{0.5}$ | [Newcombe et al. (2017)](https://ui.adsabs.harvard.edu/abs/2017GeCoA.200..330N) | 683 | 2 |
 
+!!! note "About the `peridotite` constant 524"
+    [Sossi et al. (2023)](https://ui.adsabs.harvard.edu/abs/2023E%26PSL.60117894S) report two values for the prefactor depending on the FTIR absorption coefficient used: $\alpha = 524 \pm 16$ ppmw bar$^{-0.5}$ from the basaltic-glass calibration ($\epsilon_{3550} = 6.3$ m$^2$ mol$^{-1}$), and $\alpha = 647$ ppmw bar$^{-0.5}$ from the peridotite-glass calibration. CALLIOPE uses 524 to match the value adopted in [Nicholls et al. (2024)](https://ui.adsabs.harvard.edu/abs/2024JGRE..12908576N) and the PROTEUS-side fiducial; the label `peridotite` refers to the *experimental melt composition* (Sossi+2023 used a peridotitic starting composition), not to the spectroscopic-calibration choice. If you want the full peridotite-glass calibration, instantiate `SolubilityH2O('peridotite')` and override the constant manually, or wait for an upstream change.
+
 The choice between peridotite (default) and basalt is one of the larger uncertainties in early magma-ocean modelling. [Bower et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) Table 1 compares all five compositions across the relevant pressure range; [Nicholls et al. (2024)](https://ui.adsabs.harvard.edu/abs/2024JGRE..12908576N) uses peridotite as the fiducial, consistent with CALLIOPE's default.
 
 ### CO$_2$ - `SolubilityCO2(composition='basalt_dixon')`
