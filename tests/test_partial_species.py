@@ -133,7 +133,10 @@ class TestGetPartialPressuresExclusions:
         # `max(0.0, p_d[k])` clip pins the output non-negative.
         ddict = _make_ddict()
         pin = {'H2O': -5.0, 'CO2': 10.0, 'N2': 1.0, 'S2': 0.1}
-        p_d = get_partial_pressures(pin, ddict)
+        # Negative H2O => p_d['H2'] < 0 => NH3 = (... * H2**3) ** 0.5 raises
+        # a RuntimeWarning ("invalid value in scalar power"). Expected.
+        with pytest.warns(RuntimeWarning, match='invalid value'):
+            p_d = get_partial_pressures(pin, ddict)
 
         # Clip contract: every output non-negative even if input is not.
         for sp, p in p_d.items():

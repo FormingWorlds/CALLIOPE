@@ -209,7 +209,11 @@ class TestGetTargetFromPressures:
         ddict['CO_initial_bar'] = 0.0
         ddict['N2_initial_bar'] = 1.0
         ddict['S2_initial_bar'] = 0.01
-        target = get_target_from_pressures(ddict)
+        # CO2 = 0 => CO2 dissolution path evaluates log10(0); the helper
+        # masks the resulting -inf/0 contribution but numpy still emits
+        # a divide-by-zero RuntimeWarning. Expected.
+        with pytest.warns(RuntimeWarning, match='divide by zero'):
+            target = get_target_from_pressures(ddict)
 
         assert target['C'] == pytest.approx(0.0, abs=1e-30)
         assert target['H'] > 0.0
