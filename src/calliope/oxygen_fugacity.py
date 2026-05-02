@@ -24,7 +24,7 @@ class OxygenFugacity:
         return self.callmodel(T) + fO2_shift
 
     def fischer(self, T):
-        """Fischer et al. (2013) IW"""
+        """Fischer et al. (2011) IW (FeO equation of state, EPSL 304, 496)"""
         return 6.94059 - 28.1808 * 1e3 / T
 
     def oneill(self, T):

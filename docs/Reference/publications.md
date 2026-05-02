@@ -20,7 +20,7 @@ CALLIOPE inherits its calibration from the following experimental and thermochem
 ### Oxygen-fugacity buffers
 
 - **O'Neill, H.St.C., & Eggins, S.M. (2002).** The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts. *Chemical Geology, 186*, 151-181. \[[ADS](https://ui.adsabs.harvard.edu/abs/2002ChGeo.186..151O) | [DOI](https://doi.org/10.1016/S0009-2541(01)00414-4)\] (Source for the IW buffer parameterisation `oneill`.)
-- **Fischer, R.A., Campbell, A.J., Reaman, D.M., Miller, N.A., Heinz, D.L., Dera, P., & Prakapenka, V.B. (2013).** Phase relations in the Fe-FeSi system at high pressures and temperatures. *Earth and Planetary Science Letters, 373*, 54-64. \[[ADS](https://ui.adsabs.harvard.edu/abs/2013E%26PSL.373...54F) | [DOI](https://doi.org/10.1016/j.epsl.2013.04.035)\] (Source for the alternative IW buffer `fischer`.)
+- **Fischer, R.A., Campbell, A.J., Shofner, G.A., Lord, O.T., Dera, P., & Prakapenka, V.B. (2011).** Equation of state and phase diagram of FeO. *Earth and Planetary Science Letters, 304*, 496-502. \[[ADS](https://ui.adsabs.harvard.edu/abs/2011E%26PSL.304..496F) | [DOI](https://doi.org/10.1016/j.epsl.2011.02.025)\] (Source for the alternative IW buffer `fischer`.)
 - **Sossi, P.A., Burnham, A.D., Badro, J., Lanzirotti, A., Newville, M., & O'Neill, H.St.C. (2020).** Redox state of Earth's magma ocean and its Venus-like early atmosphere. *Science Advances, 6*, eabd1387. \[[ADS](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) | [DOI](https://doi.org/10.1126/sciadv.abd1387)\] (Reference for the modern Earth $\Delta\mathrm{IW} \approx +3.5$ used as a default.)
 
 ### Solubility laws
@@ -36,12 +36,15 @@ CALLIOPE inherits its calibration from the following experimental and thermochem
 - **Dasgupta, R., Falksen, E., Pal, A., & Sun, C. (2022).** The fate of nitrogen during parent body partial melting and accretion of the inner Solar System bodies at reducing conditions. *Geochimica et Cosmochimica Acta, 336*, 291-307. \[[ADS](https://ui.adsabs.harvard.edu/abs/2022GeCoA.336..291D) | [DOI](https://doi.org/10.1016/j.gca.2022.09.012)\] (CALLIOPE N$_2$ default `dasgupta`.)
 - **Gaillard, F., Bernadou, F., Roskosz, M., Bouhifd, M.A., Marrocchi, Y., Iacono-Marziano, G., Moreira, M., Scaillet, B., & Rogerie, G. (2022).** Redox controls during magma ocean degassing. *Earth and Planetary Science Letters, 577*, 117255. \[[ADS](https://ui.adsabs.harvard.edu/abs/2022E%26PSL.57717255G) | [DOI](https://doi.org/10.1016/j.epsl.2021.117255)\] (CALLIOPE S$_2$ `gaillard`.)
 
+### Bulk-Earth elemental abundances
+
+- **Wang, H.S., Lineweaver, C.H., & Ireland, T.R. (2018).** The elemental abundances (with uncertainties) of the most Earth-like planet. *Icarus, 299*, 460-474. \[[ADS](https://ui.adsabs.harvard.edu/abs/2018Icar..299..460W) | [DOI](https://doi.org/10.1016/j.icarus.2017.08.024)\] (Source for the primitive-mantle nitrogen $\sim$2 ppmw fiducial used in the [first-run tutorial](../Tutorials/firstrun.md).)
+
 ## Applications using CALLIOPE within PROTEUS
 
 These are publications that have applied CALLIOPE within coupled PROTEUS runs.
 
 - **Nicholls, H., Pierrehumbert, R.T., Lichtenberg, T., Soucasse, L., & Smeets, S. (2025).** Convective shutdown in the atmospheres of lava worlds. *Monthly Notices of the Royal Astronomical Society, 536*(3), 2957-2971. \[[ADS](https://ui.adsabs.harvard.edu/abs/2025MNRAS.536.2957N) | [DOI](https://doi.org/10.1093/mnras/stae2772) | [arXiv](https://arxiv.org/abs/2412.11987)\]
-- **Hammond, M., Guimond, C.M., Lichtenberg, T., Nicholls, H., Fisher, C., Luque, R., Meier, T.G., Taylor, J., Changeat, Q., Dang, L., Hay, H.C.F.C., Herbort, O., & Teske, J. (2025).** Reliable detections of atmospheres on rocky exoplanets with photometric JWST phase curves. *The Astrophysical Journal Letters, 978*, L40. \[[ADS](https://ui.adsabs.harvard.edu/abs/2025ApJ...978L..40H) | [arXiv](https://arxiv.org/abs/2409.04386)\]
 - **Nicholls, H., Lichtenberg, T., Chatterjee, R.D., Guimond, C.M., Postolec, E., & Pierrehumbert, R.T. (2026).** Volatile-rich evolution of molten super-Earth L 98-59 d. *Nature Astronomy*. \[[ADS](https://ui.adsabs.harvard.edu/abs/2026NatAs.tmp...61N) | [DOI](https://doi.org/10.1038/s41550-026-02815-8)\]
 
 ## Related software
