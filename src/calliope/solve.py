@@ -394,39 +394,40 @@ def equilibrium_atmosphere(
     print_result=True,
     opt_solver=True,
 ):
-    """Solves for surface partial pressures assuming melt-vapour eqm
-
+    """Solve for surface partial pressures assuming melt-vapour equilibrium.
 
     Parameters
     ----------
-        target_d : dict
-            Target elemental mass inventories [kg]
-        ddict : dict
-            Dictionary of coupler options variables
-
-        hide_warnings : bool
-            Hide floating point runtime warnings
-        rtol : float
-            Relative tolerance for mass conservation
-        atol : float
-            Absolute tolerance for mass conservation
-        xtol : float
-            Relative tolerance for fsolve
-        p_guess : dict
-            Dictionary of initial guess for partial pressures [bar]
-        nsolve : int
-            Maximum number of iterations allowed by fsolve
-        nguess : int
-            Maximum number of guesses before giving up
-        print_result: bool
-            Print outgassed partial pressures?
-        opt_solver: bool
-            Allow use of optimization solver
+    target_d : dict
+        Target elemental mass inventories [kg], with keys 'H', 'C', 'N', 'S'.
+    ddict : dict
+        Dictionary of coupler options variables (planet, magma state, inclusion flags).
+    hide_warnings : bool, default True
+        Hide floating point runtime warnings raised by `scipy` for poor guesses.
+    rtol : float, default 1e-5
+        Relative tolerance for mass conservation.
+    atol : float, default 1e10
+        Absolute tolerance for mass conservation [kg].
+    xtol : float, default 1e-8
+        Relative tolerance for fsolve.
+    p_guess : dict or None, default None
+        Dictionary of initial guess for primary-species partial pressures [bar].
+        If None, an internal Monte-Carlo log-uniform draw is used.
+    nsolve : int, default 1500
+        Maximum number of inner-solver iterations per attempt.
+    nguess : int, default 7500
+        Maximum number of Monte-Carlo restarts before giving up.
+    print_result : bool, default True
+        If True, log final outgassed partial pressures at INFO level.
+    opt_solver : bool, default True
+        If True, alternate between fsolve and trust-constr on each restart.
 
     Returns
-    ----------
-        partial_pressures : dict
-            Dictionary of: volatile partial pressures [Pa], and corresponding reservoir masses [kg]
+    -------
+    partial_pressures : dict
+        Volatile partial pressures [bar] keyed `<species>_bar`, plus per-species
+        reservoir masses [kg], elemental totals, residuals, and atmospheric
+        diagnostics (P_surf, M_atm, atm_kg_per_mol, ratios).
     """
 
     if print_result:
