@@ -18,17 +18,17 @@ $$
 
 which fixes a single curve $\log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T)$ in $T$-$f_{\mathrm{O}_2}$ space. CALLIOPE supports two parameterisations of this curve.
 
-### O'Neill & Eggins (2002), `oneill` (default)
+### [O'Neill & Eggins (2002)](https://ui.adsabs.harvard.edu/abs/2002ChGeo.186..151O), `oneill` (default)
 
-A thermochemically-constrained fit derived from low-temperature equilibrium data, expressed as Bower et al. (2022) Equation (7):
+A thermochemically-constrained fit derived from low-temperature equilibrium data, expressed as [Bower et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) Equation (7):
 
 $$
 \log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T) = \frac{2\left[-244118 + 115.559\,T - 8.474\,T \ln T\right]}{\ln(10)\, R\, T},
 $$
 
-with $R = 8.31441$ J K$^{-1}$ mol$^{-1}$. Bower et al. (2022) adopted this as the "IW buffer to which $f_{\mathrm{O}_2}$ is referenced". This is the function `OxygenFugacity.oneill(T)` in `oxygen_fugacity.py`.
+with $R = 8.31441$ J K$^{-1}$ mol$^{-1}$. [Bower et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) adopted this as the "IW buffer to which $f_{\mathrm{O}_2}$ is referenced". This is the function `OxygenFugacity.oneill(T)` in `oxygen_fugacity.py`.
 
-### Fischer et al. (2013), `fischer`
+### [Fischer et al. (2013)](https://ui.adsabs.harvard.edu/abs/2013E%26PSL.373...54F), `fischer`
 
 A simpler two-parameter fit calibrated against high-pressure ($\sim$25 GPa) experimental data:
 
@@ -39,7 +39,7 @@ $$
 Implemented as `OxygenFugacity.fischer(T)`.
 
 !!! note "Choice of buffer"
-    The two parameterisations agree to within $\sim$0.3 dex near $T \approx 2000$ K but diverge with increasing temperature, reaching $\sim$0.7 dex by $T = 2500$ K and growing further at higher $T$. The disagreement is comparable to or smaller than the typical uncertainty in $\Delta\mathrm{IW}$ inferred from petrological observations (Sossi et al. 2020 give $\Delta\mathrm{IW} = +3.5 \pm 0.5$ for Earth's modern surface mantle), so the choice between buffers rarely changes inferred partial pressures meaningfully. CALLIOPE defaults to O'Neill & Eggins because Bower et al. (2022) used it and it was validated end-to-end against PROTEUS coupled runs.
+    The two parameterisations agree to within $\sim$0.3 dex near $T \approx 2000$ K but diverge with increasing temperature, reaching $\sim$0.7 dex by $T = 2500$ K and growing further at higher $T$. The disagreement is comparable to or smaller than the typical uncertainty in $\Delta\mathrm{IW}$ inferred from petrological observations ([Sossi et al. 2020](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) give $\Delta\mathrm{IW} = +3.5 \pm 0.5$ for Earth's modern surface mantle), so the choice between buffers rarely changes inferred partial pressures meaningfully. CALLIOPE defaults to O'Neill & Eggins because [Bower et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) used it and it was validated end-to-end against PROTEUS coupled runs.
 
 ## How $\Delta\mathrm{IW}$ enters the chemistry
 
@@ -64,34 +64,34 @@ $$
 G_\mathrm{eq}(T, f_{\mathrm{O}_2}) = 10^{\,\log_{10} K_\mathrm{eq}(T) - n_\mathrm{O_2}\,\log_{10} f_{\mathrm{O}_2}}.
 $$
 
-For the H$_2$O-H$_2$ couple ($n_\mathrm{O_2} = +0.5$), reducing conditions ($f_{\mathrm{O}_2}$ smaller, $\Delta\mathrm{IW}$ more negative) drive $G_\mathrm{eq}$ larger, which in turn drives more H$_2$O to dissociate into H$_2$. This is the redox dependence visible in the redox-sweep tutorial, and it is the mechanism behind the H$_2$-dominated, long-lived magma-ocean atmospheres found in Nicholls et al. (2024) Figure 6 at $\Delta\mathrm{IW} \le -2$.
+For the H$_2$O-H$_2$ couple ($n_\mathrm{O_2} = +0.5$), reducing conditions ($f_{\mathrm{O}_2}$ smaller, $\Delta\mathrm{IW}$ more negative) drive $G_\mathrm{eq}$ larger, which in turn drives more H$_2$O to dissociate into H$_2$. This is the redox dependence visible in the redox-sweep tutorial, and it is the mechanism behind the H$_2$-dominated, long-lived magma-ocean atmospheres found in [Nicholls et al. (2024)](https://ui.adsabs.harvard.edu/abs/2024JGRE..12908576N) Figure 6 at $\Delta\mathrm{IW} \le -2$.
 
 ### 3. The S$_2$ Gaillard solubility
 
-The Gaillard et al. (2022) sulfide solubility carries an explicit $\ln f_{\mathrm{O}_2}$ term, so $\Delta\mathrm{IW}$ enters the dissolved-S inventory directly. The implementation in `solubility.SolubilityS2.gaillard` calls back into `OxygenFugacity()` to compute the absolute $f_{\mathrm{O}_2}$.
+The [Gaillard et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022E%26PSL.57717255G) sulfide solubility carries an explicit $\ln f_{\mathrm{O}_2}$ term, so $\Delta\mathrm{IW}$ enters the dissolved-S inventory directly. The implementation in `solubility.SolubilityS2.gaillard` calls back into `OxygenFugacity()` to compute the absolute $f_{\mathrm{O}_2}$.
 
 ### 4. The N$_2$ Dasgupta solubility
 
-Similarly, the Dasgupta et al. (2022) N$_2$ solubility includes a $-1.6\,\Delta\mathrm{IW}$ term in its exponent, so reducing conditions sharply increase the dissolved-N inventory. This is one mechanism by which planet-scale N partitioning is tied to mantle redox; see Nicholls et al. (2026) Section 4 for an application to L 98-59 d, where the inferred SO$_2$/H$_2$ atmosphere implies $\Delta\mathrm{IW} \approx -1$.
+Similarly, the [Dasgupta et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022GeCoA.336..291D) N$_2$ solubility includes a $-1.6\,\Delta\mathrm{IW}$ term in its exponent, so reducing conditions sharply increase the dissolved-N inventory. This is one mechanism by which planet-scale N partitioning is tied to mantle redox; see [Nicholls et al. (2026)](https://ui.adsabs.harvard.edu/abs/2026NatAs.tmp...61N) Section 4 for an application to L 98-59 d, where the inferred SO$_2$/H$_2$ atmosphere implies $\Delta\mathrm{IW} \approx -1$.
 
 ## Reference values for $\Delta\mathrm{IW}$
 
 | Reservoir | $\Delta\mathrm{IW}$ | Source |
 |---|---|---|
-| Mercury surface | $\sim -5$ | Cartier & Wood (2019) |
-| Asteroidal material | $\sim -2$ | Doyle et al. (2019) |
-| Mars mantle | $-3$ to $0$ | Wadhwa (2001) |
+| Mercury surface | $\sim -5$ | [Cartier & Wood (2019)](https://ui.adsabs.harvard.edu/abs/2019Eleme..15...39C) |
+| Asteroidal material | $\sim -2$ | [Doyle et al. (2019)](https://ui.adsabs.harvard.edu/abs/2019Sci...366..356D) |
+| Mars mantle | $-3$ to $0$ | [Wadhwa (2001)](https://ui.adsabs.harvard.edu/abs/2001Sci...291.1527W) |
 | Iron-wüstite buffer | $0$ | by definition |
-| Earth modern surface | $+3.5$ | Sossi et al. (2020) |
-| Earth modern surface (preferred) | $+3$ to $+5$ | Sossi et al. (2020) compilation |
-| Modern Earth (deep mantle) | $\sim 0$ | Frost & McCammon (2008) |
+| Earth modern surface | $+3.5$ | [Sossi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) |
+| Earth modern surface (preferred) | $+3$ to $+5$ | [Sossi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) compilation |
+| Modern Earth (deep mantle) | $\sim 0$ | [Frost & McCammon (2008)](https://ui.adsabs.harvard.edu/abs/2008AREPS..36..389F) |
 
-CALLIOPE's PROTEUS-side default is `fO2_shift_IW = 4.0`, consistent with a near-surface terrestrial composition. Nicholls et al. (2024) explored $\Delta\mathrm{IW} \in \{-5, -3, -1, 0, +1, +3, +5\}$ on a 7-point grid and demonstrated that the resulting atmospheric composition spans the full range from H$_2$-dominated reduced atmospheres (TRAPPIST-1 c-like) to H$_2$O/CO$_2$-dominated oxidised atmospheres (Earth-like).
+CALLIOPE's PROTEUS-side default is `fO2_shift_IW = 4.0`, consistent with a near-surface terrestrial composition. [Nicholls et al. (2024)](https://ui.adsabs.harvard.edu/abs/2024JGRE..12908576N) explored $\Delta\mathrm{IW} \in \{-5, -3, -1, 0, +1, +3, +5\}$ on a 7-point grid and demonstrated that the resulting atmospheric composition spans the full range from H$_2$-dominated reduced atmospheres (TRAPPIST-1 c-like) to H$_2$O/CO$_2$-dominated oxidised atmospheres (Earth-like).
 
 ## Limitations
 
 - **No $f_{\mathrm{O}_2}$ evolution**: $\Delta\mathrm{IW}$ is a constant input, not a state variable. In reality the mantle $f_{\mathrm{O}_2}$ should evolve with degree of crystallisation, fractional crystallisation depth, and atmospheric escape; CALLIOPE does not capture this and the user is responsible for choosing a representative value or sweeping over a grid.
-- **No $f_{\mathrm{O}_2}$ depth profile**: the surface $f_{\mathrm{O}_2}$ alone enters the chemistry. Bower et al. (2022) §2.3 and Sossi et al. (2020) discuss why the *interface* fugacity (rather than the deep-mantle value) is the relevant choice; this assumption is consistent with CALLIOPE's ideal-gas, single-temperature treatment but breaks down if a Fe-FeO equilibrium curve in the deep mantle differs by more than a few dex.
+- **No $f_{\mathrm{O}_2}$ depth profile**: the surface $f_{\mathrm{O}_2}$ alone enters the chemistry. [Bower et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) §2.3 and [Sossi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) discuss why the *interface* fugacity (rather than the deep-mantle value) is the relevant choice; this assumption is consistent with CALLIOPE's ideal-gas, single-temperature treatment but breaks down if a Fe-FeO equilibrium curve in the deep mantle differs by more than a few dex.
 - **No solid-FeO buffering**: when $\Phi_\mathrm{global} \to 0$, there is no melt to buffer $f_{\mathrm{O}_2}$ against the user-prescribed value. CALLIOPE keeps using the shift regardless of melt fraction, which is a reasonable bookkeeping choice but should not be over-interpreted physically.
 
 ## See also

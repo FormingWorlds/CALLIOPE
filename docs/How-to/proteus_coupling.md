@@ -88,18 +88,18 @@ When `volatile_mode = "gas_prs"`, the wrapper calls `get_target_from_pressures(d
 
 ## Redox state
 
-`fO2_shift_IW` is in $\log_{10}$ units relative to the O'Neill & Eggins (2002) IW buffer. Common reference values:
+`fO2_shift_IW` is in $\log_{10}$ units relative to the [O'Neill & Eggins (2002)](https://ui.adsabs.harvard.edu/abs/2002ChGeo.186..151O) IW buffer. Common reference values:
 
 | $\Delta\mathrm{IW}$ | Description |
 |---|---|
-| $-5$ | Highly reduced (Mercury-like, Cartier & Wood 2019) |
-| $-3$ | Reduced (Mars-mantle estimates, Wadhwa 2001) |
+| $-5$ | Highly reduced (Mercury-like, [Cartier & Wood 2019](https://ui.adsabs.harvard.edu/abs/2019Eleme..15...39C)) |
+| $-3$ | Reduced (Mars-mantle estimates, [Wadhwa 2001](https://ui.adsabs.harvard.edu/abs/2001Sci...291.1527W)) |
 | $-1$ | Moderately reduced |
 | $0$  | At iron-wüstite buffer (core formation equilibrium at depth) |
-| $+3.5$ | Sossi et al. (2020) preferred Earth surface value (their $\Delta\mathrm{IW} = +3.5 \pm 0.5$) |
-| $+4$ | Modern Earth mantle (Frost & McCammon 2008) |
+| $+3.5$ | [Sossi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) preferred Earth surface value (their $\Delta\mathrm{IW} = +3.5 \pm 0.5$) |
+| $+4$ | Modern Earth mantle ([Frost & McCammon 2008](https://ui.adsabs.harvard.edu/abs/2008AREPS..36..389F)) |
 
-The Sossi et al. (2020) compilation places Earth's near-surface mantle at $\Delta\mathrm{IW} \approx +3$ to $+5$ (their preferred value $+3.5$); CALLIOPE defaults sit at $\Delta\mathrm{IW} = 4.0$, consistent with a modern terrestrial composition.
+The [Sossi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) compilation places Earth's near-surface mantle at $\Delta\mathrm{IW} \approx +3$ to $+5$ (their preferred value $+3.5$); CALLIOPE defaults sit at $\Delta\mathrm{IW} = 4.0$, consistent with a modern terrestrial composition.
 
 ## Solver tolerances
 

@@ -26,7 +26,7 @@ def func(pin_arr, ddict, mass_target_d):
 
 ## Atmospheric column mass
 
-The relation between a species' surface partial pressure and its column mass follows directly from hydrostatic equilibrium under the assumption of a well-mixed atmosphere. Bower et al. (2019) Equation (2) writes it as
+The relation between a species' surface partial pressure and its column mass follows directly from hydrostatic equilibrium under the assumption of a well-mixed atmosphere. [Bower et al. (2019)](https://ui.adsabs.harvard.edu/abs/2019A%26A...631A.103B) Equation (2) writes it as
 
 $$
 m_v^\mathrm{atm} = 4\pi R_p^2 \cdot \frac{\mu_v}{\bar\mu} \cdot \frac{p_v}{g},
@@ -40,7 +40,7 @@ mass_atm_d[key] *= 4.0 * np.pi * ddict['radius'] ** 2.0
 mass_atm_d[key] *= molar_mass[key] / mu_atm
 ```
 
-The `mu_v / mu_atm` ratio is the part Bower et al. (2019) §4.1.1 emphasises was missing from the pre-2019 mass-balance formulations of Elkins-Tanton (2008), Lebrun et al. (2013), Salvador et al. (2017), and Nikolaou et al. (2019). Without it, multi-species atmospheres receive an unphysical bias in the inferred reservoir partitioning.
+The `mu_v / mu_atm` ratio is the part [Bower et al. (2019)](https://ui.adsabs.harvard.edu/abs/2019A%26A...631A.103B) §4.1.1 emphasises was missing from the pre-2019 mass-balance formulations of [Elkins-Tanton (2008)](https://ui.adsabs.harvard.edu/abs/2008E%26PSL.271..181E), [Lebrun et al. (2013)](https://ui.adsabs.harvard.edu/abs/2013JGRE..118.1155L), [Salvador et al. (2017)](https://ui.adsabs.harvard.edu/abs/2017JGRE..122.1458S), and [Nikolaou et al. (2019)](https://ui.adsabs.harvard.edu/abs/2019ApJ...875...11N). Without it, multi-species atmospheres receive an unphysical bias in the inferred reservoir partitioning.
 
 After computing per-species column masses, `atmosphere_mass()` aggregates them into per-element atomic masses by stoichiometric atom-counting:
 
@@ -60,7 +60,7 @@ $$
 
 where $M_\mathrm{mantle}$ is the (molten + solid) silicate mantle mass and $\Phi_\mathrm{global}$ is the global melt fraction. Setting $\Phi_\mathrm{global} = 0$ disables solubility entirely; setting $\Phi_\mathrm{global} = 1$ (fully molten) gives the maximum dissolved-mass contribution.
 
-Like for atmospheric mass, the per-species dissolved masses are aggregated into per-element atomic masses. Note the asymmetry with the atmospheric path: CALLIOPE only includes a subset of species in the dissolved-mass tally (H$_2$O, CO$_2$, CO, CH$_4$, N$_2$, S$_2$); the remaining species (H$_2$, NH$_3$, SO$_2$, H$_2$S, O$_2$) are assumed to have negligible solubility, consistent with Bower et al. (2022) §2.2.3.
+Like for atmospheric mass, the per-species dissolved masses are aggregated into per-element atomic masses. Note the asymmetry with the atmospheric path: CALLIOPE only includes a subset of species in the dissolved-mass tally (H$_2$O, CO$_2$, CO, CH$_4$, N$_2$, S$_2$); the remaining species (H$_2$, NH$_3$, SO$_2$, H$_2$S, O$_2$) are assumed to have negligible solubility, consistent with [Bower et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) §2.2.3.
 
 ## Solver: hybrid Powell + trust-region with Monte-Carlo restart
 

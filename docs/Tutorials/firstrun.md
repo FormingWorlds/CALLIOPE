@@ -42,7 +42,7 @@ for sp in volatile_species:
 ```
 
 !!! note "What these numbers mean"
-    `hydrogen_earth_oceans = 1.0` corresponds to $\sim 1.55 \times 10^{20}$ kg of H, which the wrapper translates via `H_kg = N_ocean_moles * ocean_moles * molar_mass['H2']`. `CH_ratio = 0.1` is a mass ratio chosen to roughly match estimates of Earth's bulk silicate Earth C/H. `nitrogen_ppmw = 2.0` matches the Wang et al. (2018) primitive-mantle estimate that Nicholls et al. (2024) used as their fiducial value.
+    `hydrogen_earth_oceans = 1.0` corresponds to $\sim 1.55 \times 10^{20}$ kg of H, which the wrapper translates via `H_kg = N_ocean_moles * ocean_moles * molar_mass['H2']`. `CH_ratio = 0.1` is a mass ratio chosen to roughly match estimates of Earth's bulk silicate Earth C/H. `nitrogen_ppmw = 2.0` is the primitive-mantle estimate that [Nicholls et al. (2024)](https://ui.adsabs.harvard.edu/abs/2024JGRE..12908576N) used as their fiducial value.
 
 ## Step 2: build the elemental targets and solve
 
@@ -143,7 +143,7 @@ fig.savefig('redox_sweep.pdf')
 plt.show()
 ```
 
-The expected qualitative behaviour, consistent with Bower et al. (2022) Section 3 and Nicholls et al. (2024) Figure 6:
+The expected qualitative behaviour, consistent with [Bower et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) Section 3 and [Nicholls et al. (2024)](https://ui.adsabs.harvard.edu/abs/2024JGRE..12908576N) Figure 6:
 
 - At $\Delta\mathrm{IW} \le -2$ (reducing), H$_2$ and CO dominate; H$_2$O and CO$_2$ collapse;
 - Around $\Delta\mathrm{IW} \approx 0$, the H$_2$O/H$_2$ and CO$_2$/CO ratios are of order unity;
