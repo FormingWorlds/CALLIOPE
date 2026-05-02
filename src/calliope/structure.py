@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 
 import numpy as np
 
@@ -10,14 +11,40 @@ from .constants import M_earth, R_earth
 log = logging.getLogger('fwl.' + __name__)
 
 
-def calculate_mantle_mass(radius: float, mass: float, core_frac: float) -> float:
+def calculate_mantle_mass(
+    radius: float,
+    mass: float,
+    core_frac: float | None = None,
+    *,
+    corefrac: float | None = None,
+) -> float:
     """
     A very simple interior structure model.
 
     This calculates mantle mass given planetary mass, radius, and core fraction. This
     assumes a core density equal to that of Earth's, and that the planet mass is simply
     the sum of mantle and core.
+
+    The legacy ``corefrac`` keyword is accepted as a deprecated alias for
+    ``core_frac`` to keep older callers working; it will be removed in a
+    future release.
     """
+    # Backwards-compatibility shim for the corefrac -> core_frac rename.
+    if corefrac is not None:
+        if core_frac is not None:
+            raise TypeError(
+                "calculate_mantle_mass() received both 'core_frac' and "
+                "'corefrac'; pass only 'core_frac'."
+            )
+        warnings.warn(
+            "The 'corefrac' keyword is deprecated and will be removed; "
+            "use 'core_frac' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        core_frac = corefrac
+    if core_frac is None:
+        raise TypeError("calculate_mantle_mass() missing required argument: 'core_frac'")
 
     earth_fr = 0.55  # earth core radius fraction
     earth_fm = 0.325  # earth core mass fraction  (https://arxiv.org/pdf/1708.08718.pdf)

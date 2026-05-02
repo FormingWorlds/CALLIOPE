@@ -124,6 +124,26 @@ def test_calculate_mantle_mass_decreases_with_core_frac():
     assert m2 < m1
 
 
+def test_calculate_mantle_mass_corefrac_alias_deprecated():
+    """Legacy 'corefrac' keyword still works but emits DeprecationWarning."""
+    with pytest.warns(DeprecationWarning, match="'corefrac' keyword is deprecated"):
+        legacy = calculate_mantle_mass(R_earth, M_earth, corefrac=0.55)
+    new = calculate_mantle_mass(R_earth, M_earth, core_frac=0.55)
+    assert legacy == pytest.approx(new, rel=1e-12)
+
+
+def test_calculate_mantle_mass_both_aliases_raises():
+    """Passing both 'core_frac' and 'corefrac' is ambiguous and must raise."""
+    with pytest.raises(TypeError, match="received both 'core_frac' and 'corefrac'"):
+        calculate_mantle_mass(R_earth, M_earth, core_frac=0.55, corefrac=0.6)
+
+
+def test_calculate_mantle_mass_missing_core_frac_raises():
+    """Neither 'core_frac' nor 'corefrac' supplied must raise TypeError."""
+    with pytest.raises(TypeError, match="missing required argument: 'core_frac'"):
+        calculate_mantle_mass(R_earth, M_earth)
+
+
 # ---------- Solubility tests (H2O-only; other species are incomplete) ----------
 
 
