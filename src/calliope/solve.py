@@ -475,7 +475,7 @@ def equilibrium_atmosphere(
                 success = bool(ier == 1)
 
             # Use minimisation solver
-            elif solver == 1:
+            else:
                 result = opt.minimize(
                     obj,
                     x0,
@@ -486,10 +486,6 @@ def equilibrium_atmosphere(
                 )
                 success = result.success
                 sol = result.x
-
-            # Catch invalid cases
-            else:
-                raise ValueError(f'Invalid solver: {solver}')
 
             # Check that residuals satisfy the tolerance
             this_resid = func(sol, ddict, target_d)
