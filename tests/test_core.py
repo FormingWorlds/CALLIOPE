@@ -94,19 +94,19 @@ def test_modified_keq_schaefer_models_return_finite():
 def test_calculate_mantle_mass_earth_like():
     # Using Earth values and the internal earth_fr, earth_fm in model:
     # mantle_mass ≈ (1 - 0.325) * M_earth
-    mantle = calculate_mantle_mass(R_earth, M_earth, corefrac=0.55)
+    mantle = calculate_mantle_mass(R_earth, M_earth, core_frac=0.55)
     assert mantle == pytest.approx((1.0 - 0.325) * M_earth, rel=1e-6)
 
 
 def test_calculate_mantle_mass_negative_raises():
     # Choose a mass smaller than the implied core mass to trigger exception
     with pytest.raises(Exception):
-        calculate_mantle_mass(R_earth, 0.1 * M_earth, corefrac=0.55)
+        calculate_mantle_mass(R_earth, 0.1 * M_earth, core_frac=0.55)
 
 
-def test_calculate_mantle_mass_decreases_with_corefrac():
-    m1 = calculate_mantle_mass(R_earth, M_earth, corefrac=0.4)
-    m2 = calculate_mantle_mass(R_earth, M_earth, corefrac=0.6)
+def test_calculate_mantle_mass_decreases_with_core_frac():
+    m1 = calculate_mantle_mass(R_earth, M_earth, core_frac=0.4)
+    m2 = calculate_mantle_mass(R_earth, M_earth, core_frac=0.6)
     assert m2 < m1
 
 
