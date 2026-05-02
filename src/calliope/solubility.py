@@ -11,7 +11,11 @@ log = logging.getLogger('fwl.' + __name__)
 
 
 class Solubility:
-    """Solubility base class.  All p in bar"""
+    """Solubility base class.
+
+    Pressures are in bar; subclasses return dissolved concentration in
+    ppmw (parts-per-million by weight in the silicate melt).
+    """
 
     def __init__(self, composition):
         self.callmodel = getattr(self, composition)

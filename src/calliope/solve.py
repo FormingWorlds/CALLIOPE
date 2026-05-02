@@ -91,7 +91,9 @@ def get_partial_pressures(pin, ddict):
         gamma = gamma(ddict['T_magma'], fO2_shift)
         p_d['NH3'] = (gamma * pin['N2'] * p_d['H2'] ** 3) ** 0.5
 
-    # O2
+    # O2 is set unconditionally from the fO2 buffer regardless of the
+    # `O2_included` flag, because every sulfur and carbon equilibrium
+    # below reads p_O2 (SO2 reaction, CO2-CO couple, CH4 couple).
     fO2_model = OxygenFugacity()
     p_d['O2'] = 10.0 ** fO2_model(ddict['T_magma'], fO2_shift)
 
@@ -136,14 +138,18 @@ def atmosphere_mean_molar_mass(p_d):
 
 
 def atmosphere_mass(pin, ddict):
-    """Atmospheric mass of volatiles and totals for H, C, and N"""
+    """Atmospheric mass of volatiles and totals for H, C, and N.
+
+    CALLIOPE stores pressures in bar throughout; the only conversion
+    to SI Pa happens here (factor 1e5) when computing column mass
+    `kg = p_Pa * 4 pi R^2 / g`.
+    """
 
     p_d = get_partial_pressures(pin, ddict)
     mu_atm = atmosphere_mean_molar_mass(p_d)
 
     mass_atm_d = {}
     for key, value in p_d.items():
-        # 1.0E5 because pressures are in bar
         mass_atm_d[key] = value * 1.0e5 / ddict['gravity']
         mass_atm_d[key] *= 4.0 * np.pi * ddict['radius'] ** 2.0
         mass_atm_d[key] *= molar_mass[key] / mu_atm
