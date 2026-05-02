@@ -48,10 +48,8 @@ jobs:
 
       - name: Report coverage
         run: |
-          coverage json
           coverage xml
-          export TOTAL=$(python -c "import json;print(json.load(open('coverage.json'))['totals']['percent_covered_display'])")
-          echo "total=$TOTAL" >> $GITHUB_ENV
+          TOTAL=$(coverage report --format=total)
           echo "### Total coverage: ${TOTAL}%" >> $GITHUB_STEP_SUMMARY
           echo $'\n```' >> $GITHUB_STEP_SUMMARY
           coverage report >> $GITHUB_STEP_SUMMARY
@@ -68,16 +66,3 @@ jobs:
           flags: unittests
           name: codecov-calliope
           fail_ci_if_error: false
-
-      - name: Make coverage badge
-        if: ${{ github.ref == 'refs/heads/main' && matrix.python-version == '3.13' && matrix.os == 'ubuntu-latest' }}
-        uses: schneegans/dynamic-badges-action@v1.7.0
-        with:
-          auth: ${{ secrets.GIST_TOKEN }}
-          gistID: 735833097e88c92da096591d3e6b270a
-          filename: covbadge.svg
-          label: Coverage
-          message: ${{ env.total }}%
-          minColorRange: 50
-          maxColorRange: 90
-          valColorRange: ${{ env.total }}
