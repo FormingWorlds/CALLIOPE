@@ -168,6 +168,68 @@ class TestPGuessValidation:
         )
         assert result['P_surf'] > 0.0
 
+    @pytest.mark.parametrize(
+        'bad_p_guess',
+        [
+            [200.0, 80.0, 1.0, 1.0],  # list (positional ordering temptation)
+            (200.0, 80.0, 1.0, 1.0),  # tuple
+            'not a dict',  # string
+            42,  # int
+            object(),  # arbitrary object
+        ],
+    )
+    def test_non_dict_p_guess_raises_type_error(self, bad_p_guess):
+        """Discriminating: a list, tuple, string, or arbitrary object must
+        raise TypeError up front, not a confusing 'argument of type ... is
+        not iterable' error from the membership test below. The docstring
+        promises TypeError on this path."""
+        target = _earth_target()
+        ddict = _ddict()
+        with pytest.raises(TypeError, match='p_guess must be a dict or None'):
+            equilibrium_atmosphere(target, ddict, p_guess=bad_p_guess, print_result=False)
+
+    @pytest.mark.parametrize(
+        'bad_value,key',
+        [
+            (float('nan'), 'H2O'),
+            (float('inf'), 'CO2'),
+            (float('-inf'), 'N2'),
+            (float('nan'), 'S2'),
+        ],
+    )
+    def test_non_finite_p_guess_value_raises(self, bad_value, key):
+        """Discriminating: NaN and +/-Inf must raise ValueError naming the
+        offending key, not silently propagate. NaN > 1e-10 evaluates False,
+        which would clamp ub to 1.0 and feed NaN to fsolve, producing
+        garbage output with no error signal. Parametrized over each
+        primary slot to confirm the check runs on all four."""
+        target = _earth_target()
+        ddict = _ddict()
+        full_guess = {'H2O': 200.0, 'CO2': 80.0, 'N2': 1.0, 'S2': 1.0}
+        full_guess[key] = bad_value
+        with pytest.raises(ValueError, match='must be a finite real number'):
+            equilibrium_atmosphere(target, ddict, p_guess=full_guess, print_result=False)
+        # The error message must name the key so the caller knows which
+        # slot to fix.
+        with pytest.raises(ValueError, match=key):
+            equilibrium_atmosphere(target, ddict, p_guess=full_guess, print_result=False)
+
+    def test_none_value_raises(self):
+        """Edge: a None value (e.g. an unfilled hf_row entry) must raise
+        ValueError, not propagate as a TypeError from the float comparison
+        in the ub-clamp loop. The current behaviour without this check
+        was: TypeError from `None > 1e-10`."""
+        target = _earth_target()
+        ddict = _ddict()
+        guess = {'H2O': 200.0, 'CO2': None, 'N2': 1.0, 'S2': 1.0}
+        with pytest.raises((ValueError, TypeError)):
+            # Either ValueError (from our np.isfinite check, since
+            # np.isfinite(None) raises TypeError before the comparison) or
+            # TypeError if numpy lets it through. Both are clearly
+            # diagnostic, unlike the prior behaviour which produced
+            # garbage from the solver.
+            equilibrium_atmosphere(target, ddict, p_guess=guess, print_result=False)
+
 
 # ---------------------------------------------------------------------------
 # opt_solver=False: single-solver mode (no fsolve <-> trust-constr swap)

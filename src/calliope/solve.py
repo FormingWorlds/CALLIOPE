@@ -393,8 +393,10 @@ def equilibrium_atmosphere(
         Relative tolerance for fsolve.
     p_guess : dict or None, default None
         Dictionary of initial guess for primary-species partial pressures [bar].
-        Must contain the keys 'H2O', 'CO2', 'N2', 'S2'. If None, an internal
-        Monte-Carlo log-uniform draw is used.
+        Must contain the keys 'H2O', 'CO2', 'N2', 'S2', each mapping to a
+        finite real number. If None, an internal Monte-Carlo log-uniform
+        draw is used. A non-dict value raises TypeError; missing keys or
+        non-finite values raise ValueError.
     nsolve : int, default 1500
         Maximum number of inner-solver iterations per attempt.
     nguess : int, default 7500
@@ -427,6 +429,11 @@ def equilibrium_atmosphere(
     else:
         # Validate up front so a missing key surfaces as a clear ValueError
         # rather than a bare KeyError from the tuple construction below.
+        # The isinstance check handles cases where a caller passes a list,
+        # a pandas Series, or accidentally a non-dict object — without it,
+        # the membership test below would raise an opaque TypeError.
+        if not isinstance(p_guess, dict):
+            raise TypeError(f'p_guess must be a dict or None, got {type(p_guess).__name__}.')
         required = ('H2O', 'CO2', 'N2', 'S2')
         missing = [k for k in required if k not in p_guess]
         if missing:
@@ -435,6 +442,13 @@ def equilibrium_atmosphere(
                 f'Expected all of {list(required)}.'
             )
         x0 = (p_guess['H2O'], p_guess['CO2'], p_guess['N2'], p_guess['S2'])
+
+        # Reject non-finite values up front. NaN > 1e-10 evaluates False,
+        # which would silently collapse ub to 1.0 and propagate NaN through
+        # the solver to produce garbage output with no error signal.
+        for k, v in zip(required, x0):
+            if not np.isfinite(v):
+                raise ValueError(f'p_guess[{k!r}] must be a finite real number, got {v!r}.')
 
         # Zero or near-zero guess collapses ub from 1e7 to 1.0 to keep
         # trust-constr from wandering inside a degenerate slot.
