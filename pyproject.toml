@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 # https://packaging.python.org/en/latest/specifications/declaring-project-metadata/
 [project]
 name = "fwl-calliope"
-version = "26.05.02"
+version = "26.05.03"
 description = "Planetary accretion and volatile delivery model"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -113,7 +113,7 @@ indent-style = "space"
 
 [tool.bumpversion]
 # https://callowayproject.github.io/bump-my-version/howtos/calver/
-current_version = "26.05.02"
+current_version = "26.05.03"
 parse = """(?x)                      # Verbose mode
     (?P<release>                     # The release part
         (?:[1-9][0-9])\\.            # YY.
