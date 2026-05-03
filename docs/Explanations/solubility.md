@@ -88,7 +88,7 @@ $$
 \log_{e} X_\mathrm{S_2}^\mathrm{melt}\,[\text{ppmw}] = 13.8426 - \frac{26476}{T_\mathrm{magma}} + 0.124\,x_\mathrm{FeO}^{[\text{wt\%}]} + 0.5\,\ln\frac{p_\mathrm{S_2}}{f_{\mathrm{O}_2}}
 $$
 
-with $x_\mathrm{FeO} = 10$ wt% hard-coded as an Earth-mantle reference. The $0.5\,\ln(p_\mathrm{S_2}/f_{\mathrm{O}_2})$ term ties the solubility to redox state: at fixed $p_\mathrm{S_2}$, more reducing conditions ($f_{\mathrm{O}_2}$ smaller) increase the dissolved sulfur (sulfide regime); more oxidising conditions decrease it.
+where $x_\mathrm{FeO}$ is the melt FeO content in wt%, exposed as the constructor kwarg `SolubilityS2(x_FeO=...)` and defaulting to $10$ wt% (Earth-mantle reference). The $0.5\,\ln(p_\mathrm{S_2}/f_{\mathrm{O}_2})$ term ties the solubility to redox state: at fixed $p_\mathrm{S_2}$, more reducing conditions ($f_{\mathrm{O}_2}$ smaller) increase the dissolved sulfur (sulfide regime); more oxidising conditions decrease it.
 
 The implementation refuses to evaluate at $p_\mathrm{S_2} < 10^{-20}$ bar (returns 0.0) to avoid `log(0)` in the rare case where the solver bottoms out at exactly zero S inventory.
 

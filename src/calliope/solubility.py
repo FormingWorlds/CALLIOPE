@@ -57,11 +57,22 @@ class SolubilityH2O(Solubility):
 
 
 class SolubilityS2(Solubility):
-    """S2 solubility models"""
+    """S2 solubility models.
 
-    # below default gives the default model used
-    def __init__(self, composition='gaillard'):
+    Parameters
+    ----------
+    composition : str, default 'gaillard'
+        Solubility-law name (currently only 'gaillard' is implemented).
+    x_FeO : float, default 10.0
+        Melt FeO content [wt%] used by the Gaillard et al. (2022) law.
+        The default value matches the Earth-mantle reference adopted in
+        prior CALLIOPE releases; override for non-Earth bulk
+        compositions.
+    """
+
+    def __init__(self, composition='gaillard', x_FeO=10.0):
         self.fO2_model = OxygenFugacity()
+        self.x_FeO = x_FeO
         super().__init__(composition)
 
     def gaillard(self, p, temp, fO2_shift):
@@ -72,14 +83,12 @@ class SolubilityS2(Solubility):
         if p < 1.0e-20:
             return 0.0
 
-        # melt composition [wt%]
-        x_FeO = 10.0
-
         # calculate fO2 [bar]
         fO2 = 10 ** self.fO2_model(temp, fO2_shift)
 
-        # calculate log(Ss)
-        out = 13.8426 - 26.476e3 / temp + 0.124 * x_FeO + 0.5 * np.log(p / fO2)
+        # calculate log(Ss); x_FeO [wt%] is set on the instance, default
+        # 10.0 wt% (Earth-mantle reference).
+        out = 13.8426 - 26.476e3 / temp + 0.124 * self.x_FeO + 0.5 * np.log(p / fO2)
 
         # convert to concentration ppmw
         out = np.exp(out)  # * 10000.0
