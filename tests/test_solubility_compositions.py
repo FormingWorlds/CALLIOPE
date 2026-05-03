@@ -44,7 +44,14 @@ class TestSolubilityS2_xFeO:
     def test_default_call_matches_pre_kwarg_value(self):
         """Pin one numeric output of the default-x_FeO call against the
         pre-kwarg implementation. Drift here means either the formula
-        changed or the default x_FeO drifted off 10.0 wt%."""
+        changed or the default x_FeO drifted off 10.0 wt%.
+
+        Hidden coupling: this pin depends on OxygenFugacity('oneill')
+        evaluated at T=2500 K, fO2_shift=0. Any audit of the IW buffer
+        coefficients in oxygen_fugacity.py will require regenerating
+        this number — the failure mode here surfaces in test_solubility,
+        not test_oxygen_fugacity.
+        """
         s = SolubilityS2()
         out = s(1.0, 2500.0, 0.0)
         # Regression pin: computed by the implementation at the time
@@ -85,13 +92,12 @@ class TestSolubilityS2_xFeO:
     def test_xFeO_extreme_negative_evaluates_finitely(self):
         """Edge case: a physically nonsensical negative x_FeO value
         is not validated (the law has no domain constraint encoded), so
-        it must still evaluate finitely. Pin that the result is finite
-        and positive (exp domain), so the kwarg cannot silently produce
-        NaN/Inf for plausible-looking-but-wrong inputs."""
+        it must still evaluate finitely. isfinite catches NaN and Inf;
+        the prior `out > 0.0` check was redundant with that since
+        np.exp of any finite real is positive."""
         s = SolubilityS2(x_FeO=-5.0)
         out = s(1.0, 2500.0, 0.0)
         assert math.isfinite(out)
-        assert out > 0.0
 
     def test_xFeO_zero_consistent_with_drop_term(self):
         """Discriminating: at x_FeO=0 the 0.124*x_FeO term drops, so
@@ -244,7 +250,12 @@ class TestBackwardCompatibility:
         composition kwargs. Pin both default-instantiated objects to
         their pre-kwarg numeric outputs at a fixed (p, T, fO2_shift)
         triple. A drift here means a future change to the default
-        kwarg values broke PROTEUS-side runs."""
+        kwarg values broke PROTEUS-side runs.
+
+        Hidden coupling: the S2 pin below couples to
+        OxygenFugacity('oneill'). An IW-buffer coefficient audit will
+        require regenerating these numbers.
+        """
         # SolubilityS2 default at (p_S2, T, dIW)
         s2 = SolubilityS2()
         ppmw_S2 = s2(1.0, 2500.0, 0.0)
