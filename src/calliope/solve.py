@@ -393,7 +393,8 @@ def equilibrium_atmosphere(
         Relative tolerance for fsolve.
     p_guess : dict or None, default None
         Dictionary of initial guess for primary-species partial pressures [bar].
-        If None, an internal Monte-Carlo log-uniform draw is used.
+        Must contain the keys 'H2O', 'CO2', 'N2', 'S2'. If None, an internal
+        Monte-Carlo log-uniform draw is used.
     nsolve : int, default 1500
         Maximum number of inner-solver iterations per attempt.
     nguess : int, default 7500
@@ -424,6 +425,15 @@ def equilibrium_atmosphere(
     if p_guess is None:
         x0 = get_initial_pressures(target_d)
     else:
+        # Validate up front so a missing key surfaces as a clear ValueError
+        # rather than a bare KeyError from the tuple construction below.
+        required = ('H2O', 'CO2', 'N2', 'S2')
+        missing = [k for k in required if k not in p_guess]
+        if missing:
+            raise ValueError(
+                f'p_guess is missing required keys: {missing}. '
+                f'Expected all of {list(required)}.'
+            )
         x0 = (p_guess['H2O'], p_guess['CO2'], p_guess['N2'], p_guess['S2'])
 
         # Zero or near-zero guess collapses ub from 1e7 to 1.0 to keep

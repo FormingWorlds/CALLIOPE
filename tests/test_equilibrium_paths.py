@@ -116,6 +116,59 @@ class TestWarmStart:
             assert result[f'{sp}_bar'] >= 0.0
 
 
+class TestPGuessValidation:
+    """`p_guess` must contain all four primary-species keys ('H2O', 'CO2',
+    'N2', 'S2'). A missing key must raise a clear ValueError up front,
+    not a bare KeyError from inside the tuple construction.
+    """
+
+    @pytest.mark.parametrize('missing_key', ['H2O', 'CO2', 'N2', 'S2'])
+    def test_missing_key_raises_value_error(self, missing_key):
+        """Drop one required key at a time; each must surface a ValueError
+        whose message names the missing key. Parametrized over all four
+        primaries because each is independently load-bearing."""
+        target = _earth_target()
+        ddict = _ddict()
+        full_guess = {'H2O': 200.0, 'CO2': 80.0, 'N2': 1.0, 'S2': 1.0}
+        guess = {k: v for k, v in full_guess.items() if k != missing_key}
+
+        with pytest.raises(ValueError, match='p_guess is missing required keys'):
+            equilibrium_atmosphere(target, ddict, p_guess=guess, print_result=False)
+
+        # Discriminating: the missing key name itself must appear in the
+        # message so the caller knows which slot to fill.
+        with pytest.raises(ValueError, match=missing_key):
+            equilibrium_atmosphere(target, ddict, p_guess=guess, print_result=False)
+
+    def test_empty_p_guess_raises(self):
+        """Edge case: an empty dict is missing all four required keys.
+        Must raise ValueError, not silently fall back to cold start."""
+        target = _earth_target()
+        ddict = _ddict()
+        with pytest.raises(ValueError, match='p_guess is missing required keys'):
+            equilibrium_atmosphere(target, ddict, p_guess={}, print_result=False)
+
+    def test_extra_keys_accepted(self):
+        """Extra keys (beyond the four primaries) must be ignored, not
+        rejected. Discriminating: this exercises a real PROTEUS call path
+        where the warm-start dict carries diagnostic species like SO2."""
+        target = _earth_target()
+        ddict = _ddict()
+        # Full required set plus extras the solver should not consume
+        guess = {
+            'H2O': 200.0,
+            'CO2': 80.0,
+            'N2': 1.0,
+            'S2': 1.0,
+            'SO2': 0.5,  # extra: must not raise
+            'unknown_diagnostic': 999.0,
+        }
+        result = equilibrium_atmosphere(
+            target, ddict, p_guess=guess, print_result=False, nguess=200
+        )
+        assert result['P_surf'] > 0.0
+
+
 # ---------------------------------------------------------------------------
 # opt_solver=False: single-solver mode (no fsolve <-> trust-constr swap)
 # ---------------------------------------------------------------------------
