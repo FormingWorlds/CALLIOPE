@@ -134,7 +134,15 @@ class SolubilityN2(Solubility):
         self.x_SiO2 = x_SiO2
         self.x_Al2O3 = x_Al2O3
         self.x_TiO2 = x_TiO2
-        self.dasfac_2 = np.exp(4.67 + 7.11 * x_SiO2 - 13.06 * x_Al2O3 - 120.67 * x_TiO2)
+        # dasfac_2 is only consumed by the dasgupta() path, so skip the
+        # exp(...) precompute when libourel is selected. This avoids a
+        # spurious RuntimeWarning at construction time when a libourel
+        # caller passes extreme composition values that would overflow
+        # the exponent (the dasgupta path is the only one that cares).
+        if composition == 'dasgupta':
+            self.dasfac_2 = np.exp(4.67 + 7.11 * x_SiO2 - 13.06 * x_Al2O3 - 120.67 * x_TiO2)
+        else:
+            self.dasfac_2 = None
 
     def libourel(self, p):
         """Libourel et al. (2003)"""

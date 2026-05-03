@@ -11,8 +11,8 @@ et al. (2022).
 from __future__ import annotations
 
 import math
+import warnings
 
-import numpy as np
 import pytest
 
 from calliope.solubility import SolubilityN2, SolubilityS2
@@ -212,12 +212,17 @@ class TestSolubilityN2_meltComposition:
     def test_libourel_call_path_does_not_break_with_extreme_dasfac_inputs(self):
         """Edge: even if a user supplies pathological composition
         values that would overflow the dasgupta exponential (e.g.
-        enormous SiO2), the libourel law must still evaluate to the
-        Henry-law output. The dasfac_2 attribute is precomputed in
-        __init__ but only consumed in the dasgupta path, so this
-        verifies no inadvertent dependence leaked into libourel."""
-        with np.errstate(over='ignore'):
-            s = SolubilityN2('libourel', x_SiO2=10.0)  # huge dasfac_2
+        enormous SiO2 of 10.0, well outside any physical mole fraction),
+        the libourel law must still evaluate to the Henry-law output.
+        Discriminating: dasfac_2 is gated on composition='dasgupta',
+        so libourel callers must NOT pay the exp() precompute cost AND
+        must NOT see any RuntimeWarning emitted at construction time.
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter('error')  # any warning becomes an error
+            s = SolubilityN2('libourel', x_SiO2=10.0)
+        # libourel path stores no precomputed dasfac_2
+        assert s.dasfac_2 is None
         out = s(50.0)
         assert math.isfinite(out)
         assert out == pytest.approx(0.0611 * 50.0, rel=1e-12)
