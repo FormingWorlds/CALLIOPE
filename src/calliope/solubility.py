@@ -110,15 +110,30 @@ class SolubilityCO2(Solubility):
 
 
 class SolubilityN2(Solubility):
-    """N2 solubility models"""
+    """N2 solubility models.
 
-    def __init__(self, composition='libourel'):
+    Parameters
+    ----------
+    composition : str, default 'libourel'
+        Solubility-law name. 'libourel' selects the linear Henry's-law
+        form of Libourel et al. (2003); 'dasgupta' selects the
+        physical-state-dependent form of Dasgupta et al. (2022).
+    x_SiO2, x_Al2O3, x_TiO2 : float
+        Melt mole fractions used by the Dasgupta et al. (2022) law to
+        compute the molecular-N2 prefactor `dasfac_2`. Defaults
+        (0.56, 0.11, 0.01) match the Earth-mantle reference adopted in
+        prior CALLIOPE releases; override for non-Earth compositions.
+        These kwargs have no effect when `composition='libourel'`.
+    """
+
+    def __init__(self, composition='libourel', x_SiO2=0.56, x_Al2O3=0.11, x_TiO2=0.01):
         super().__init__(composition)
 
-        # melt composition
-        x_SiO2 = 0.56
-        x_Al2O3 = 0.11
-        x_TiO2 = 0.01
+        # Stored on the instance so callers can introspect them; defaults
+        # match the Earth-mantle reference used by Dasgupta et al. (2022).
+        self.x_SiO2 = x_SiO2
+        self.x_Al2O3 = x_Al2O3
+        self.x_TiO2 = x_TiO2
         self.dasfac_2 = np.exp(4.67 + 7.11 * x_SiO2 - 13.06 * x_Al2O3 - 120.67 * x_TiO2)
 
     def libourel(self, p):
