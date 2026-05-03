@@ -12,9 +12,10 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import pytest
 
-from calliope.solubility import SolubilityS2
+from calliope.solubility import SolubilityN2, SolubilityS2
 
 pytestmark = pytest.mark.unit
 
@@ -101,3 +102,151 @@ class TestSolubilityS2_xFeO:
         zero = SolubilityS2(x_FeO=0.0)
         ratio = zero(1.0, 2500.0, 0.0) / baseline(1.0, 2500.0, 0.0)
         assert ratio == pytest.approx(math.exp(-1.24), rel=1e-12)
+
+
+# ---------------------------------------------------------------------------
+# SolubilityN2 :: x_SiO2 / x_Al2O3 / x_TiO2
+# ---------------------------------------------------------------------------
+
+
+class TestSolubilityN2_meltComposition:
+    """The Dasgupta et al. (2022) law adds a molecular term whose
+    prefactor c_melt = exp(4.67 + 7.11 x_SiO2 - 13.06 x_Al2O3 - 120.67 x_TiO2)
+    is precomputed in __init__ and stored as `dasfac_2`. Tests pin the
+    default values and verify the closed-form scaling with each kwarg
+    independently, in line with the published expression."""
+
+    DEFAULT_SIO2 = 0.56
+    DEFAULT_AL2O3 = 0.11
+    DEFAULT_TIO2 = 0.01
+    DEFAULT_DASFAC = math.exp(4.67 + 7.11 * 0.56 - 13.06 * 0.11 - 120.67 * 0.01)  # ~ 406.79
+
+    def test_default_kwargs_give_pre_existing_dasfac(self):
+        """No-arg call must reproduce the previously hardcoded
+        dasfac_2 = exp(4.67 + 7.11*0.56 - 13.06*0.11 - 120.67*0.01) ~ 406.79.
+        Pin the closed-form value so any coefficient drift surfaces."""
+        s = SolubilityN2('dasgupta')
+        assert s.dasfac_2 == pytest.approx(self.DEFAULT_DASFAC, rel=1e-12)
+        # Numeric pin against the actual computed value at kwarg
+        # introduction time (catches off-by-1 in the constants too).
+        assert s.dasfac_2 == pytest.approx(406.791, rel=1e-4)
+
+    def test_default_kwargs_attribute_values(self):
+        """Pin x_SiO2/Al2O3/TiO2 attributes to their documented
+        defaults; a future maintainer changing these would have to
+        update this test, signalling the doc-text needs the same
+        update."""
+        s = SolubilityN2('dasgupta')
+        assert s.x_SiO2 == self.DEFAULT_SIO2
+        assert s.x_Al2O3 == self.DEFAULT_AL2O3
+        assert s.x_TiO2 == self.DEFAULT_TIO2
+
+    @pytest.mark.parametrize(
+        'kwarg,delta,coef',
+        [
+            ('x_SiO2', 0.10, 7.11),  # +0.10 SiO2 -> exp(0.711) ~ 2.04
+            ('x_Al2O3', 0.05, -13.06),  # +0.05 Al2O3 -> exp(-0.653) ~ 0.520
+            ('x_TiO2', 0.01, -120.67),  # +0.01 TiO2 -> exp(-1.2067) ~ 0.299
+        ],
+    )
+    def test_each_kwarg_scales_dasfac_independently(self, kwarg, delta, coef):
+        """Each composition kwarg enters c_melt with its own
+        coefficient. Bumping one kwarg by `delta` must scale dasfac_2
+        by exp(coef*delta), independent of the other two. Catches
+        copy-paste swaps among the three coefficients (e.g. using
+        7.11 for Al2O3 instead of SiO2)."""
+        kwargs_default = {
+            'x_SiO2': self.DEFAULT_SIO2,
+            'x_Al2O3': self.DEFAULT_AL2O3,
+            'x_TiO2': self.DEFAULT_TIO2,
+        }
+        kwargs_modified = dict(kwargs_default)
+        kwargs_modified[kwarg] += delta
+
+        s_default = SolubilityN2('dasgupta', **kwargs_default)
+        s_modified = SolubilityN2('dasgupta', **kwargs_modified)
+
+        ratio = s_modified.dasfac_2 / s_default.dasfac_2
+        assert ratio == pytest.approx(math.exp(coef * delta), rel=1e-12)
+
+    def test_dasgupta_call_uses_new_dasfac(self):
+        """Discriminating: the Dasgupta call adds `pb_N2 * dasfac_2` on
+        top of an exponential redox-dependent term. Pick conditions
+        where the dasfac term carries appreciable weight (high p,
+        oxidising) and verify changing dasfac changes ppmw in the
+        predicted direction."""
+        p_N2 = 1000.0  # bar
+        p_total = 5000.0  # bar
+        T = 1800.0
+        dIW = +5.0  # strongly oxidising; suppresses the redox term
+
+        s_default = SolubilityN2('dasgupta')
+        s_high_SiO2 = SolubilityN2('dasgupta', x_SiO2=0.66)  # +0.10
+
+        ppmw_default = s_default(p_N2, p_total, T, dIW)
+        ppmw_high = s_high_SiO2(p_N2, p_total, T, dIW)
+
+        # The dasfac term scales by exp(7.11 * 0.10) = ~ 2.036; the
+        # redox term is unchanged. At dIW=+5 the redox term is heavily
+        # suppressed, so dasfac dominates and the ratio approaches 2.04.
+        ratio = ppmw_high / ppmw_default
+        assert 1.5 < ratio < 2.1
+
+    def test_libourel_unaffected_by_composition_kwargs(self):
+        """The Libourel law has no melt-composition dependence; its
+        output must be unchanged regardless of x_SiO2/Al2O3/TiO2.
+        Discriminating: a refactor that accidentally threaded the new
+        kwargs into power_law would be caught here."""
+        p_N2 = 100.0
+        baseline = SolubilityN2('libourel')(p_N2)
+        custom = SolubilityN2('libourel', x_SiO2=0.99, x_Al2O3=0.99, x_TiO2=0.99)(p_N2)
+        assert custom == pytest.approx(baseline, rel=1e-12)
+
+    def test_zero_composition_yields_pure_4_67_prefactor(self):
+        """Edge: setting all three to zero collapses dasfac_2 to
+        exp(4.67) ~ 106.7. Catches a bug where the constant 4.67 was
+        accidentally mixed into a kwarg coefficient."""
+        s = SolubilityN2('dasgupta', x_SiO2=0.0, x_Al2O3=0.0, x_TiO2=0.0)
+        assert s.dasfac_2 == pytest.approx(math.exp(4.67), rel=1e-12)
+
+    def test_libourel_call_path_does_not_break_with_extreme_dasfac_inputs(self):
+        """Edge: even if a user supplies pathological composition
+        values that would overflow the dasgupta exponential (e.g.
+        enormous SiO2), the libourel law must still evaluate to the
+        Henry-law output. The dasfac_2 attribute is precomputed in
+        __init__ but only consumed in the dasgupta path, so this
+        verifies no inadvertent dependence leaked into libourel."""
+        with np.errstate(over='ignore'):
+            s = SolubilityN2('libourel', x_SiO2=10.0)  # huge dasfac_2
+        out = s(50.0)
+        assert math.isfinite(out)
+        assert out == pytest.approx(0.0611 * 50.0, rel=1e-12)
+
+
+# ---------------------------------------------------------------------------
+# Backward-compatibility regression tests (PROTEUS callers)
+# ---------------------------------------------------------------------------
+
+
+class TestBackwardCompatibility:
+    """Pin numeric outputs of the no-arg SolubilityS2() and
+    SolubilityN2() constructors used in `solve.dissolved_mass` so any
+    silent default-value change surfaces here."""
+
+    def test_solve_dissolved_mass_callsites_use_defaults(self):
+        """Discriminating: `solve.dissolved_mass` instantiates
+        `SolubilityS2()` and `SolubilityN2('dasgupta')` with no
+        composition kwargs. Pin both default-instantiated objects to
+        their pre-kwarg numeric outputs at a fixed (p, T, fO2_shift)
+        triple. A drift here means a future change to the default
+        kwarg values broke PROTEUS-side runs."""
+        # SolubilityS2 default at (p_S2, T, dIW)
+        s2 = SolubilityS2()
+        ppmw_S2 = s2(1.0, 2500.0, 0.0)
+        assert ppmw_S2 == pytest.approx(30095.04, rel=1e-5)
+
+        # SolubilityN2('dasgupta') default at (p_N2, p_tot, T, dIW)
+        n2 = SolubilityN2('dasgupta')
+        ppmw_N2 = n2(50.0, 200.0, 2000.0, 0.0)
+        # Regression value frozen from the pre-kwarg implementation.
+        assert ppmw_N2 == pytest.approx(2.14133, rel=1e-5)
