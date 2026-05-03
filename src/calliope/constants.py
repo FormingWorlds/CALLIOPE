@@ -8,7 +8,9 @@ M_earth = 5.972e24  # kg
 R_earth = 6.335439e6
 R_core_earth = 3485000.0  # m
 M_core_earth = 1.94e24  # kg
-ocean_moles = 7.68894973907177e22  # moles of H2 (or H2O) in one present-day Earth ocean
+# Moles of H2 (or H2O) in one present-day Earth ocean.
+# Source: Clark, W. C. (1982), Carbon Dioxide Review, p. 469, Oxford Univ. Press, New York.
+ocean_moles = 7.68894973907177e22
 
 # Physical constants
 const_G = 6.67428e-11  # Gravitational constant (2006 measurements)
