@@ -58,6 +58,10 @@ jobs:
           python -m pip install -e ".[develop]"
           python -m pip install pytest-cov
 
+      - name: Validate test markers
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12' }}
+        run: bash tools/validate_test_structure.sh
+
       - name: Pre-flight fail_under ratchet check
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12' }}
         env:
