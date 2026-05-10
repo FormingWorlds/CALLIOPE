@@ -73,7 +73,7 @@ branch = true
 source = ["calliope"]
 
 [tool.coverage.report]
-fail_under = 95
+fail_under = 95.0
 show_missing = true
 exclude_lines = [
     "pragma: no cover",
