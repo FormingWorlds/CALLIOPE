@@ -88,7 +88,6 @@ markers = [
     "smoke: real-binary tests on minimal configurations (< 30 s each)",
     "integration: real-binary tests with full coupling",
     "slow: anything > 1 minute, not run in nightly",
-    "skip: explicitly excluded from every selector",
 ]
 
 [tool.ruff]
