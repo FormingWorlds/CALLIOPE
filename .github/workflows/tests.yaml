@@ -14,11 +14,23 @@ on:
       - ready_for_review
   workflow_dispatch:
 
+# Push and PR CI: unit + smoke tiers only, on ubuntu + macos x py 3.11/3.12/3.13.
+# Targets <10 min wall. The integration and slow tiers run real
+# multi-species CHNS solves and live in the scheduled nightly workflow
+# `nightly.yml` instead.
+
+permissions:
+  contents: read
+  # actions:read enables `gh run download` to fetch the previous
+  # nightly's coverage artifact for the union estimation step.
+  actions: read
+
 jobs:
   test:
     if: github.event.pull_request.draft == false
-    name: Run Coverage and Tests
+    name: CALLIOPE-check (${{ matrix.os }}, py${{ matrix.python-version }})
     strategy:
+      fail-fast: false
       matrix:
         os: ['ubuntu-latest', 'macos-latest']
         python-version: ['3.11', '3.12', '3.13']
@@ -26,6 +38,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -40,29 +54,237 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install -e .[develop]
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[develop]"
+          python -m pip install pytest-cov
 
-      - name: Test with pytest
+      - name: Run unit + smoke tests
+        env:
+          # Coverage instrumentation slows pytest. The Codecov upload
+          # and union-estimation steps below only run on the
+          # ubuntu + py3.12 cell, so the other five matrix cells gain
+          # nothing from emitting coverage. Gate --cov flags to that
+          # one cell. --cov-fail-under=0 overrides the 95% floor in
+          # pyproject.toml for this tier (PR gate runs only unit + smoke,
+          # which does not exercise the integration tier; the canonical
+          # 95% gate is enforced in nightly.yml on the full suite).
+          COV_FLAGS: ${{ (matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12') && '--cov=src/calliope --cov-report=xml --cov-report=json:coverage.json --cov-fail-under=0' || '' }}
         run: |
-          coverage run -m pytest
-
-      - name: Report coverage
-        run: |
-          coverage xml
-          TOTAL=$(coverage report --format=total)
-          echo "### Total coverage: ${TOTAL}%" >> $GITHUB_STEP_SUMMARY
-          echo $'\n```' >> $GITHUB_STEP_SUMMARY
-          coverage report >> $GITHUB_STEP_SUMMARY
-          echo $'\n```' >> $GITHUB_STEP_SUMMARY
-          echo "Total coverage: ${TOTAL}%"
-          coverage report
+          pytest -m "(unit or smoke) and not skip" $COV_FLAGS
 
       - name: Upload coverage to Codecov
-        if: ${{ matrix.python-version == '3.13' && matrix.os == 'ubuntu-latest' }}
+        if: ${{ !cancelled() && matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12' }}
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          slug: FormingWorlds/CALLIOPE
           files: coverage.xml
-          flags: unittests
-          name: codecov-calliope
+          flags: ci
           fail_ci_if_error: false
+
+      - name: Download last nightly coverage artifact
+        id: download-nightly
+        if: ${{ !cancelled() && matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # First-party-only path to cross-workflow artifact download:
+          # query the latest successful nightly run on main, then use
+          # `gh run download`. Failures here do not break the PR (the
+          # union step downgrades to "nightly missing" warning).
+          set +e
+          mkdir -p nightly-coverage
+          RUN_ID=$(gh run list \
+              --workflow=nightly.yml \
+              --branch=main \
+              --status=success \
+              --limit=1 \
+              --json databaseId \
+              --jq '.[0].databaseId' \
+              -R ${{ github.repository }})
+          if [ -z "$RUN_ID" ]; then
+            echo "No successful nightly run found on main."
+            echo "nightly_missing=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Downloading artifact from nightly run $RUN_ID"
+          gh run download "$RUN_ID" \
+              --name nightly-coverage \
+              --dir nightly-coverage \
+              -R ${{ github.repository }}
+          if [ ! -f nightly-coverage/coverage.json ]; then
+            echo "Artifact missing coverage.json; treating as missing."
+            echo "nightly_missing=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "nightly_missing=false" >> "$GITHUB_OUTPUT"
+          echo "nightly_run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Estimate combined coverage union
+        id: coverage-union
+        if: ${{ !cancelled() && matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12' }}
+        env:
+          NIGHTLY_MISSING: ${{ steps.download-nightly.outputs.nightly_missing }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import pathlib
+          import tomllib
+          from datetime import datetime, timezone
+
+          GRACE_PERIOD = 0.3  # percent; coverage drops below this do not block
+          STALE_HOURS = 48
+
+          def read_totals(path):
+              try:
+                  with open(path) as fh:
+                      data = json.load(fh)
+                  t = data.get('totals', {})
+                  return (
+                      t.get('percent_covered', 0.0),
+                      t.get('covered_lines', 0),
+                      t.get('num_statements', 0),
+                  )
+              except Exception:
+                  return 0.0, 0, 0
+
+          def norm_path(p):
+              p = p.replace('\\', '/')
+              if 'src/' in p:
+                  return p.split('src/', 1)[-1]
+              return p
+
+          def line_set_executed(data):
+              out = set()
+              for path, fd in data.get('files', {}).items():
+                  n = norm_path(path)
+                  for line in fd.get('executed_lines', []) or []:
+                      out.add((n, line))
+              return out
+
+          def line_set_executable(data):
+              out = set()
+              for path, fd in data.get('files', {}).items():
+                  n = norm_path(path)
+                  exec_ = fd.get('executed_lines', []) or []
+                  miss_ = fd.get('missing_lines', []) or []
+                  for line in exec_ + miss_:
+                      out.add((n, line))
+              return out
+
+          # Threshold: source of truth is pyproject.toml.
+          full_threshold = 95.0
+          try:
+              data = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
+              full_threshold = float(
+                  data['tool']['coverage']['report']['fail_under']
+              )
+          except Exception as exc:
+              print(f'WARN: could not read fail_under from pyproject.toml: {exc}')
+
+          # Unit + smoke tier coverage from this PR.
+          u_pct, u_covered, u_total = read_totals('coverage.json')
+          u_data = {}
+          if pathlib.Path('coverage.json').exists():
+              try:
+                  u_data = json.loads(pathlib.Path('coverage.json').read_text())
+              except Exception:
+                  pass
+
+          # Nightly full-suite coverage.
+          n_path = pathlib.Path('nightly-coverage/coverage.json')
+          n_pct, n_covered, n_total = read_totals(n_path)
+          n_data = {}
+          if n_path.exists():
+              try:
+                  n_data = json.loads(n_path.read_text())
+              except Exception:
+                  pass
+
+          # Staleness check.
+          ts_path = pathlib.Path('nightly-coverage/nightly-timestamp.txt')
+          stale = False
+          stale_hours = None
+          if ts_path.exists():
+              try:
+                  ts_str = ts_path.read_text().strip().replace('Z', '+00:00')
+                  ts = datetime.fromisoformat(ts_str)
+                  age = datetime.now(timezone.utc) - ts
+                  stale_hours = age.total_seconds() / 3600.0
+                  stale = stale_hours > STALE_HOURS
+              except Exception:
+                  pass
+
+          missing = os.environ.get('NIGHTLY_MISSING', 'false') == 'true'
+          missing = missing or not n_data
+
+          # Union estimate.
+          est_pct = None
+          est_covered = 0
+          est_total = 0
+          if u_data.get('files') and n_data.get('files'):
+              union_exec = line_set_executed(u_data) | line_set_executed(n_data)
+              union_all = line_set_executable(u_data) | line_set_executable(n_data)
+              if union_all:
+                  est_covered = len(union_exec)
+                  est_total = len(union_all)
+                  est_pct = min(100.0, 100.0 * est_covered / est_total)
+
+          # Status: ok / warn / fail relative to full threshold + grace.
+          status = 'ok'
+          drop = 0.0
+          if est_pct is not None:
+              drop = full_threshold - est_pct
+              if drop > GRACE_PERIOD:
+                  status = 'fail'
+              elif drop > 0:
+                  status = 'warn'
+
+          summary_lines = [
+              '## Coverage estimate (PR vs nightly union)',
+              '',
+              f'- Unit + smoke (this PR): **{u_pct:.2f}%** ({u_covered}/{u_total} stmts)',
+          ]
+          if missing:
+              summary_lines.append('- Nightly artifact: **MISSING** (no successful nightly on main)')
+          else:
+              age_str = f' ({stale_hours:.1f}h old)' if stale_hours is not None else ''
+              tag = ' [STALE]' if stale else ''
+              summary_lines.append(
+                  f'- Nightly: **{n_pct:.2f}%** ({n_covered}/{n_total}){age_str}{tag}'
+              )
+          if est_pct is not None:
+              summary_lines.append(
+                  f'- Estimated union: **{est_pct:.2f}%** ({est_covered}/{est_total})'
+              )
+              summary_lines.append(f'- Threshold: {full_threshold:.2f}% | drop: {drop:+.2f}% | status: **{status}**')
+          else:
+              summary_lines.append('- Union estimate unavailable (one or both JSONs missing).')
+          if missing or stale:
+              summary_lines.append('')
+              summary_lines.append('> Nightly missing or stale; union number is informational only and does not gate this PR.')
+
+          summary_md = '\n'.join(summary_lines) + '\n'
+          print(summary_md)
+          step_summary = os.environ.get('GITHUB_STEP_SUMMARY')
+          if step_summary:
+              with open(step_summary, 'a') as fh:
+                  fh.write(summary_md)
+
+          out = os.environ.get('GITHUB_OUTPUT')
+          if out:
+              with open(out, 'a') as fh:
+                  fh.write(f'unit_pct={u_pct:.2f}\n')
+                  fh.write(f'nightly_pct={n_pct:.2f}\n')
+                  fh.write(f'est_pct={est_pct:.2f}\n' if est_pct is not None else 'est_pct=\n')
+                  fh.write(f'est_covered_union={est_covered}\n')
+                  fh.write(f'est_total_union={est_total}\n')
+                  fh.write(f'coverage_status={status}\n')
+                  fh.write(f'coverage_drop={drop:.2f}\n')
+                  fh.write(f'nightly_stale={"true" if stale else "false"}\n')
+                  fh.write(f'nightly_missing={"true" if missing else "false"}\n')
+
+          # Informational only; never fails the job.
+          PY
