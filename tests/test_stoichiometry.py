@@ -19,8 +19,6 @@ from calliope.constants import element_list, molar_mass, volatile_species
 from calliope.oxygen_fugacity import OxygenFugacity
 from calliope.solubility import SolubilityCH4, SolubilityCO
 
-pytestmark = pytest.mark.unit
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -48,6 +46,7 @@ def _column_mass(p_bar, g=9.81, R=6.371e6):
 # ===================================================================
 
 
+@pytest.mark.unit
 class TestAtmosphericStoichiometry:
     """Verify elemental masses by running atmosphere_mass with known
     primary pressures and checking the elemental totals.
@@ -172,6 +171,7 @@ class TestAtmosphericStoichiometry:
 # ===================================================================
 
 
+@pytest.mark.unit
 class TestEquilibriumChemistry:
     """Verify that the ModifiedKeq + sqrt expression in solve.py
     produces partial pressures consistent with the analytical Kp.
@@ -344,6 +344,7 @@ class TestEquilibriumChemistry:
 # ===================================================================
 
 
+@pytest.mark.unit
 class TestCH4Solubility:
     """Verify CH4 solubility pressure dependence has correct magnitude."""
 
@@ -380,6 +381,7 @@ class TestCH4Solubility:
             assert sol(p, p) > 0.0
 
 
+@pytest.mark.unit
 class TestCOSolubility:
     """Verify CO solubility is unaffected."""
 
@@ -396,6 +398,7 @@ class TestCOSolubility:
 # ===================================================================
 
 
+@pytest.mark.integration
 class TestEquilibriumAtmosphereIntegration:
     """Run the full solver and verify mass conservation."""
 

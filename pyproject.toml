@@ -84,7 +84,11 @@ exclude_lines = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
-    "unit: fast in-process unit tests (default selection in CI)",
+    "unit: fast in-process unit tests (mocked physics, < 100 ms each)",
+    "smoke: real-binary tests on minimal configurations (< 30 s each)",
+    "integration: real-binary tests with full coupling",
+    "slow: anything > 1 minute, not run in nightly",
+    "skip: explicitly excluded from every selector",
 ]
 
 [tool.ruff]
