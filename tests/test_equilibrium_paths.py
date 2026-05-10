@@ -16,7 +16,7 @@ import pytest
 from calliope.constants import volatile_species
 from calliope.solve import equilibrium_atmosphere
 
-pytestmark = pytest.mark.unit
+pytestmark = pytest.mark.smoke
 
 
 def _ddict(T: float = 2500.0, Phi: float = 1.0, dIW: float = 0.0) -> dict:

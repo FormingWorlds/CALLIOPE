@@ -14,18 +14,30 @@ on:
       - ready_for_review
   workflow_dispatch:
 
+# Push and PR CI: unit + smoke tiers only, on ubuntu + macos x py 3.12/3.13.
+# Targets <10 min wall. The integration and slow tiers run real
+# multi-species CHNS solves and live in the scheduled nightly workflow
+# `nightly.yml` instead. Coverage measurement is canonical in nightly;
+# the Codecov dashboard updates from nightly's separate upload step.
+
+permissions:
+  contents: read
+
 jobs:
   test:
     if: github.event.pull_request.draft == false
-    name: Run Coverage and Tests
+    name: CALLIOPE-check (${{ matrix.os }}, py${{ matrix.python-version }})
     strategy:
+      fail-fast: false
       matrix:
         os: ['ubuntu-latest', 'macos-latest']
-        python-version: ['3.11', '3.12', '3.13']
+        python-version: ['3.12', '3.13']
 
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -40,29 +52,83 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install -e .[develop]
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[develop]"
 
-      - name: Test with pytest
+      - name: Validate test markers
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12' }}
+        run: bash tools/validate_test_structure.sh
+
+      - name: Pre-flight fail_under ratchet check
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12' }}
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref || 'main' }}
         run: |
-          coverage run -m pytest
+          # Reject PRs that lower [tool.coverage.report] fail_under
+          # below the value on the base branch. The 95% ceiling is the
+          # maximum ratchet per ecosystem policy; this check enforces
+          # the one-way-only direction (down forbidden) so the gate
+          # cannot be weakened to land an under-tested change.
+          git fetch --no-tags --depth=1 origin "$BASE_REF" || true
+          python - <<'PY'
+          import os
+          import pathlib
+          import subprocess
+          import sys
+          import tomllib
 
-      - name: Report coverage
+          base_ref = os.environ.get('BASE_REF', 'main')
+          out = subprocess.run(
+              ['git', 'show', f'origin/{base_ref}:pyproject.toml'],
+              capture_output=True,
+              text=True,
+              check=False,
+          )
+          if out.returncode != 0:
+              print(f'Could not read pyproject.toml from origin/{base_ref}; skipping check.')
+              sys.exit(0)
+
+          base = tomllib.loads(out.stdout)
+          head = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
+
+          def fail_under(d):
+              try:
+                  return float(d['tool']['coverage']['report']['fail_under'])
+              except KeyError:
+                  return None
+
+          base_v = fail_under(base)
+          head_v = fail_under(head)
+          print(f'fail_under: base={base_v} head={head_v}')
+
+          # Base has no [tool.coverage.report].fail_under: nothing to
+          # ratchet against. The first PR that introduces the gate is
+          # allowed regardless of head_v.
+          if base_v is None:
+              print(
+                  f'origin/{base_ref} has no [tool.coverage.report].fail_under; '
+                  'no ratchet to enforce. PASS.'
+              )
+              sys.exit(0)
+
+          # Head removed the gate that base had: that is a decrease.
+          if head_v is None:
+              print(
+                  f'ERROR: head removed [tool.coverage.report].fail_under '
+                  f'(base had {base_v}). The gate is one-way only.'
+              )
+              sys.exit(1)
+
+          if head_v < base_v:
+              print(
+                  f'ERROR: fail_under decreased ({head_v} < {base_v}). '
+                  'The coverage gate is one-way only; ask a maintainer if a '
+                  'downward adjustment is required.'
+              )
+              sys.exit(1)
+          print('OK: fail_under is non-decreasing.')
+          PY
+
+      - name: Run unit + smoke tests
         run: |
-          coverage xml
-          TOTAL=$(coverage report --format=total)
-          echo "### Total coverage: ${TOTAL}%" >> $GITHUB_STEP_SUMMARY
-          echo $'\n```' >> $GITHUB_STEP_SUMMARY
-          coverage report >> $GITHUB_STEP_SUMMARY
-          echo $'\n```' >> $GITHUB_STEP_SUMMARY
-          echo "Total coverage: ${TOTAL}%"
-          coverage report
-
-      - name: Upload coverage to Codecov
-        if: ${{ matrix.python-version == '3.13' && matrix.os == 'ubuntu-latest' }}
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage.xml
-          flags: unittests
-          name: codecov-calliope
-          fail_ci_if_error: false
+          pytest -m "(unit or smoke) and not skip"

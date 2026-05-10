@@ -17,6 +17,8 @@ from calliope.oxygen_fugacity import OxygenFugacity
 from calliope.solubility import SolubilityH2O
 from calliope.structure import calculate_mantle_mass
 
+pytestmark = pytest.mark.unit
+
 # ---------- Oxygen fugacity tests ----------
 
 

@@ -15,7 +15,7 @@ nav:
       - Configuration: How-to/configuration.md
       - Usage: How-to/usage.md
       - Coupling to PROTEUS: How-to/proteus_coupling.md
-      - Testing: How-to/testing.md
+      - Build a new test: How-to/build_tests.md
       - Releasing: How-to/releasing.md
 
   - Tutorials:
@@ -29,6 +29,7 @@ nav:
       - Mass balance & solver: Explanations/mass_balance.md
       - Coupling to PROTEUS: Explanations/proteus_coupling.md
       - Code architecture: Explanations/code_architecture.md
+      - Testing suite: Explanations/testing.md
 
   - Reference:
       - API reference:

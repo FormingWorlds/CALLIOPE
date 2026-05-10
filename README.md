@@ -1,12 +1,10 @@
-<h1 align="center">CALLIOPE</h1>
+# CALLIOPE
 
-<p align="center">
-  <a href="https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml"><img src="https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml/badge.svg" alt="Tests"></a>
-  <a href="https://app.codecov.io/gh/FormingWorlds/CALLIOPE/tree/main"><img src="https://codecov.io/gh/FormingWorlds/CALLIOPE/branch/main/graph/badge.svg" alt="Coverage"></a>
-  <a href="https://proteus-framework.org/CALLIOPE/"><img src="https://img.shields.io/website?url=https%3A%2F%2Fproteus-framework.org%2FCALLIOPE%2F&label=docs" alt="Documentation"></a>
-  <a href="https://pypi.org/project/fwl-calliope/"><img src="https://img.shields.io/pypi/v/fwl-calliope?label=PyPI" alt="PyPI"></a>
-  <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0"></a>
-</p>
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Docs](https://img.shields.io/github/actions/workflow/status/FormingWorlds/CALLIOPE/docs.yaml?branch=main&label=Docs)](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/docs.yaml)
+[![codecov](https://img.shields.io/codecov/c/github/FormingWorlds/CALLIOPE?label=coverage&logo=codecov)](https://app.codecov.io/gh/FormingWorlds/CALLIOPE)
+[![Unit Tests](https://img.shields.io/github/actions/workflow/status/FormingWorlds/CALLIOPE/tests.yaml?branch=main&label=Unit%20Tests)](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml)
+[![Integration Tests](https://img.shields.io/github/actions/workflow/status/FormingWorlds/CALLIOPE/nightly.yml?branch=main&label=Integration%20Tests)](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/nightly.yml)
 
 **CALLIOPE** is the equilibrium outgassing solver of the [PROTEUS](https://proteus-framework.org/PROTEUS) coupled atmosphere-interior evolution framework. It computes the partitioning of volatile elements (H, C, N, S) between a partially molten silicate mantle and an overlying gas-phase atmosphere, assuming both reservoirs are in thermochemical equilibrium at the planetary surface.
 

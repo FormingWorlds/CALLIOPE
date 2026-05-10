@@ -8,7 +8,7 @@ name = "fwl-calliope"
 version = "26.05.03"
 description = "Planetary accretion and volatile delivery model"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 authors = [
 	{name = "Harrison Nicholls, email = harrison.nicholls@physics.ox.ac.uk"},
 ]
@@ -25,7 +25,6 @@ classifiers = [
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Astronomy",
@@ -73,7 +72,7 @@ branch = true
 source = ["calliope"]
 
 [tool.coverage.report]
-fail_under = 95
+fail_under = 95.0
 show_missing = true
 exclude_lines = [
     "pragma: no cover",
@@ -84,12 +83,15 @@ exclude_lines = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
-    "unit: fast in-process unit tests (default selection in CI)",
+    "unit: fast in-process unit tests (mocked physics, < 100 ms each)",
+    "smoke: real-binary tests on minimal configurations (< 30 s each)",
+    "integration: real-binary tests with full coupling",
+    "slow: anything > 1 minute, not run in nightly",
 ]
 
 [tool.ruff]
 line-length = 96
-target-version = "py311"
+target-version = "py312"
 extend-exclude = ["*ipynb"]
 
 [tool.ruff.lint]
