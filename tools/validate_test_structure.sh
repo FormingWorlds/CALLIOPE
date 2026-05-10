@@ -34,7 +34,9 @@ import pathlib
 import sys
 
 ROOT = pathlib.Path('tests').resolve()
-ALLOWED = {'unit', 'smoke', 'integration', 'slow', 'skip'}
+TIER = {'unit', 'smoke', 'integration', 'slow'}
+SKIP = {'skip'}
+ALLOWED = TIER | SKIP
 
 failures: list[str] = []
 total = 0
@@ -103,12 +105,19 @@ for path in sorted(ROOT.rglob('*.py')):
     mod_marks = module_marks(tree)
     for fn, marks in walk(tree, mod_marks):
         total += 1
-        relevant = [m for m in marks if m in ALLOWED]
-        if not relevant:
+        tier_marks = [m for m in marks if m in TIER]
+        has_skip = any(m in SKIP for m in marks)
+        rel = path.relative_to(ROOT.parent)
+        if len(tier_marks) > 1:
             failures.append(
-                f'{path.relative_to(ROOT.parent)}:{fn.lineno}: '
-                f'{fn.name} carries no marker (need one of '
-                "unit / smoke / integration / slow / skip)"
+                f'{rel}:{fn.lineno}: {fn.name} has multiple tier markers '
+                f'{sorted(set(tier_marks))}; exactly one of '
+                'unit / smoke / integration / slow is required.'
+            )
+        elif len(tier_marks) == 0 and not has_skip:
+            failures.append(
+                f'{rel}:{fn.lineno}: {fn.name} carries no marker '
+                '(need one of unit / smoke / integration / slow / skip)'
             )
 
 if failures:
