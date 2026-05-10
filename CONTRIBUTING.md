@@ -25,19 +25,24 @@ The documentation is hosted at [proteus-framework.org/CALLIOPE](https://proteus-
 
 ### Running tests
 
-CALLIOPE uses [pytest](https://docs.pytest.org/en/latest/) to run the tests. You can run them with:
+CALLIOPE uses [pytest](https://docs.pytest.org/en/latest/) with a four-tier marker scheme (`unit`, `smoke`, `integration`, `slow`). Common selections:
 
 ```console
-pytest
+pytest -m unit                              # fast in-process tests
+pytest -m smoke                             # minimal-config solver tests
+pytest -m integration                       # full multi-species CHNS solves
+pytest -m "(unit or smoke) and not skip"    # PR-gate selection
+pytest -m "not skip"                        # full nightly selection
 ```
 
 To check coverage:
 
 ```console
-coverage run -m pytest
-coverage report   # text summary in the terminal
-coverage html     # HTML report under htmlcov/
+pytest --cov=src/calliope --cov-report=term -m "not skip"
+pytest --cov=src/calliope --cov-report=html -m "not skip"   # htmlcov/
 ```
+
+For details on the marker scheme, badge system, and coverage gate, see the [testing suite](https://proteus-framework.org/CALLIOPE/Explanations/testing.html) explanation. To add a new test, see the [build a new test](https://proteus-framework.org/CALLIOPE/How-to/build_tests.html) how-to.
 
 ### Making a release
 
