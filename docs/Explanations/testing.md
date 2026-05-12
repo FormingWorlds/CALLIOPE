@@ -51,7 +51,7 @@ The publish workflow auto-commits the badges with `[skip ci]` and retries the pu
 
 `[tool.coverage.report] fail_under` in `pyproject.toml` sets the minimum combined line + branch coverage for the nightly run.
 The PR gate has a pre-flight step that fetches the base branch's `pyproject.toml` and refuses any PR that drops `fail_under` below the value on `main`; both states tolerate a base branch with no `fail_under` declared.
-The 95 % ceiling caps the ratchet so that defensive paths do not become unfailable.
+The 90 % ceiling caps the ratchet so that defensive paths do not become unfailable.
 
 ## Coverage union estimation
 

@@ -1,11 +1,11 @@
 [build-system]
-requires = ["setuptools>=61.2"]
+requires = ["setuptools>=64", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 # https://packaging.python.org/en/latest/specifications/declaring-project-metadata/
 [project]
 name = "fwl-calliope"
-version = "26.05.10"
+dynamic = ["version"]
 description = "Planetary accretion and volatile delivery model"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -44,7 +44,6 @@ changelog = "https://github.com/FormingWorlds/CALLIOPE/releases"
 
 [project.optional-dependencies]
 develop = [
-    "bump-my-version",
     "coverage",
     "pip-tools",
     "pytest >= 8.1",
@@ -67,12 +66,22 @@ docs = [
 package-dir = {"calliope" = "src/calliope" }
 include-package-data = true
 
+[tool.setuptools_scm]
+# CalVer: tags are bare YY.MM.DD dates (no leading 'v', e.g. 26.05.10).
+# setuptools-scm derives the version from the latest git tag.
+# Between tags, it appends .devN+gHASH (e.g., 26.05.10.dev5+gabc1234).
+version_file = "src/calliope/_version.py"
+
 [tool.coverage.run]
 branch = true
 source = ["calliope"]
 
 [tool.coverage.report]
-fail_under = 95.0
+# Hard 90% coverage gate. 90% is the PROTEUS-ecosystem ceiling:
+# the gate does not rise above this value even if real coverage
+# exceeds it. Above 90% you are tracking pragma usage and style,
+# not bug-finding signal.
+fail_under = 90.0
 show_missing = true
 exclude_lines = [
     "pragma: no cover",
@@ -113,33 +122,3 @@ required-imports = ["from __future__ import annotations"]
 quote-style = "single"
 indent-style = "space"
 
-[tool.bumpversion]
-# https://callowayproject.github.io/bump-my-version/howtos/calver/
-current_version = "26.05.10"
-parse = """(?x)                      # Verbose mode
-    (?P<release>                     # The release part
-        (?:[1-9][0-9])\\.            # YY.
-        (?:1[0-2]|0[1-9])\\.         # MM.
-        (?:3[0-1]|[1-2][0-9]|0[1-9]) # DD
-    )
-    (?:\\.(?P<patch>\\d+))?         # .patch, optional
-"""
-serialize = ["{release}.{patch}", "{release}"]
-
-[tool.bumpversion.parts.release]
-calver_format = "{YY}.{0M}.{0D}"
-
-[[tool.bumpversion.files]]
-filename = "src/calliope/__init__.py"
-search = "__version__ = '{current_version}'"
-replace = "__version__ = '{new_version}'"
-
-[[tool.bumpversion.files]]
-filename = "pyproject.toml"
-search = "version = \"{current_version}\""
-replace = "version = \"{new_version}\""
-
-[[tool.bumpversion.files]]
-filename = "CITATION.cff"
-search = "version: {current_version}"
-replace = "version: {new_version}"

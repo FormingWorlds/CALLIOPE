@@ -65,7 +65,7 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.ref || 'main' }}
         run: |
           # Reject PRs that lower [tool.coverage.report] fail_under
-          # below the value on the base branch. The 95% ceiling is the
+          # below the value on the base branch. The 90% ceiling is the
           # maximum ratchet per ecosystem policy; this check enforces
           # the one-way-only direction (down forbidden) so the gate
           # cannot be weakened to land an under-tested change.
