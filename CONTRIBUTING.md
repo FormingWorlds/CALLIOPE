@@ -55,15 +55,17 @@ The versioning scheme is [CalVer](https://calver.org/).
    pip-compile -o requirements_full.txt pyproject.toml
    ```
 
-1. Bump the version (`release` / `patch` as needed):
+1. Tag the release on `main` (CalVer `YY.MM.DD`, bare tag with no leading `v`):
 
    ```console
-   bump-my-version bump release
-   # e.g. 25.05.04 → 26.05.02
+   git checkout main
+   git pull
+   git tag 26.05.10
+   git push origin 26.05.10
    ```
 
-2. Commit and push your changes.
+   `setuptools-scm` derives the package version from the tag at build time; no source files need editing.
 
-3. Create a new [release](https://github.com/FormingWorlds/CALLIOPE/releases) on GitHub. Set the tag to the specified version, e.g. `26.05.02`.
+2. Create a new [release](https://github.com/FormingWorlds/CALLIOPE/releases) on GitHub against that tag, e.g. `26.05.10`.
 
-4. The [upload to PyPI](https://pypi.org/project/fwl-calliope) is triggered when a release is published, handled by [this workflow](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/publish.yaml).
+3. The [upload to PyPI](https://pypi.org/project/fwl-calliope) is triggered automatically when the release is published, handled by [this workflow](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/publish.yaml). See [How-to: releasing](docs/How-to/releasing.md) for the full procedure.

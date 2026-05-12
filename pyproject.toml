@@ -47,6 +47,7 @@ develop = [
     "coverage",
     "pip-tools",
     "pytest >= 8.1",
+    "pytest-cov",
     "pre-commit",
     "ruff",
 ]
@@ -95,7 +96,7 @@ markers = [
     "unit: fast in-process unit tests (mocked physics, < 100 ms each)",
     "smoke: real-binary tests on minimal configurations (< 30 s each)",
     "integration: real-binary tests with full coupling",
-    "slow: anything > 1 minute, not run in nightly",
+    "slow: anything > 1 minute, run in nightly only",
 ]
 
 [tool.ruff]
