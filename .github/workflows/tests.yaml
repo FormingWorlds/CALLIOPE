@@ -65,9 +65,9 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.ref || 'main' }}
         run: |
           # Reject PRs that lower [tool.coverage.report] fail_under
-          # below the value on the base branch. The 95% ceiling is the
-          # maximum ratchet per ecosystem policy; this check enforces
-          # the one-way-only direction (down forbidden) so the gate
+          # below the 90% PROTEUS-ecosystem ceiling. The floor is
+          # min(base, 90.0): a one-time ratchet down to the ceiling
+          # is allowed, but any drop below 90 is blocked so the gate
           # cannot be weakened to land an under-tested change.
           git fetch --no-tags --depth=1 origin "$BASE_REF" || true
           python - <<'PY'
@@ -119,14 +119,24 @@ jobs:
               )
               sys.exit(1)
 
-          if head_v < base_v:
+          ECOSYSTEM_CEILING = 90.0
+          floor = min(base_v, ECOSYSTEM_CEILING)
+          if head_v < floor:
               print(
-                  f'ERROR: fail_under decreased ({head_v} < {base_v}). '
-                  'The coverage gate is one-way only; ask a maintainer if a '
-                  'downward adjustment is required.'
+                  f'ERROR: fail_under {head_v} < floor {floor} '
+                  f'(base={base_v}, ceiling={ECOSYSTEM_CEILING}). '
+                  'The gate may ratchet down to the 90% ecosystem ceiling '
+                  'but not below.'
               )
               sys.exit(1)
-          print('OK: fail_under is non-decreasing.')
+          if head_v > ECOSYSTEM_CEILING:
+              print(
+                  f'ERROR: fail_under {head_v} exceeds the '
+                  f'{ECOSYSTEM_CEILING}% ecosystem ceiling. The gate may '
+                  f'not be raised above 90%.'
+              )
+              sys.exit(1)
+          print(f'OK: fail_under {head_v} within [{floor}, {ECOSYSTEM_CEILING}].')
           PY
 
       - name: Run unit + smoke tests

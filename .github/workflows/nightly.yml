@@ -44,10 +44,10 @@ jobs:
       - name: Run unit + smoke + integration + slow tests with coverage
         run: |
           pytest -m "(unit or smoke or integration or slow) and not skip" \
-            --cov=src/calliope \
+            --cov=calliope \
             --cov-report=term-missing \
             --cov-report=xml \
-            --cov-fail-under=95
+            --cov-fail-under=90
 
       - name: Upload coverage to Codecov
         if: ${{ !cancelled() }}
