@@ -7,7 +7,9 @@ CALLIOPE uses [setuptools-scm](https://setuptools-scm.readthedocs.io/) for autom
 CALLIOPE follows [Calendar Versioning](https://calver.org/) (CalVer) with the format `YY.MM.DD`:
 
 - **Release versions** (from tags): `26.05.10`, `26.06.01`
-- **Development versions** (between tags): `26.05.10.dev5+gabc1234` (5 commits after the `26.05.10` tag, at commit `abc1234`)
+- **Development versions** (between tags): `26.05.10.post1.dev5+gabc1234` (5 commits after the `26.05.10` tag, at commit `abc1234`)
+
+Dev builds carry the `.post1.devN` suffix, not `.devN` of a guessed next version. This is deliberate: the default `setuptools-scm` `guess-next-dev` scheme would label an untagged commit as `26.5.11.devN+...`, claiming a future date that would collide with the actual next daily release. The `version_scheme = "no-guess-dev"` setting in `pyproject.toml` keeps dev builds anchored on the most recent real tag.
 
 ## How to make a release
 
@@ -72,7 +74,7 @@ setuptools-scm reads the git history to determine the version:
 | Scenario | Example version |
 |----------|----------------|
 | Exactly on a tag (`26.05.10`) | `26.05.10` |
-| 5 commits after tag, dirty | `26.05.10.dev5+gabc1234.d20260515` |
+| 5 commits after tag, dirty | `26.05.10.post1.dev5+gabc1234.d20260515` |
 | No tags in history | `0.0.0` (fallback) |
 
 The version is written to `src/calliope/_version.py` at install time (this file is gitignored). At runtime, `__init__.py` imports it:
