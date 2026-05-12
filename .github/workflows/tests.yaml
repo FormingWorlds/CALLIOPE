@@ -129,7 +129,14 @@ jobs:
                   'but not below.'
               )
               sys.exit(1)
-          print(f'OK: fail_under {head_v} >= floor {floor}.')
+          if head_v > ECOSYSTEM_CEILING:
+              print(
+                  f'ERROR: fail_under {head_v} exceeds the '
+                  f'{ECOSYSTEM_CEILING}% ecosystem ceiling. The gate may '
+                  f'not be raised above 90%.'
+              )
+              sys.exit(1)
+          print(f'OK: fail_under {head_v} within [{floor}, {ECOSYSTEM_CEILING}].')
           PY
 
       - name: Run unit + smoke tests
