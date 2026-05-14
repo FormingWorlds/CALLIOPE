@@ -43,7 +43,7 @@ Implemented as `OxygenFugacity.fischer(T)`.
 
 ## How $\Delta\mathrm{IW}$ enters the chemistry
 
-The shift $\Delta\mathrm{IW}$ feeds the equilibrium chemistry through two channels:
+The shift $\Delta\mathrm{IW}$ feeds the equilibrium chemistry through four channels:
 
 ### 1. The free $\mathrm{O_2}$ partial pressure
 

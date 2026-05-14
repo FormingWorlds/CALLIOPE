@@ -121,8 +121,8 @@ if config.planet.fO2_source == 'user_constant':
         xtol=config.outgas.solver_atol,    # fsolve step tolerance (despite the TOML name)
         rtol=config.outgas.solver_rtol,    # relative mass-balance tolerance
         atol=config.outgas.mass_thresh,    # absolute mass-balance tolerance
-        nguess=int(1e3),
-        nsolve=int(3e3),
+        nguess=config.outgas.calliope.nguess,
+        nsolve=config.outgas.calliope.nsolve,
         p_guess=p_guess,
         print_result=False,
         opt_solver=False,
@@ -136,15 +136,17 @@ elif config.planet.fO2_source == 'from_O_budget':
         xtol=config.outgas.solver_atol,
         rtol=config.outgas.solver_rtol,
         atol=config.outgas.mass_thresh,
-        nguess=int(1e3),
-        nsolve=int(3e3),
+        nguess=config.outgas.calliope.nguess,
+        nsolve=config.outgas.calliope.nsolve,
         p_guess=p_guess,
         print_result=False,
         opt_solver=False,
     )
 ```
 
-Under `user_constant` (the default) CALLIOPE uses the configured `outgas.fO2_shift_IW` as the buffer offset and solves for the four H/C/N/S pressures. Under `from_O_budget` the wrapper passes `hf_row['O_kg_total']` (the whole-planet oxygen total maintained by the PROTEUS element-budget bookkeeping) as the fifth target, uses `outgas.fO2_shift_IW` only as an initial-guess hint, and solves for the four pressures plus $\Delta\mathrm{IW}$. The two dispatches return result dicts with the same key schema; the authoritative-O dict additionally carries `fO2_shift_derived` and `O_res`, which the wrapper writes to `hf_row['fO2_shift_IW_derived']` and `hf_row['O_res']`.
+`config.outgas.calliope.nguess` and `nsolve` default to $10^3$ and $3\times 10^3$ respectively in the PROTEUS schema; override them in `[outgas.calliope]` if a particular run needs more attempts.
+
+Under `user_constant` (the default) CALLIOPE uses the configured `outgas.fO2_shift_IW` as the buffer offset and solves for the four H/C/N/S pressures. Under `from_O_budget` the wrapper passes `hf_row['O_kg_total']` (the whole-planet oxygen total maintained by the PROTEUS element-budget bookkeeping) as the fifth target, uses `outgas.fO2_shift_IW` only as an initial-guess hint, and solves for the four pressures plus $\Delta\mathrm{IW}$. The two dispatches return result dicts with the same key schema; the authoritative-O dict additionally carries `fO2_shift_derived` and `O_res`, which the wrapper writes to `hf_row['fO2_shift_IW_derived']` and `hf_row['O_res']`. After the writeback the wrapper restores `hf_row['O_kg_total']` to the user-supplied target (the value carried by the PROTEUS element-budget bookkeeping), overriding the solver-derived total. The two values agree to within `O_res` by construction, so restoring the authoritative input prevents accumulated solver-tolerance drift from leaking into the running budget across iterations.
 
 If either call raises `RuntimeError` (Monte-Carlo restarts exhausted), the wrapper writes status code 27 to the run's status file and re-raises; the PROTEUS main loop then handles cleanup.
 

@@ -96,25 +96,29 @@ If you omit the `'fO2_shift_IW'` key in `p_guess`, the solver falls back to `fO2
 
 ## Recipe 4 - reproducibility for regression tests
 
-The Monte-Carlo restart draws nondeterministic guesses by default. Pass `random_seed=<int>` to make the solver bit-reproducible across runs:
+The Monte-Carlo restart draws nondeterministic guesses by default. Pass `random_seed=<int>` to make the solver reproducible across runs to solver tolerance:
 
 ```python
+import math
+
 result_a = equilibrium_atmosphere_authoritative_O(
     target_d, ddict, fO2_hint=4.0, random_seed=42, print_result=False,
 )
 result_b = equilibrium_atmosphere_authoritative_O(
     target_d, ddict, fO2_hint=4.0, random_seed=42, print_result=False,
 )
-assert result_a['fO2_shift_derived'] == result_b['fO2_shift_derived']
+assert math.isclose(
+    result_a['fO2_shift_derived'], result_b['fO2_shift_derived'], abs_tol=1e-8,
+)
 ```
 
-This is required for regression tests that compare against checked-in golden values. For production runs, leave `random_seed=None` (the default) so restart draws use the global `np.random` state.
+The seed fixes the Monte-Carlo guess sequence; the inner `fsolve` and `trust-constr` calls are deterministic in their own right, so two seeded runs converge to the same root within `xtol`. For regression tests that compare against checked-in golden values, this is the right level of reproducibility. For production runs, leave `random_seed=None` (the default) so restart draws use the global `np.random` state.
 
 ## Pitfalls
 
 - **`KeyError: target_d is missing required element keys: ['O']`** - you forgot to include `'O'` in `target_d`. The four-element dict that `get_target_from_params` returns is the buffered-mode input; in authoritative-O mode you have to add the O budget yourself.
 - **`ValueError: fO2_hint=...` outside `[-12, +12]`** - the hint must be a finite real number in the solver-bounds window. Common values lie in $[-4, +6]$; values outside $[-12, +12]$ are rejected up front because they almost always indicate a unit confusion (e.g. passing absolute $\log_{10} f_{\mathrm{O}_2}$ instead of the IW-buffer offset).
-- **`RuntimeError: Could not find solution ... (max attempts: 7500)`** - the Monte-Carlo restart loop exhausted. The failure message includes the final-attempt partial pressures and $\Delta\mathrm{IW}$. The diagnostic question is whether the target O budget is physically reachable at the supplied $(H, C, N, S, T_\mathrm{magma}, \Phi_\mathrm{global})$. Bumping `nguess` rarely helps; investigate whether the upstream inventory is consistent first.
+- **`RuntimeError: Could not find solution ... (max attempts: N)`** - the Monte-Carlo restart loop exhausted. The integer `N` is whatever `nguess` was set to ($7500$ if the entry point is called directly with defaults; $1000$ if called through the PROTEUS wrapper). The failure message includes the final-attempt partial pressures and $\Delta\mathrm{IW}$. The diagnostic question is whether the target O budget is physically reachable at the supplied $(H, C, N, S, T_\mathrm{magma}, \Phi_\mathrm{global})$. Bumping `nguess` rarely helps; investigate whether the upstream inventory is consistent first.
 - **`UserWarning: T_magma=... outside the calibrated range`** - the Dasgupta N$_2$ and Gaillard S$_2$ solubility laws are extrapolated. The solver still returns a solution, but the dissolved-N and dissolved-S branches of the O balance are uncertain. Common cases: $T_\mathrm{magma} < 1373\,\mathrm{K}$ for a cooled magma ocean late in the simulation, $T_\mathrm{magma} > 1973\,\mathrm{K}$ for a hot early magma ocean.
 - **`p_guess` missing one of `'H2O'`, `'CO2'`, `'N2'`, `'S2'`** - the four primary keys are required. A missing `'fO2_shift_IW'` is fine and just falls back to `fO2_hint`. Non-finite values in any key raise `ValueError`.
 

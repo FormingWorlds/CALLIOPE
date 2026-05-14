@@ -9,7 +9,7 @@ This page documents the augmented mass-balance system, the additional solver con
 
 ## When the two modes agree
 
-The buffered mode and the authoritative-O mode are dual formulations of the same underlying chemistry. For any pair of $\Delta\mathrm{IW}$ and target H, C, N, S budgets, the buffered mode produces an equilibrium atmosphere whose total O mass can be read off the result dict as $m_\mathrm{O}^\mathrm{total}$. Feeding $(H, C, N, S, m_\mathrm{O}^\mathrm{total})$ to the authoritative-O mode reproduces the same partial pressures and recovers the same $\Delta\mathrm{IW}$ to within the solver tolerance. This round-trip is enforced as a regression test (`test_authoritative_O_round_trip`) and is the operational definition of "same physics, different unknowns".
+The buffered mode and the authoritative-O mode are dual formulations of the same underlying chemistry. For any pair of $\Delta\mathrm{IW}$ and target H, C, N, S budgets, the buffered mode produces an equilibrium atmosphere whose total O mass can be read off the result dict as `O_kg_total`. Feeding $(H, C, N, S, \texttt{O\_kg\_total})$ to the authoritative-O mode reproduces the same partial pressures and recovers the same $\Delta\mathrm{IW}$ to within the solver tolerance. The regression test `tests/test_authoritative_O.py::TestRoundTrip::test_round_trip_recovers_fO2_within_tolerance` enforces this round-trip and is the operational definition of "same physics, different unknowns".
 
 The two modes differ only in their degrees-of-freedom accounting:
 
@@ -26,9 +26,9 @@ $$
 r_e(\mathbf{x}) = m_e^\mathrm{atm}(\mathbf{x}) + m_e^\mathrm{melt}(\mathbf{x}) - m_e^\mathrm{target} = 0,
 $$
 
-where the unknown is now the five-vector $\mathbf{x} = (p_\mathrm{H_2O}, p_\mathrm{CO_2}, p_\mathrm{N_2}, p_\mathrm{S_2}, \Delta\mathrm{IW})$. The per-species column masses $m_v^\mathrm{atm}$ and dissolved masses $m_v^\mathrm{melt}$ are computed from the [same physics functions](mass_balance.md#atmospheric-column-mass) as the buffered mode; the only change is that $\Delta\mathrm{IW}$ is read from $\mathbf{x}[4]$ instead of `ddict['fO2_shift_IW']` and the residual vector has one more entry.
+where the unknown is the five-vector $\mathbf{x} = (p_\mathrm{H_2O}, p_\mathrm{CO_2}, p_\mathrm{N_2}, p_\mathrm{S_2}, \Delta\mathrm{IW})$. The per-species column masses $m_v^\mathrm{atm}$ and dissolved masses $m_v^\mathrm{melt}$ are computed from the [same physics functions](mass_balance.md#atmospheric-column-mass) as the buffered mode; $\Delta\mathrm{IW}$ is read from $\mathbf{x}[4]$, and the residual vector has five entries (one per element in H, C, N, S, O).
 
-The five-residual function is `solve.func_authoritative_O`:
+The private versions `_atmosphere_mass` and `_dissolved_mass` accept `fO2_shift` as a positional argument, which lets both solver modes consume identical physics through one set of functions. The five-residual function is `solve.func_authoritative_O`:
 
 ```python
 def func_authoritative_O(x_arr, ddict, mass_target_d):
@@ -41,13 +41,11 @@ def func_authoritative_O(x_arr, ddict, mass_target_d):
             for v in ('H', 'C', 'N', 'S', 'O')]
 ```
 
-`_atmosphere_mass` and `_dissolved_mass` are private versions of the same aggregation functions used by the buffered mode, accepting `fO2_shift` as a positional argument rather than reading it from `ddict`. This factoring keeps both solver modes consuming identical physics through one set of equations.
-
 ## How $\Delta\mathrm{IW}$ enters as an unknown
 
-In the buffered mode, $\Delta\mathrm{IW}$ enters the chemistry through the four channels listed on the [oxygen fugacity page](oxygen_fugacity.md#how-deltamathrmiw-enters-the-chemistry): the free $\mathrm{O_2}$ partial pressure, the modified equilibrium constants $G_\mathrm{eq}$, the Gaillard S$_2$ solubility, and the Dasgupta N$_2$ solubility. In the authoritative-O mode the same four channels still apply, but $\Delta\mathrm{IW}$ is now a variable the solver adjusts in concert with the four pressures to satisfy the five-residual system.
+$\Delta\mathrm{IW}$ enters the chemistry through the four channels listed on the [oxygen fugacity page](oxygen_fugacity.md#how-deltamathrmiw-enters-the-chemistry): the free $\mathrm{O_2}$ partial pressure, the modified equilibrium constants $G_\mathrm{eq}$, the Gaillard S$_2$ solubility, and the Dasgupta N$_2$ solubility. In the buffered mode $\Delta\mathrm{IW}$ is an input held fixed during the solve; in the authoritative-O mode it is a variable the solver adjusts in concert with the four pressures to satisfy the five-residual system.
 
-The closure mechanism is intuitive: increasing $\Delta\mathrm{IW}$ (more oxidising) drives more H$_2$O at fixed H, more CO$_2$ at fixed C, more SO$_2$ and dissolved S at fixed S, and dissolves slightly less N$_2$. The aggregated atmospheric + dissolved O mass therefore monotonically increases with $\Delta\mathrm{IW}$ over the physically relevant range, which gives the 5-residual system a unique root for any feasible O target. The `test_O_kg_monotonicity_with_fO2` property test pins this monotonicity over $\Delta\mathrm{IW} \in [-6, +8]$ at five representative $(T_\mathrm{magma}, \Phi_\mathrm{global})$ pairs.
+The closure mechanism is intuitive: increasing $\Delta\mathrm{IW}$ (more oxidising) drives more H$_2$O at fixed H, more CO$_2$ at fixed C, and more SO$_2$ and dissolved S at fixed S. The Dasgupta N$_2$ solubility carries an explicit $-1.6\,\Delta\mathrm{IW}$ term in its exponent, so dissolved N drops by roughly an order of magnitude per dex of oxidation, while N$_2$ in the atmosphere takes up the slack. The aggregated atmospheric + dissolved O mass therefore monotonically increases with $\Delta\mathrm{IW}$ over the physically relevant range, which gives the 5-residual system a unique root for any feasible O target. The `tests/test_authoritative_O_monotonicity.py::TestMonotonicity::test_O_kg_total_strictly_increasing_with_fO2` property test pins this monotonicity over $\Delta\mathrm{IW} \in [-4, +6]$ at two $T_\mathrm{magma}$ values, with a sibling check at $\Phi_\mathrm{global} = 0.3$ over $\Delta\mathrm{IW} \in [-2, +4]$.
 
 ## Solver: per-element residual gate
 
@@ -61,15 +59,15 @@ $$
 \max_e |r_e| < r_\mathrm{tol} \cdot \max_e m_e^\mathrm{target} + a_\mathrm{tol} + 10\,\mathrm{kg}
 $$
 
-is satisfied. At planet scale, $m_\mathrm{O}^\mathrm{target} \sim 10^{22}\,\mathrm{kg}$ can be five orders of magnitude larger than $m_\mathrm{N}^\mathrm{target} \sim 10^{17}\,\mathrm{kg}$, so a tolerance scaled to the largest target silently admits N residuals of order $10^{17}\,\mathrm{kg}$, which is the whole budget.
+is satisfied. The buffered mode never sees O in its residual vector, so the four H/C/N/S targets dominate $\max_e m_e^\mathrm{target}$. In the authoritative-O mode O is now in the residual vector, and at planet scale $m_\mathrm{O}^\mathrm{target} \sim 10^{22}\,\mathrm{kg}$ can be five orders of magnitude larger than $m_\mathrm{N}^\mathrm{target} \sim 10^{17}\,\mathrm{kg}$. A tolerance scaled to the largest target would silently admit N residuals of order $10^{17}\,\mathrm{kg}$, which is the whole N budget.
 
-The authoritative-O mode replaces this with a per-element gate:
+The authoritative-O mode replaces the scalar bound with a per-element gate:
 
 $$
 |r_e| < \max\left(r_\mathrm{tol} \cdot m_e^\mathrm{target}, \tfrac{a_\mathrm{tol}}{5}, \mathrm{TRUNC\_MASS}\right) \quad \forall e \in \{\mathrm{H}, \mathrm{C}, \mathrm{N}, \mathrm{S}, \mathrm{O}\}.
 $$
 
-The $a_\mathrm{tol}$ budget is split evenly across the five elements so the per-element floor stays in the kilogram range, and the `TRUNC_MASS` constant ($10\,\mathrm{kg}$, from `constants.py`) handles benign sub-kilogram noise that should not gate convergence.
+The $a_\mathrm{tol}$ budget is split evenly across the five elements so the per-element floor stays in the kilogram range, and the `TRUNC_MASS` constant ($10\,\mathrm{kg}$, from `solve.py`) handles benign sub-kilogram noise that should not gate convergence.
 
 ### The fO2 hint and the restart redraw
 
@@ -77,7 +75,7 @@ The five-dimensional problem has a larger initial-guess space than the four-dime
 
 ### Bounds
 
-The trust-region solver uses bounds $[0, 10^7]$ bar on each pressure (same as the buffered mode) and $[-12, +12]$ on $\Delta\mathrm{IW}$. The pressure bounds are physical; the fO2 bounds are looser than the redraw window so the solver has slack to escape a poor cold start without immediately hitting the constraint, but tight enough to reject runaway trajectories into thermodynamically meaningless regions.
+The trust-region solver uses bounds $[0, 10^7]$ bar on each pressure (same as the buffered mode) and $[-12, +12]$ on $\Delta\mathrm{IW}$. The pressure bounds are physical; the fO2 bounds are wider than the $[-6, +8]$ redraw window so the solver has slack to escape a poor cold start without immediately hitting the constraint, but tight enough to reject runaway trajectories into thermodynamically meaningless regions.
 
 ### Reproducibility
 
@@ -88,7 +86,7 @@ A `random_seed` argument (default `None`) seeds a `np.random.default_rng` for th
 Like the buffered mode, the authoritative-O mode references $f_{\mathrm{O}_2}$ to the iron-wüstite buffer of [O'Neill & Eggins (2002)](https://ui.adsabs.harvard.edu/abs/2002ChGeo.186..151O) by default, with the [Fischer et al. (2011)](https://ui.adsabs.harvard.edu/abs/2011E%26PSL.304..496F) alternative selectable through `OxygenFugacity()` instantiation. The returned `fO2_shift_derived` is the $\Delta\mathrm{IW}$ relative to whichever buffer was chosen.
 
 !!! note "Cross-backend buffer divergence"
-    PROTEUS supports a second outgassing backend, [atmodeller](https://atmodeller.readthedocs.io/), whose authoritative-O implementation uses the Hirschmann combined IW buffer. The Hirschmann and O'Neill & Eggins parameterisations differ by ${\sim}0.95$ dex at $T = 3000$ K, growing with temperature. PROTEUS records both backends' derived offsets under the helpfile column `fO2_shift_IW_derived`, and the discrepancy is documented in the column's schema comment. The two backends agree on the underlying physics (same chemistry of FeO-O$_2$ equilibrium); they disagree on the numerical parameterisation of the buffer curve. Choose one backend per run and stay with it for any cross-time-step comparison.
+    PROTEUS supports a second outgassing backend, [atmodeller](https://atmodeller.readthedocs.io/), whose authoritative-O implementation uses the Hirschmann combined IW buffer. The Hirschmann and O'Neill & Eggins parameterisations differ by ${\sim}0.95$ dex at $T = 3000$ K. PROTEUS records both backends' derived offsets under the helpfile column `fO2_shift_IW_derived`, and the discrepancy is documented in the column's schema comment. The two backends agree on the underlying physics (same chemistry of FeO-O$_2$ equilibrium); they disagree on the numerical parameterisation of the buffer curve. Choose one backend per run and stay with it for any cross-time-step comparison.
 
 ## When to use this mode
 
@@ -98,7 +96,7 @@ The authoritative-O mode is the right tool when atmospheric + dissolved O is a b
 2. **Inferring $\Delta\mathrm{IW}$ from observed composition.** Given a measured or assumed elemental inventory including O, the authoritative-O mode returns the $\Delta\mathrm{IW}$ consistent with that inventory at the chosen $T_\mathrm{magma}$ and $\Phi_\mathrm{global}$. This complements the buffered-mode forward calculation when the modelling question is "what redox state does this composition imply?".
 3. **Sensitivity studies that vary the O reservoir.** When sweeping over a mantle FeO inventory grid, the authoritative-O mode lets you specify the O budget directly rather than having to translate each grid point through a buffer offset first.
 
-For the routine "set $\Delta\mathrm{IW}$, get a self-consistent atmosphere" workflow, the buffered mode is faster and has a simpler contract. The authoritative-O mode adds one residual equation and one unknown; convergence typically requires ${\sim}1$ to ${\sim}10$ Monte-Carlo restarts with a good `fO2_hint`, versus the ${\sim}1$ to ${\sim}3$ restarts of the buffered mode under PROTEUS warm-starting.
+For the routine "set $\Delta\mathrm{IW}$, get a self-consistent atmosphere" workflow, the buffered mode is faster and has fewer unknowns. The authoritative-O mode adds one residual equation and one unknown; convergence is empirically a few Monte-Carlo restarts with a good `fO2_hint` and PROTEUS warm-starting, compared to typically a single attempt for the buffered mode under the same conditions.
 
 ## Limitations
 
