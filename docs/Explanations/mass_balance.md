@@ -1,6 +1,6 @@
 # Mass balance & solver
 
-CALLIOPE's prognostic equations are four nonlinear elemental mass-conservation constraints, one per solved element (H, C, N, S). This page documents the residual function, the solver strategy, the mass-from-pressure relations, and the convergence criterion.
+CALLIOPE's prognostic equations are four nonlinear elemental mass-conservation constraints, one per solved element (H, C, N, S). This page documents the residual function, the solver strategy, the mass-from-pressure relations, and the convergence criterion of this "buffered" mode, where the oxygen fugacity is an input and oxygen mass is derived. CALLIOPE also offers an [authoritative-oxygen mode](authoritative_oxygen.md) where the system is closed by adding O as a fifth budget and treating $\Delta\mathrm{IW}$ as an unknown; the two modes share all the physics functions and differ only in their unknown set.
 
 ## The conservation system
 
@@ -92,6 +92,7 @@ The `result` dictionary returned by `equilibrium_atmosphere()` includes `H_res`,
 
 ## See also
 
+- [Authoritative-oxygen mode](authoritative_oxygen.md) for the dual five-residual formulation where O is an input budget and $\Delta\mathrm{IW}$ is the additional unknown.
 - [Equilibrium chemistry](equilibrium_chemistry.md) for the speciation tree that maps $\mathbf{p}$ to all eleven partial pressures.
 - [Solubility laws](solubility.md) for the form of $X_i^\mathrm{melt}(p_i)$ in `dissolved_mass()`.
 - [Coupling to PROTEUS (theory)](proteus_coupling.md) for how the wrapper builds `target` and `ddict` from `hf_row`.

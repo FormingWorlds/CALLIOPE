@@ -6,7 +6,7 @@ $$
 \Delta\mathrm{IW} \equiv \log_{10} f_{\mathrm{O}_2} - \log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T).
 $$
 
-The user supplies `fO2_shift_IW = ` $\Delta\mathrm{IW}$ as a scalar input; CALLIOPE computes the absolute $\log_{10} f_{\mathrm{O}_2}$ at $T = T_\mathrm{magma}$ by adding the buffer value to the shift. This page documents the buffer parameterisations, the physical meaning of $\Delta\mathrm{IW}$, and how $f_{\mathrm{O}_2}$ enters the chemistry.
+Under the buffered-mode entry point [`equilibrium_atmosphere`](mass_balance.md), the user supplies `fO2_shift_IW = ` $\Delta\mathrm{IW}$ as a scalar input and CALLIOPE computes the absolute $\log_{10} f_{\mathrm{O}_2}$ at $T = T_\mathrm{magma}$ by adding the buffer value to the shift. Under the [authoritative-oxygen mode](authoritative_oxygen.md), $\Delta\mathrm{IW}$ is instead a solver unknown that closes the system against a user-supplied total oxygen mass. Both modes share the parameterisations, conventions, and chemistry channels documented on this page; they differ only in whether $\Delta\mathrm{IW}$ is an input or an output.
 
 ## The IW mineral buffer
 
@@ -96,6 +96,7 @@ CALLIOPE's PROTEUS-side default is `fO2_shift_IW = 4.0`, consistent with a near-
 
 ## See also
 
+- [Authoritative-oxygen mode](authoritative_oxygen.md): how $\Delta\mathrm{IW}$ is recovered as a solver unknown when O is supplied as a budget instead.
 - [Equilibrium chemistry](equilibrium_chemistry.md): the species-by-species speciation tree
 - [Solubility laws](solubility.md): where $f_{\mathrm{O}_2}$ enters the S and N solubility paths
 - [API reference for `calliope.oxygen_fugacity`](../Reference/api/calliope.oxygen_fugacity.md)

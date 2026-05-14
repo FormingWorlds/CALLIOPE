@@ -14,6 +14,7 @@ nav:
       - Installation: How-to/installation.md
       - Configuration: How-to/configuration.md
       - Usage: How-to/usage.md
+      - Authoritative-oxygen mode: How-to/authoritative_oxygen.md
       - Coupling to PROTEUS: How-to/proteus_coupling.md
       - Build a new test: How-to/build_tests.md
       - Releasing: How-to/releasing.md
@@ -27,6 +28,7 @@ nav:
       - Solubility laws: Explanations/solubility.md
       - Oxygen fugacity: Explanations/oxygen_fugacity.md
       - Mass balance & solver: Explanations/mass_balance.md
+      - Authoritative-oxygen mode: Explanations/authoritative_oxygen.md
       - Coupling to PROTEUS: Explanations/proteus_coupling.md
       - Code architecture: Explanations/code_architecture.md
       - Testing suite: Explanations/testing.md

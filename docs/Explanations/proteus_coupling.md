@@ -111,22 +111,42 @@ The previous-iteration partial pressures are an excellent warm start because the
 
 ### Step 5 - call the solver
 
+The wrapper dispatches between the two CALLIOPE entry points based on `config.planet.fO2_source`:
+
 ```python
-solvevol_result = equilibrium_atmosphere(
-    target,
-    opts,
-    xtol=config.outgas.solver_atol,    # fsolve step tolerance (despite the TOML name)
-    rtol=config.outgas.solver_rtol,    # relative mass-balance tolerance
-    atol=config.outgas.mass_thresh,    # absolute mass-balance tolerance
-    nguess=int(1e3),
-    nsolve=int(3e3),
-    p_guess=p_guess,
-    print_result=False,
-    opt_solver=False,
-)
+if config.planet.fO2_source == 'user_constant':
+    solvevol_result = equilibrium_atmosphere(
+        target,                            # H, C, N, S
+        opts,
+        xtol=config.outgas.solver_atol,    # fsolve step tolerance (despite the TOML name)
+        rtol=config.outgas.solver_rtol,    # relative mass-balance tolerance
+        atol=config.outgas.mass_thresh,    # absolute mass-balance tolerance
+        nguess=int(1e3),
+        nsolve=int(3e3),
+        p_guess=p_guess,
+        print_result=False,
+        opt_solver=False,
+    )
+elif config.planet.fO2_source == 'from_O_budget':
+    target['O'] = hf_row['O_kg_total']     # add the fifth element budget
+    solvevol_result = equilibrium_atmosphere_authoritative_O(
+        target,                            # H, C, N, S, O
+        opts,
+        fO2_hint=config.outgas.fO2_shift_IW,
+        xtol=config.outgas.solver_atol,
+        rtol=config.outgas.solver_rtol,
+        atol=config.outgas.mass_thresh,
+        nguess=int(1e3),
+        nsolve=int(3e3),
+        p_guess=p_guess,
+        print_result=False,
+        opt_solver=False,
+    )
 ```
 
-If this raises `RuntimeError` (Monte-Carlo restarts exhausted), the wrapper writes status code 27 to the run's status file and re-raises; the PROTEUS main loop then handles cleanup.
+Under `user_constant` (the default) CALLIOPE uses the configured `outgas.fO2_shift_IW` as the buffer offset and solves for the four H/C/N/S pressures. Under `from_O_budget` the wrapper passes `hf_row['O_kg_total']` (the whole-planet oxygen total maintained by the PROTEUS element-budget bookkeeping) as the fifth target, uses `outgas.fO2_shift_IW` only as an initial-guess hint, and solves for the four pressures plus $\Delta\mathrm{IW}$. The two dispatches return result dicts with the same key schema; the authoritative-O dict additionally carries `fO2_shift_derived` and `O_res`, which the wrapper writes to `hf_row['fO2_shift_IW_derived']` and `hf_row['O_res']`.
+
+If either call raises `RuntimeError` (Monte-Carlo restarts exhausted), the wrapper writes status code 27 to the run's status file and re-raises; the PROTEUS main loop then handles cleanup.
 
 ### Step 6 - write back to `hf_row`
 
@@ -163,4 +183,5 @@ When `config.interior_struct.zalmoxis.global_miscibility = true` (Zalmoxis radia
 
 - [Coupling to PROTEUS (how-to)](../How-to/proteus_coupling.md) for the TOML recipe and pitfalls.
 - [Mass balance & solver](mass_balance.md) for what `equilibrium_atmosphere` does inside.
+- [Authoritative-oxygen mode](authoritative_oxygen.md) for the augmented mass balance that `from_O_budget` dispatches to.
 - The PROTEUS-side wrapper code: [`src/proteus/outgas/calliope.py`](https://github.com/FormingWorlds/PROTEUS/blob/main/src/proteus/outgas/calliope.py), [`src/proteus/outgas/wrapper.py`](https://github.com/FormingWorlds/PROTEUS/blob/main/src/proteus/outgas/wrapper.py), [`src/proteus/config/_outgas.py`](https://github.com/FormingWorlds/PROTEUS/blob/main/src/proteus/config/_outgas.py).
