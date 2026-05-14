@@ -328,6 +328,55 @@ def obj(pin_arr, ddict, mass_target_d):
     return np.dot(res_l, res_l) ** 0.5
 
 
+def func_authoritative_O(x_arr, ddict, mass_target_d):
+    """5-residual vector for the authoritative-O solver mode.
+
+    Mass-balance residual [kg per element] over five unknowns:
+    ``[pH2O, pCO2, pN2, pS2, fO2_shift]``. The first four equations are
+    the usual H, C, N, S mass balances; the fifth is the O mass balance
+    that was implicit in the chemistry (because fO2 was an input) and is
+    now an explicit constraint (because fO2 is an unknown).
+
+    Parameters
+    ----------
+    x_arr : array_like, length 5
+        ``[pH2O_bar, pCO2_bar, pN2_bar, pS2_bar, fO2_shift_IW]``. The
+        first four are partial pressures in bar; the fifth is the
+        IW-buffer offset in log10 units (typical range -6 to +8).
+    ddict : dict
+        Coupler options dict. Reads everything except ``fO2_shift_IW``,
+        which is taken from ``x_arr[4]`` to expose it as an unknown.
+    mass_target_d : dict
+        Target elemental mass inventories [kg]. MUST include the keys
+        ``'H'``, ``'C'``, ``'N'``, ``'S'``, ``'O'`` (all five). Missing
+        ``'O'`` raises ``KeyError``.
+
+    Returns
+    -------
+    list of float, length 5
+        Residuals ``(atm_kg + dissolved_kg) - target_kg`` for H, C, N,
+        S, O in that order.
+    """
+
+    pin_dict = {'H2O': x_arr[0], 'CO2': x_arr[1], 'N2': x_arr[2], 'S2': x_arr[3]}
+    fO2_shift = x_arr[4]
+
+    mass_atm_d = _atmosphere_mass(pin_dict, fO2_shift, ddict)
+    mass_int_d = _dissolved_mass(pin_dict, fO2_shift, ddict)
+
+    res_l = [0.0] * 5
+    for i, elem in enumerate(['H', 'C', 'N', 'S', 'O']):
+        res_l[i] = mass_atm_d[elem] + mass_int_d[elem] - mass_target_d[elem]
+
+    return res_l
+
+
+def obj_authoritative_O(x_arr, ddict, mass_target_d):
+    """Scalar objective for trust-constr fallback in the authoritative-O solver."""
+    res_l = func_authoritative_O(x_arr, ddict, mass_target_d)
+    return np.dot(res_l, res_l) ** 0.5
+
+
 def get_initial_pressures(target_d):
     """Cold-start guesses for the four primary partial pressures [bar].
 
@@ -342,6 +391,46 @@ def get_initial_pressures(target_d):
     pS2 = 10 ** np.random.uniform(low=-12, high=5)
 
     return pH2O, pCO2, pN2, pS2
+
+
+def get_initial_pressures_with_fO2(target_d, fO2_hint, restart=False):
+    """Cold-start guesses for the five unknowns of the authoritative-O solver.
+
+    Returns ``[pH2O, pCO2, pN2, pS2, fO2_shift]``. The four pressures use
+    the same log-uniform draw as ``get_initial_pressures`` over
+    ``[1e-12, 1e5]`` bar. The fifth element is ``fO2_hint`` on the first
+    attempt; on solver restart (``restart=True``) it is redrawn from a
+    uniform distribution over ``[-6, +8]``, which covers the
+    reducing-mantle to highly-oxidized regimes likely to be encountered.
+
+    Parameters
+    ----------
+    target_d : dict
+        Target elemental mass inventories. Accepted for API parity with
+        ``get_initial_pressures`` but not consulted.
+    fO2_hint : float
+        Initial guess for the IW-buffer offset (log10 units). Typical
+        PROTEUS user values lie in ``[-4, +6]``.
+    restart : bool, default False
+        When True, redraw fO2_shift from ``Uniform(-6, +8)``. When False,
+        return ``fO2_hint`` unchanged.
+
+    Returns
+    -------
+    tuple of 5 floats
+        ``(pH2O, pCO2, pN2, pS2, fO2_shift)``.
+    """
+    pH2O = 10 ** np.random.uniform(low=-12, high=5)
+    pCO2 = 10 ** np.random.uniform(low=-12, high=5)
+    pN2 = 10 ** np.random.uniform(low=-12, high=5)
+    pS2 = 10 ** np.random.uniform(low=-12, high=5)
+
+    if restart:
+        fO2 = np.random.uniform(low=-6.0, high=8.0)
+    else:
+        fO2 = float(fO2_hint)
+
+    return pH2O, pCO2, pN2, pS2, fO2
 
 
 def get_target_from_params(ddict):
@@ -643,5 +732,348 @@ def equilibrium_atmosphere(
     outdict['C_res'] = res_l[1]
     outdict['N_res'] = res_l[2]
     outdict['S_res'] = res_l[3]
+
+    return outdict
+
+
+def equilibrium_atmosphere_authoritative_O(
+    target_d,
+    ddict,
+    fO2_hint=4.0,
+    hide_warnings=True,
+    rtol=1e-5,
+    atol=1e10,
+    xtol=1e-8,
+    p_guess=None,
+    nsolve=1500,
+    nguess=7500,
+    print_result=True,
+    opt_solver=True,
+):
+    """Solve for partial pressures AND fO2 given total elemental masses including O.
+
+    Authoritative-oxygen solver mode. Unlike ``equilibrium_atmosphere``
+    (which takes fO2 as a config input via ``ddict['fO2_shift_IW']``),
+    this entry point treats fO2 as a fifth unknown and solves a 5x5
+    nonlinear mass-balance system. The user supplies a target O mass
+    alongside H/C/N/S, and the solver returns the partial pressures
+    plus the IW-buffer offset (``fO2_shift_derived``) that produces
+    that equilibrium.
+
+    Use this when the science model declares atmospheric+dissolved O
+    as a budget (e.g. mantle FeO inventory or whole-planet O accounting
+    from PROTEUS issue #677 Path C). For the legacy mode where fO2
+    is buffered to a user-specified IW offset and O is derived, use
+    ``equilibrium_atmosphere`` instead.
+
+    Parameters
+    ----------
+    target_d : dict
+        Target elemental mass inventories [kg]. MUST contain the keys
+        ``'H'``, ``'C'``, ``'N'``, ``'S'``, ``'O'``. Missing ``'O'``
+        raises ``KeyError``.
+    ddict : dict
+        Coupler options dict (planet, magma state, inclusion flags).
+        ``ddict['fO2_shift_IW']`` is IGNORED by this entry point; the
+        value is treated as a solver unknown initialised from
+        ``fO2_hint`` instead.
+    fO2_hint : float, default 4.0
+        Initial guess for the IW-buffer offset (log10 units). Provide
+        a value close to the expected solution to speed convergence;
+        typical PROTEUS values lie in [-4, +6]. The solver's Monte-Carlo
+        restarts redraw from Uniform(-6, +8) if the hint does not lead
+        to convergence.
+    hide_warnings : bool, default True
+        Hide floating point runtime warnings raised by `scipy` for poor guesses.
+    rtol : float, default 1e-5
+        Relative tolerance for mass conservation.
+    atol : float, default 1e10
+        Absolute tolerance for mass conservation [kg].
+    xtol : float, default 1e-8
+        Relative tolerance for fsolve.
+    p_guess : dict or None, default None
+        Initial guess for primary-species partial pressures [bar]. Keys
+        must include ``'H2O'``, ``'CO2'``, ``'N2'``, ``'S2'``; the
+        optional key ``'fO2_shift_IW'`` overrides ``fO2_hint`` for the
+        starting guess. Non-dict raises TypeError; missing required keys
+        or non-finite values raise ValueError.
+    nsolve : int, default 1500
+        Maximum number of inner-solver iterations per attempt.
+    nguess : int, default 7500
+        Maximum number of Monte-Carlo restarts before giving up.
+    print_result : bool, default True
+        If True, log final outgassed partial pressures and derived
+        fO2 at INFO level.
+    opt_solver : bool, default True
+        If True, alternate between fsolve and trust-constr on each
+        restart so a basin one solver cannot escape gets a chance from
+        the other.
+
+    Returns
+    -------
+    partial_pressures : dict
+        Volatile partial pressures [bar] keyed ``<species>_bar``, plus
+        per-species reservoir masses [kg], elemental totals, residuals,
+        and atmospheric diagnostics. Two additions relative to
+        ``equilibrium_atmosphere``:
+
+        - ``fO2_shift_derived`` : float
+            The IW-buffer offset the solver converged to. Equals
+            ``fO2_hint`` only if the hint happened to be the
+            self-consistent value.
+        - ``O_res`` : float
+            5th residual (O mass-balance), in kg. Pairs with the
+            existing ``H_res``/``C_res``/``N_res``/``S_res`` keys.
+
+    Raises
+    ------
+    KeyError
+        If ``target_d`` is missing the ``'O'`` key.
+    TypeError, ValueError
+        If ``p_guess`` fails validation (same contract as
+        ``equilibrium_atmosphere``).
+    RuntimeError
+        If the solver fails to converge after ``nguess`` Monte-Carlo
+        restarts. The error message includes the final pressures and
+        fO2_shift attempt for diagnosis.
+
+    Notes
+    -----
+    Mathematical model. The four existing mass-balance equations for
+    H/C/N/S are extended with a fifth for O. The four primary
+    partial pressures (H2O, CO2, N2, S2) are joined by fO2_shift as a
+    fifth unknown. All seven derived partial pressures (H2, CO, CH4,
+    NH3, O2, SO2, H2S) and the two fO2-coupled solubility laws (N2
+    Dasgupta, S2 Gaillard) consume fO2_shift through the same
+    physics functions ``_get_partial_pressures``, ``_atmosphere_mass``,
+    ``_dissolved_mass`` that ``equilibrium_atmosphere`` uses. The
+    two solver modes therefore share all physics; only the unknown
+    set and equation set differ.
+
+    Examples
+    --------
+    Reproducing an equilibrium_atmosphere result through the new mode:
+
+    >>> # First, run the legacy mode at fO2_shift_IW = +4
+    >>> ddict = {..., 'fO2_shift_IW': 4.0}
+    >>> out_legacy = equilibrium_atmosphere(target_d_HCNS, ddict)
+    >>> # Then, run the new mode with the implied O budget
+    >>> target_d_HCNSO = dict(target_d_HCNS,
+    ...                      O=out_legacy['O_kg_total'])
+    >>> out_new = equilibrium_atmosphere_authoritative_O(
+    ...     target_d_HCNSO, ddict, fO2_hint=4.0)
+    >>> abs(out_new['fO2_shift_derived'] - 4.0) < 0.01  # round-trip
+    True
+    """
+
+    # Contract check up front: the new mode requires 'O' in target_d.
+    if 'O' not in target_d:
+        raise KeyError(
+            "target_d must include 'O' under authoritative-O mode. "
+            'Got keys: ' + str(sorted(target_d.keys()))
+        )
+
+    if print_result:
+        log.info(
+            'Solving for equilibrium partial pressures + fO2_shift '
+            '(authoritative-O mode, fO2_hint=%.2f)',
+            fO2_hint,
+        )
+    log.debug('    target masses: %s', target_d)
+
+    # Bounds. Pressures: [0, 1e7] bar (same as equilibrium_atmosphere).
+    # fO2_shift: [-12, +12] log10 units. The physically meaningful range
+    # is roughly [-6, +8] (mantle reducing to highly oxidized); wider
+    # bounds give trust-constr room to explore on poor cold starts
+    # without escaping to non-physical territory.
+    lb = [0.0, 0.0, 0.0, 0.0, -12.0]
+    ub = [1e7, 1e7, 1e7, 1e7, 12.0]
+
+    if p_guess is None:
+        x0 = get_initial_pressures_with_fO2(target_d, fO2_hint)
+    else:
+        if not isinstance(p_guess, dict):
+            raise TypeError(f'p_guess must be a dict or None, got {type(p_guess).__name__}.')
+        required = ('H2O', 'CO2', 'N2', 'S2')
+        missing = [k for k in required if k not in p_guess]
+        if missing:
+            raise ValueError(
+                f'p_guess is missing required keys: {missing}. '
+                f'Expected all of {list(required)}.'
+            )
+        # fO2_shift_IW in p_guess overrides fO2_hint; absent means use fO2_hint.
+        fO2_seed = p_guess.get('fO2_shift_IW', fO2_hint)
+        x0 = (p_guess['H2O'], p_guess['CO2'], p_guess['N2'], p_guess['S2'], fO2_seed)
+
+        # Reject non-finite values.
+        for k, v in zip(required + ('fO2_shift_IW',), x0):
+            if not np.isfinite(v):
+                raise ValueError(f'p_guess[{k!r}] must be a finite real number, got {v!r}.')
+
+        # Match the legacy ub-collapse for tiny pressure guesses so
+        # trust-constr does not wander in a degenerate slot. fO2 bound
+        # stays at the wide range.
+        ub_collapsed = list(ub)
+        for i in range(4):
+            ub_collapsed[i] = ub_collapsed[i] if (x0[i] > 1e-10) else 1.0
+        ub = ub_collapsed
+
+    bounds = opt.Bounds(lb=lb, ub=ub)
+
+    # Tolerance: largest of the 5 target masses scales the rtol budget.
+    tolerance = np.amax(list(target_d.values())) * rtol + atol + TRUNC_MASS
+    log.debug('Required tolerance: %g', tolerance)
+
+    with warnings.catch_warnings():
+        if hide_warnings:
+            warnings.filterwarnings('ignore', category=RuntimeWarning)
+            warnings.filterwarnings('ignore', category=UserWarning)
+
+        solver: int = 0
+        for count in range(nguess):
+            if solver == 0:
+                sol, _, ier, _ = opt.fsolve(
+                    func_authoritative_O,
+                    x0,
+                    args=(ddict, target_d),
+                    maxfev=nsolve,
+                    xtol=xtol,
+                    full_output=True,
+                )
+                success = bool(ier == 1)
+            else:
+                result = opt.minimize(
+                    obj_authoritative_O,
+                    x0,
+                    args=(ddict, target_d),
+                    method='trust-constr',
+                    bounds=bounds,
+                    options={'maxiter': nsolve, 'xtol': xtol},
+                )
+                success = result.success
+                sol = result.x
+
+            # Residual gate, matching equilibrium_atmosphere.
+            this_resid = func_authoritative_O(sol, ddict, target_d)
+            loss = np.amax(np.abs(this_resid))
+            if loss > tolerance:
+                if success:
+                    log.debug('Solution rejected by residual')
+                    log.debug('    d(i=%d) = %.2e kg', np.argmax(this_resid), loss)
+                success = False
+
+            if success:
+                break
+
+            # Restart. Redraw pressures from log-uniform; redraw fO2
+            # from Uniform(-6, +8) to give it a chance from a different
+            # basin if the hint led to a non-converging region.
+            x0 = get_initial_pressures_with_fO2(target_d, fO2_hint, restart=True)
+
+            if opt_solver:
+                solver = 1 - solver
+
+    if not success:
+        raise RuntimeError(
+            'Could not find solution for volatile abundances + fO2 under '
+            'authoritative-O mode (max attempts: %d). '
+            'Final attempt: pH2O=%.3e bar, pCO2=%.3e bar, pN2=%.3e bar, '
+            'pS2=%.3e bar, fO2_shift=%.3f. '
+            'Either the target O budget is outside the physically '
+            'reachable range at this (H, C, N, S, T_magma), or the '
+            'chemistry has a non-monotonic region the solver could not '
+            'escape. Consider adjusting fO2_hint or the target masses.'
+            % (nguess, sol[0], sol[1], sol[2], sol[3], sol[4])
+        )
+
+    log.debug('    Initial guess attempt number = %d', count)
+
+    res_l = func_authoritative_O(sol, ddict, target_d)
+    log.debug('    Residuals: %s', res_l)
+    log.debug('    Derived fO2_shift: %.4f', sol[4])
+
+    sol_dict = {'H2O': sol[0], 'CO2': sol[1], 'N2': sol[2], 'S2': sol[3]}
+    fO2_derived = sol[4]
+    p_d = _get_partial_pressures(sol_dict, fO2_derived, ddict)
+
+    mass_atm_d = _atmosphere_mass(sol_dict, fO2_derived, ddict)
+    mass_int_d = _dissolved_mass(sol_dict, fO2_derived, ddict)
+
+    # Output dict structure matches equilibrium_atmosphere bit-for-bit
+    # plus the two new keys (fO2_shift_derived, O_res). The PROTEUS-side
+    # wrapper consumes the same fields regardless of which solver mode
+    # ran.
+    outdict = {'M_atm': 0.0, 'P_surf': 0.0}
+    for s in volatile_species:
+        outdict[s + '_bar'] = 0.0
+        outdict[s + '_kg_atm'] = 0.0
+        outdict[s + '_kg_liquid'] = 0.0
+        outdict[s + '_kg_solid'] = 0.0
+        outdict[s + '_kg_total'] = 0.0
+
+        if s in p_d.keys():
+            outdict[s + '_bar'] = p_d[s]
+            outdict['P_surf'] += outdict[s + '_bar']
+
+    for s in volatile_species:
+        outdict[s + '_vmr'] = outdict[s + '_bar'] / outdict['P_surf']
+
+        if print_result:
+            log.info(
+                '    %-6s : %-8.2f bar (%.2e VMR)',
+                s,
+                outdict[s + '_bar'],
+                outdict[s + '_vmr'],
+            )
+
+    all_keys = [s for s in volatile_species]
+    all_keys.extend(['H', 'C', 'N', 'S', 'O'])
+    for s in all_keys:
+        tot_kg = 0.0
+
+        if s in mass_atm_d.keys():
+            outdict[s + '_kg_atm'] = mass_atm_d[s]
+            tot_kg += mass_atm_d[s]
+
+        if s in mass_int_d.keys():
+            outdict[s + '_kg_liquid'] = mass_int_d[s]
+            outdict[s + '_kg_solid'] = 0.0
+            tot_kg += mass_int_d[s]
+
+        outdict[s + '_kg_total'] = tot_kg
+
+    for s in volatile_species:
+        outdict['M_atm'] += outdict[s + '_kg_atm']
+
+    outdict['atm_kg_per_mol'] = 0.0
+    for s in volatile_species:
+        outdict[s + '_mol_atm'] = outdict[s + '_kg_atm'] / molar_mass[s]
+        outdict[s + '_mol_solid'] = outdict[s + '_kg_solid'] / molar_mass[s]
+        outdict[s + '_mol_liquid'] = outdict[s + '_kg_liquid'] / molar_mass[s]
+        outdict[s + '_mol_total'] = (
+            outdict[s + '_mol_atm'] + outdict[s + '_mol_solid'] + outdict[s + '_mol_liquid']
+        )
+
+        outdict['atm_kg_per_mol'] += outdict[s + '_vmr'] * molar_mass[s]
+
+    for e1 in element_list:
+        for e2 in element_list:
+            if e1 == e2:
+                continue
+            em1 = outdict[e1 + '_kg_atm']
+            em2 = outdict[e2 + '_kg_atm']
+            if em2 == 0:
+                continue
+            outdict['%s/%s_atm' % (e1, e2)] = em1 / em2
+
+    outdict['H_res'] = res_l[0]
+    outdict['C_res'] = res_l[1]
+    outdict['N_res'] = res_l[2]
+    outdict['S_res'] = res_l[3]
+    outdict['O_res'] = res_l[4]
+    outdict['fO2_shift_derived'] = fO2_derived
+
+    if print_result:
+        log.info('    Derived fO2_shift = %.4f (hint was %.4f)', fO2_derived, fO2_hint)
 
     return outdict
