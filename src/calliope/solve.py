@@ -97,11 +97,18 @@ def _get_partial_pressures(pin, fO2_shift, ddict):
         gamma = gamma(ddict['T_magma'], fO2_shift)
         p_d['H2S'] = (gamma * pin['S2'] * p_d['H2'] ** 2) ** 0.5
 
-    # Silent clip: solver Monte-Carlo restarts can produce negative
-    # `pin`, which then propagates through the sqrt expressions; the
-    # downstream mass tallies require non-negative pressures.
+    # Silent clip: solver Monte-Carlo restarts can produce negative or
+    # non-finite `pin`, which then propagates through the sqrt expressions;
+    # the downstream mass tallies require non-negative, finite pressures.
+    # `max(0.0, p_d[k])` alone is insufficient because Python's builtin
+    # max preserves NaN whenever NaN is the second argument (NaN < 0 is
+    # False, so max returns the second arg unchanged); the explicit
+    # finite-check below also handles +/-inf in the same path.
     for k in p_d.keys():
-        p_d[k] = max(0.0, p_d[k])
+        if not np.isfinite(p_d[k]):
+            p_d[k] = 0.0
+        else:
+            p_d[k] = max(0.0, p_d[k])
 
     return p_d
 
@@ -122,9 +129,20 @@ def get_total_pressure(p_d):
 
 
 def atmosphere_mean_molar_mass(p_d):
-    """Mean molar mass of the atmosphere"""
+    """Mean molar mass of the atmosphere [g/mol].
+
+    When ``ptot`` collapses to ~0 (every partial pressure clipped to zero
+    by the NaN-aware guard in ``_get_partial_pressures``), the division
+    would raise ZeroDivisionError. Return a sentinel value of 1.0 g/mol;
+    downstream callers in ``_atmosphere_mass`` multiply by ``p_d[k]=0``
+    so all element masses come out zero, which propagates a clean
+    "atmosphere is empty here" signal to the mass-balance residual.
+    """
 
     ptot = get_total_pressure(p_d)
+
+    if ptot < 1e-30:
+        return 1.0
 
     mu_atm = 0
     for key, value in p_d.items():
@@ -183,10 +201,13 @@ def _atmosphere_mass(pin, fO2_shift, ddict):
 
     mass_atm_d['O'] = mass_atm_d['H2O'] / molar_mass['H2O']
     mass_atm_d['O'] += 2 * mass_atm_d['O2'] / molar_mass['O2']
+    # CO2 is one of the four primary species in `pin`; mass_atm_d['CO2']
+    # is populated unconditionally and contributes to the C tally
+    # without gating. The O contribution must match for element
+    # bookkeeping to be symmetric.
+    mass_atm_d['O'] += mass_atm_d['CO2'] / molar_mass['CO2'] * 2.0
     if is_included('CO', ddict):
         mass_atm_d['O'] += mass_atm_d['CO'] / molar_mass['CO']
-    if is_included('CO2', ddict):
-        mass_atm_d['O'] += mass_atm_d['CO2'] / molar_mass['CO2'] * 2.0
     if is_included('SO2', ddict):
         mass_atm_d['O'] += mass_atm_d['SO2'] / molar_mass['SO2'] * 2.0
     mass_atm_d['O'] *= molar_mass['O']
@@ -393,7 +414,7 @@ def get_initial_pressures(target_d):
     return pH2O, pCO2, pN2, pS2
 
 
-def get_initial_pressures_with_fO2(target_d, fO2_hint, restart=False):
+def get_initial_pressures_with_fO2(target_d, fO2_hint, restart=False, rng=None):
     """Cold-start guesses for the five unknowns of the authoritative-O solver.
 
     Returns ``[pH2O, pCO2, pN2, pS2, fO2_shift]``. The four pressures use
@@ -414,19 +435,28 @@ def get_initial_pressures_with_fO2(target_d, fO2_hint, restart=False):
     restart : bool, default False
         When True, redraw fO2_shift from ``Uniform(-6, +8)``. When False,
         return ``fO2_hint`` unchanged.
+    rng : np.random.Generator or None, default None
+        Random number generator for the log-uniform pressure draw and
+        (when ``restart=True``) the fO2 redraw. When None, the global
+        ``np.random`` state is used. The authoritative-O entry point
+        threads a seeded generator through this argument to make solver
+        outcomes reproducible across calls.
 
     Returns
     -------
     tuple of 5 floats
         ``(pH2O, pCO2, pN2, pS2, fO2_shift)``.
     """
-    pH2O = 10 ** np.random.uniform(low=-12, high=5)
-    pCO2 = 10 ** np.random.uniform(low=-12, high=5)
-    pN2 = 10 ** np.random.uniform(low=-12, high=5)
-    pS2 = 10 ** np.random.uniform(low=-12, high=5)
+    if rng is None:
+        rng = np.random
+
+    pH2O = 10 ** rng.uniform(low=-12, high=5)
+    pCO2 = 10 ** rng.uniform(low=-12, high=5)
+    pN2 = 10 ** rng.uniform(low=-12, high=5)
+    pS2 = 10 ** rng.uniform(low=-12, high=5)
 
     if restart:
-        fO2 = np.random.uniform(low=-6.0, high=8.0)
+        fO2 = rng.uniform(low=-6.0, high=8.0)
     else:
         fO2 = float(fO2_hint)
 
@@ -749,6 +779,7 @@ def equilibrium_atmosphere_authoritative_O(
     nguess=7500,
     print_result=True,
     opt_solver=True,
+    random_seed=None,
 ):
     """Solve for partial pressures AND fO2 given total elemental masses including O.
 
@@ -808,6 +839,11 @@ def equilibrium_atmosphere_authoritative_O(
         If True, alternate between fsolve and trust-constr on each
         restart so a basin one solver cannot escape gets a chance from
         the other.
+    random_seed : int or None, default None
+        Seed for the Monte-Carlo restart RNG. ``None`` uses the global
+        ``np.random`` state (non-deterministic). An integer seed makes
+        solver outcomes reproducible across calls, which is required
+        for regression testing and for diffing two runs.
 
     Returns
     -------
@@ -866,12 +902,88 @@ def equilibrium_atmosphere_authoritative_O(
     True
     """
 
-    # Contract check up front: the new mode requires 'O' in target_d.
-    if 'O' not in target_d:
+    required_elements = ('H', 'C', 'N', 'S', 'O')
+
+    # Contract check: every required element key must be present, finite,
+    # and non-negative. A missing key raises KeyError (matching the legacy
+    # "target_d must include 'O'" message). Non-finite or negative values
+    # are user-error and raise ValueError before the solver wastes effort.
+    missing = [e for e in required_elements if e not in target_d]
+    if missing:
         raise KeyError(
-            "target_d must include 'O' under authoritative-O mode. "
-            'Got keys: ' + str(sorted(target_d.keys()))
+            'target_d is missing required element keys: %s. '
+            'Authoritative-O mode requires all of %s. Got keys: %s'
+            % (missing, list(required_elements), sorted(target_d.keys()))
         )
+    for e in required_elements:
+        v = target_d[e]
+        if not np.isfinite(v):
+            raise ValueError('target_d[%r] must be a finite real number [kg], got %r.' % (e, v))
+        if v < 0:
+            raise ValueError('target_d[%r] must be non-negative [kg], got %r.' % (e, v))
+
+    # Validate fO2_hint and the planet/state parameters consumed from
+    # ddict by the residual chain. The solver evaluates the residual at
+    # arbitrarily wild trial points, so it cannot recover from a bad
+    # entry value; failing fast here gives a useful error rather than
+    # a ZeroDivisionError from deep inside the chemistry path.
+    if not np.isfinite(fO2_hint):
+        raise ValueError(
+            'fO2_hint must be a finite real number (log10 IW offset), got %r.' % fO2_hint
+        )
+    if not (-12.0 <= fO2_hint <= 12.0):
+        raise ValueError(
+            'fO2_hint=%.3f is outside the solver bounds [-12, +12]. '
+            'Pick a value in [-6, +8] for physically realistic mantle '
+            'redox states.' % fO2_hint
+        )
+
+    for required_ddict_key in ('M_mantle', 'Phi_global', 'T_magma', 'gravity', 'radius'):
+        if required_ddict_key not in ddict:
+            raise KeyError(
+                'ddict is missing required key %r. Authoritative-O mode '
+                'requires M_mantle, Phi_global, T_magma, gravity, radius.' % required_ddict_key
+            )
+
+    M_mantle = ddict['M_mantle']
+    if not (np.isfinite(M_mantle) and M_mantle > 0):
+        raise ValueError("ddict['M_mantle']=%r must be a positive finite mass [kg]." % M_mantle)
+
+    Phi_global = ddict['Phi_global']
+    if not (np.isfinite(Phi_global) and 0.0 <= Phi_global <= 1.0):
+        raise ValueError(
+            "ddict['Phi_global']=%r must lie in [0, 1] (melt mass fraction)." % Phi_global
+        )
+
+    T_magma = ddict['T_magma']
+    if not (np.isfinite(T_magma) and T_magma > 0):
+        raise ValueError(
+            "ddict['T_magma']=%r must be a positive finite temperature [K]." % T_magma
+        )
+
+    # T_magma calibration sanity. Dasgupta N2 was calibrated 1373-1873 K
+    # and Gaillard S2 1473-1973 K. The solver will extrapolate outside
+    # these ranges; emit one warning so users notice when a magma ocean
+    # has cooled to a regime the laws were not built for.
+    if not (1373.0 <= T_magma <= 1973.0):
+        warnings.warn(
+            'T_magma=%.1f K is outside the calibrated range of the '
+            'Dasgupta N2 (1373-1873 K) and Gaillard S2 (1473-1973 K) '
+            'solubility laws; the solver will extrapolate.' % T_magma,
+            UserWarning,
+            stacklevel=2,
+        )
+
+    if nguess < 1:
+        raise ValueError('nguess must be >= 1, got %d.' % nguess)
+    if nsolve < 1:
+        raise ValueError('nsolve must be >= 1, got %d.' % nsolve)
+
+    # Seeded RNG for the Monte-Carlo restart draws. random_seed=None
+    # falls back to the global np.random state to preserve historical
+    # non-deterministic behaviour for callers that do not opt in to
+    # reproducibility.
+    rng = np.random.default_rng(random_seed) if random_seed is not None else np.random
 
     if print_result:
         log.info(
@@ -890,7 +1002,7 @@ def equilibrium_atmosphere_authoritative_O(
     ub = [1e7, 1e7, 1e7, 1e7, 12.0]
 
     if p_guess is None:
-        x0 = get_initial_pressures_with_fO2(target_d, fO2_hint)
+        x0 = get_initial_pressures_with_fO2(target_d, fO2_hint, rng=rng)
     else:
         if not isinstance(p_guess, dict):
             raise TypeError(f'p_guess must be a dict or None, got {type(p_guess).__name__}.')
@@ -920,9 +1032,27 @@ def equilibrium_atmosphere_authoritative_O(
 
     bounds = opt.Bounds(lb=lb, ub=ub)
 
-    # Tolerance: largest of the 5 target masses scales the rtol budget.
-    tolerance = np.amax(list(target_d.values())) * rtol + atol + TRUNC_MASS
-    log.debug('Required tolerance: %g', tolerance)
+    # Per-element tolerance: each residual must satisfy
+    # ``|res_i| <= max(target_i * rtol, atol_per_elem)``. The legacy
+    # scalar tolerance (max-of-targets * rtol + atol) is dominated by the
+    # largest target and accepts unphysical errors on smaller targets
+    # (e.g. O ~1e22 kg vs N ~1e17 kg). The atol budget is split across
+    # the 5 elements so the per-element floor stays in the kg range, and
+    # the TRUNC_MASS floor handles benign sub-10-kg noise.
+    target_vec = np.array([target_d[e] for e in required_elements])
+    per_elem_atol = max(atol / len(required_elements), TRUNC_MASS)
+    elem_tolerance = np.maximum(target_vec * rtol, per_elem_atol)
+    log.debug('Per-element tolerance: %s kg', elem_tolerance.tolist())
+
+    # `sol` initialised to a sentinel so the post-loop RuntimeError path
+    # can format the final attempt even if every iteration crashed
+    # before `sol` was assigned. `success` starts False so an early
+    # break from a 0-iteration loop (already rejected by the nguess>=1
+    # validator above, but a defensive belt) raises RuntimeError rather
+    # than UnboundLocalError.
+    sol = np.array(x0, dtype=float)
+    success = False
+    count = 0
 
     with warnings.catch_warnings():
         if hide_warnings:
@@ -931,36 +1061,68 @@ def equilibrium_atmosphere_authoritative_O(
 
         solver: int = 0
         for count in range(nguess):
-            if solver == 0:
-                sol, _, ier, _ = opt.fsolve(
-                    func_authoritative_O,
-                    x0,
-                    args=(ddict, target_d),
-                    maxfev=nsolve,
-                    xtol=xtol,
-                    full_output=True,
+            # Wrap each solver call: fsolve and trust-constr can both
+            # raise ZeroDivisionError or FloatingPointError if the
+            # residual blows up in a numerically unrecoverable way at a
+            # trial point. Catch and treat as a failed attempt so the
+            # restart loop continues instead of propagating a crash to
+            # the caller.
+            try:
+                if solver == 0:
+                    sol, _, ier, _ = opt.fsolve(
+                        func_authoritative_O,
+                        x0,
+                        args=(ddict, target_d),
+                        maxfev=nsolve,
+                        xtol=xtol,
+                        full_output=True,
+                    )
+                    success = bool(ier == 1)
+                else:
+                    result = opt.minimize(
+                        obj_authoritative_O,
+                        x0,
+                        args=(ddict, target_d),
+                        method='trust-constr',
+                        bounds=bounds,
+                        options={'maxiter': nsolve, 'xtol': xtol},
+                    )
+                    success = result.success
+                    sol = result.x
+            except (ZeroDivisionError, FloatingPointError, ValueError) as exc:
+                log.debug(
+                    'Solver attempt %d (method=%s) raised %s: %s; restarting',
+                    count,
+                    'fsolve' if solver == 0 else 'trust-constr',
+                    type(exc).__name__,
+                    exc,
                 )
-                success = bool(ier == 1)
-            else:
-                result = opt.minimize(
-                    obj_authoritative_O,
-                    x0,
-                    args=(ddict, target_d),
-                    method='trust-constr',
-                    bounds=bounds,
-                    options={'maxiter': nsolve, 'xtol': xtol},
-                )
-                success = result.success
-                sol = result.x
-
-            # Residual gate, matching equilibrium_atmosphere.
-            this_resid = func_authoritative_O(sol, ddict, target_d)
-            loss = np.amax(np.abs(this_resid))
-            if loss > tolerance:
-                if success:
-                    log.debug('Solution rejected by residual')
-                    log.debug('    d(i=%d) = %.2e kg', np.argmax(this_resid), loss)
                 success = False
+
+            # Per-element residual gate. Compute defensively so a
+            # post-solver evaluation crash also routes to restart.
+            if success:
+                try:
+                    this_resid = func_authoritative_O(sol, ddict, target_d)
+                    resid_abs = np.abs(np.asarray(this_resid))
+                    if np.any(resid_abs > elem_tolerance):
+                        worst = int(np.argmax(resid_abs - elem_tolerance))
+                        log.debug(
+                            'Solution rejected by per-element residual: '
+                            'element=%s, |res|=%.2e, tol=%.2e',
+                            required_elements[worst],
+                            resid_abs[worst],
+                            elem_tolerance[worst],
+                        )
+                        success = False
+                except (ZeroDivisionError, FloatingPointError, ValueError) as exc:
+                    log.debug(
+                        'Post-solver residual evaluation raised %s: %s; rejecting attempt %d',
+                        type(exc).__name__,
+                        exc,
+                        count,
+                    )
+                    success = False
 
             if success:
                 break
@@ -968,7 +1130,7 @@ def equilibrium_atmosphere_authoritative_O(
             # Restart. Redraw pressures from log-uniform; redraw fO2
             # from Uniform(-6, +8) to give it a chance from a different
             # basin if the hint led to a non-converging region.
-            x0 = get_initial_pressures_with_fO2(target_d, fO2_hint, restart=True)
+            x0 = get_initial_pressures_with_fO2(target_d, fO2_hint, restart=True, rng=rng)
 
             if opt_solver:
                 solver = 1 - solver
