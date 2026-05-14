@@ -86,9 +86,21 @@ S2  = 0.01
 
 When `volatile_mode = "gas_prs"`, the wrapper calls `get_target_from_pressures(ddict)` to back out the elemental inventory implied by the prescribed initial atmosphere; on every subsequent iteration the same elemental inventory is preserved.
 
+## Selecting the fO2 dispatch
+
+The PROTEUS schema field `[planet].fO2_source` selects which CALLIOPE entry point the wrapper calls:
+
+```toml
+[planet]
+fO2_source = "user_constant"   # default; calls equilibrium_atmosphere
+# fO2_source = "from_O_budget"  # calls equilibrium_atmosphere_authoritative_O
+```
+
+Under `user_constant` (the default) CALLIOPE buffers the redox state to the configured `outgas.fO2_shift_IW` and solves the four-equation H/C/N/S mass balance. Under `from_O_budget` the wrapper passes the running whole-planet O total (maintained by the PROTEUS element-budget bookkeeping) as a fifth elemental target, uses `outgas.fO2_shift_IW` only as an initial-guess hint, and solves a five-equation system that returns the derived $\Delta\mathrm{IW}$ in `hf_row['fO2_shift_IW_derived']`. See [Coupling to PROTEUS (theory)](../Explanations/proteus_coupling.md#step-5-call-the-solver) for the per-iteration control flow and [Authoritative-oxygen mode](../Explanations/authoritative_oxygen.md) for the augmented mass balance.
+
 ## Redox state
 
-`fO2_shift_IW` is in $\log_{10}$ units relative to the [O'Neill & Eggins (2002)](https://ui.adsabs.harvard.edu/abs/2002ChGeo.186..151O) IW buffer. Common reference values:
+`fO2_shift_IW` is in $\log_{10}$ units relative to the [O'Neill & Eggins (2002)](https://ui.adsabs.harvard.edu/abs/2002ChGeo.186..151O) IW buffer. Under `fO2_source = "user_constant"` this value is the buffer offset; under `fO2_source = "from_O_budget"` it is only the initial-guess seed. Common reference values:
 
 | $\Delta\mathrm{IW}$ | Description |
 |---|---|

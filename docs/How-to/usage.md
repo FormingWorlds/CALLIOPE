@@ -121,4 +121,4 @@ Alternative compositions (e.g. `SolubilityH2O('basalt_dixon')`, `SolubilityH2O('
 
 ## Next step
 
-For the science behind these laws and the equilibrium constants, head to [Equilibrium chemistry](../Explanations/equilibrium_chemistry.md) and [Solubility laws](../Explanations/solubility.md). For the PROTEUS-side TOML recipe, head to [Coupling to PROTEUS](proteus_coupling.md).
+For the science behind these laws and the equilibrium constants, head to [Equilibrium chemistry](../Explanations/equilibrium_chemistry.md) and [Solubility laws](../Explanations/solubility.md). For the PROTEUS-side TOML recipe, head to [Coupling to PROTEUS](proteus_coupling.md). If you have an oxygen budget to enforce rather than a buffer offset to apply, switch to the [authoritative-O recipe](authoritative_oxygen.md).

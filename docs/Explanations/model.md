@@ -7,7 +7,7 @@ This page summarises the model assumptions, the variables it solves for, and how
 ## What is in the model
 
 - **Eleven gas-phase species** (`calliope.constants.volatile_species`): H$_2$O, CO$_2$, O$_2$, H$_2$, CH$_4$, CO, N$_2$, S$_2$, SO$_2$, H$_2$S, NH$_3$.
-- **Five elements**: H, C, N, S as freely solved; O as a derived quantity set by the oxygen-fugacity buffer.
+- **Five elements**: H, C, N, S always solved. O is either a derived quantity set by the oxygen-fugacity buffer (buffered mode, `equilibrium_atmosphere`) or a fifth budgeted element with $\Delta\mathrm{IW}$ as the additional unknown (authoritative-O mode, `equilibrium_atmosphere_authoritative_O`). The two modes share all physics functions and differ only in their unknown set; see [Authoritative-oxygen mode](authoritative_oxygen.md).
 - **Six equilibrium reactions** (gas-phase, surface temperature):
 
     | Reaction | Source |
@@ -19,7 +19,7 @@ This page summarises the model assumptions, the variables it solves for, and how
     | $\tfrac{1}{2}\,\mathrm{S_2} + \mathrm{H_2} \rightleftharpoons \mathrm{H_2S}$ | JANAF, doubled form (`janaf_H2S`) |
     | $\tfrac{1}{2}\,\mathrm{N_2} + \tfrac{3}{2}\,\mathrm{H_2} \rightleftharpoons \mathrm{NH_3}$ | JANAF, doubled form (`janaf_NH3`) |
 
-- **One oxygen-fugacity buffer**: [O'Neill & Eggins (2002)](https://ui.adsabs.harvard.edu/abs/2002ChGeo.186..151O) iron-wüstite (default), or [Fischer et al. (2011)](https://ui.adsabs.harvard.edu/abs/2011E%26PSL.304..496F) IW. The model takes a user-prescribed shift $\Delta\mathrm{IW}$ that sets $\log_{10} f_{\mathrm{O}_2}$ relative to the buffer; this is *not* solved for, it parameterises the redox state of the magma ocean.
+- **One oxygen-fugacity buffer**: [O'Neill & Eggins (2002)](https://ui.adsabs.harvard.edu/abs/2002ChGeo.186..151O) iron-wüstite (default), or [Fischer et al. (2011)](https://ui.adsabs.harvard.edu/abs/2011E%26PSL.304..496F) IW. The shift $\Delta\mathrm{IW}$ sets $\log_{10} f_{\mathrm{O}_2}$ relative to the buffer; under the buffered mode it is a user-prescribed input, under the authoritative-O mode it is a solver unknown.
 - **One solubility law per species** with multiple alternative compositions (peridotite, basalt, lunar glass, anorthite-diopside) selectable via constructor argument.
 
 ## What is *not* in the model
@@ -34,13 +34,15 @@ This page summarises the model assumptions, the variables it solves for, and how
 
 ## Mathematical statement
 
-CALLIOPE assembles four mass-conservation equations, one per solved element. Each equation has the structure
+CALLIOPE assembles one mass-conservation equation per solved element. Each equation has the structure
 
 $$
-\underbrace{m_e^{\mathrm{atm}}(p_{\mathrm{H_2O}}, p_{\mathrm{CO_2}}, p_{\mathrm{N_2}}, p_{\mathrm{S_2}})}_{\text{Bower 2019 Eq. 2 summed over all species}} + \underbrace{m_e^{\mathrm{melt}}(p_{\mathrm{H_2O}}, p_{\mathrm{CO_2}}, p_{\mathrm{N_2}}, p_{\mathrm{S_2}})}_{\text{Henry's law summed over all species}} = m_e^{\mathrm{target}}, \quad e \in \{H, C, N, S\}
+\underbrace{m_e^{\mathrm{atm}}(p_{\mathrm{H_2O}}, p_{\mathrm{CO_2}}, p_{\mathrm{N_2}}, p_{\mathrm{S_2}})}_{\text{Bower 2019 Eq. 2 summed over all species}} + \underbrace{m_e^{\mathrm{melt}}(p_{\mathrm{H_2O}}, p_{\mathrm{CO_2}}, p_{\mathrm{N_2}}, p_{\mathrm{S_2}})}_{\text{Henry's law summed over all species}} = m_e^{\mathrm{target}}.
 $$
 
-The four primary partial pressures $p_\mathrm{H_2O}$, $p_\mathrm{CO_2}$, $p_\mathrm{N_2}$, $p_\mathrm{S_2}$ are the unknowns. The seven secondary partial pressures are *not* independent: they are algebraic functions of the primaries via the six equilibrium constants, evaluated at $T = T_\mathrm{magma}$ and $\log_{10} f_{\mathrm{O}_2} = \log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T) + \Delta\mathrm{IW}$. The system is therefore $4 \times 4$, which `scipy.optimize.fsolve` solves with the Powell hybrid method.
+Under the buffered mode the equation set spans $e \in \{\mathrm{H}, \mathrm{C}, \mathrm{N}, \mathrm{S}\}$, the four primary partial pressures are the unknowns, and the $4\times 4$ system is solved with `scipy.optimize.fsolve` (Powell hybrid). Under the authoritative-O mode the equation set spans $e \in \{\mathrm{H}, \mathrm{C}, \mathrm{N}, \mathrm{S}, \mathrm{O}\}$, the unknown vector is extended with $\Delta\mathrm{IW}$, and the $5\times 5$ system is solved with the same outer loop ([Authoritative-oxygen mode](authoritative_oxygen.md)).
+
+The seven secondary partial pressures are *not* independent in either mode: they are algebraic functions of the primaries via the six equilibrium constants, evaluated at $T = T_\mathrm{magma}$ and $\log_{10} f_{\mathrm{O}_2} = \log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T) + \Delta\mathrm{IW}$.
 
 The four pieces of physics decompose cleanly:
 
@@ -59,7 +61,7 @@ The four pieces of physics decompose cleanly:
 - **[Nicholls et al. (2026)](https://ui.adsabs.harvard.edu/abs/2026NatAs.tmp...61N)** demonstrated the sulfur extension (S$_2$, SO$_2$, H$_2$S) on L 98-59 d, validating the equilibrium constants and the [Gaillard et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022E%26PSL.57717255G) S$_2$ solubility law against in-situ photochemical inferences.
 
 !!! note "Why four primaries"
-    CALLIOPE's prognostic variables are the four primary partial pressures, not the eleven species partial pressures. This is why N has only one solved degree of freedom even though it appears in both N$_2$ and NH$_3$, and why O is not solved at all: the gas-phase chemistry collapses the eleven species into four independent mass-balance constraints. Adding a new oxygen-bearing species (e.g. NO) would not require a new constraint, only a new entry in `get_partial_pressures()` and the corresponding contribution to atmospheric and dissolved mass.
+    CALLIOPE's prognostic *species* are the four primary partial pressures, not the eleven species partial pressures: the gas-phase chemistry collapses the eleven species into four independent mass-balance constraints. N has only one solved degree of freedom even though it appears in both N$_2$ and NH$_3$. O is either not solved (buffered mode) or carried as an additional scalar unknown $\Delta\mathrm{IW}$ alongside the four pressures (authoritative-O mode); in neither case is a new primary partial pressure introduced. Adding a new oxygen-bearing species (e.g. NO) would not require a new constraint, only a new entry in `get_partial_pressures()` and the corresponding contribution to atmospheric and dissolved mass.
 
 ## Validity range
 

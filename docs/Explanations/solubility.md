@@ -116,4 +116,6 @@ CALLIOPE deliberately makes no attempt to flag extrapolation: the laws are evalu
 
 - [Equilibrium chemistry](equilibrium_chemistry.md): how the gas-phase speciation feeds into the partial pressures the solubility laws then consume.
 - [Mass balance & solver](mass_balance.md): how dissolved + atmospheric masses are summed to close the elemental conservation constraints.
+- [Oxygen fugacity](oxygen_fugacity.md): the IW-buffer parameterisations that drive the $f_{\mathrm{O}_2}$ dependence in the Gaillard S$_2$ and Dasgupta N$_2$ laws.
+- [Authoritative-oxygen mode](authoritative_oxygen.md): how the Gaillard $\ln(p_\mathrm{S_2}/f_{\mathrm{O}_2})$ and Dasgupta $-1.6\,\Delta\mathrm{IW}$ terms enter the 5-residual mass balance once $\Delta\mathrm{IW}$ becomes a solver unknown.
 - [API reference for `calliope.solubility`](../Reference/api/calliope.solubility.md).
