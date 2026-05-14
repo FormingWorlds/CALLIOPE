@@ -100,15 +100,17 @@ If you need explicit dissolution of reduced species into the melt, the [atmodell
 
 ## Validity envelope
 
-| Species | Calibration $T$ range | Calibration $p$ range |
-|---|---|---|
-| H$_2$O peridotite | 2173 K | $\le$1 bar to several kbar |
-| H$_2$O basalt (Dixon) | 1473 K | 176-2021 bar |
-| CO$_2$ (Dixon) | $\le$2000 K | $\le$815 bar |
-| CO (Armstrong) | $\sim$1700 K | $\le$3 GPa |
-| CH$_4$ (Ardia) | 1573-1873 K | 0.7-3 GPa |
-| N$_2$ (Dasgupta) | 1500-2200 K | 0-3 GPa |
-| S$_2$ (Gaillard) | 1473-1773 K, $f_{\mathrm{O}_2} <$ IW+1 | sulfide-saturated regime |
+| Species | Calibration $T$ range | Calibration $p$ range | Calibration $f_{\mathrm{O}_2}$ range |
+|---|---|---|---|
+| H$_2$O peridotite | 2173 K | $\le$1 bar to several kbar | not constrained |
+| H$_2$O basalt (Dixon) | 1473 K | 176-2021 bar | not constrained |
+| CO$_2$ (Dixon) | $\le$2000 K | $\le$815 bar | not constrained |
+| CO (Armstrong) | $\sim$1700 K | $\le$3 GPa | not constrained |
+| CH$_4$ (Ardia) | 1573-1873 K | 0.7-3 GPa | not constrained |
+| N$_2$ (Dasgupta) | 1323-2600 K (1050-2327 $^\circ$C) | 1 bar to 8.2 GPa | IW-8.3 to IW+8.7 |
+| S$_2$ (Gaillard) | not stated by the paper | 1 atm (calibration data) | IW-1 to FMQ+0.1 ($\approx$ IW+3.5) |
+
+The N$_2$ and S$_2$ rows quote the ranges that [Dasgupta et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022GeCoA.336..291D) Equation 10 (n=137 compiled data) and [Gaillard et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022E%26PSL.57717255G) Equation 10 (refit of [O'Neill & Mavrogenes (2002)](https://ui.adsabs.harvard.edu/abs/2002JPet...43.1049O) plus 8 other experimental sources, n=369) report directly. The Gaillard refit data are all at 1 atm; the formula is applied at magma-ocean pressures in CALLIOPE without an explicit pressure correction. The CO, CH$_4$ and N$_2$ rows give the *total*-pressure range, since the Poynting and reduced-N branches depend on $p_\mathrm{tot}$ as well as the species partial pressure.
 
 CALLIOPE deliberately makes no attempt to flag extrapolation: the laws are evaluated formally outside their calibration ranges to keep the solver well-posed. For applications outside the bracket, treat the dissolved masses as upper bounds and check sensitivity by switching solubility laws via the constructor argument.
 

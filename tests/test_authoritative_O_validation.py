@@ -191,21 +191,6 @@ class TestDdictValidation:
         with pytest.raises(ValueError, match='T_magma'):
             equilibrium_atmosphere_authoritative_O(_target(), dd, **_base_kwargs())
 
-    def test_T_magma_outside_calibration_warns(self, recwarn):
-        """T_magma outside Dasgupta/Gaillard calibration emits a single
-        UserWarning so the user notices the solver is extrapolating."""
-        dd = _ddict(T=3000.0)
-        kwargs = _base_kwargs()
-        kwargs['nguess'] = 1
-        try:
-            equilibrium_atmosphere_authoritative_O(_target(), dd, **kwargs)
-        except RuntimeError:
-            pass
-        msgs = [str(w.message) for w in recwarn]
-        assert any('calibrated range' in m and 'extrapolate' in m for m in msgs), (
-            f'expected calibration-range warning, got: {msgs}'
-        )
-
 
 # ---------------------------------------------------------------------------
 # Solver-parameter bounds

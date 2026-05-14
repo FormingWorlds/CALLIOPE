@@ -961,19 +961,6 @@ def equilibrium_atmosphere_authoritative_O(
             "ddict['T_magma']=%r must be a positive finite temperature [K]." % T_magma
         )
 
-    # T_magma calibration sanity. Dasgupta N2 was calibrated 1373-1873 K
-    # and Gaillard S2 1473-1973 K. The solver will extrapolate outside
-    # these ranges; emit one warning so users notice when a magma ocean
-    # has cooled to a regime the laws were not built for.
-    if not (1373.0 <= T_magma <= 1973.0):
-        warnings.warn(
-            'T_magma=%.1f K is outside the calibrated range of the '
-            'Dasgupta N2 (1373-1873 K) and Gaillard S2 (1473-1973 K) '
-            'solubility laws; the solver will extrapolate.' % T_magma,
-            UserWarning,
-            stacklevel=2,
-        )
-
     if nguess < 1:
         raise ValueError('nguess must be >= 1, got %d.' % nguess)
     if nsolve < 1:
