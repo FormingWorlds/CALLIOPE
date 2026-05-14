@@ -37,14 +37,19 @@ def is_included(gas, ddict):
     return bool(ddict[gas + '_included'] > 0)
 
 
-def get_partial_pressures(pin, ddict):
+def _get_partial_pressures(pin, fO2_shift, ddict):
     """Partial pressures [bar] of all 11 species from the 4 primaries.
+
+    Internal helper that takes ``fO2_shift`` as an explicit argument
+    instead of reading ``ddict['fO2_shift_IW']``. The user-facing
+    ``get_partial_pressures`` is a thin wrapper that reads fO2_shift
+    from ddict. Both share the same physics; the explicit form supports
+    the authoritative-O solver where fO2_shift is an unknown rather
+    than a config input.
 
     `pin` provides H2O, CO2, N2, S2; the other 7 species are derived
     via equilibrium constants and the fO2 buffer.
     """
-
-    fO2_shift = ddict['fO2_shift_IW']
 
     p_d = {s: 0.0 for s in volatile_species}
 
@@ -101,6 +106,16 @@ def get_partial_pressures(pin, ddict):
     return p_d
 
 
+def get_partial_pressures(pin, ddict):
+    """Partial pressures [bar] of all 11 species from the 4 primaries.
+
+    Thin wrapper around ``_get_partial_pressures`` that reads fO2_shift
+    from ``ddict['fO2_shift_IW']``. Preserved bit-for-bit identical to
+    the pre-refactor function for all callers.
+    """
+    return _get_partial_pressures(pin, ddict['fO2_shift_IW'], ddict)
+
+
 def get_total_pressure(p_d):
     """Sum partial pressures to get total pressure"""
     return sum(p_d.values())
@@ -119,15 +134,19 @@ def atmosphere_mean_molar_mass(p_d):
     return mu_atm
 
 
-def atmosphere_mass(pin, ddict):
-    """Atmospheric mass of volatiles and totals for H, C, and N.
+def _atmosphere_mass(pin, fO2_shift, ddict):
+    """Atmospheric mass of volatiles and totals for H, C, N, O, S.
+
+    Internal helper that takes ``fO2_shift`` as an explicit argument.
+    The user-facing ``atmosphere_mass`` is a thin wrapper that reads
+    fO2_shift from ddict.
 
     CALLIOPE stores pressures in bar throughout; the only conversion
     to SI Pa happens here (factor 1e5) when computing column mass
     `kg = p_Pa * 4 pi R^2 / g`.
     """
 
-    p_d = get_partial_pressures(pin, ddict)
+    p_d = _get_partial_pressures(pin, fO2_shift, ddict)
     mu_atm = atmosphere_mean_molar_mass(p_d)
 
     mass_atm_d = {}
@@ -185,12 +204,29 @@ def atmosphere_mass(pin, ddict):
     return mass_atm_d
 
 
-def dissolved_mass(pin, ddict):
-    """Volatile masses in the (molten) mantle"""
+def atmosphere_mass(pin, ddict):
+    """Atmospheric mass of volatiles and totals for H, C, N, O, S.
+
+    Thin wrapper around ``_atmosphere_mass`` that reads fO2_shift from
+    ``ddict['fO2_shift_IW']``. Preserved bit-for-bit identical to the
+    pre-refactor function for all callers.
+    """
+    return _atmosphere_mass(pin, ddict['fO2_shift_IW'], ddict)
+
+
+def _dissolved_mass(pin, fO2_shift, ddict):
+    """Volatile masses in the (molten) mantle.
+
+    Internal helper that takes ``fO2_shift`` as an explicit argument
+    instead of reading ``ddict['fO2_shift_IW']``. Two solubility laws
+    (``SolubilityN2('dasgupta')`` and ``SolubilityS2()``) consume fO2_shift
+    directly, so the shift must flow through to them too. The user-facing
+    ``dissolved_mass`` is a thin wrapper that reads fO2_shift from ddict.
+    """
 
     mass_int_d = {}
 
-    p_d = get_partial_pressures(pin, ddict)
+    p_d = _get_partial_pressures(pin, fO2_shift, ddict)
     ptot = get_total_pressure(p_d)
 
     # Henry's-law / power-law solubility laws return ppmw of the
@@ -222,11 +258,11 @@ def dissolved_mass(pin, ddict):
     # Override class default 'libourel'; dasgupta carries fO2 + p_total
     # dependence which the linear Libourel law does not.
     sol_N2 = SolubilityN2('dasgupta')
-    ppmw_N2 = sol_N2(p_d['N2'], ptot, ddict['T_magma'], ddict['fO2_shift_IW'])
+    ppmw_N2 = sol_N2(p_d['N2'], ptot, ddict['T_magma'], fO2_shift)
     mass_int_d['N2'] = prefactor * ppmw_N2
 
     sol_S2 = SolubilityS2()
-    ppmw_S2 = sol_S2(p_d['S2'], ddict['T_magma'], ddict['fO2_shift_IW'])
+    ppmw_S2 = sol_S2(p_d['S2'], ddict['T_magma'], fO2_shift)
     mass_int_d['S2'] = prefactor * ppmw_S2
 
     # No SolubilityH2S / NH3 / SO2 / O2 / H2 in CALLIOPE — these
@@ -258,6 +294,16 @@ def dissolved_mass(pin, ddict):
         mass_int_d[e] = max(0.0, mass_int_d[e])
 
     return mass_int_d
+
+
+def dissolved_mass(pin, ddict):
+    """Volatile masses in the (molten) mantle.
+
+    Thin wrapper around ``_dissolved_mass`` that reads fO2_shift from
+    ``ddict['fO2_shift_IW']``. Preserved bit-for-bit identical to the
+    pre-refactor function for all callers.
+    """
+    return _dissolved_mass(pin, ddict['fO2_shift_IW'], ddict)
 
 
 def func(pin_arr, ddict, mass_target_d):
