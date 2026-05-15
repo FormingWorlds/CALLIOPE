@@ -26,7 +26,7 @@ permissions:
 jobs:
   test:
     if: github.event.pull_request.draft == false
-    name: CALLIOPE-check (${{ matrix.os }}, py${{ matrix.python-version }})
+    name: CALLIOPE-check
     strategy:
       fail-fast: false
       matrix:
