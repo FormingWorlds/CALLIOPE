@@ -307,7 +307,9 @@ Write the OUTCOME (what the test verifies; what the PR achieves) never the PROCE
 - Test names describe behavior, not the called function: `test_iw_buffer_monotonic_with_temperature`, NOT `test_iw_buffer`.
 - Test names use snake_case and read as full sentences.
 - Group related tests in classes (`class TestIWBuffer:`) when they share setup; use the class to thread a single fixture through several scenarios.
-- Test file names mirror source 1:1: `src/calliope/<file>.py` -> `tests/test_<file>.py`. Cross-cutting tests that span multiple source files (`test_invariants_hypothesis.py`, `test_init.py`) are the exception, not the rule.
+- Test file names mirror source 1:1: `src/calliope/<file>.py` -> `tests/test_<file>.py`. Two documented exceptions to the 1:1 rule:
+  - **Cross-cutting fuzz / init tests** (`test_invariants_hypothesis.py`, `test_init.py`): tests that span multiple source files or test package-level concerns.
+  - **Topical sub-files of a large physics source**: when a physics source exceeds ~500 LOC and its tests split into independent topics that would not benefit from consolidation, topical sub-files are acceptable alongside the primary `tests/test_<file>.py`. The primary file must still exist and carry at least one `reference_pinned` and one `physics_invariant` test; the topical sub-files cover the remaining surface. The current exemption is `solve.py` (>1200 LOC), whose tests split across `test_authoritative_O.py`, `test_equilibrium_paths.py`, `test_partial_species.py`, `test_stoichiometry.py`, `test_targets.py`, `test_invariants.py`. The primary `tests/test_solve.py` carries the round-trip self-consistency anchor.
 
 ---
 
