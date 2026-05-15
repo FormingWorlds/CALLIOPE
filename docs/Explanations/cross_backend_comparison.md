@@ -82,7 +82,7 @@ The cross-backend gap is dominated by the IW-buffer parameterisation, which is a
 - **Pick one backend per coupled study.** Mixing the two in time-series comparison or in coupled-time-step closure introduces a systematic $\sim 0.2$ to $\sim 1.0$ dex drift in $\Delta\mathrm{IW}$ purely from the buffer choice. PROTEUS' helpfile records `fO2_shift_IW_derived` as the value the active backend converged to; that column is backend-faithful, not cross-backend comparable.
 - **For reducing-mantle work** ($\Delta\mathrm{IW} < 0$, sub-Mercury redox), either backend gives a defensible answer. The buffer disagreement narrows below 0 dex at $T \lesssim 2000$ K.
 - **For oxidising-mantle work** above FMQ ($\Delta\mathrm{IW} \gtrsim +3$), the dominant sub-buffer disagreement is the S$_2$ channel. atmodeller's Boulliung & Wood 2023 law captures sulfate dissolution that Gaillard 2022 cannot; if your study turns on sulfur partitioning at oxidising conditions, prefer atmodeller.
-- **For Path C runs** (`planet.fO2_source = "from_O_budget"`), confirm that the backend you pick has consistent O accounting end-to-end: the derived $\Delta\mathrm{IW}$, the partial pressures, and the dissolved masses should all close back to the user O budget within solver tolerance. The [authoritative-oxygen page](authoritative_oxygen.md) gives the contract.
+- **When running in authoritative-O mode** (`planet.fO2_source = "from_O_budget"`), confirm that the backend you pick has consistent O accounting end-to-end: the derived $\Delta\mathrm{IW}$, the partial pressures, and the dissolved masses should all close back to the user O budget within solver tolerance. The [authoritative-oxygen page](authoritative_oxygen.md) gives the contract.
 
 ## Reproducing this page
 

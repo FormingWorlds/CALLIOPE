@@ -792,10 +792,10 @@ def equilibrium_atmosphere_authoritative_O(
     that equilibrium.
 
     Use this when the science model declares atmospheric+dissolved O
-    as a budget (e.g. mantle FeO inventory or whole-planet O accounting
-    from PROTEUS issue #677 Path C). For the legacy mode where fO2
-    is buffered to a user-specified IW offset and O is derived, use
-    ``equilibrium_atmosphere`` instead.
+    as a budget (e.g. mantle FeO inventory, or whole-planet O accounting
+    where atmospheric escape and ingassing debit the same O reservoir).
+    For the legacy mode where fO2 is buffered to a user-specified IW
+    offset and O is derived, use ``equilibrium_atmosphere`` instead.
 
     Parameters
     ----------
