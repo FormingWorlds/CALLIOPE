@@ -9,7 +9,7 @@ This page documents the augmented mass-balance system, the additional solver con
 
 ## When the two modes agree
 
-The buffered mode and the authoritative-O mode are dual formulations of the same underlying chemistry. For any pair of $\Delta\mathrm{IW}$ and target H, C, N, S budgets, the buffered mode produces an equilibrium atmosphere whose total O mass can be read off the result dict as `O_kg_total`. Feeding $(H, C, N, S, \texttt{O\_kg\_total})$ to the authoritative-O mode reproduces the same partial pressures and recovers the same $\Delta\mathrm{IW}$ to within the solver tolerance. The regression test `tests/test_authoritative_O.py::TestRoundTrip::test_round_trip_recovers_fO2_within_tolerance` enforces this round-trip and is the operational definition of "same physics, different unknowns".
+The buffered mode and the authoritative-O mode are dual formulations of the same underlying chemistry. For any pair of $\Delta\mathrm{IW}$ and target H, C, N, S budgets, the buffered mode produces an equilibrium atmosphere whose total O mass can be read off the result dict as `O_kg_total`. Feeding the five-element budget $(H, C, N, S, O)$ to the authoritative-O mode, with the O target taken from the buffered run's `O_kg_total`, reproduces the same partial pressures and recovers the same $\Delta\mathrm{IW}$ to within the solver tolerance. The regression test `tests/test_authoritative_O.py::TestRoundTrip::test_round_trip_recovers_fO2_within_tolerance` enforces this round-trip and is the operational definition of "same physics, different unknowns".
 
 The two modes differ only in their degrees-of-freedom accounting:
 
