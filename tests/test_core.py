@@ -6,8 +6,6 @@ import pytest
 
 from calliope.chemistry import ModifiedKeq
 from calliope.constants import (
-    M_earth,
-    R_earth,
     element_list,
     molar_mass,
     ocean_moles,
@@ -15,7 +13,6 @@ from calliope.constants import (
 )
 from calliope.oxygen_fugacity import OxygenFugacity
 from calliope.solubility import SolubilityH2O
-from calliope.structure import calculate_mantle_mass
 
 pytestmark = pytest.mark.unit
 
@@ -104,46 +101,9 @@ def test_modified_keq_schaefer_models_return_finite():
     assert math.isfinite(mk_ch4(T, 0.0))
 
 
-# ---------- Structure tests ----------
-
-
-def test_calculate_mantle_mass_earth_like():
-    # Using Earth values and the internal earth_fr, earth_fm in model:
-    # mantle_mass ≈ (1 - 0.325) * M_earth
-    mantle = calculate_mantle_mass(R_earth, M_earth, core_frac=0.55)
-    assert mantle == pytest.approx((1.0 - 0.325) * M_earth, rel=1e-6)
-
-
-def test_calculate_mantle_mass_negative_raises():
-    # Choose a mass smaller than the implied core mass to trigger exception
-    with pytest.raises(Exception):
-        calculate_mantle_mass(R_earth, 0.1 * M_earth, core_frac=0.55)
-
-
-def test_calculate_mantle_mass_decreases_with_core_frac():
-    m1 = calculate_mantle_mass(R_earth, M_earth, core_frac=0.4)
-    m2 = calculate_mantle_mass(R_earth, M_earth, core_frac=0.6)
-    assert m2 < m1
-
-
-def test_calculate_mantle_mass_corefrac_alias_deprecated():
-    """Legacy 'corefrac' keyword still works but emits DeprecationWarning."""
-    with pytest.warns(DeprecationWarning, match="'corefrac' keyword is deprecated"):
-        legacy = calculate_mantle_mass(R_earth, M_earth, corefrac=0.55)
-    new = calculate_mantle_mass(R_earth, M_earth, core_frac=0.55)
-    assert legacy == pytest.approx(new, rel=1e-12)
-
-
-def test_calculate_mantle_mass_both_aliases_raises():
-    """Passing both 'core_frac' and 'corefrac' is ambiguous and must raise."""
-    with pytest.raises(TypeError, match="received both 'core_frac' and 'corefrac'"):
-        calculate_mantle_mass(R_earth, M_earth, core_frac=0.55, corefrac=0.6)
-
-
-def test_calculate_mantle_mass_missing_core_frac_raises():
-    """Neither 'core_frac' nor 'corefrac' supplied must raise TypeError."""
-    with pytest.raises(TypeError, match="missing required argument: 'core_frac'"):
-        calculate_mantle_mass(R_earth, M_earth)
+# Structure tests live in tests/test_structure.py per the 1:1
+# source-to-test mirroring rule (see .github/.claude/rules/calliope-tests.md
+# section 12).
 
 
 # ---------- Solubility tests (H2O-only; other species are incomplete) ----------
