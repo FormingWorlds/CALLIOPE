@@ -30,7 +30,7 @@ with $R = 8.31441$ J K$^{-1}$ mol$^{-1}$. [Bower et al. (2022)](https://ui.adsab
 
 ### [Fischer et al. (2011)](https://ui.adsabs.harvard.edu/abs/2011E%26PSL.304..496F), `fischer`
 
-A simpler two-parameter fit calibrated against high-pressure ($\sim$25 GPa) experimental data:
+A simpler two-parameter fit of the 1-bar IW buffer. The fit reproduces the 1-bar curve in [Fischer et al. (2011)](https://ui.adsabs.harvard.edu/abs/2011E%26PSL.304..496F) Fig. 6, which itself derives from [Chase (1998)](https://janaf.nist.gov/) NIST-JANAF tabulation. Fischer's own high-pressure measurements ($\le$200 GPa) extend the buffer to deep-mantle conditions but are not used by CALLIOPE.
 
 $$
 \log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T) = 6.94059 - \frac{28180.8}{T}.
@@ -39,7 +39,7 @@ $$
 Implemented as `OxygenFugacity.fischer(T)`.
 
 !!! note "Choice of buffer"
-    The two parameterisations agree to within $\sim$0.3 dex near $T \approx 2000$ K but diverge with increasing temperature, reaching $\sim$0.7 dex by $T = 2500$ K and growing further at higher $T$. The disagreement is comparable to or smaller than the typical uncertainty in $\Delta\mathrm{IW}$ inferred from petrological observations ([Sossi et al. 2020](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) give $\Delta\mathrm{IW} = +3.5 \pm 0.5$ for Earth's modern surface mantle), so the choice between buffers rarely changes inferred partial pressures meaningfully. CALLIOPE defaults to O'Neill & Eggins because [Bower et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) used it and it was validated end-to-end against PROTEUS coupled runs.
+    The two parameterisations agree to within $\sim$0.3 dex near $T \approx 2000$ K but diverge with increasing temperature, reaching $\sim$0.7 dex by $T = 2500$ K and growing further at higher $T$. The disagreement is comparable to or smaller than the typical scatter in $\Delta\mathrm{IW}$ inferred from petrological observations of Earth's modern upper mantle ([Sossi et al. 2020](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) give $\Delta\mathrm{IW} \approx +3.5$), so the choice between buffers rarely changes inferred partial pressures meaningfully. CALLIOPE defaults to O'Neill & Eggins because [Bower et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) used it and it was validated end-to-end against PROTEUS coupled runs.
 
 ## How $\Delta\mathrm{IW}$ enters the chemistry
 
@@ -64,7 +64,7 @@ $$
 G_\mathrm{eq}(T, f_{\mathrm{O}_2}) = 10^{\,\log_{10} K_\mathrm{eq}(T) - n_\mathrm{O_2}\,\log_{10} f_{\mathrm{O}_2}}.
 $$
 
-For the H$_2$O-H$_2$ couple ($n_\mathrm{O_2} = +0.5$), reducing conditions ($f_{\mathrm{O}_2}$ smaller, $\Delta\mathrm{IW}$ more negative) drive $G_\mathrm{eq}$ larger, which in turn drives more H$_2$O to dissociate into H$_2$. This is the redox dependence visible in the redox-sweep tutorial, and it is the mechanism behind the H$_2$-dominated, long-lived magma-ocean atmospheres found in [Nicholls et al. (2024)](https://ui.adsabs.harvard.edu/abs/2024JGRE..12908576N) Figure 6 at $\Delta\mathrm{IW} \le -2$.
+For the H$_2$O-H$_2$ couple ($n_\mathrm{O_2} = +0.5$), reducing conditions ($f_{\mathrm{O}_2}$ smaller, $\Delta\mathrm{IW}$ more negative) drive $G_\mathrm{eq}$ larger, which in turn drives more H$_2$O to dissociate into H$_2$. This is the redox dependence visible in the redox-sweep tutorial, and it is the mechanism behind the H$_2$-dominated, long-lived magma-ocean atmospheres found in [Nicholls et al. (2024)](https://ui.adsabs.harvard.edu/abs/2024JGRE..12908576N) Figure 6 at $\Delta\mathrm{IW} \le -1$.
 
 ### 3. The S$_2$ Gaillard solubility
 
@@ -72,21 +72,23 @@ The [Gaillard et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022E%26PSL.57717
 
 ### 4. The N$_2$ Dasgupta solubility
 
-Similarly, the [Dasgupta et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022GeCoA.336..291D) N$_2$ solubility includes a $-1.6\,\Delta\mathrm{IW}$ term in its exponent, so reducing conditions sharply increase the dissolved-N inventory. This is one mechanism by which planet-scale N partitioning is tied to mantle redox; see [Nicholls et al. (2026)](https://ui.adsabs.harvard.edu/abs/2026NatAs.tmp...61N) Section 4 for an application to L 98-59 d, where the inferred SO$_2$/H$_2$ atmosphere implies $\Delta\mathrm{IW} \approx -1$.
+Similarly, the [Dasgupta et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022GeCoA.336..291D) N$_2$ solubility includes a $-1.6\,\Delta\mathrm{IW}$ term in its exponent, so reducing conditions sharply increase the dissolved-N inventory. This is one mechanism by which planet-scale N partitioning is tied to mantle redox; see [Nicholls et al. (2026)](https://ui.adsabs.harvard.edu/abs/2026NatAs.tmp...61N) for an application to L 98-59 d, where the inferred H$_2$-dominated atmosphere with photochemical SO$_2$ implies $\Delta\mathrm{IW}$ between IW-4 and IW-1.
 
 ## Reference values for $\Delta\mathrm{IW}$
 
 | Reservoir | $\Delta\mathrm{IW}$ | Source |
 |---|---|---|
-| Mercury surface | $\sim -5$ | [Cartier & Wood (2019)](https://ui.adsabs.harvard.edu/abs/2019Eleme..15...39C) |
-| Asteroidal material | $\sim -2$ | [Doyle et al. (2019)](https://ui.adsabs.harvard.edu/abs/2019Sci...366..356D) |
-| Mars mantle | $-3$ to $0$ | [Wadhwa (2001)](https://ui.adsabs.harvard.edu/abs/2001Sci...291.1527W) |
+| Mercury surface | IW-2.8 to IW-5.4 (Fe-based: IW-2.8 to IW-4.5; sulphur-based: IW-5.4 via Namur et al. 2016) | [Cartier & Wood (2019)](https://ui.adsabs.harvard.edu/abs/2019Eleme..15...39C) |
+| Mars upper mantle (shergottite source) | $\approx$ IW (specifically IW-1.0 to IW-0.3 for QUE 94201) | [Wadhwa (2001)](https://ui.adsabs.harvard.edu/abs/2001Sci...291.1527W) |
+| Mars shergottite parent melts | IW-1.0 to IW+1.9 (variation from crust assimilation) | [Wadhwa (2001)](https://ui.adsabs.harvard.edu/abs/2001Sci...291.1527W) |
 | Iron-wüstite buffer | $0$ | by definition |
-| Earth's upper mantle $f_{\mathrm{O}_2}$ | $+3.5$ | [Sossi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) |
-| Earth upper mantle | $+1$ to $+5$ (i.e. FMQ$\,\pm\,2$) | [Frost & McCammon (2008)](https://ui.adsabs.harvard.edu/abs/2008AREPS..36..389F) |
-| Earth deep (lower) mantle | $\sim -2$ to $-3$ ($\sim 5$ log units below FMQ at $\sim 8$ GPa) | [Frost & McCammon (2008)](https://ui.adsabs.harvard.edu/abs/2008AREPS..36..389F) |
+| Earth's upper mantle (modern) | $\approx$ IW+3.5 | [Sossi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) |
+| Earth upper mantle (range) | FMQ$\,\pm\,2$ ($\approx$ IW+1.5 to IW+5.5) | [Frost & McCammon (2008)](https://ui.adsabs.harvard.edu/abs/2008AREPS..36..389F) |
+| Earth mantle at $\sim 8$ GPa | $\approx$ FMQ$-5$ ($\approx$ IW-1.5) | [Frost & McCammon (2008)](https://ui.adsabs.harvard.edu/abs/2008AREPS..36..389F) |
+| Earth transition zone ($\sim$14-23 GPa) | just below IW | [Frost & McCammon (2008)](https://ui.adsabs.harvard.edu/abs/2008AREPS..36..389F) |
+| Earth lower mantle ($>$23 GPa) | metal-saturated ($\sim$1 wt% Fe$^0$); at or below IW | [Frost & McCammon (2008)](https://ui.adsabs.harvard.edu/abs/2008AREPS..36..389F) |
 
-CALLIOPE's PROTEUS-side default is `fO2_shift_IW = 4.0`, consistent with a near-surface terrestrial composition. [Nicholls et al. (2024)](https://ui.adsabs.harvard.edu/abs/2024JGRE..12908576N) explored $\Delta\mathrm{IW} \in \{-5, -3, -1, 0, +1, +3, +5\}$ on a 7-point grid and demonstrated that the resulting atmospheric composition spans the full range from H$_2$-dominated reduced atmospheres (TRAPPIST-1 c-like) to H$_2$O/CO$_2$-dominated oxidised atmospheres (Earth-like).
+CALLIOPE's PROTEUS-side default is `fO2_shift_IW = 4.0`, consistent with a near-surface terrestrial composition. [Nicholls et al. (2024)](https://ui.adsabs.harvard.edu/abs/2024JGRE..12908576N) Table 2 explored $\Delta\mathrm{IW} \in \{-5, -3, -1, 0, +1, +3, +5\}$ on a 7-point grid and demonstrated that the resulting atmospheric composition spans the full range from H$_2$-dominated reduced atmospheres (TRAPPIST-1 c-like) to H$_2$O/CO$_2$-dominated oxidised atmospheres (Earth-like).
 
 ## Limitations
 

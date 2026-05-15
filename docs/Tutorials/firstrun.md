@@ -145,7 +145,7 @@ plt.show()
 
 The expected qualitative behaviour, consistent with [Bower et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) Section 3 and [Nicholls et al. (2024)](https://ui.adsabs.harvard.edu/abs/2024JGRE..12908576N) Figure 6:
 
-- At $\Delta\mathrm{IW} \le -2$ (reducing), H$_2$ and CO dominate; H$_2$O and CO$_2$ collapse;
+- At $\Delta\mathrm{IW} \le -1$ (reducing), H$_2$ and CO dominate; H$_2$O and CO$_2$ collapse;
 - Around $\Delta\mathrm{IW} \approx 0$, the H$_2$O/H$_2$ and CO$_2$/CO ratios are of order unity;
 - At $\Delta\mathrm{IW} \ge +2$ (oxidising), H$_2$O and CO$_2$ dominate; H$_2$ and CO are sub-percent.
 

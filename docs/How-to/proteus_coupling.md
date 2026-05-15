@@ -104,14 +104,14 @@ Under `user_constant` (the default) CALLIOPE buffers the redox state to the conf
 
 | $\Delta\mathrm{IW}$ | Description |
 |---|---|
-| $-5$ | Highly reduced (Mercury-like, [Cartier & Wood 2019](https://ui.adsabs.harvard.edu/abs/2019Eleme..15...39C)) |
-| $-3$ | Reduced (Mars-mantle estimates, [Wadhwa 2001](https://ui.adsabs.harvard.edu/abs/2001Sci...291.1527W)) |
-| $-1$ | Moderately reduced |
+| $-5$ | Highly reduced (Mercury-like; sulphur-derived estimate IW-5.4, [Cartier & Wood 2019](https://ui.adsabs.harvard.edu/abs/2019Eleme..15...39C)) |
+| $-3$ | Reduced (e.g. enstatite-chondrite-like; Mercury Fe-based estimate IW-2.8 to IW-4.5, [Cartier & Wood 2019](https://ui.adsabs.harvard.edu/abs/2019Eleme..15...39C)) |
+| $-1$ | Moderately reduced; near the Mars-mantle source range ([Wadhwa 2001](https://ui.adsabs.harvard.edu/abs/2001Sci...291.1527W) places the shergottite-source mantle at $\approx$ IW) |
 | $0$  | At iron-wüstite buffer (core formation equilibrium at depth) |
-| $+3.5$ | [Sossi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) preferred Earth's mantle $f_{\mathrm{O}_2}$ (their $\Delta\mathrm{IW} = +3.5 \pm 0.5$) |
+| $+3.5$ | [Sossi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) preferred Earth's mantle $f_{\mathrm{O}_2}$ |
 | $+4$ | CALLIOPE PROTEUS-side default; near-modern Earth upper mantle (within FMQ$\,\pm\,2$ per [Frost & McCammon 2008](https://ui.adsabs.harvard.edu/abs/2008AREPS..36..389F)) |
 
-The [Sossi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) compilation places Earth's near-surface mantle at $\Delta\mathrm{IW} \approx +3$ to $+5$ (their preferred value $+3.5$); CALLIOPE defaults sit at $\Delta\mathrm{IW} = 4.0$, consistent with a modern terrestrial composition.
+[Sossi et al. (2020)](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) place Earth's modern upper mantle at $\Delta\mathrm{IW} \approx +3.5$; [Frost & McCammon (2008)](https://ui.adsabs.harvard.edu/abs/2008AREPS..36..389F) report a broader FMQ$\,\pm\,2$ range across mantle settings (approximately IW+1.5 to IW+5.5). CALLIOPE defaults sit at $\Delta\mathrm{IW} = 4.0$, consistent with a modern terrestrial composition.
 
 ## Solver tolerances
 

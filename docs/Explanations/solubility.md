@@ -55,7 +55,7 @@ The $-5.44 \times 10^{-5} \cdot p_\mathrm{tot}$ term is a total-pressure (Poynti
 
 ### CH$_4$ - `SolubilityCH4(composition='basalt_ardia')`
 
-[Ardia et al. (2013)](https://ui.adsabs.harvard.edu/abs/2013GeCoA.114...52A) basalt fit (their Fig. 6 best-fit, 0.7-3 GPa):
+[Ardia et al. (2013)](https://ui.adsabs.harvard.edu/abs/2013GeCoA.114...52A) Fe-free haplobasaltic-melt fit (their Eq. (8) with $\ln K_0 = 4.93$ and $\Delta V = 26.85\,\mathrm{cm}^3$/mol at $T_0 = 1400\,^\circ$C, $P_0 = 1$ bar, plotted as Fig. 11; calibrated over 0.7-3 GPa):
 
 $$
 X_\mathrm{CH_4}^\mathrm{melt}\,[\text{ppmw}] = p_\mathrm{CH_4} \cdot \exp\left(4.93 - 1.93\,p_\mathrm{tot}^{[\mathrm{GPa}]}\right)
@@ -100,17 +100,23 @@ If you need explicit dissolution of reduced species into the melt, the [atmodell
 
 ## Validity envelope
 
-| Species | Calibration $T$ range | Calibration $p$ range | Calibration $f_{\mathrm{O}_2}$ range |
-|---|---|---|---|
-| H$_2$O peridotite | 2173 K | $\le$1 bar to several kbar | not constrained |
-| H$_2$O basalt (Dixon) | 1473 K | 176-2021 bar | not constrained |
-| CO$_2$ (Dixon) | $\le$2000 K | $\le$815 bar | not constrained |
-| CO (Armstrong) | $\sim$1700 K | $\le$3 GPa | not constrained |
-| CH$_4$ (Ardia) | 1573-1873 K | 0.7-3 GPa | not constrained |
-| N$_2$ (Dasgupta) | 1323-2600 K (1050-2327 $^\circ$C) | 1 bar to 8.2 GPa | IW-8.3 to IW+8.7 |
-| S$_2$ (Gaillard) | not stated by the paper | 1 atm (calibration data) | IW-1 to FMQ+0.1 ($\approx$ IW+3.5) |
+| Species (`composition`) | Source | Calibration $T$ | Calibration $p$ | Calibration $f_{\mathrm{O}_2}$ |
+|---|---|---|---|---|
+| H$_2$O `peridotite` (default) | [Sossi et al. (2023)](https://ui.adsabs.harvard.edu/abs/2023E%26PSL.60117894S) | 2173 K (1900 $^\circ$C) | 1 atm total ($f_\mathrm{H_2O}\le 0.027$ bar) | IW-1.9 to IW+6.0 |
+| H$_2$O `basalt_dixon` | [Dixon et al. (1995)](https://ui.adsabs.harvard.edu/abs/1995JPet...36.1607D) | 1473 K (1200 $^\circ$C) | 176-717 bar $p_\mathrm{H_2O}$ | $\sim$QFM ($\approx$ IW+3.5 to IW+5) |
+| H$_2$O `basalt_wilson` | [Hamilton et al. (1964)](https://doi.org/10.1093/petrology/5.1.21) | 1373 K (1100 $^\circ$C) | 1000-6000 bar $p_\mathrm{H_2O}$ | unbuffered for the pressure series (separate 1000-bar buffer series used MH, FMQ, MW buffers) |
+| H$_2$O `anorthite_diopside` | [Newcombe et al. (2017)](https://ui.adsabs.harvard.edu/abs/2017GeCoA.200..330N) | 1623 K (1350 $^\circ$C) | 1 atm | IW-2.3 to IW+4.8 |
+| H$_2$O `lunar_glass` | [Newcombe et al. (2017)](https://ui.adsabs.harvard.edu/abs/2017GeCoA.200..330N) | 1623 K (1350 $^\circ$C) | 1 atm | IW-3.0 to IW+4.8 |
+| CO$_2$ `basalt_dixon` (default) | [Dixon et al. (1995)](https://ui.adsabs.harvard.edu/abs/1995JPet...36.1607D) | 1473 K (1200 $^\circ$C) | $\le$815 bar $p_\mathrm{CO_2}$ | $\sim$QFM ($\approx$ IW+3.5 to IW+5) |
+| CO `mafic_armstrong` (default) | [Armstrong et al. (2015)](https://ui.adsabs.harvard.edu/abs/2015GeCoA.171..283A) | 1673 K (1400 $^\circ$C) | 1.2 GPa $p_\mathrm{tot}$ (1.0-1.2 GPa including Stanley et al. 2014 data co-fit) | IW-3.65 to IW+1.46 |
+| CH$_4$ `basalt_ardia` (default) | [Ardia et al. (2013)](https://ui.adsabs.harvard.edu/abs/2013GeCoA.114...52A) | 1673-1723 K (1400-1450 $^\circ$C) | 0.7-3 GPa $p_\mathrm{tot}$ | IW-9.5 to IW-1.4 (IW/Si and IWC/C buffers) |
+| N$_2$ `libourel` | [Libourel et al. (2003)](https://ui.adsabs.harvard.edu/abs/2003GeCoA..67.4123L) | 1673-1698 K (1400-1425 $^\circ$C) | 1 atm | linear regime $\log_{10}f_{\mathrm{O}_2}\in[-10.7, -0.7]$ ($\approx$ IW-1.3 to IW+9) |
+| N$_2$ `dasgupta` (default in `dissolved_mass`) | [Dasgupta et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022GeCoA.336..291D) | 1323-2600 K (1050-2327 $^\circ$C) | 1 bar to 8.2 GPa $p_\mathrm{tot}$ | IW-8.3 to IW+8.7 |
+| S$_2$ `gaillard` (default) | [Gaillard et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022E%26PSL.57717255G) | not stated by paper (1 atm calibration data) | 1 atm | IW-1 to FMQ+0.1 ($\approx$ IW+3.5) |
 
-The N$_2$ and S$_2$ rows quote the ranges that [Dasgupta et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022GeCoA.336..291D) Equation 10 (n=137 compiled data) and [Gaillard et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022E%26PSL.57717255G) Equation 10 (refit of [O'Neill & Mavrogenes (2002)](https://ui.adsabs.harvard.edu/abs/2002JPet...43.1049O) plus 8 other experimental sources, n=369) report directly. The Gaillard refit data are all at 1 atm; the formula is applied at magma-ocean pressures in CALLIOPE without an explicit pressure correction. The CO, CH$_4$ and N$_2$ rows give the *total*-pressure range, since the Poynting and reduced-N branches depend on $p_\mathrm{tot}$ as well as the species partial pressure.
+The $f_{\mathrm{O}_2}$ column reports the *calibration footprint* (the range of $f_{\mathrm{O}_2}$ over which the experiments that produced the fit were performed), not the law's functional dependence: only the Gaillard S$_2$ and Dasgupta N$_2$ laws carry an explicit $f_{\mathrm{O}_2}$ term, while every other law in the table is an $f_{\mathrm{O}_2}$-independent expression fitted to data from experiments performed at the listed $f_{\mathrm{O}_2}$ range. The choice between H$_2$O laws (peridotite vs basalt) is one of the larger uncertainties in early magma-ocean modelling (the line-26 note expands on the Sossi peridotite vs Dixon basalt prefactor difference); the $f_{\mathrm{O}_2}$ footprint here describes where the data lived, not how robust the fit is across compositions.
+
+The Dasgupta N$_2$ and Gaillard S$_2$ rows quote the ranges that [Dasgupta et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022GeCoA.336..291D) Equation 10 (n=137 compiled data) and [Gaillard et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022E%26PSL.57717255G) Equation 10 (refit of [O'Neill & Mavrogenes (2002)](https://ui.adsabs.harvard.edu/abs/2002JPet...43.1049O) plus 8 other experimental sources, n=369) report directly. The Gaillard refit data are all at 1 atm; the formula is applied at magma-ocean pressures in CALLIOPE without an explicit pressure correction. The Libourel linear regime stops at IW-1.3, below which the same paper documents a sharp transition to chemical (network-bound N$^{3-}$) dissolution with $\sim$5 orders of magnitude higher solubility; the `libourel` law in CALLIOPE captures only the oxidising-end linear regime and underestimates dissolved N below IW-1.3. The CO, CH$_4$ and Dasgupta-N$_2$ rows give the *total*-pressure range, since the Poynting and reduced-N branches depend on $p_\mathrm{tot}$ as well as the species partial pressure.
 
 CALLIOPE deliberately makes no attempt to flag extrapolation: the laws are evaluated formally outside their calibration ranges to keep the solver well-posed. For applications outside the bracket, treat the dissolved masses as upper bounds and check sensitivity by switching solubility laws via the constructor argument.
 
