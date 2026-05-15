@@ -21,6 +21,7 @@ nav:
 
   - Tutorials:
       - First run: Tutorials/firstrun.md
+      - Two-mode round-trip: Tutorials/two_modes.md
 
   - Explanations:
       - Model overview: Explanations/model.md
