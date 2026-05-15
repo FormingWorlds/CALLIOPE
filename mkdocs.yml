@@ -22,6 +22,7 @@ nav:
   - Tutorials:
       - First run: Tutorials/firstrun.md
       - Two-mode round-trip: Tutorials/two_modes.md
+      - Speciation phase diagram: Tutorials/phase_diagram.md
 
   - Explanations:
       - Model overview: Explanations/model.md
