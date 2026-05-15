@@ -1,6 +1,6 @@
 {
   "float_eq_literal": 1,
-  "missing_docstring": 46,
+  "missing_docstring": 43,
   "missing_importorskip": 1,
   "missing_module_pytestmark": 2,
   "no_assertions": 2,
