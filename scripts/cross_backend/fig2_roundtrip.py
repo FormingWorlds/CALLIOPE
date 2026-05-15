@@ -1,10 +1,18 @@
-"""Figure 2: Each backend round-trips internally.
+"""Figure 2: Each backend round-trips internally across the magma-ocean
+temperature and redox range.
 
-For each backend independently: starting from a buffered-mode call at
-known Delta-IW, extract the resulting O budget, feed it back into the
-authoritative-O entry point, and verify the recovered Delta-IW matches
-the input. Two panels (one per backend), identity line, points coloured
-by T_magma.
+We sweep T_magma because the chemistry is genuinely T-dependent. The
+modified equilibrium constants are evaluated at T; the Dasgupta (2022)
+nitrogen solubility has explicit T and fO2 dependences; the Gaillard
+(2022) sulfur solubility has an explicit fO2 dependence. A round-trip
+that only worked at one T would not be evidence of internal
+consistency. Each backend must invert cleanly across the full range
+where the calibrated chemistry is valid.
+
+Each (T, dIW_input) combination produces one residual dIW_recovered −
+dIW_input. The figure plots this residual vs T_magma for each input
+dIW, separately for the two backends. If the chemistry path is
+internally consistent the residual should be sub-tolerance everywhere.
 
 Reused output: writes `data/fig2_roundtrip.csv` so the docs page can
 quote the worst-case residual without re-running the harness.
@@ -19,7 +27,7 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .plot_style import COLOR_ATM, COLOR_CAL, DATA_DIR, apply_style, panel_label, save
+from .plot_style import DATA_DIR, apply_style, panel_label, save
 from .verification import round_trip_atmodeller, round_trip_calliope
 
 log = logging.getLogger('cross_backend.fig2')
@@ -27,6 +35,19 @@ log = logging.getLogger('cross_backend.fig2')
 
 T_GRID = [1500.0, 2000.0, 2500.0, 3000.0]
 DIW_GRID = [-2.0, 0.0, 2.0, 4.0]
+
+# Discrete high-contrast palette, one colour per T_magma. We sweep T
+# because the chemistry is genuinely T-dependent: the equilibrium
+# constants, the Dasgupta nitrogen solubility, and the Gaillard sulfur
+# solubility all carry explicit T (and fO2) terms. A round-trip that
+# only worked at one T would not be evidence of internal consistency.
+# Cool -> warm matches the colour scale to the temperature.
+T_COLORS = {
+    1500.0: '#3949ab',  # indigo (coolest)
+    2000.0: '#00897b',  # teal
+    2500.0: '#fb8c00',  # orange
+    3000.0: '#d81b60',  # magenta (hottest)
+}
 
 
 def collect() -> dict:
@@ -52,7 +73,6 @@ def make_figure(data: dict | None = None) -> dict:
     apply_style()
     data = data or collect()
 
-    # Write CSV alongside.
     csv_path = DATA_DIR / 'fig2_roundtrip.csv'
     with csv_path.open('w', newline='') as fh:
         w = csv.writer(fh)
@@ -63,34 +83,89 @@ def make_figure(data: dict | None = None) -> dict:
                 w.writerow([backend, T, dIW, recov, resid])
     log.info('Wrote %s', csv_path)
 
-    fig, axes = plt.subplots(1, 2, figsize=(9.2, 4.4), sharey=True)
-    colour_cycle = plt.colormaps['viridis'](np.linspace(0.0, 0.85, len(T_GRID)))
+    fig, axes = plt.subplots(1, 2, figsize=(9.4, 4.6), sharey=True)
+
+    tol_band = 0.01
+    y_window = 0.5  # dex on each side; off-scale points get a triangle
 
     for ax, backend, label_short in (
         (axes[0], 'calliope', 'CALLIOPE'),
         (axes[1], 'atmodeller', 'atmodeller'),
     ):
+        ax.axhspan(-tol_band, tol_band, color='k', alpha=0.07, linewidth=0,
+                   label=fr'$\pm {tol_band:g}$ dex band')
+        ax.axhline(0.0, color='k', alpha=0.4, linewidth=0.7)
+
+        # Small x-jitter per T so the four T markers fan out
+        # horizontally at each input Delta-IW rather than stacking on
+        # one another. Each T sits at the same y-residual; the offset
+        # only affects horizontal placement so the colours are
+        # individually visible. Jitter is symmetric around the integer
+        # dIW tick to keep the eye on the underlying Delta-IW value.
+        n_T = len(T_GRID)
+        jitter_step = 0.16
         for i_T, T in enumerate(T_GRID):
-            xs = [dIW for (Tx, dIW, _) in data[backend] if Tx == T and np.isfinite(_)]
-            ys = [recov for (Tx, dIW, recov) in data[backend] if Tx == T and np.isfinite(recov)]
-            ax.scatter(xs, ys, s=50, color=colour_cycle[i_T],
-                       edgecolor='k', linewidth=0.5,
-                       label=f'$T = {T:.0f}$ K')
-        identity = np.array([min(DIW_GRID) - 0.5, max(DIW_GRID) + 0.5])
-        ax.plot(identity, identity, color='k', linewidth=0.8, alpha=0.5)
+            dx = (i_T - (n_T - 1) / 2.0) * jitter_step
+            xs_ok = []
+            ys_ok = []
+            xs_off = []
+            for (Tx, dIWx, recov) in data[backend]:
+                if Tx != T:
+                    continue
+                if not np.isfinite(recov):
+                    xs_off.append(dIWx)
+                    continue
+                resid = recov - dIWx
+                if abs(resid) > y_window:
+                    xs_off.append(dIWx)
+                else:
+                    xs_ok.append(dIWx)
+                    ys_ok.append(resid)
+            order = np.argsort(xs_ok) if xs_ok else []
+            if xs_ok:
+                xs_ok = np.array(xs_ok)[order] + dx
+                ys_ok = np.array(ys_ok)[order]
+                ax.plot(
+                    xs_ok, ys_ok,
+                    marker='o', markersize=7.0, linewidth=0,
+                    color=T_COLORS[T], markeredgecolor='k', markeredgewidth=0.5,
+                    label=fr'$T_\mathrm{{magma}} = {int(T)}$ K',
+                )
+            for dIWx in xs_off:
+                ax.plot(
+                    dIWx + dx, -y_window * 0.9,
+                    marker='v', markersize=12, linewidth=0,
+                    color=T_COLORS[T], markeredgecolor='k', markeredgewidth=0.6,
+                    clip_on=False,
+                )
+
         ax.set_xlabel(r'input $\Delta\mathrm{IW}$ [dex]')
         ax.set_title(label_short)
-        ax.set_aspect('equal', adjustable='box')
-        ax.set_xlim(identity[0], identity[1])
-        ax.set_ylim(identity[0], identity[1])
+        ax.set_xlim(min(DIW_GRID) - 0.5, max(DIW_GRID) + 0.5)
+        ax.set_xticks(DIW_GRID)
+        ax.set_ylim(-y_window, y_window)
 
-    axes[0].set_ylabel(r'recovered $\Delta\mathrm{IW}$ [dex]')
-    axes[0].legend(loc='lower right', fontsize=8.5)
+    axes[0].set_ylabel(r'residual: recovered $-$ input $\Delta\mathrm{IW}$ [dex]')
+
+    # One legend total, below the two panels. Reorder so input dIW
+    # entries come first and the tolerance-band entry last.
+    handles, labels = axes[0].get_legend_handles_labels()
+    order = sorted(range(len(labels)), key=lambda i: ('band' in labels[i], labels[i]))
+    handles = [handles[i] for i in order]
+    labels = [labels[i] for i in order]
+    fig.legend(handles, labels, loc='lower center', ncol=len(labels),
+               bbox_to_anchor=(0.5, -0.03), frameon=False, fontsize=9.5)
+
     panel_label(axes[0], '(a)')
     panel_label(axes[1], '(b)')
 
-    fig.suptitle('Internal round-trip: buffered mode → authoritative-O → recovered $\\Delta$IW',
-                 fontsize=11.5, y=0.99)
+    fig.suptitle(
+        'Internal round-trip: buffered mode $\\to$ authoritative-O recovers the input $\\Delta$IW',
+        fontsize=11.5, y=0.99,
+    )
+
+    # Compact the bottom margin to make room for the bottom legend.
+    fig.tight_layout(rect=(0.0, 0.05, 1.0, 0.96))
 
     paths = save(fig, 'fig2_roundtrip')
     plt.close(fig)
