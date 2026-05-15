@@ -88,15 +88,120 @@ When `volatile_mode = "gas_prs"`, the wrapper calls `get_target_from_pressures(d
 
 ## Selecting the fO2 dispatch
 
-The PROTEUS schema field `[planet].fO2_source` selects which CALLIOPE entry point the wrapper calls:
+The PROTEUS schema field `[planet].fO2_source` selects which CALLIOPE entry point the wrapper calls. The two paths share the same physics; they differ only in which quantity is supplied as input and which is solved for.
+
+| `fO2_source`     | Input             | Solved for       | Entry point                                |
+|------------------|-------------------|------------------|--------------------------------------------|
+| `user_constant`  | $\Delta\mathrm{IW}$ | atmospheric + dissolved O | `equilibrium_atmosphere`                   |
+| `from_O_budget`  | total O mass      | $\Delta\mathrm{IW}$        | `equilibrium_atmosphere_authoritative_O`   |
+
+Under `user_constant` (the default) CALLIOPE buffers the redox state to the configured `outgas.fO2_shift_IW` and solves the four-equation H/C/N/S mass balance. The resulting O mass is whatever the equilibrium chemistry requires at that buffer, and is written into `hf_row['O_kg_total']` so the rest of PROTEUS can read it. Under `from_O_budget` the wrapper passes the running whole-planet O total (maintained by the PROTEUS element-budget bookkeeping) as a fifth elemental target, uses `outgas.fO2_shift_IW` only as an initial-guess hint, and solves a five-equation system that returns the derived $\Delta\mathrm{IW}$ in `hf_row['fO2_shift_IW_derived']`.
+
+See [Coupling to PROTEUS (theory)](../Explanations/proteus_coupling.md#step-5-call-the-solver) for the per-iteration control flow and [Authoritative-oxygen mode](../Explanations/authoritative_oxygen.md) for the augmented five-residual mass balance.
+
+### Worked example: buffered fO2 mode (`user_constant`)
+
+In this mode the user fixes $\Delta\mathrm{IW}$ and the chemistry returns the O budget. Set `O_mode = "ic_chemistry"` so the wrapper does not pre-populate an O target: the first outgas call writes one in, and PROTEUS carries it from there.
 
 ```toml
+config_version = "3.0"
+
+[orbit]
+    semimajoraxis = 1.0                  # [AU]
+
 [planet]
-fO2_source = "user_constant"   # default; calls equilibrium_atmosphere
-# fO2_source = "from_O_budget"  # calls equilibrium_atmosphere_authoritative_O
+    mass_tot      = 1.0                  # [M_earth]
+    volatile_mode = "elements"
+    fO2_source    = "user_constant"      # buffered mode (the default)
+
+    [planet.elements]
+        H_mode   = "oceans"
+        H_budget = 1.0                   # [Earth oceans]
+        C_mode   = "C/H"
+        C_budget = 0.1                   # [C/H mass ratio]
+        N_mode   = "ppmw"
+        N_budget = 2.0
+        S_mode   = "ppmw"
+        S_budget = 200.0
+        O_mode   = "ic_chemistry"        # O is derived from the chemistry
+        O_budget = 0.0                   # ignored under ic_chemistry
+
+[outgas]
+    module       = "calliope"
+    fO2_shift_IW = 4.0                   # [log10] redox buffer offset (input)
+
+    [outgas.calliope]
+        include_H2O = true
+        include_CO2 = true
+        include_N2  = true
+        include_S2  = true
+        include_H2  = true
+        include_CH4 = true
+        include_CO  = true
+        include_SO2 = true
+        include_H2S = true
+        include_NH3 = true
+        solubility  = true
 ```
 
-Under `user_constant` (the default) CALLIOPE buffers the redox state to the configured `outgas.fO2_shift_IW` and solves the four-equation H/C/N/S mass balance. Under `from_O_budget` the wrapper passes the running whole-planet O total (maintained by the PROTEUS element-budget bookkeeping) as a fifth elemental target, uses `outgas.fO2_shift_IW` only as an initial-guess hint, and solves a five-equation system that returns the derived $\Delta\mathrm{IW}$ in `hf_row['fO2_shift_IW_derived']`. See [Coupling to PROTEUS (theory)](../Explanations/proteus_coupling.md#step-5-call-the-solver) for the per-iteration control flow and [Authoritative-oxygen mode](../Explanations/authoritative_oxygen.md) for the augmented mass balance.
+What the wrapper does on the first call: builds the four-element target $(m_\mathrm{H}, m_\mathrm{C}, m_\mathrm{N}, m_\mathrm{S})$ from `H_budget` etc.; calls `equilibrium_atmosphere` with `fO2_shift_IW = 4.0`; reads back the four primary partial pressures, the seven secondary species, the derived `O_kg_total`, and writes them all into `hf_row`. Subsequent iterations warm-start from the previous-iteration `<s>_bar` values and follow the same path.
+
+### Worked example: authoritative-O mode (`from_O_budget`)
+
+In this mode the user fixes the total O mass and the chemistry returns the derived $\Delta\mathrm{IW}$. The `O_mode` is one of `"ppmw"`, `"kg"`, or `"FeO_mantle_wt_pct"` (never `"ic_chemistry"`, which the config-level validator rejects when `fO2_source = "from_O_budget"` because the chemistry needs a target to invert against). The `outgas.fO2_shift_IW` value becomes the initial-guess hint for the solver, not the buffered redox state; pick a value near the expected derived $\Delta\mathrm{IW}$ for fast convergence, but the solver tolerates a poor hint at the cost of more Monte-Carlo restarts.
+
+```toml
+config_version = "3.0"
+
+[orbit]
+    semimajoraxis = 1.0                  # [AU]
+
+[planet]
+    mass_tot      = 1.0                  # [M_earth]
+    volatile_mode = "elements"
+    fO2_source    = "from_O_budget"      # authoritative-O mode
+
+    [planet.elements]
+        H_mode   = "oceans"
+        H_budget = 1.0                   # [Earth oceans]
+        C_mode   = "C/H"
+        C_budget = 0.1                   # [C/H mass ratio]
+        N_mode   = "ppmw"
+        N_budget = 2.0
+        S_mode   = "ppmw"
+        S_budget = 200.0
+        O_mode   = "FeO_mantle_wt_pct"   # interpret O_budget as mantle FeO wt%
+        O_budget = 8.0                   # 8.0 wt% FeO ~ Earth's modern mantle
+
+[outgas]
+    module       = "calliope"
+    fO2_shift_IW = 4.0                   # [log10] initial-guess HINT, not buffer
+
+    [outgas.calliope]
+        include_H2O = true
+        include_CO2 = true
+        include_N2  = true
+        include_S2  = true
+        include_H2  = true
+        include_CH4 = true
+        include_CO  = true
+        include_SO2 = true
+        include_H2S = true
+        include_NH3 = true
+        solubility  = true
+```
+
+What the wrapper does on the first call: builds the five-element target $(m_\mathrm{H}, m_\mathrm{C}, m_\mathrm{N}, m_\mathrm{S}, m_\mathrm{O})$, with $m_\mathrm{O}$ derived from `O_mode = "FeO_mantle_wt_pct"` and `O_budget = 8.0` via $m_\mathrm{O} = M_\mathrm{O}/M_\mathrm{FeO} \times \mathrm{wt\%}/100 \times M_\mathrm{mantle} \approx 0.2227 \times 0.08 \times M_\mathrm{mantle}$; calls `equilibrium_atmosphere_authoritative_O` with `fO2_hint = 4.0`; reads back the four primary partial pressures, the seven secondary species, AND `fO2_shift_derived` (the redox state implied by the supplied O budget), writes them all into `hf_row`. The derived $\Delta\mathrm{IW}$ appears in `hf_row['fO2_shift_IW_derived']`. Subsequent iterations carry the same authoritative O total (modulated by PROTEUS escape bookkeeping) and the redox state can drift across the trajectory.
+
+### Choosing between the two modes
+
+| Use `user_constant` when | Use `from_O_budget` when |
+|---|---|
+| You want a fixed redox state for a parameter sweep ([Nicholls et al. 2024](https://ui.adsabs.harvard.edu/abs/2024JGRE..12908576N) explored seven $\Delta\mathrm{IW}$ values this way) | You want whole-planet O accounting where escape, ingassing, and the mantle FeO inventory all debit the same O reservoir |
+| You don't have an independent constraint on the planet's O budget | You have an O constraint from an FeO-content estimate, a chondritic O/Si ratio, or an observational retrieval |
+| Buffered chemistry is good enough for your scientific question | The mantle redox state is itself the unknown you're trying to infer |
+
+The two modes give bit-identical results in the cases where they should: for any $\Delta\mathrm{IW}$ accepted by `user_constant`, the chemistry returns an O budget; feeding that O budget back through `from_O_budget` recovers the same $\Delta\mathrm{IW}$ to within ~0.05 dex (this is the round-trip property pinned by `tests/test_authoritative_O.py::TestRoundTrip` and documented on the [authoritative-oxygen page](../Explanations/authoritative_oxygen.md#when-the-two-modes-agree)).
 
 ## Redox state
 
