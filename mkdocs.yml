@@ -24,6 +24,7 @@ nav:
       - Two-mode round-trip: Tutorials/two_modes.md
       - Speciation phase diagram: Tutorials/phase_diagram.md
       - Coupled-loop driver: Tutorials/coupled_loop.md
+      - Reproducing the Earth fiducial: Tutorials/earth_fiducial.md
 
   - Explanations:
       - Model overview: Explanations/model.md
