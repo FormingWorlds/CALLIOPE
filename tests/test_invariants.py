@@ -41,7 +41,6 @@ from __future__ import annotations
 import logging
 import math
 
-import numpy as np
 import pytest
 
 from calliope.chemistry import ModifiedKeq

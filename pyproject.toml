@@ -86,10 +86,12 @@ branch = true
 source = ["calliope"]
 
 [tool.coverage.report]
-# Hard 90% coverage gate. 90% is the PROTEUS-ecosystem ceiling:
-# the gate does not rise above this value even if real coverage
-# exceeds it. Above 90% you are tracking pragma usage and style,
-# not bug-finding signal.
+# Full coverage gate: unit + smoke + integration + slow tests, enforced by
+# the nightly workflow. 90% is the PROTEUS-ecosystem ceiling: the gate does
+# not rise above this value even if real coverage exceeds it. Above 90%
+# the gate tracks pragma usage and style rather than bug-finding signal.
+# Auto-ratcheted by tools/update_coverage_threshold.py; never manually
+# decrease. See .github/.claude/rules/calliope-tests.md section 15.
 fail_under = 90.0
 show_missing = true
 exclude_lines = [
@@ -98,6 +100,14 @@ exclude_lines = [
     "if __name__ == .__main__.:",
 ]
 
+[tool.calliope.coverage_fast]
+# Fast PR gate: unit + smoke coverage only, enforced on every PR via
+# .github/workflows/tests.yaml. Capped at the 90% PROTEUS-ecosystem
+# ceiling by tools/update_coverage_threshold.py. Measured unit+smoke
+# coverage exceeds 90, so the gate sits at the ceiling. Never manually
+# decrease. See .github/.claude/rules/calliope-tests.md section 15.
+fail_under = 90.0
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
@@ -105,6 +115,8 @@ markers = [
     "smoke: real-binary tests on minimal configurations (< 30 s each)",
     "integration: real-binary tests with full coupling",
     "slow: anything > 1 minute, run in nightly only",
+    "physics_invariant: marks tests that assert a physical invariant (conservation, positivity, boundedness, monotonicity, symmetry). See .github/.claude/rules/calliope-tests.md section 3.",
+    "reference_pinned: marks tests that pin behavior against a published benchmark, analytical limit, or cross-implementation cross-check. Cite the source in the test docstring. Each physics source must contain at least one. See .github/.claude/rules/calliope-tests.md section 3.",
 ]
 
 [tool.ruff]
