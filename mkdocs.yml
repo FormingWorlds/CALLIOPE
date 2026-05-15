@@ -30,6 +30,7 @@ nav:
       - Mass balance & solver: Explanations/mass_balance.md
       - Authoritative-oxygen mode: Explanations/authoritative_oxygen.md
       - Coupling to PROTEUS: Explanations/proteus_coupling.md
+      - Backend comparison: Explanations/cross_backend_comparison.md
       - Code architecture: Explanations/code_architecture.md
       - Testing suite: Explanations/testing.md
 

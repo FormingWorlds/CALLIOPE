@@ -1,0 +1,9 @@
+quantity,value
+T_magma_K,2000.0
+cal_dIW,3.4984322953408826
+atm_dIW,3.075478874307803
+cal_P_total_bar,1711.738348610669
+atm_P_total_bar,1781.8439554067547
+empirical_low_dIW,1.0
+empirical_high_dIW,5.0
+sossi_2020_center,3.5
