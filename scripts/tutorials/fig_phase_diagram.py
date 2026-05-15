@@ -167,11 +167,16 @@ def make_figure(data: dict | None = None) -> dict:
     )
     pcm.set_clim(-0.5, len(seen) - 0.5)
 
-    # Heavier gridlines between original cells (every other sub-edge).
+    # Dark border around every original (T, dIW) cell so the four
+    # sub-cells of one simulation are visually grouped and separated
+    # from the four sub-cells of the next. The inner sub-cell seams
+    # stay light (white, linewidth 0.35) so the rank quadrants inside
+    # each simulation still read clearly.
+    sim_edge_kw = dict(color='#1a1a1a', linewidth=1.4, alpha=1.0, zorder=5)
     for x in d_edges[::2]:
-        ax.axvline(x, color='white', linewidth=0.9, alpha=0.95, zorder=4)
+        ax.axvline(x, **sim_edge_kw)
     for y in t_edges[::2]:
-        ax.axhline(y, color='white', linewidth=0.9, alpha=0.95, zorder=4)
+        ax.axhline(y, **sim_edge_kw)
     ax.set_xlim(d_edges[0], d_edges[-1])
     ax.set_ylim(t_edges[0], t_edges[-1])
 
