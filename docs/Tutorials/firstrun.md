@@ -111,6 +111,16 @@ plt.show()
 
 `dict_colors` from `calliope.constants` is the colour scheme used across the PROTEUS ecosystem so figures stay visually consistent.
 
+### Compare your output against the reference
+
+The figure below is the same Earth-like inputs run through `equilibrium_atmosphere` on a clean CALLIOPE install. Your numbers should reproduce these to within a few percent (the residual reflects Monte-Carlo restart variability, not a calibration issue).
+
+![First-run reference](../assets/figures/tutorials/firstrun_reference.png)
+
+*Reference output for the first-run inputs. Species ordered top-to-bottom by partial pressure. The summary box top-right shows the three aggregate diagnostics from Step 3 ($P_\mathrm{surf}$, $M_\mathrm{atm}$, mean molar mass).*
+
+The four large reservoirs (CO, N$_2$, CO$_2$, H$_2$, H$_2$O all between $\sim 0.4$ and $\sim 5$ bar) account for essentially the entire $\sim 8$ bar atmosphere; the four trace species (SO$_2$, H$_2$S, S$_2$, NH$_3$) sit five-to-ten orders of magnitude lower; CH$_4$ is effectively absent at this temperature. If your output disagrees by more than a factor of $\sim 2$ on a major species or by orders of magnitude on the speciation ordering, recheck the `ddict` keys against the snippet above. The script that produces this reference figure is checked in at [`scripts/tutorials/fig_firstrun_reference.py`](https://github.com/FormingWorlds/CALLIOPE/blob/main/scripts/tutorials/fig_firstrun_reference.py) and can be re-run with `python -m scripts.tutorials.fig_firstrun_reference` from the repository root.
+
 ## Step 6: sweep one parameter
 
 Repeat the solve along a grid of $\Delta\mathrm{IW}$ to see the redox dependence directly. Reuse the previous solution as the warm start each time:
