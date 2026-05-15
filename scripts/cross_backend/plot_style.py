@@ -11,12 +11,19 @@ from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from matplotlib import font_manager as _fm
 
 FIGURE_DIR = Path(__file__).resolve().parent.parent.parent / 'docs' / 'assets' / 'figures' / 'cross_backend'
 FIGURE_DIR.mkdir(parents=True, exist_ok=True)
 
 DATA_DIR = Path(__file__).resolve().parent / 'data'
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+# Bundled Roboto, matching the Material for MkDocs docs theme so the
+# figures and the body text on the docs page render in the same font.
+_FONT_DIR = Path(__file__).resolve().parent / 'fonts'
+for _f in _FONT_DIR.glob('*.ttf'):
+    _fm.fontManager.addfont(str(_f))
 
 COLOR_CAL = '#0f6e9d'    # CALLIOPE: deep blue
 COLOR_ATM = '#d1471f'    # atmodeller: rust orange
@@ -31,7 +38,12 @@ def apply_style() -> None:
         'savefig.dpi': 300,
         'figure.facecolor': 'white',
         'savefig.facecolor': 'white',
-        'font.family': 'serif',
+        'font.family': 'sans-serif',
+        'font.sans-serif': ['Roboto', 'Helvetica', 'Arial', 'DejaVu Sans'],
+        'mathtext.fontset': 'custom',
+        'mathtext.rm': 'Roboto',
+        'mathtext.it': 'Roboto:italic',
+        'mathtext.bf': 'Roboto:bold',
         'font.size': 10.5,
         'axes.titlesize': 11.5,
         'axes.labelsize': 11,

@@ -78,14 +78,16 @@ def make_figure(data: dict | None = None) -> dict:
     ax.axvspan(EARTH_MANTLE_DIW_LOW, EARTH_MANTLE_DIW_HIGH,
                color=COLOR_BG, alpha=0.6,
                label='Frost & McCammon 2008 Earth-mantle range')
-    ax.axvline(SOSSI_2020_CENTER, color='k', alpha=0.55, linestyle=':',
-               linewidth=1.0)
-    ax.text(SOSSI_2020_CENTER + 0.04, 0.92, 'Sossi 2020\n(upper mantle)',
-            transform=ax.get_xaxis_transform(), fontsize=8.7, ha='left', va='top', alpha=0.7)
+    # Sossi 2020 anchor line: thicker dotted, raised z-order so it stays
+    # visible even if a backend lands at the same dIW (e.g. CALLIOPE at
+    # +3.50 here would otherwise hide the dotted line entirely).
+    ax.axvline(SOSSI_2020_CENTER, color='k', alpha=0.7, linestyle=':',
+               linewidth=1.8, zorder=3,
+               label=fr'Sossi 2020 upper-mantle anchor: $\Delta\mathrm{{IW}} = {SOSSI_2020_CENTER:+.2f}$')
 
-    ax.axvline(data['cal_dIW'], color=COLOR_CAL, linewidth=2.0,
+    ax.axvline(data['cal_dIW'], color=COLOR_CAL, linewidth=2.0, zorder=2,
                label=fr'CALLIOPE: $\Delta\mathrm{{IW}} = {data["cal_dIW"]:+.2f}$')
-    ax.axvline(data['atm_dIW'], color=COLOR_ATM, linewidth=2.0,
+    ax.axvline(data['atm_dIW'], color=COLOR_ATM, linewidth=2.0, zorder=2,
                label=fr'atmodeller: $\Delta\mathrm{{IW}} = {data["atm_dIW"]:+.2f}$')
 
     # Suppress y-axis: this is a 1D figure.
@@ -99,7 +101,12 @@ def make_figure(data: dict | None = None) -> dict:
         'Earth fiducial: both backends vs. the empirical mantle-fO$_2$ range',
         fontsize=11.0,
     )
-    ax.legend(loc='upper left', framealpha=0.9, edgecolor='none')
+    # Legend below the plot so the four entries do not crowd into the
+    # data region where the three vertical lines already sit close
+    # together at dIW = +3 to +3.5.
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.22), ncol=2,
+              frameon=False, fontsize=9.0, columnspacing=1.6,
+              handlelength=2.4)
 
     paths = save(fig, 'fig5_earth_anchor')
     plt.close(fig)

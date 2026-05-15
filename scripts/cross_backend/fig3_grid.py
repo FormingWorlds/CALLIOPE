@@ -121,11 +121,11 @@ def make_figure(data: dict | None = None) -> dict:
                 fontsize=8.5, va='bottom', ha='right', alpha=0.6)
     ax_bot.set_xlabel(r'$T_\mathrm{magma}$ [K]')
     ax_bot.set_ylabel('disagreement [dex]')
-    # Pad the y-axis at the bottom so the legend fits below the raw-gap
-    # line (which sweeps down to about -1.25 dex at the hottest grid
-    # point).
+    # Pad the y-axis: bottom margin makes room for the legend, top
+    # margin makes room for the (b) panel label and the tolerance text
+    # so neither overlaps the corrected-residual curve at the cold end.
     y_bot_min = float(np.nanmin(raw_gap)) - 0.55
-    y_bot_max = max(0.30, float(np.nanmax(raw_gap)) + 0.20)
+    y_bot_max = max(0.45, float(np.nanmax(raw_gap)) + 0.35)
     ax_bot.set_ylim(y_bot_min, y_bot_max)
     ax_bot.legend(loc='lower left', fontsize=9.0,
                   framealpha=0.92, facecolor='white', edgecolor='none')

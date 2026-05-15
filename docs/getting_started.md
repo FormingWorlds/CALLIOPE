@@ -1,7 +1,7 @@
 # Getting started
 
 !!! note "Usage within the PROTEUS framework"
-    CALLIOPE is most commonly installed and used as part of the [PROTEUS framework](https://proteus-framework.org/PROTEUS). For coupled atmosphere-interior runs, the [PROTEUS Getting Started guide](https://proteus-framework.org/PROTEUS) is the right entry point; this site documents the standalone CALLIOPE API and the contract it exposes to PROTEUS.
+    CALLIOPE is most commonly installed and used as part of the [PROTEUS framework](https://proteus-framework.org/PROTEUS). For coupled atmosphere-interior runs, the [PROTEUS Getting Started guide](https://proteus-framework.org/PROTEUS) is the right entry point; this site documents the standalone CALLIOPE API and the interface it exposes to PROTEUS.
 
 ## Quick path
 

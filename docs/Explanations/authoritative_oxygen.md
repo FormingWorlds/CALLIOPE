@@ -5,7 +5,7 @@ CALLIOPE offers two equilibrium-chemistry entry points that share the same physi
 - `equilibrium_atmosphere` (the [buffered mode](mass_balance.md)) takes the oxygen fugacity $f_{\mathrm{O}_2}$ as an input via `ddict['fO2_shift_IW']` and solves for the four primary partial pressures $(p_\mathrm{H_2O}, p_\mathrm{CO_2}, p_\mathrm{N_2}, p_\mathrm{S_2})$ against the H, C, N, S elemental budgets. Oxygen mass is *implicit*: it is whatever the chemistry requires at the prescribed buffer, and it can change freely between calls.
 - `equilibrium_atmosphere_authoritative_O` takes the total oxygen mass as a fifth budget alongside H, C, N, S, and solves for the four pressures *plus* $\Delta\mathrm{IW}$ as a fifth unknown.
 
-This page documents the augmented mass-balance system, the additional solver controls, and the contract the two modes share.
+This page documents the augmented mass-balance system, the additional solver controls, and the inputs and outputs the two modes share.
 
 ## When the two modes agree
 

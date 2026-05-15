@@ -45,7 +45,8 @@ def make_figure() -> dict:
 
     # Annotate the Hirschmann composite switchover.
     ax_top.axvline(1000.0, color='k', alpha=0.25, linestyle=':')
-    ax_top.text(1010, ax_top.get_ylim()[1] * 0.95, 'H08 ↔ H21\nswitchover',
+    ax_top.text(1010, ax_top.get_ylim()[1] * 0.95,
+                'H08 / H21\nswitchover',
                 fontsize=8.5, va='top', ha='left', alpha=0.6)
 
     ax_top.set_ylabel(r'$\log_{10} f_{\mathrm{O}_2}$ at IW buffer')

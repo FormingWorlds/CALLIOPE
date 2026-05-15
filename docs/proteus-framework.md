@@ -82,4 +82,4 @@ CALLIOPE is invoked from PROTEUS via:
 - `proteus/outgas/wrapper.py`: the dispatch layer that selects between `calliope`, `atmodeller`, and `dummy` outgassing modules; also computes target elemental inventories and runs the binodal H$_2$ partition.
 - `proteus/config/_outgas.py`: the attrs-based schema for `[outgas]` and `[outgas.calliope]`. All knobs documented in the how-to map back to fields here.
 
-These files live in the [PROTEUS repository](https://github.com/FormingWorlds/PROTEUS), not in CALLIOPE. Their per-symbol API documentation is rendered in the PROTEUS docs; this site documents the CALLIOPE side of the contract.
+These files live in the [PROTEUS repository](https://github.com/FormingWorlds/PROTEUS), not in CALLIOPE. Their per-symbol API documentation is rendered in the PROTEUS docs; this site documents the CALLIOPE side of the interface.
