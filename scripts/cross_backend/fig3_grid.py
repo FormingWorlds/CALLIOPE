@@ -103,9 +103,11 @@ def make_figure(data: dict | None = None) -> dict:
     ax_top.set_ylabel(r'$\Delta\mathrm{IW}$ [dex]')
     ax_top.set_title('Cross-backend $\\Delta$IW at Earth-BSE volatile inventory, $\\Phi = 1$')
     # Pad the y-axis so the legend fits below the CALLIOPE line at the
-    # cold end without clipping the converged data.
+    # cold end without clipping the converged data, and so the (a)
+    # panel label in the upper-left has clear headroom above the
+    # CALLIOPE data point at T = 1800 K.
     y_top_min = min(float(np.nanmin(dIW_atm_predicted)), float(np.nanmin(dIW_atm))) - 0.45
-    y_top_max = float(np.nanmax(dIW_cal)) + 0.10
+    y_top_max = float(np.nanmax(dIW_cal)) + 0.30
     ax_top.set_ylim(y_top_min, y_top_max)
     ax_top.legend(loc='lower left', fontsize=9.0,
                   framealpha=0.92, facecolor='white', edgecolor='none')
@@ -123,9 +125,10 @@ def make_figure(data: dict | None = None) -> dict:
     ax_bot.set_ylabel('disagreement [dex]')
     # Pad the y-axis: bottom margin makes room for the legend, top
     # margin makes room for the (b) panel label and the tolerance text
-    # so neither overlaps the corrected-residual curve at the cold end.
+    # so neither overlaps the corrected-residual diamond at the cold
+    # end where the corrected residual sits at about +0.08 dex.
     y_bot_min = float(np.nanmin(raw_gap)) - 0.55
-    y_bot_max = max(0.45, float(np.nanmax(raw_gap)) + 0.35)
+    y_bot_max = max(0.75, float(np.nanmax(corrected)) + 0.55)
     ax_bot.set_ylim(y_bot_min, y_bot_max)
     ax_bot.legend(loc='lower left', fontsize=9.0,
                   framealpha=0.92, facecolor='white', edgecolor='none')

@@ -120,9 +120,10 @@ def make_figure(data: dict | None = None) -> dict:
         ax.text(x, y, f'{val:.2f} dex', ha='center', va=va, fontsize=10)
 
     ax.axhline(tol, color='k', alpha=0.4, linestyle='--', linewidth=0.8)
-    # Tolerance annotation parked between the first and second bar, well
-    # above any of the bar-top labels.
-    ax.text(0.5, tol + 0.005, 'per-element solver tolerance',
+    # Tolerance annotation parked between the second and third bar so
+    # it sits closer to where the line is doing meaningful work (the
+    # 0.07 dex bar is the only one below threshold).
+    ax.text(1.5, tol + 0.005, 'per-element solver tolerance',
             fontsize=8.5, va='bottom', ha='center', alpha=0.6)
 
     ax.set_ylabel(r'$|\Delta\mathrm{IW}_{\mathrm{atm}}-\Delta\mathrm{IW}_{\mathrm{cal}}|$ [dex]')
