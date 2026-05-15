@@ -154,10 +154,10 @@ def make_figure(data: dict | None = None) -> dict:
         f'mean M   {e_w:<18s}   {m_w}'
     )
     ax.text(
-        0.985, 0.97, summary,
+        0.985, 0.04, summary,
         transform=ax.transAxes,
         fontsize=8.5, family='monospace',
-        va='top', ha='right',
+        va='bottom', ha='right',
         bbox=dict(boxstyle='round,pad=0.4', facecolor='white',
                   edgecolor='#cccccc'),
     )
