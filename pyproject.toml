@@ -45,6 +45,7 @@ changelog = "https://github.com/FormingWorlds/CALLIOPE/releases"
 [project.optional-dependencies]
 develop = [
     "coverage",
+    "hypothesis >= 6.0",
     "pip-tools",
     "pytest >= 8.1",
     "pytest-cov",
