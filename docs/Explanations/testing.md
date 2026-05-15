@@ -13,10 +13,10 @@ That judgement belongs to the validation runs and the published comparisons agai
 
 Every test in the suite carries exactly one of four markers, applied either at module level (`pytestmark = pytest.mark.X`) or per class (`@pytest.mark.X`).
 
-- `unit` (96 tests): in-process tests of individual chemistry helpers, equilibrium-constant fits, solubility laws, and structure formulae. No real `equilibrium_atmosphere` call. Sub-second per test.
-- `smoke` (25 tests): real `equilibrium_atmosphere` invocations on minimal configurations (single composition, default species set, one solve). Sub-30 s per test, exercises the hybrid solver code paths.
+- `unit` (156 tests): in-process tests of individual chemistry helpers, equilibrium-constant fits, solubility laws, and structure formulae. No real `equilibrium_atmosphere` call. Sub-second per test.
+- `smoke` (37 tests): real `equilibrium_atmosphere` invocations on minimal configurations (single composition, default species set, one solve). Sub-30 s per test, exercises the hybrid solver code paths.
 - `integration` (5 tests): full multi-species CHNS solves with mass-conservation invariants, all eleven species active.
-- `slow`: long parameter sweeps and convergence studies. Currently empty.
+- `slow` (4 tests): long parameter sweeps and convergence studies (authoritative-O monotonicity regimes).
 
 ## Local commands
 
