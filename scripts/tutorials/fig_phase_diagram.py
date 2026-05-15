@@ -172,7 +172,7 @@ def make_figure(data: dict | None = None) -> dict:
     # from the four sub-cells of the next. The inner sub-cell seams
     # stay light (white, linewidth 0.35) so the rank quadrants inside
     # each simulation still read clearly.
-    sim_edge_kw = dict(color='#1a1a1a', linewidth=1.4, alpha=1.0, zorder=5)
+    sim_edge_kw = dict(color='#1a1a1a', linewidth=2.8, alpha=1.0, zorder=5)
     for x in d_edges[::2]:
         ax.axvline(x, **sim_edge_kw)
     for y in t_edges[::2]:
