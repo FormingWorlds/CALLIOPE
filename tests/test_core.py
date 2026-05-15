@@ -11,7 +11,6 @@ from calliope.constants import (
     ocean_moles,
     volatile_species,
 )
-from calliope.solubility import SolubilityH2O
 
 pytestmark = pytest.mark.unit
 
@@ -63,30 +62,9 @@ def test_modified_keq_schaefer_models_return_finite():
 # section 12).
 
 
-# ---------- Solubility tests (H2O-only; other species are incomplete) ----------
-
-
-def test_solubility_h2o_default_peridotite_sqrt_law():
-    s = SolubilityH2O()  # default peridotite
-    # peridotite: 524 * p^0.5
-    assert s(0.0) == 0.0
-    assert s(100.0) == pytest.approx(524.0 * 10.0, rel=1e-12)
-
-
-def test_solubility_h2o_other_parameterizations():
-    s = SolubilityH2O('basalt_dixon')
-    assert s(100.0) == pytest.approx(965.0 * 10.0, rel=1e-12)
-
-    s = SolubilityH2O('basalt_wilson')
-    # 215 * p^0.7, with p=100 -> 215 * 10^1.4
-    expected = 215.0 * (100.0**0.7)
-    assert s(100.0) == pytest.approx(expected, rel=1e-12)
-
-    s = SolubilityH2O('anorthite_diopside')
-    assert s(100.0) == pytest.approx(727.0 * 10.0, rel=1e-12)
-
-    s = SolubilityH2O('lunar_glass')
-    assert s(100.0) == pytest.approx(683.0 * 10.0, rel=1e-12)
+# Solubility tests live in tests/test_solubility.py per the 1:1
+# source-to-test mirroring rule (see .github/.claude/rules/calliope-tests.md
+# section 12).
 
 
 # ---------- Constants and metadata tests ----------

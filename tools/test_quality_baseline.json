@@ -1,9 +1,9 @@
 {
   "float_eq_literal": 1,
-  "missing_docstring": 48,
+  "missing_docstring": 46,
   "missing_importorskip": 1,
   "missing_module_pytestmark": 2,
   "no_assertions": 2,
-  "single_assert": 100,
+  "single_assert": 99,
   "weak_assert_gt_zero": 7
 }

@@ -1,11 +1,26 @@
-"""Tests for the user-configurable melt-composition kwargs on
-`SolubilityS2` (x_FeO) and `SolubilityN2` (x_SiO2, x_Al2O3, x_TiO2).
+"""Tests for `src/calliope/solubility.py`.
 
-The kwargs are backward-compatible: callers that omit them must get
-bit-identical numerics to the prior hardcoded values. Non-Earth
-overrides must propagate into the dissolved-mass formulas as predicted
-by the closed-form expressions in Gaillard et al. (2022) and Dasgupta
-et al. (2022).
+Exercises the Henry's-law solubility models for H2O (Sossi 2023 default,
+Dixon 1995, Hamilton 1964 / Wilson and Head 1981, Newcombe 2017), S2
+(Gaillard 2022), and N2 (Dasgupta 2022, Libourel).
+
+- Reference pins: H2O peridotite default against the Sossi et al. (2023)
+  `524 * p^0.5` constant; S2 default against the Gaillard et al. (2022)
+  Earth-mantle numerics; N2 dasgupta prefactor against the published
+  composition coefficients.
+- Conservation: zero partial pressure returns identically zero; Henry's
+  identity in the linear regime.
+- Monotonicity: dissolved ppmw increases with partial pressure for every
+  H2O parameterization.
+- Closed-form scaling: composition kwargs (`x_FeO`, `x_SiO2`, `x_Al2O3`,
+  `x_TiO2`) enter the exponential prefactors as `exp(coef * delta)`;
+  the ratio of solubilities at two compositions matches the closed-form
+  factor to floating-point precision.
+- Edge cases: zero-pressure short-circuit on S2, negative composition
+  values evaluate finitely, libourel path unaffected by composition kwargs.
+
+See `.github/.claude/rules/calliope-tests.md` sections 1-3 for the
+anti-happy-path, discrimination-guard, and physics-invariant rules.
 """
 
 from __future__ import annotations
@@ -15,9 +30,113 @@ import warnings
 
 import pytest
 
-from calliope.solubility import SolubilityN2, SolubilityS2
+from calliope.solubility import SolubilityH2O, SolubilityN2, SolubilityS2
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
+
+
+# ---------------------------------------------------------------------------
+# SolubilityH2O :: H2O parameterizations
+# ---------------------------------------------------------------------------
+
+
+class TestSolubilityH2O:
+    """Power-law H2O solubilities. Each parameterization carries a published
+    `const` and `exponent`; the test pins both via the closed-form
+    `const * p^exponent` identity at chosen pressures."""
+
+    @pytest.mark.physics_invariant
+    @pytest.mark.reference_pinned
+    def test_peridotite_default_matches_sossi_2023_fit(self):
+        """Sossi et al. (2023) peridotite H2O fit: `ppmw = 524 * p^0.5`.
+
+        `SolubilityH2O('peridotite')` is the package-wide default; the
+        constant 524 ppmw/bar^0.5 and the 0.5 exponent come from Sossi
+        et al. (2023).
+
+        Discrimination guards: a regression that swapped to the Dixon
+        1995 basalt constant (965 ppmw/bar^0.5) at the same exponent
+        would change the result by factor 1.84; an exponent flip
+        (1.0 vs 0.5) would change it by `sqrt(100) = 10x` at p = 100 bar.
+        """
+        s = SolubilityH2O()  # peridotite default
+        # Zero-pressure boundary: identically zero by power-law definition.
+        assert s(0.0) == 0.0
+        # At p = 100 bar: 524 * sqrt(100) = 5240 ppmw.
+        val = s(100.0)
+        expected = 524.0 * 10.0
+        assert val == pytest.approx(expected, rel=1e-12)
+        # Wrong-law guard: basalt_dixon would give 9650, off by ~84%.
+        assert abs(val - 965.0 * 10.0) > 1000.0
+        # Wrong-exponent guard: p^1.0 instead of p^0.5 would give 52400.
+        assert abs(val - 524.0 * 100.0) > 1000.0
+        # Sign + scale guards: positive ppmw, order 1e3 to 1e4 at 100 bar.
+        assert val > 0
+        assert 1e3 < val < 1e4
+
+    @pytest.mark.physics_invariant
+    def test_basalt_dixon_matches_published_constant(self):
+        """Dixon et al. (1995) basalt H2O: `ppmw = 965 * p^0.5`."""
+        s = SolubilityH2O('basalt_dixon')
+        val = s(100.0)
+        expected = 965.0 * 10.0
+        assert val == pytest.approx(expected, rel=1e-12)
+        # Wrong-law guard against peridotite default (524) at same p.
+        assert abs(val - 524.0 * 10.0) > 1000.0
+
+    @pytest.mark.physics_invariant
+    def test_basalt_wilson_uses_non_half_exponent(self):
+        """Hamilton (1964) / Wilson and Head (1981) basalt: `ppmw = 215 * p^0.7`.
+
+        Non-square-root exponent: discriminating, because a regression
+        that defaults all H2O laws to the 0.5 exponent would land at
+        2150 ppmw at p = 100 bar instead of the correct ~5403 ppmw.
+        """
+        s = SolubilityH2O('basalt_wilson')
+        val = s(100.0)
+        expected = 215.0 * (100.0**0.7)  # ~5403 ppmw
+        assert val == pytest.approx(expected, rel=1e-12)
+        # Wrong-exponent guard: p^0.5 would give 2150.
+        assert abs(val - 215.0 * 10.0) > 1000.0
+
+    @pytest.mark.physics_invariant
+    def test_anorthite_diopside_and_lunar_glass_match_newcombe_2017(self):
+        """Newcombe et al. (2017): anorthite-diopside 727 ppmw/bar^0.5,
+        lunar glass 683 ppmw/bar^0.5. Both follow the sqrt law."""
+        s_ad = SolubilityH2O('anorthite_diopside')
+        s_lg = SolubilityH2O('lunar_glass')
+        val_ad = s_ad(100.0)
+        val_lg = s_lg(100.0)
+        assert val_ad == pytest.approx(727.0 * 10.0, rel=1e-12)
+        assert val_lg == pytest.approx(683.0 * 10.0, rel=1e-12)
+        # The two are close (~6% apart), so a regression that swapped
+        # them would not be caught by a single-law check; pin both.
+        assert val_ad != pytest.approx(val_lg, rel=1e-3)
+
+    @pytest.mark.physics_invariant
+    def test_h2o_monotonic_in_pressure_for_every_parameterization(self):
+        """All five parameterizations are strictly increasing in p.
+
+        Henry's law sign convention: higher partial pressure -> more
+        dissolved ppmw. A regression that flipped the sign of the
+        exponent (very unlikely but possible if power_law gained a
+        negative-exponent default) would invert this ordering.
+        """
+        for name in (
+            'peridotite',
+            'basalt_dixon',
+            'basalt_wilson',
+            'anorthite_diopside',
+            'lunar_glass',
+        ):
+            s = SolubilityH2O(name)
+            low = s(10.0)
+            mid = s(100.0)
+            high = s(1000.0)
+            assert low < mid < high
+            # Discrimination: high - low spans ~2 orders for sqrt laws,
+            # ~4 orders for p^0.7. Pin a positive delta.
+            assert (high - low) > 0
 
 
 # ---------------------------------------------------------------------------
@@ -41,23 +160,34 @@ class TestSolubilityS2_xFeO:
         s = SolubilityS2()
         assert s.x_FeO == 10.0
 
-    def test_default_call_matches_pre_kwarg_value(self):
-        """Pin one numeric output of the default-x_FeO call. Drift
-        here means either the formula changed or the default x_FeO
-        drifted off 10.0 wt%.
+    @pytest.mark.physics_invariant
+    @pytest.mark.reference_pinned
+    def test_default_call_matches_gaillard_2022_earth_mantle_value(self):
+        """Pin S2 ppmw under Gaillard et al. (2022) Earth-mantle defaults.
 
-        Hidden coupling: this pin depends on the default IW buffer
-        (Fischer et al. 2011) evaluated at T=2500 K, fO2_shift=0. Any
-        change to the IW buffer coefficients in oxygen_fugacity.py
-        will require regenerating this number; the failure mode
-        surfaces in test_solubility, not test_oxygen_fugacity.
+        At p_S2 = 1 bar, T = 2500 K, fO2_shift = 0, x_FeO = 10 wt%, and
+        the default Fischer 2011 IW buffer:
+
+        ln(X) = 13.8426 - 26476/2500 + 0.124*10 + 0.5*ln(1/fO2_bar)
+              = 13.8426 - 10.5904 + 1.24 + 0.5*ln(10^-IW(2500))
+              ~ 9.479
+        ppmw = exp(9.479) ~ 13086
+
+        Hidden coupling: the pin depends on the default IW buffer
+        (Fischer 2011 since 2026-05). Any change to the IW buffer
+        coefficients in oxygen_fugacity.py will require regenerating
+        this number; the failure surfaces here, not in
+        test_oxygen_fugacity.
         """
         s = SolubilityS2()
         out = s(1.0, 2500.0, 0.0)
-        # Regression pin: computed at the default x_FeO=10.0 with the
-        # Fischer 2011 IW buffer.
+        # Regression pin: computed at default x_FeO=10.0 with Fischer 2011.
         assert out == pytest.approx(13085.87, rel=1e-5)
+        # Sign and scale guards: positive ppmw, order 1e4 at these conditions.
+        assert out > 0
+        assert 1e3 < out < 1e5
 
+    @pytest.mark.physics_invariant
     @pytest.mark.parametrize(
         'x_FeO,expected_ratio',
         [
@@ -99,6 +229,7 @@ class TestSolubilityS2_xFeO:
         out = s(1.0, 2500.0, 0.0)
         assert math.isfinite(out)
 
+    @pytest.mark.physics_invariant
     def test_xFeO_zero_consistent_with_drop_term(self):
         """Discriminating: at x_FeO=0 the 0.124*x_FeO term drops, so
         the result must equal SolubilityS2(x_FeO=10) divided by
@@ -147,6 +278,7 @@ class TestSolubilityN2_meltComposition:
         assert s.x_Al2O3 == self.DEFAULT_AL2O3
         assert s.x_TiO2 == self.DEFAULT_TIO2
 
+    @pytest.mark.physics_invariant
     @pytest.mark.parametrize(
         'kwarg,delta,coef',
         [
@@ -175,6 +307,7 @@ class TestSolubilityN2_meltComposition:
         ratio = s_modified.dasfac_2 / s_default.dasfac_2
         assert ratio == pytest.approx(math.exp(coef * delta), rel=1e-12)
 
+    @pytest.mark.physics_invariant
     def test_dasgupta_call_uses_new_dasfac(self):
         """Discriminating: the Dasgupta call adds `pb_N2 * dasfac_2` on
         top of an exponential redox-dependent term. Pick conditions
