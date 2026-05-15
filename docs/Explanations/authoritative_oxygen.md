@@ -83,7 +83,7 @@ A `random_seed` argument (default `None`) seeds a `np.random.default_rng` for th
 
 ## Buffer convention
 
-Like the buffered mode, the authoritative-O mode references $f_{\mathrm{O}_2}$ to the iron-wüstite buffer of [O'Neill & Eggins (2002)](https://ui.adsabs.harvard.edu/abs/2002ChGeo.186..151O) by default, with the [Fischer et al. (2011)](https://ui.adsabs.harvard.edu/abs/2011E%26PSL.304..496F) alternative selectable through `OxygenFugacity()` instantiation. The returned `fO2_shift_derived` is the $\Delta\mathrm{IW}$ relative to whichever buffer was chosen.
+Like the buffered mode, the authoritative-O mode references $f_{\mathrm{O}_2}$ to the iron-wüstite buffer of O'Neill & Eggins (2002)[^cite-oneilleggins2002] by default, with the Fischer et al. (2011)[^cite-fischer2011] alternative selectable through `OxygenFugacity()` instantiation. The returned `fO2_shift_derived` is the $\Delta\mathrm{IW}$ relative to whichever buffer was chosen.
 
 !!! note "Cross-backend buffer divergence"
     PROTEUS supports a second outgassing backend, [atmodeller](https://atmodeller.readthedocs.io/), whose authoritative-O implementation uses the Hirschmann combined IW buffer. The Hirschmann and O'Neill & Eggins parameterisations differ by ${\sim}0.95$ dex at $T = 3000$ K. PROTEUS records both backends' derived offsets under the helpfile column `fO2_shift_IW_derived`, and the discrepancy is documented in the column's schema comment. The two backends agree on the underlying physics (same chemistry of FeO-O$_2$ equilibrium); they disagree on the numerical parameterisation of the buffer curve. Choose one backend per run and stay with it for any cross-time-step comparison.
@@ -112,3 +112,6 @@ For the routine "set $\Delta\mathrm{IW}$, get a self-consistent atmosphere" work
 - [Oxygen fugacity](oxygen_fugacity.md): the IW-buffer parameterisations and the four channels through which $\Delta\mathrm{IW}$ enters the chemistry.
 - [Coupling to PROTEUS (theory)](proteus_coupling.md): how the PROTEUS wrapper selects between the two modes.
 - [API reference for `calliope.solve`](../Reference/api/calliope.solve.md).
+
+[^cite-oneilleggins2002]: H. St. C. O'Neill, S. M. Eggins, *[The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts](https://doi.org/10.1016/S0009-2541(01)00414-4)*, Chemical Geology, 186, 151–181, 2002. [SciX](https://scixplorer.org/abs/2002ChGeo.186..151O/abstract).
+[^cite-fischer2011]: R. A. Fischer, A. J. Campbell, G. A. Shofner, O. T. Lord, P. Dera, V. B. Prakapenka, *[Equation of state and phase diagram of FeO](https://doi.org/10.1016/j.epsl.2011.02.025)*, Earth and Planetary Science Letters, 304, 496–502, 2011. [SciX](https://scixplorer.org/abs/2011E%26PSL.304..496F/abstract).

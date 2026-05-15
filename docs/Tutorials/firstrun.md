@@ -42,7 +42,7 @@ for sp in volatile_species:
 ```
 
 !!! note "What these numbers mean"
-    `hydrogen_earth_oceans = 1.0` corresponds to $\sim 1.55 \times 10^{20}$ kg of H, which the wrapper translates via `H_kg = N_ocean_moles * ocean_moles * molar_mass['H2']`. `CH_ratio = 0.1` is a mass ratio chosen to roughly match estimates of Earth's bulk silicate Earth C/H. `nitrogen_ppmw = 2.0` matches the [Wang et al. (2018)](https://ui.adsabs.harvard.edu/abs/2018Icar..299..460W) primitive-mantle estimate that [Nicholls et al. (2024)](https://ui.adsabs.harvard.edu/abs/2024JGRE..12908576N) used as their fiducial value.
+    `hydrogen_earth_oceans = 1.0` corresponds to $\sim 1.55 \times 10^{20}$ kg of H, which the wrapper translates via `H_kg = N_ocean_moles * ocean_moles * molar_mass['H2']`. `CH_ratio = 0.1` is a mass ratio chosen to roughly match estimates of Earth's bulk silicate Earth C/H. `nitrogen_ppmw = 2.0` matches the Wang et al. (2018)[^cite-wang2018] primitive-mantle estimate that Nicholls et al. (2024)[^cite-nicholls2024] used as their fiducial value.
 
 ## Step 2: build the elemental targets and solve
 
@@ -143,7 +143,7 @@ fig.savefig('redox_sweep.pdf')
 plt.show()
 ```
 
-The expected qualitative behaviour, consistent with [Bower et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) Section 3 and [Nicholls et al. (2024)](https://ui.adsabs.harvard.edu/abs/2024JGRE..12908576N) Figure 6:
+The expected qualitative behaviour, consistent with Bower et al. (2022)[^cite-bower2022] Section 3 and Nicholls et al. (2024)[^cite-nicholls2024] Figure 6:
 
 - At $\Delta\mathrm{IW} \le -1$ (reducing), H$_2$ and CO dominate; H$_2$O and CO$_2$ collapse;
 - Around $\Delta\mathrm{IW} \approx 0$, the H$_2$O/H$_2$ and CO$_2$/CO ratios are of order unity;
@@ -157,3 +157,7 @@ S$_2$ stays roughly constant (inventory-controlled), while SO$_2$ rises and H$_2
 - For the solubility laws and their references, read [Solubility laws](../Explanations/solubility.md).
 - For the mass-balance system that ties the partial pressures to the elemental inventory, read [Mass balance & solver](../Explanations/mass_balance.md).
 - For the PROTEUS-coupled invocation pattern, read [Coupling to PROTEUS (how-to)](../How-to/proteus_coupling.md).
+
+[^cite-bower2022]: D. J. Bower, K. Hakim, P. A. Sossi, P. Sanan, *[Retention of water in terrestrial magma oceans and carbon-rich early atmospheres](https://doi.org/10.3847/PSJ/ac5fb1)*, The Planetary Science Journal, 3(4), 93, 2022. [SciX](https://scixplorer.org/abs/2022PSJ.....3...93B/abstract).
+[^cite-nicholls2024]: H. Nicholls, T. Lichtenberg, D. J. Bower, R. Pierrehumbert, *[Magma ocean evolution at arbitrary redox state](https://doi.org/10.1029/2024JE008576)*, Journal of Geophysical Research: Planets, 129, e2024JE008576, 2024. [SciX](https://scixplorer.org/abs/2024JGRE..12908576N/abstract).
+[^cite-wang2018]: H. S. Wang, C. H. Lineweaver, T. R. Ireland, *[The elemental abundances (with uncertainties) of the most Earth-like planet](https://doi.org/10.1016/j.icarus.2017.08.024)*, Icarus, 299, 460–474, 2018. [SciX](https://scixplorer.org/abs/2018Icar..299..460W/abstract).

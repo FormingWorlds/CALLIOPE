@@ -13,12 +13,12 @@ Four axes contribute to cross-backend $\Delta\mathrm{IW}$ disagreement. Two can 
 
 | Axis | CALLIOPE | atmodeller | Aligned by default? |
 |---|---|---|---|
-| IW buffer | [O'Neill & Eggins 2002](https://ui.adsabs.harvard.edu/abs/2002ChGeo.186..151O) (monolithic) | Hirschmann composite ([Hirschmann et al. 2008](https://ui.adsabs.harvard.edu/abs/2008PEPI..170...80H) below 1000 K, [Hirschmann 2021](https://ui.adsabs.harvard.edu/abs/2021AmMin.106..569H) above) | No |
-| H$_2$O solubility | [Sossi et al. 2023](https://ui.adsabs.harvard.edu/abs/2023GeCoA.353..158S) peridotite | `H2O_peridotite_sossi23` | Yes |
-| CO$_2$ solubility | [Dixon et al. 1995](https://ui.adsabs.harvard.edu/abs/1995JPet...36.1607D) basalt | `CO2_basalt_dixon95` | Yes |
-| N$_2$ solubility | [Dasgupta et al. 2022](https://ui.adsabs.harvard.edu/abs/2022GeCoA.336..291D) | `N2_basalt_dasgupta22` | Yes |
-| S$_2$ solubility | [Gaillard et al. 2022](https://ui.adsabs.harvard.edu/abs/2022E%26PSL.57717255G) sulfide-only | `S2_sulfide_basalt_boulliung23` ([Boulliung & Wood 2023](https://ui.adsabs.harvard.edu/abs/2023GeCoA.343..420B)) | No |
-| H$_2$, CO, CH$_4$ solubility | identically zero ([Bower et al. 2022](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) §2.2.3) | Hirschmann 2012, Yoshioka 2019, Ardia 2013 | Optionally (set keys to `none`) |
+| IW buffer | O'Neill & Eggins 2002[^cite-oneilleggins2002] (monolithic) | Hirschmann composite (Hirschmann et al. 2008[^cite-hirschmann2008] below 1000 K, Hirschmann 2021[^cite-hirschmann2021] above) | No |
+| H$_2$O solubility | Sossi et al. 2023[^cite-sossi2023] peridotite | `H2O_peridotite_sossi23` | Yes |
+| CO$_2$ solubility | Dixon et al. 1995[^cite-dixon1995] basalt | `CO2_basalt_dixon95` | Yes |
+| N$_2$ solubility | Dasgupta et al. 2022[^cite-dasgupta2022] | `N2_basalt_dasgupta22` | Yes |
+| S$_2$ solubility | Gaillard et al. 2022[^cite-gaillard2022] sulfide-only | `S2_sulfide_basalt_boulliung23` (Boulliung & Wood 2023[^cite-boulliungwood2023]) | No |
+| H$_2$, CO, CH$_4$ solubility | identically zero (Bower et al. 2022[^cite-bower2022] §2.2.3) | Hirschmann 2012, Yoshioka 2019, Ardia 2013 | Optionally (set keys to `none`) |
 | Gas-phase EOS | ideal | ideal by default; real-gas selectable | Yes (with EOS off) |
 | Equilibrium constants | JANAF + Schaefer-Fegley fits | atmodeller thermodata | No |
 | Solver | scipy `fsolve` + `trust-constr` with Monte-Carlo restart | JAX gradient-based with multistart | Different by construction; affects convergence behaviour, not converged answer |
@@ -45,7 +45,7 @@ A non-flat identity line in either panel would indicate a solver-precision probl
 
 ## Cross-backend agreement on the chemistry
 
-With internal consistency confirmed, the cross-backend $\Delta\mathrm{IW}$ disagreement at matched inputs is the interesting quantity. Both backends are run at the Krijt et al. 2023 BSE H/C/N/S inventory with the volatile O reference set by a CALLIOPE buffered-mode call at $\Delta\mathrm{IW} = +3.5$ (the Sossi 2020 Earth upper-mantle anchor). Sweeping $T_\mathrm{magma}$ from 1800 K to 3000 K, with $\Phi = 1$ throughout, gives:
+With internal consistency confirmed, the cross-backend $\Delta\mathrm{IW}$ disagreement at matched inputs is the interesting quantity. Both backends are run at the Krijt et al. 2023[^cite-krijt2023] BSE H/C/N/S inventory with the volatile O reference set by a CALLIOPE buffered-mode call at $\Delta\mathrm{IW} = +3.5$ (the Sossi 2020[^cite-sossi2020] Earth upper-mantle anchor). Sweeping $T_\mathrm{magma}$ from 1800 K to 3000 K, with $\Phi = 1$ throughout, gives:
 
 ![Cross-backend T sweep](../assets/figures/cross_backend/fig3_grid.png)
 
@@ -67,7 +67,7 @@ The raw disagreement of $0.42$ dex at this fiducial reduces to $0.07$ dex after 
 
 ## Comparison against the Earth anchor
 
-Both backends produce a $\Delta\mathrm{IW}$ from the Krijt+2023 BSE H/C/N/S inventory (with volatile O derived self-consistently at the Sossi 2020 $\Delta\mathrm{IW} = +3.5$ baseline). The empirical anchor for Earth's modern upper mantle is the Frost & McCammon (2008) range $\Delta\mathrm{IW} \in [+1, +5]$ (FMQ-3 to FMQ+1), with the [Sossi et al. 2020](https://ui.adsabs.harvard.edu/abs/2020SciA....6.1387S) best estimate at $+3.5$.
+Both backends produce a $\Delta\mathrm{IW}$ from the Krijt+2023[^cite-krijt2023] BSE H/C/N/S inventory (with volatile O derived self-consistently at the Sossi 2020 $\Delta\mathrm{IW} = +3.5$ baseline). The empirical anchor for Earth's modern upper mantle is the Frost & McCammon (2008)[^cite-frostmccammon2008] range $\Delta\mathrm{IW} \in [+1, +5]$ (FMQ-3 to FMQ+1), with the Sossi et al. 2020[^cite-sossi2020] best estimate at $+3.5$.
 
 ![Earth anchor](../assets/figures/cross_backend/fig5_earth_anchor.png)
 
@@ -106,3 +106,16 @@ The harness is reusable for different fiducials, different inventories, or diffe
 - [Solubility laws](solubility.md): per-species validity envelopes for CALLIOPE's solubility selection.
 - [Coupling to PROTEUS](proteus_coupling.md): how the PROTEUS wrapper selects between backends at runtime.
 - [atmodeller documentation](https://atmodeller.readthedocs.io/): the canonical upstream reference for the second backend.
+
+[^cite-boulliungwood2023]: J. Boulliung, B. J. Wood, *Sulfur dissolution in silicate melts: regimes of sulfide and sulfate solubility*, Geochimica et Cosmochimica Acta, 343, 420–431, 2023. [SciX](https://scixplorer.org/abs/2023GeCoA.343..420B/abstract).
+[^cite-bower2022]: D. J. Bower, K. Hakim, P. A. Sossi, P. Sanan, *[Retention of water in terrestrial magma oceans and carbon-rich early atmospheres](https://doi.org/10.3847/PSJ/ac5fb1)*, The Planetary Science Journal, 3(4), 93, 2022. [SciX](https://scixplorer.org/abs/2022PSJ.....3...93B/abstract).
+[^cite-dasgupta2022]: R. Dasgupta, E. Falksen, A. Pal, C. Sun, *[The fate of nitrogen during parent body partial melting and accretion of the inner Solar System bodies at reducing conditions](https://doi.org/10.1016/j.gca.2022.09.012)*, Geochimica et Cosmochimica Acta, 336, 291–307, 2022. [SciX](https://scixplorer.org/abs/2022GeCoA.336..291D/abstract).
+[^cite-dixon1995]: J. E. Dixon, E. M. Stolper, J. R. Holloway, *[An experimental study of water and carbon dioxide solubilities in mid-ocean ridge basaltic liquids. Part I: Calibration and solubility models](https://doi.org/10.1093/oxfordjournals.petrology.a037267)*, Journal of Petrology, 36(6), 1607–1631, 1995. [SciX](https://scixplorer.org/abs/1995JPet...36.1607D/abstract).
+[^cite-frostmccammon2008]: D. J. Frost, C. A. McCammon, *The redox state of Earth's mantle*, Annual Review of Earth and Planetary Sciences, 36, 389–420, 2008. [SciX](https://scixplorer.org/abs/2008AREPS..36..389F/abstract).
+[^cite-gaillard2022]: F. Gaillard, F. Bernadou, M. Roskosz, M. A. Bouhifd, Y. Marrocchi, G. Iacono-Marziano, M. Moreira, B. Scaillet, G. Rogerie, *[Redox controls during magma ocean degassing](https://doi.org/10.1016/j.epsl.2021.117255)*, Earth and Planetary Science Letters, 577, 117255, 2022. [SciX](https://scixplorer.org/abs/2022E%26PSL.57717255G/abstract).
+[^cite-hirschmann2008]: M. M. Hirschmann, M. S. Ghiorso, F. A. Davis, *Solubility of hydrogen in mantle melts of Earth and Mars: implications for early redox states*, Physics of the Earth and Planetary Interiors, 170, 80–95, 2008. [SciX](https://scixplorer.org/abs/2008PEPI..170...80H/abstract).
+[^cite-hirschmann2021]: M. M. Hirschmann, *Iron-wustite revisited: a new high-pressure, high-temperature equation of state*, American Mineralogist, 106, 569–580, 2021. [SciX](https://scixplorer.org/abs/2021AmMin.106..569H/abstract).
+[^cite-krijt2023]: S. Krijt, M. Kama, M. McClure, J. Teske, E. A. Bergin, O. Shorttle, K. J. Walsh, S. N. Raymond, *Chemical habitability: supply and retention of life's essential elements during planet formation*, in Protostars and Planets VII, S. Inutsuka, Y. Aikawa, T. Muto, K. Tomida, M. Tamura, eds., Astronomical Society of the Pacific Conference Series, 534, 1031–1058, 2023. [SciX](https://scixplorer.org/abs/2023ASPC..534.1031K/abstract).
+[^cite-oneilleggins2002]: H. St. C. O'Neill, S. M. Eggins, *[The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts](https://doi.org/10.1016/S0009-2541(01)00414-4)*, Chemical Geology, 186, 151–181, 2002. [SciX](https://scixplorer.org/abs/2002ChGeo.186..151O/abstract).
+[^cite-sossi2020]: P. A. Sossi, A. D. Burnham, J. Badro, A. Lanzirotti, M. Newville, H. St. C. O'Neill, *[Redox state of Earth's magma ocean and its Venus-like early atmosphere](https://doi.org/10.1126/sciadv.abd1387)*, Science Advances, 6, eabd1387, 2020. [SciX](https://scixplorer.org/abs/2020SciA....6.1387S/abstract).
+[^cite-sossi2023]: P. A. Sossi, P. M. E. Tollan, J. Badro, D. J. Bower, *[Solubility of water in peridotite liquids and the prevalence of steam atmospheres on rocky planets](https://doi.org/10.1016/j.epsl.2022.117894)*, Earth and Planetary Science Letters, 601, 117894, 2023. [SciX](https://scixplorer.org/abs/2023E%26PSL.60117894S/abstract).
