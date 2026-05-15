@@ -11,56 +11,13 @@ from calliope.constants import (
     ocean_moles,
     volatile_species,
 )
-from calliope.oxygen_fugacity import OxygenFugacity
 from calliope.solubility import SolubilityH2O
 
 pytestmark = pytest.mark.unit
 
-# ---------- Oxygen fugacity tests ----------
-
-
-def test_oxygen_fugacity_oneill_value_2000K():
-    of = OxygenFugacity('oneill')
-    val = of(2000.0)
-    # Expected from formula: 2*(-244118+115.559*T-8.474*T*ln(T))/(ln(10)*8.31441*T)
-    # For T=2000 K this is -7.407823842131363
-    assert val == pytest.approx(-7.407823842131363, rel=1e-3, abs=5e-3)
-
-
-def test_oxygen_fugacity_fischer_value_2000K():
-    of = OxygenFugacity('fischer')
-    val = of(2000.0)
-    # 6.94059 - (28.1808e3)/T -> ~ -7.14981 at 2000 K
-    assert val == pytest.approx(-7.1498, rel=1e-4, abs=1e-3)
-
-
-def test_oxygen_fugacity_shift_is_additive():
-    of = OxygenFugacity('oneill')
-    base = of(1800.0, 0.0)
-    shifted = of(1800.0, 0.75)
-    assert shifted == pytest.approx(base + 0.75, abs=1e-10)
-
-
-def test_oxygen_fugacity_monotonic_in_T():
-    of = OxygenFugacity('oneill')
-    low = of(1500.0)
-    high = of(3000.0)
-    # Becomes less negative (increases) with temperature for this model
-    assert high > low
-
-
-@pytest.mark.parametrize('bad_T', [0.0, -1.0, -300.0])
-def test_oxygen_fugacity_nonpositive_T_raises(bad_T):
-    """Both IW formulae diverge at T<=0 (T*log(T) and 1/T terms).
-    Without a guard, T=0 silently propagates NaN through every
-    equilibrium constant. Pin the explicit ValueError as a contract.
-    """
-    of = OxygenFugacity('oneill')
-    with pytest.raises(ValueError, match='Temperature must be positive'):
-        of(bad_T)
-    of_fischer = OxygenFugacity('fischer')
-    with pytest.raises(ValueError, match='Temperature must be positive'):
-        of_fischer(bad_T)
+# Oxygen-fugacity tests live in tests/test_oxygen_fugacity.py per the
+# 1:1 source-to-test mirroring rule (see
+# .github/.claude/rules/calliope-tests.md section 12).
 
 
 # ---------- Modified equilibrium constant tests ----------
