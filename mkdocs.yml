@@ -25,6 +25,7 @@ nav:
       - Speciation phase diagram: Tutorials/phase_diagram.md
       - Coupled-loop driver: Tutorials/coupled_loop.md
       - Reproducing the Earth fiducial: Tutorials/earth_fiducial.md
+      - Mars-like atmosphere: Tutorials/mars_fiducial.md
 
   - Explanations:
       - Model overview: Explanations/model.md
