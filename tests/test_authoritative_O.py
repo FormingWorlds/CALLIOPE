@@ -58,22 +58,24 @@ def _earth_target_HCNS() -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Happy path
+# Result-dict contract across the physical regime
 # ---------------------------------------------------------------------------
 
 
-class TestHappyPath:
-    """Canonical Earth-like inputs should converge and return a
-    physically reasonable atmosphere with finite primary pressures
-    and a finite derived fO2 inside the wider [-12, +12] solver bounds.
+class TestPhysicalOutputContract:
+    """The solver must return a finite, physical result-dict across
+    the full physically-relevant regime of mantle redox states, not
+    just the Earth-like fiducial. Parametrising over reducing, neutral
+    and oxidising dIW ensures the contract holds at the edges, not
+    only at the canonical input.
     """
 
-    def test_returns_physical_output(self):
-        """Smoke: solver runs, returns a dict with expected keys."""
-        # Use legacy mode to derive a self-consistent O budget; that
-        # O is by construction reachable so the new mode is guaranteed
-        # to have a solution.
-        ddict = _ddict(dIW=4.0)
+    @pytest.mark.parametrize('dIW', [-4.0, -2.0, 0.0, +2.0, +4.0, +6.0])
+    def test_returns_physical_output(self, dIW):
+        """The solver runs, returns a dict with expected keys, and the
+        primary partial pressures + derived fO2 are finite and physical
+        across the full dIW range."""
+        ddict = _ddict(dIW=dIW)
         legacy = equilibrium_atmosphere(
             _earth_target_HCNS(),
             ddict,
@@ -85,7 +87,7 @@ class TestHappyPath:
         out = equilibrium_atmosphere_authoritative_O(
             target,
             ddict,
-            fO2_hint=4.0,
+            fO2_hint=dIW,
             random_seed=0,
             nguess=500,
             nsolve=1000,
@@ -107,23 +109,20 @@ class TestHappyPath:
             'M_atm',
             'P_surf',
         ):
-            assert key in out, f'missing key {key!r} in output dict'
+            assert key in out, f'missing key {key!r} in output dict at dIW={dIW}'
 
-        # Pressures and derived fO2 are finite and physical
         for p_key in ('H2O_bar', 'CO2_bar', 'N2_bar', 'S2_bar'):
-            assert np.isfinite(out[p_key]), f'{p_key} is not finite'
-            assert out[p_key] >= 0, f'{p_key} is negative'
+            assert np.isfinite(out[p_key]), f'{p_key} is not finite at dIW={dIW}'
+            assert out[p_key] >= 0, f'{p_key} is negative at dIW={dIW}'
 
-        assert np.isfinite(out['fO2_shift_derived']), 'fO2_shift_derived is not finite'
-        assert -12.0 <= out['fO2_shift_derived'] <= 12.0, (
-            f'fO2_shift_derived={out["fO2_shift_derived"]} outside bounds'
-        )
+        assert np.isfinite(out['fO2_shift_derived'])
+        assert -12.0 <= out['fO2_shift_derived'] <= 12.0
 
-    def test_residuals_within_tolerance(self):
-        """Solver returns only when per-element residuals are within
-        the per-element tolerance gate. Verify all 5 residuals are
-        small relative to their targets."""
-        ddict = _ddict(dIW=4.0)
+    @pytest.mark.parametrize('dIW', [-4.0, 0.0, +4.0])
+    def test_residuals_within_tolerance(self, dIW):
+        """Per-element residuals from the solver are within the
+        per-element tolerance gate for every dIW the solver accepts."""
+        ddict = _ddict(dIW=dIW)
         legacy = equilibrium_atmosphere(
             _earth_target_HCNS(),
             ddict,
@@ -135,7 +134,7 @@ class TestHappyPath:
         out = equilibrium_atmosphere_authoritative_O(
             target,
             ddict,
-            fO2_hint=4.0,
+            fO2_hint=dIW,
             random_seed=0,
             rtol=1e-5,
             nguess=500,
@@ -146,10 +145,28 @@ class TestHappyPath:
         for elem in ('H', 'C', 'N', 'S', 'O'):
             res = out[f'{elem}_res']
             tgt = target[elem]
-            # Per-element tolerance from solve.py: max(target * rtol, atol/5).
-            # atol default is 1e10 kg, /5 = 2e9 kg, /10 floor for TRUNC_MASS.
             allowed = max(tgt * 1e-5, 2e9)
-            assert abs(res) <= allowed, f'{elem}_res={res:.3e} exceeds tolerance {allowed:.3e}'
+            assert abs(res) <= allowed, (
+                f'{elem}_res={res:.3e} exceeds tolerance {allowed:.3e} at dIW={dIW}'
+            )
+
+    def test_negative_T_magma_raises(self):
+        """Unphysical sad-path: negative T_magma must raise (the
+        OxygenFugacity buffer formulae diverge as 1/T and T log T)."""
+        ddict = _ddict(dIW=0.0)
+        ddict['T_magma'] = -100.0  # unphysical
+        target = dict(_earth_target_HCNS(), O=1.0e21)
+
+        with pytest.raises((ValueError, RuntimeError)):
+            equilibrium_atmosphere_authoritative_O(
+                target,
+                ddict,
+                fO2_hint=0.0,
+                random_seed=0,
+                nguess=50,
+                nsolve=200,
+                print_result=False,
+            )
 
 
 # ---------------------------------------------------------------------------
