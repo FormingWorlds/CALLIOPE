@@ -4,10 +4,11 @@ The most common real-world use of CALLIOPE is inside a time-stepping outer loop 
 
 By the end of it you will:
 
-- have written a minimal cooling-sequence driver that calls CALLIOPE at each time step;
+- have written a minimal driver that calls CALLIOPE at each time step;
 - know which fields to thread between iterations as `p_guess`;
 - have measured the warm-start speed-up directly: cold-start solve vs warm-start solve;
-- have produced the time-series partial-pressure plot on the front of this page.
+- have run two phases back-to-back on the same warm-start chain: a cooling sequence from $T_\mathrm{magma} = 3000$ K to $1500$ K at $\Phi = 1$, then a crystallisation step at fixed $T = 1500$ K where the melt fraction drops from $\Phi = 1$ to $\Phi = 0.5$;
+- have produced the two-panel partial-pressure plot on the front of this page.
 
 You should already have completed the [First run](firstrun.md) tutorial. Familiarity with [Two-mode round-trip](two_modes.md) is helpful but not required.
 
@@ -80,38 +81,77 @@ You should see the warm steps run several times faster than the cold start. The 
 !!! warning "When to invalidate the warm start"
     If a step changes the chemistry by a large factor (e.g. an instantaneous escape event that removes 90% of the H budget), the previous-step guess is no longer close to the new basin. In that case the warm start can actually hurt: fsolve dives into a poor local minimum instead of restarting cleanly. Set `p_guess = None` whenever the inventory or boundary conditions change discontinuously, then let the next call cold-start.
 
-## Step 3: plot the cooling-sequence history
+## Step 3: crystallisation at fixed temperature
+
+A real magma ocean does more than cool monotonically: at some point the solidus catches the geotherm and the magma begins to crystallise, dropping the melt fraction $\Phi$. CALLIOPE's $\Phi$ parameter controls how much of the silicate reservoir participates in melt-vapour equilibrium, so reducing $\Phi$ at fixed $T$ progressively shrinks the magma reservoir and rebalances the H, C, N, S partitioning between melt and atmosphere.
+
+Continue the same warm-start chain from the end of the cooling sequence and walk $\Phi$ from $1.0$ down to $0.5$ at fixed $T = 1500$ K:
+
+```python
+phi_grid = np.linspace(1.0, 0.5, 11)
+cryst_history = {sp: np.full(phi_grid.size, np.nan) for sp in species_to_track}
+
+# p_guess and ddict carry over from the end of Step 2.
+for j, phi in enumerate(phi_grid):
+    ddict['T_magma']    = 1500.0
+    ddict['Phi_global'] = float(phi)
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        res = equilibrium_atmosphere(
+            earth_hcns, ddict, p_guess=p_guess, print_result=False,
+        )
+    for sp in species_to_track:
+        cryst_history[sp][j] = float(res[f'{sp}_bar'])
+    p_guess = {s: float(res[f'{s}_bar']) for s in ('H2O', 'CO2', 'N2', 'S2')}
+```
+
+As $\Phi$ drops, the partial pressures of the dissolved-friendly species (H$_2$O above all, then SO$_2$, NH$_3$, H$_2$S) rise: shrinking the melt reservoir squeezes the previously-dissolved volatiles into the atmosphere. The barely-soluble species (CO, CO$_2$, N$_2$) move comparatively little because they were already outgassed at $\Phi = 1$.
+
+## Step 4: plot both phases
 
 ```python
 import matplotlib.pyplot as plt
 
 from calliope.constants import dict_colors
 
-fig, ax = plt.subplots(figsize=(7.4, 5.0))
+fig, (ax_cool, ax_cryst) = plt.subplots(
+    1, 2, figsize=(11.4, 5.0), sharey=True,
+    gridspec_kw={'width_ratios': [1.6, 1.0], 'wspace': 0.08},
+)
+
 for sp in species_to_track:
-    ax.plot(T_sequence, history[sp],
-            color=dict_colors[sp], marker='o', markersize=3.5,
-            linewidth=1.8, label=sp)
-ax.set_yscale('log')
-ax.set_xlabel(r'$T_\mathrm{magma}$ [K] (cooling reads left-to-right)')
-ax.set_ylabel('Surface partial pressure (bar)')
-ax.set_ylim(1e-6, 1e4)
-ax.invert_xaxis()
-ax.grid(which='both', alpha=0.3)
-ax.legend(loc='center left', bbox_to_anchor=(1.02, 0.5), frameon=False)
-fig.tight_layout()
-fig.savefig('cooling_sequence.pdf')
+    ax_cool.plot(T_sequence, history[sp],
+                 color=dict_colors[sp], marker='o', markersize=3.5,
+                 linewidth=1.8)
+    ax_cryst.plot(phi_grid, cryst_history[sp],
+                  color=dict_colors[sp], marker='s', markersize=3.5,
+                  linewidth=1.8, label=sp)
+ax_cool.set_yscale('log')
+ax_cool.set_xlabel(r'$T_\mathrm{magma}$ [K] (cooling $\rightarrow$)')
+ax_cool.set_ylabel('Surface partial pressure (bar)')
+ax_cool.set_ylim(1e-6, 1e4)
+ax_cool.invert_xaxis()
+ax_cool.grid(which='both', alpha=0.3)
+ax_cool.set_title(r'(a) cooling at $\Phi = 1$')
+ax_cryst.set_xlabel(r'$\Phi_\mathrm{global}$ (crystallisation $\rightarrow$)')
+ax_cryst.invert_xaxis()
+ax_cryst.grid(which='both', alpha=0.3)
+ax_cryst.set_title(r'(b) crystallisation at $T = 1500$ K')
+ax_cryst.legend(loc='center left', bbox_to_anchor=(1.02, 0.5), frameon=False)
+fig.savefig('coupled_loop.pdf')
 ```
 
 ## The goal of this tutorial
 
 ![Cooling sequence](../assets/figures/tutorials/coupled_loop.png)
 
-*Surface partial pressures across a 25-step cooling sequence from 3000 K down to 1500 K at fixed $\Delta\mathrm{IW} = +0.5$ and Earth-BSE inventory. The legend lists the ten tracked species in their PROTEUS-standard colours. The annotation bottom-left shows the cold-start time (first call), the warm-step median (every subsequent call), and the total wall time for the 25-step loop.*
+*Surface partial pressures across a two-phase driver. **(a)** A 25-step cooling sequence from $3000$ K down to $1500$ K at fixed $\Phi = 1$ and $\Delta\mathrm{IW} = +0.5$. **(b)** An 11-step crystallisation step at fixed $T = 1500$ K with the magma melt fraction shrinking from $\Phi = 1$ to $\Phi = 0.5$. The legend lists the ten tracked species in their PROTEUS-standard colours; the annotation in panel (a) shows the cold-start time (first call), the warm-step median (every subsequent call), and the total wall time for the full $25 + 11$ steps.*
 
-The atmosphere stays carbon-dominated across the whole cooling range; CO is the dominant species throughout (CO/CO$_2$ ratio falls modestly as $T$ drops). The fastest-moving species are H$_2$S (rises) and S$_2$ (falls): sulfur speciation is the most sensitive marker of cooling at this redox.
+In panel (a) the atmosphere stays carbon-dominated across the whole cooling range; CO is the dominant species throughout (CO/CO$_2$ ratio falls modestly as $T$ drops). The fastest-moving species are H$_2$S (rises) and S$_2$ (falls): sulfur speciation is the most sensitive marker of cooling at this redox.
 
-The wall-time annotation is the most pedagogically important number on the plot. The total wall time is dominated by the cold-start step; warm steps are typically order milliseconds each. This is what makes long PROTEUS runs ($10^4$ or more outer-loop iterations) feasible: each CALLIOPE call costs essentially nothing once the basin is found.
+Panel (b) shows the magma-volume effect cleanly. As $\Phi$ drops the dissolved-friendly species (H$_2$O above all, plus the trace S species) rise sharply because the shrinking melt reservoir pushes them into the atmosphere; the barely-soluble species (CO, CO$_2$, N$_2$) move comparatively little. The total surface pressure rises by tens of percent across the $\Phi = 1 \to 0.5$ step, almost entirely driven by the H$_2$O / H$_2$S / SO$_2$ surge.
+
+The wall-time annotation is the most pedagogically important number on the plot. The total wall time is dominated by the cold-start step; warm steps are typically order milliseconds each across both phases, even though phase 2 changes a different state variable than phase 1. This is what makes long PROTEUS runs ($10^4$ or more outer-loop iterations) feasible: each CALLIOPE call costs essentially nothing once the basin is found.
 
 ## Where to go next
 

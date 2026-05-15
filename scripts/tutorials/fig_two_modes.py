@@ -24,7 +24,7 @@ from calliope.solve import (
     equilibrium_atmosphere_authoritative_O,
 )
 
-from ._style import COLOR_CAL, DATA_DIR, apply_style, save
+from ._style import COLOR_CAL, DATA_DIR, apply_style, save, sci_fmt
 
 log = logging.getLogger('tutorials.two_modes')
 
@@ -138,7 +138,7 @@ def make_figure(data: dict | None = None) -> dict:
     # Annotate worst-case residual so the reader has a number to quote.
     ax.text(
         0.04, 0.96,
-        f'worst-case |recovered − input| = {worst_abs:.2e} dex',
+        f'worst-case |recovered − input| = {sci_fmt(worst_abs, unit="dex")}',
         transform=ax.transAxes, fontsize=9.5,
         va='top', ha='left',
         bbox=dict(boxstyle='round,pad=0.4', facecolor='white',

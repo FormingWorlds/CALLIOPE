@@ -26,7 +26,7 @@ from calliope.solve import (
     equilibrium_atmosphere_authoritative_O,
 )
 
-from ._style import COLOR_BG, COLOR_CAL, DATA_DIR, apply_style, save
+from ._style import COLOR_BG, COLOR_CAL, DATA_DIR, apply_style, save, sci_fmt
 
 log = logging.getLogger('tutorials.earth_fiducial')
 
@@ -131,9 +131,9 @@ def make_figure(data: dict | None = None) -> dict:
     # Provenance summary box. Anchored to the right where the data
     # band ends but the data lines do not extend past dIW = +5.
     summary = (
-        f"derived $O_\\mathrm{{tot}} = {data['O_kg_total']:.3e}$ kg\n"
-        f"recovered − anchor = {data['dIW_recovered'] - DIW_ANCHOR:+.2e} dex\n"
-        f"$P_\\mathrm{{surf}} = {data['P_surf_bar']:.0f}$ bar"
+        f"derived $O_\\mathrm{{tot}}$ = {sci_fmt(data['O_kg_total'], unit='kg')}\n"
+        f"recovered − anchor = {sci_fmt(data['dIW_recovered'] - DIW_ANCHOR, unit='dex')}\n"
+        f"$P_\\mathrm{{surf}}$ = {sci_fmt(data['P_surf_bar'], unit='bar')}"
     )
     ax.text(
         0.985, 0.04, summary,

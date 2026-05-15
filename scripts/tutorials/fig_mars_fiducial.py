@@ -24,7 +24,7 @@ import numpy as np
 from calliope.constants import dict_colors, volatile_species
 from calliope.solve import equilibrium_atmosphere
 
-from ._style import DATA_DIR, apply_style, save
+from ._style import DATA_DIR, apply_style, sci_fmt_plain, save, species_label
 
 log = logging.getLogger('tutorials.mars_fiducial')
 
@@ -121,7 +121,7 @@ def make_figure(data: dict | None = None) -> dict:
 
     ax.set_xscale('log')
     ax.set_yticks(y)
-    ax.set_yticklabels(species)
+    ax.set_yticklabels([species_label(sp) for sp in species])
     ax.invert_yaxis()
     ax.set_xlabel('Surface partial pressure (bar)')
     ax.set_title(
@@ -136,14 +136,22 @@ def make_figure(data: dict | None = None) -> dict:
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12), ncol=2,
               frameon=False, fontsize=9.5)
 
-    # Per-planet diagnostics in the lower-right of the data area where
-    # the smallest-pressure species do not have visible bars and there
-    # is genuinely empty space.
+    # Per-planet diagnostics in the upper-right of the data area.
+    # Use plain-text scientific notation (Unicode superscripts) so the
+    # values line up in monospace columns.
+    def _fmt(val, unit):
+        return sci_fmt_plain(val, unit=unit)
+    e_p = _fmt(data["Earth"]["P_surf_bar"], 'bar')
+    m_p = _fmt(data["Mars"]["P_surf_bar"], 'bar')
+    e_m = _fmt(data["Earth"]["M_atm_kg"], 'kg')
+    m_m = _fmt(data["Mars"]["M_atm_kg"], 'kg')
+    e_w = f'{data["Earth"]["mean_mol_mass"]:.2f} g/mol'
+    m_w = f'{data["Mars"]["mean_mol_mass"]:.2f} g/mol'
     summary = (
-        '              Earth     Mars\n'
-        f'$P_\\mathrm{{surf}}$ [bar]   {data["Earth"]["P_surf_bar"]:7.1f}  {data["Mars"]["P_surf_bar"]:7.1f}\n'
-        f'$M_\\mathrm{{atm}}$ [kg]   {data["Earth"]["M_atm_kg"]:8.2e} {data["Mars"]["M_atm_kg"]:8.2e}\n'
-        f'mean $M$ [g/mol]   {data["Earth"]["mean_mol_mass"]:5.2f}    {data["Mars"]["mean_mol_mass"]:5.2f}'
+        f'             Earth                Mars\n'
+        f'P_surf   {e_p:<18s}   {m_p}\n'
+        f'M_atm    {e_m:<18s}   {m_m}\n'
+        f'mean M   {e_w:<18s}   {m_w}'
     )
     ax.text(
         0.985, 0.97, summary,

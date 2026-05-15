@@ -19,7 +19,7 @@ import numpy as np
 from calliope.constants import dict_colors, volatile_species
 from calliope.solve import equilibrium_atmosphere, get_target_from_params
 
-from ._style import DATA_DIR, apply_style, save
+from ._style import DATA_DIR, apply_style, save, sci_fmt, species_label
 
 log = logging.getLogger('tutorials.firstrun_reference')
 
@@ -94,7 +94,7 @@ def make_figure(data: dict | None = None) -> dict:
 
     ax.set_xscale('log')
     ax.set_yticks(y_pos)
-    ax.set_yticklabels(species_sorted)
+    ax.set_yticklabels([species_label(sp) for sp in species_sorted])
     ax.invert_yaxis()  # largest pressure at the top
     ax.set_xlabel('Surface partial pressure (bar)')
     ax.set_title(
@@ -108,13 +108,14 @@ def make_figure(data: dict | None = None) -> dict:
     ax.set_xlim(x_lo, x_hi)
     ax.grid(axis='x', which='both', alpha=0.3)
 
-    # Numeric label to the right of each bar, in scientific notation
-    # so all values share one format the reader can scan column-wise.
+    # Numeric label to the right of each bar. Use a × 10^n form so
+    # tiny values (CH4 ~ 6e-9 bar) and large values (CO ~ 5 bar)
+    # share one consistent notation across the figure.
     for yi, p in zip(y_pos, pressures):
         if p <= 0 or not np.isfinite(p):
             label = 'below floor'
         else:
-            label = f'{p:.2e} bar'
+            label = sci_fmt(p, unit='bar')
         ax.text(
             p * 2.0 if (p > 0 and np.isfinite(p)) else x_lo * 2.0,
             yi, label,
@@ -124,9 +125,9 @@ def make_figure(data: dict | None = None) -> dict:
     # Summary box anchored bottom-right so it does not collide with the
     # H2O label (top bar, label extends to about 1 bar on the x axis).
     summary = (
-        f"$P_\\mathrm{{surf}} = {data['P_surf_bar']:.2f}$ bar\n"
-        f"$M_\\mathrm{{atm}} = {data['M_atm_kg']:.2e}$ kg\n"
-        f"mean $M$ = {data['mean_mol_mass_g_per_mol']:.2f} g/mol"
+        f"$P_\\mathrm{{surf}}$ = {sci_fmt(data['P_surf_bar'], unit='bar')}\n"
+        f"$M_\\mathrm{{atm}}$ = {sci_fmt(data['M_atm_kg'], unit='kg')}\n"
+        f"mean $M$ = {sci_fmt(data['mean_mol_mass_g_per_mol'], unit='g/mol')}"
     )
     ax.text(
         0.985, 0.04, summary,

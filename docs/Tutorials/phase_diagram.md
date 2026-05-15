@@ -1,12 +1,12 @@
 # Speciation phase diagram
 
-The first-run tutorial swept one parameter ($\Delta\mathrm{IW}$) at fixed temperature. Real magma oceans cool and re-equilibrate, so the dominant atmospheric species can shift as both $T$ and $\Delta\mathrm{IW}$ evolve. This tutorial generalises the 1D sweep to a 2D grid and builds a *speciation phase diagram*: at every $(T, \Delta\mathrm{IW})$ point, which volatile species has the largest partial pressure?
+The first-run tutorial swept one parameter ($\Delta\mathrm{IW}$) at fixed temperature. Real magma oceans cool and re-equilibrate, so the dominant atmospheric species can shift as both $T$ and $\Delta\mathrm{IW}$ evolve. This tutorial generalises the 1D sweep to a 2D grid and builds a *speciation phase diagram*: at every $(T, \Delta\mathrm{IW})$ point, what are the four most abundant volatile species, and how does that quartet shift across the plane?
 
 By the end of it you will:
 
 - have run CALLIOPE on a 2D parameter grid using a warm-started serpentine sweep so the wall-time stays manageable;
-- have produced the dominant-species map on the front of this page;
-- understand why Earth-BSE atmospheres are CO- or CO$_2$-dominated rather than H$_2$O-dominated in the magma-ocean regime.
+- have produced the top-4 species map on the front of this page (each cell subdivided into four quadrants showing the species at ranks 1 through 4);
+- understand why Earth-BSE atmospheres are CO- or CO$_2$-dominated rather than H$_2$O-dominated in the magma-ocean regime, and how the second through fourth species shift in lockstep with the dominant one.
 
 You should already have completed the [First run](firstrun.md) tutorial so the `equilibrium_atmosphere` call signature is familiar.
 
@@ -31,8 +31,9 @@ diw_grid = np.linspace(  -4.0,    5.0, 12)
 species_to_report = ['H2O', 'CO2', 'H2', 'CO', 'CH4',
                      'N2',  'NH3', 'S2', 'SO2', 'H2S']
 
-dominant_idx = np.full((T_grid.size, diw_grid.size), -1, dtype=int)
-P_total      = np.full((T_grid.size, diw_grid.size), np.nan)
+pressures = np.full((T_grid.size, diw_grid.size, len(species_to_report)), np.nan)
+rank_idx  = np.full((T_grid.size, diw_grid.size, 4), -1, dtype=int)
+P_total   = np.full((T_grid.size, diw_grid.size), np.nan)
 
 
 def base_ddict(T, diw):
@@ -42,6 +43,8 @@ def base_ddict(T, diw):
         d[f'{sp}_initial_bar'] = 0.0
     return d
 ```
+
+In the loop below we keep the full partial-pressure vector at each grid point, not just the index of the dominant species, so the figure step can sort and pick the top four.
 
 ## Step 2: warm-start along $\Delta\mathrm{IW}$ at each $T$
 
@@ -61,9 +64,11 @@ for iT, T in enumerate(T_grid):
             except Exception:
                 p_guess = None                  # invalidate guess on failure
                 continue
-        pressures = np.array([res[f'{sp}_bar'] for sp in species_to_report])
-        dominant_idx[iT, jd] = int(np.argmax(pressures))
-        P_total[iT, jd]      = float(res['P_surf'])
+        ps = np.array([res[f'{sp}_bar'] for sp in species_to_report])
+        pressures[iT, jd] = ps
+        order = np.argsort(ps)[::-1]
+        rank_idx[iT, jd]  = order[:4]            # top-4 species indices
+        P_total[iT, jd]   = float(res['P_surf'])
         # carry the four primary partial pressures forward as the next guess
         p_guess = {s: float(res[f'{s}_bar']) for s in ('H2O', 'CO2', 'N2', 'S2')}
 ```
@@ -73,7 +78,9 @@ A 15 × 12 grid runs in about 30 to 60 seconds on a modern laptop. The grid reso
 !!! tip "If a cell fails to converge"
     The solver can land in a secondary basin at extreme conditions. The `except` clause above invalidates the warm start so the next call cold-starts from a fresh Monte-Carlo draw. Failed cells show up as masked (white) in the figure rather than corrupting the colour map.
 
-## Step 3: plot the dominant-species map
+## Step 3: subdivide each cell into a top-4 quartet
+
+Each grid cell is split into a 2 by 2 of sub-cells in reading order: top-left = rank 1 (dominant), top-right = rank 2, bottom-left = rank 3, bottom-right = rank 4. The pcolormesh below works on a doubled grid; the helper inserts a midpoint between every pair of cell edges so each original cell becomes four sub-cells.
 
 ```python
 import matplotlib.pyplot as plt
@@ -82,36 +89,48 @@ from matplotlib.patches import Patch
 
 from calliope.constants import dict_colors
 
-# Map each "dominant species" index that actually appears in the grid
-# to its PROTEUS colour. We build a compact palette so the legend
-# only lists species that occur somewhere in the data.
-seen = sorted({int(i) for i in dominant_idx.ravel() if i >= 0})
+# Expand rank_idx into a 2 x 2 sub-grid per original cell. The (sub_T,
+# sub_d) coordinates map to ranks 1..4 as documented above.
+n_T, n_d = rank_idx.shape[:2]
+expanded = np.full((2 * n_T, 2 * n_d), -1, dtype=int)
+for iT in range(n_T):
+    for jd in range(n_d):
+        r1, r2, r3, r4 = rank_idx[iT, jd]
+        expanded[2*iT + 1, 2*jd + 0] = r1     # top-left
+        expanded[2*iT + 1, 2*jd + 1] = r2     # top-right
+        expanded[2*iT + 0, 2*jd + 0] = r3     # bottom-left
+        expanded[2*iT + 0, 2*jd + 1] = r4     # bottom-right
+
+# Build a compact palette: only species that actually appear in any
+# of the rank-1..rank-4 slots somewhere in the grid.
+seen = sorted({int(v) for v in expanded.ravel() if v >= 0})
 palette = [dict_colors[species_to_report[i]] for i in seen]
 remap = {old: new for new, old in enumerate(seen)}
-remapped = np.vectorize(lambda v: remap.get(int(v), -1))(dominant_idx)
+remapped = np.vectorize(lambda v: remap.get(int(v), -1))(expanded)
 
-# Cell-edge arrays for pcolormesh
-def edges(arr):
+def edges_doubled(arr):
     s = arr[1] - arr[0]
-    return np.concatenate([[arr[0] - 0.5 * s],
-                           0.5 * (arr[:-1] + arr[1:]),
-                           [arr[-1] + 0.5 * s]])
+    outer = np.concatenate([[arr[0] - 0.5*s],
+                            0.5*(arr[:-1] + arr[1:]),
+                            [arr[-1] + 0.5*s]])
+    mids = 0.5 * (outer[:-1] + outer[1:])
+    out = np.empty(2 * outer.size - 1)
+    out[0::2] = outer; out[1::2] = mids
+    return out
 
-fig, ax = plt.subplots(figsize=(7.2, 5.2))
-ax.pcolormesh(edges(diw_grid), edges(T_grid),
+fig, ax = plt.subplots(figsize=(10.5, 5.8))
+ax.pcolormesh(edges_doubled(diw_grid), edges_doubled(T_grid),
               np.ma.masked_less(remapped, 0),
               cmap=ListedColormap(palette),
-              shading='flat', edgecolors='white', linewidth=0.6)
-
+              shading='flat', edgecolors='white', linewidth=0.35)
 ax.set_xlabel(r'$\Delta$IW [dex]')
 ax.set_ylabel(r'$T_\mathrm{magma}$ [K]')
-ax.set_title('Speciation phase diagram at Earth-BSE')
+ax.set_title('Top-4 species per cell at Earth-BSE')
 
 handles = [Patch(facecolor=palette[k], edgecolor='k', linewidth=0.4,
                  label=species_to_report[seen[k]]) for k in range(len(seen))]
-ax.legend(handles=handles, loc='center left', bbox_to_anchor=(1.02, 0.5),
-          title='dominant\nspecies', frameon=False)
-fig.tight_layout()
+ax.legend(handles=handles, loc='upper left', bbox_to_anchor=(1.02, 1.0),
+          title='species (any rank)', frameon=False)
 fig.savefig('phase_diagram.pdf')
 ```
 
@@ -119,7 +138,7 @@ fig.savefig('phase_diagram.pdf')
 
 ![Speciation phase diagram](../assets/figures/tutorials/phase_diagram.png)
 
-*Dominant volatile species in $(T_\mathrm{magma}, \Delta\mathrm{IW})$ at the Earth-BSE Krijt et al. 2023[^cite-krijt2023] H/C/N/S budget and $\Phi = 1$. Each cell is the species with the largest partial pressure at that $(T, \Delta\mathrm{IW})$ point. The redox boundary separates a CO-dominated reducing regime (left) from a CO$_2$-dominated oxidising regime (right). A single CH$_4$ cell appears near $T \sim 1900$ K at the most reducing edge of the grid where methane synthesis becomes briefly thermodynamically competitive.*
+*Top-4 volatile species per cell in $(T_\mathrm{magma}, \Delta\mathrm{IW})$ at the Earth-BSE Krijt et al. 2023[^cite-krijt2023] H/C/N/S budget and $\Phi = 1$. Each grid cell is subdivided 2 by 2 in reading order (top-left = rank 1, top-right = rank 2, bottom-left = rank 3, bottom-right = rank 4) so the four most abundant species at that simulation point are visible at a glance. The redox boundary in the dominant species (top-left quadrant) separates a CO-dominated reducing regime (left) from a CO$_2$-dominated oxidising regime (right); the rank 2 to rank 4 quadrants reveal how H$_2$, H$_2$O, N$_2$, and SO$_2$ swap positions across the same boundary. A small CH$_4$ patch appears near $T \sim 1900$ K at the most reducing edge of the grid where methane synthesis becomes briefly thermodynamically competitive.*
 
 The result that may surprise a reader who thinks of magma-ocean atmospheres as "steam-dominated" is that on the *Earth* BSE inventory carbon sets the dominant species, even though hydrogen outnumbers carbon by molar count (5.6 $\times 10^{23}$ mol H against 2.6 $\times 10^{23}$ mol C). The cause is not the bulk inventory ratio but melt solubility: H$_2$O is roughly two orders of magnitude more soluble in silicate melt than CO$_2$, so at $\Phi = 1$ most of the H budget stays dissolved while most of the C outgases (Bower et al. 2022[^cite-bower2022] Section 3). A water-dominated atmosphere needs either a much higher H budget (gas-giant-like) or a much lower C budget (volatile-poor / dehydrated body); the planetary case study tutorial illustrates one such contrast.
 
