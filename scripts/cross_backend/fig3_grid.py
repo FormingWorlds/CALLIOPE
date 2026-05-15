@@ -102,7 +102,13 @@ def make_figure(data: dict | None = None) -> dict:
                 label="atmodeller predicted from buffer alone\n(= CALLIOPE − (Hirschmann − O'Neill))")
     ax_top.set_ylabel(r'$\Delta\mathrm{IW}$ [dex]')
     ax_top.set_title('Cross-backend $\\Delta$IW at Earth-BSE volatile inventory, $\\Phi = 1$')
-    ax_top.legend(loc='lower right')
+    # Pad the y-axis so the legend fits below the CALLIOPE line at the
+    # cold end without clipping the converged data.
+    y_top_min = min(float(np.nanmin(dIW_atm_predicted)), float(np.nanmin(dIW_atm))) - 0.45
+    y_top_max = float(np.nanmax(dIW_cal)) + 0.10
+    ax_top.set_ylim(y_top_min, y_top_max)
+    ax_top.legend(loc='lower left', fontsize=9.0,
+                  framealpha=0.92, facecolor='white', edgecolor='none')
     panel_label(ax_top, '(a)')
 
     ax_bot.axhline(0.0, color='k', alpha=0.4, linewidth=0.7)
@@ -115,7 +121,14 @@ def make_figure(data: dict | None = None) -> dict:
                 fontsize=8.5, va='bottom', ha='right', alpha=0.6)
     ax_bot.set_xlabel(r'$T_\mathrm{magma}$ [K]')
     ax_bot.set_ylabel('disagreement [dex]')
-    ax_bot.legend(loc='upper right', fontsize=9.0)
+    # Pad the y-axis at the bottom so the legend fits below the raw-gap
+    # line (which sweeps down to about -1.25 dex at the hottest grid
+    # point).
+    y_bot_min = float(np.nanmin(raw_gap)) - 0.55
+    y_bot_max = max(0.30, float(np.nanmax(raw_gap)) + 0.20)
+    ax_bot.set_ylim(y_bot_min, y_bot_max)
+    ax_bot.legend(loc='lower left', fontsize=9.0,
+                  framealpha=0.92, facecolor='white', edgecolor='none')
     panel_label(ax_bot, '(b)')
 
     paths = save(fig, 'fig3_grid')
