@@ -88,8 +88,15 @@ def make_figure(data: dict | None = None) -> dict:
 
     ax.axvline(data['cal_fischer_dIW'], color=COLOR_CAL, linewidth=2.0, zorder=2,
                label=fr'CALLIOPE (Fischer, default): $\Delta\mathrm{{IW}} = {data["cal_fischer_dIW"]:+.2f}$')
-    ax.axvline(data['cal_oneill_dIW'], color=COLOR_FIS, linewidth=2.0, linestyle='--',
-               zorder=2, alpha=0.85,
+    # The O'Neill-buffer CALLIOPE result lands at ~+3.50 here by near-
+    # coincidence (the canonical Earth O budget was derived under
+    # O'Neill at +3.5, then re-derived under Fischer; the O'Neill
+    # backend happens to recover +3.50 also under the new Fischer-
+    # derived O budget to two decimals). Render it as a thicker
+    # long-dash stroke so it remains visible through the Sossi dotted
+    # anchor at the same x.
+    ax.axvline(data['cal_oneill_dIW'], color=COLOR_FIS, linewidth=3.2,
+               linestyle=(0, (6, 4)), zorder=4, alpha=0.95,
                label=fr"CALLIOPE (O'Neill, legacy): $\Delta\mathrm{{IW}} = {data['cal_oneill_dIW']:+.2f}$")
     ax.axvline(data['atm_dIW'], color=COLOR_ATM, linewidth=2.0, zorder=2,
                label=fr'atmodeller: $\Delta\mathrm{{IW}} = {data["atm_dIW"]:+.2f}$')

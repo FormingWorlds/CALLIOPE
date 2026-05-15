@@ -4,7 +4,7 @@ The [Backend comparison](../Explanations/cross_backend_comparison.md) explanatio
 
 By the end of it you will:
 
-- have reproduced the $O = 1.24 \times 10^{22}$ kg volatile-O reference from the Krijt H/C/N/S budget;
+- have reproduced the $O = 1.26 \times 10^{22}$ kg volatile-O reference from the Krijt H/C/N/S budget;
 - have verified that the authoritative-O entry point recovers $\Delta\mathrm{IW} = +3.5$ from that O reference to within solver tolerance;
 - understand why the buffered call at high $\Delta\mathrm{IW}$ + carbon-rich BSE needs a tight `p_guess` (it has a spurious secondary basin without it).
 
@@ -94,7 +94,7 @@ print(f'recovered Delta-IW = {auth["fO2_shift_derived"]:+.4f}')
 print(f'residual           = {residual:+.2e} dex')
 ```
 
-Expected output: `residual = -4.35e-09 dex`, i.e. essentially zero. The full provenance chain (Krijt H/C/N/S → buffered mode → derived O → authoritative-O → Delta-IW) closes at the Sossi 2020 anchor.
+Expected output: `residual` $\lesssim 10^{-9}$ dex, i.e. essentially zero (the exact value depends on solver tolerance and starting point). The full provenance chain (Krijt H/C/N/S $\to$ buffered mode $\to$ derived O $\to$ authoritative-O $\to$ $\Delta\mathrm{IW}$) closes at the Sossi 2020 anchor.
 
 ## The goal of this tutorial
 

@@ -72,7 +72,7 @@ for sp in sorted(volatile_species, key=lambda s: -result[f'{s}_bar']):
         print(f'  {sp:5s}: {p:9.3e} bar  (VMR {x:.3e})')
 ```
 
-For the inputs above (1 ocean H, $\Delta\mathrm{IW} = +0.5$, $T = 2500$ K, $\Phi = 1$) you should see a multi-thousand-bar atmosphere dominated by H$_2$O, with sub-percent CO$_2$ and traces of CO, H$_2$, and S species. The exact values depend on the solubility-law defaults; see [Solubility laws](../Explanations/solubility.md) for what each species uses.
+For the inputs above (1 ocean H, $\Delta\mathrm{IW} = +0.5$, $T = 2500$ K, $\Phi = 1$) you should see roughly a 10 bar atmosphere with CO dominant, then CO$_2$, N$_2$, and H$_2$O at the bar level, and H$_2$ plus the S and N trace species below. The exact values depend on the solubility-law defaults; see [Solubility laws](../Explanations/solubility.md) for what each species uses.
 
 ## Step 4: verify mass balance
 

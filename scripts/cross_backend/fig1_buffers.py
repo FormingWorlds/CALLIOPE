@@ -39,13 +39,16 @@ def make_figure() -> dict:
         gridspec_kw={'height_ratios': [2.0, 1.0], 'hspace': 0.12},
     )
 
-    ax_top.plot(T, f_oneill, color=COLOR_CAL, label="O'Neill & Eggins 2002 (CALLIOPE default)")
-    ax_top.plot(T, f_fischer, color=COLOR_FIS, linestyle='--', label='Fischer et al. 2011 (CALLIOPE alt)')
+    ax_top.plot(T, f_fischer, color=COLOR_CAL, label='Fischer et al. 2011 (CALLIOPE default)')
+    ax_top.plot(T, f_oneill, color=COLOR_FIS, linestyle='--', label="O'Neill & Eggins 2002 (CALLIOPE legacy)")
     ax_top.plot(T, f_hirsch, color=COLOR_ATM, label='Hirschmann composite (atmodeller default)')
 
-    # Annotate the Hirschmann composite switchover.
+    # Annotate the Hirschmann composite switchover. Anchor inside the
+    # data range with a y just above the curves, not at the panel
+    # edge, so the text never gets clipped against the frame.
     ax_top.axvline(1000.0, color='k', alpha=0.25, linestyle=':')
-    ax_top.text(1010, ax_top.get_ylim()[1] * 0.95,
+    y_lo, y_hi = ax_top.get_ylim()
+    ax_top.text(1010, y_lo + 0.85 * (y_hi - y_lo),
                 'H08 / H21\nswitchover',
                 fontsize=8.5, va='top', ha='left', alpha=0.6)
 

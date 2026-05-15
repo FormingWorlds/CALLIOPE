@@ -110,21 +110,24 @@ def make_figure(data: dict | None = None) -> dict:
 
     bars = ax.bar(labels, values, color=colors, edgecolor='k', linewidth=0.6, width=0.55)
     tol = 0.10
+    # Always label above the bar in dark text so labels stay readable
+    # regardless of the bar fill colour. Small bars whose top sits
+    # within +/-0.03 dex of the tolerance line get pushed higher so
+    # their label clears the dashed line and the per-element-solver
+    # annotation drawn just above it.
     for bar, val in zip(bars, values):
         x = bar.get_x() + bar.get_width() / 2
-        if abs(val - tol) < 0.04:
-            y = val - 0.04
-            va = 'top'
+        if abs(val - tol) <= 0.04:
+            y = tol + 0.045
         else:
-            y = val + 0.02
-            va = 'bottom'
-        ax.text(x, y, f'{val:.2f} dex', ha='center', va=va, fontsize=10)
+            y = val + 0.018
+        ax.text(x, y, f'{val:.2f} dex',
+                ha='center', va='bottom', fontsize=10, color='#1a1a1a')
 
     ax.axhline(tol, color='k', alpha=0.4, linestyle='--', linewidth=0.8)
-    # Tolerance annotation in clear space between bars 2 and 3 (both
-    # under the tolerance line at this fiducial). Bar columns to the
-    # left and right are far enough that the text does not overlap.
-    ax.text(1.5, tol + 0.005, 'per-element solver tolerance',
+    # Tolerance annotation parked in the gap between bars 1 and 2,
+    # well clear of every bar label and the dashed line itself.
+    ax.text(0.5, tol + 0.005, 'per-element solver tolerance',
             fontsize=8.5, va='bottom', ha='center', alpha=0.6)
 
     ax.set_ylabel(r'$|\Delta\mathrm{IW}_{\mathrm{atm}}-\Delta\mathrm{IW}_{\mathrm{cal}}|$ [dex]')
