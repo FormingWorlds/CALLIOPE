@@ -42,21 +42,21 @@ class TestSolubilityS2_xFeO:
         assert s.x_FeO == 10.0
 
     def test_default_call_matches_pre_kwarg_value(self):
-        """Pin one numeric output of the default-x_FeO call against the
-        pre-kwarg implementation. Drift here means either the formula
-        changed or the default x_FeO drifted off 10.0 wt%.
+        """Pin one numeric output of the default-x_FeO call. Drift
+        here means either the formula changed or the default x_FeO
+        drifted off 10.0 wt%.
 
-        Hidden coupling: this pin depends on OxygenFugacity('oneill')
-        evaluated at T=2500 K, fO2_shift=0. Any audit of the IW buffer
-        coefficients in oxygen_fugacity.py will require regenerating
-        this number — the failure mode here surfaces in test_solubility,
-        not test_oxygen_fugacity.
+        Hidden coupling: this pin depends on the default IW buffer
+        (Fischer et al. 2011) evaluated at T=2500 K, fO2_shift=0. Any
+        change to the IW buffer coefficients in oxygen_fugacity.py
+        will require regenerating this number; the failure mode
+        surfaces in test_solubility, not test_oxygen_fugacity.
         """
         s = SolubilityS2()
         out = s(1.0, 2500.0, 0.0)
-        # Regression pin: computed by the implementation at the time
-        # the x_FeO kwarg was introduced, with the default x_FeO=10.0.
-        assert out == pytest.approx(30095.04, rel=1e-5)
+        # Regression pin: computed at the default x_FeO=10.0 with the
+        # Fischer 2011 IW buffer.
+        assert out == pytest.approx(13085.87, rel=1e-5)
 
     @pytest.mark.parametrize(
         'x_FeO,expected_ratio',
@@ -248,21 +248,22 @@ class TestBackwardCompatibility:
         """Discriminating: `solve.dissolved_mass` instantiates
         `SolubilityS2()` and `SolubilityN2('dasgupta')` with no
         composition kwargs. Pin both default-instantiated objects to
-        their pre-kwarg numeric outputs at a fixed (p, T, fO2_shift)
-        triple. A drift here means a future change to the default
-        kwarg values broke PROTEUS-side runs.
+        their numeric outputs at a fixed (p, T, fO2_shift) triple. A
+        drift here means a future change to the default kwarg values
+        broke PROTEUS-side runs.
 
-        Hidden coupling: the S2 pin below couples to
-        OxygenFugacity('oneill'). An IW-buffer coefficient audit will
-        require regenerating these numbers.
+        Hidden coupling: the S2 pin below couples to the default IW
+        buffer (Fischer et al. 2011). An IW-buffer coefficient audit
+        will require regenerating these numbers.
         """
         # SolubilityS2 default at (p_S2, T, dIW)
         s2 = SolubilityS2()
         ppmw_S2 = s2(1.0, 2500.0, 0.0)
-        assert ppmw_S2 == pytest.approx(30095.04, rel=1e-5)
+        assert ppmw_S2 == pytest.approx(13085.87, rel=1e-5)
 
         # SolubilityN2('dasgupta') default at (p_N2, p_tot, T, dIW)
         n2 = SolubilityN2('dasgupta')
         ppmw_N2 = n2(50.0, 200.0, 2000.0, 0.0)
-        # Regression value frozen from the pre-kwarg implementation.
+        # Regression value: N2 solubility under dasgupta has no fO2
+        # dependence at this dIW=0 evaluation, so this is buffer-agnostic.
         assert ppmw_N2 == pytest.approx(2.14133, rel=1e-5)

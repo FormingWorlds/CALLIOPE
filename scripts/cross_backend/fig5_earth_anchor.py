@@ -24,7 +24,7 @@ import logging
 import matplotlib.pyplot as plt
 
 from .inventories import EARTH_BSE_KRIJT23
-from .plot_style import COLOR_ATM, COLOR_BG, COLOR_CAL, DATA_DIR, apply_style, save
+from .plot_style import COLOR_ATM, COLOR_BG, COLOR_CAL, COLOR_FIS, DATA_DIR, apply_style, save
 from .runners import run_atmodeller, run_calliope
 
 log = logging.getLogger('cross_backend.fig5')
@@ -38,18 +38,20 @@ SOSSI_2020_CENTER = 3.5
 
 def collect(T_magma: float = 2000.0) -> dict:
     inv = EARTH_BSE_KRIJT23
-    cal = run_calliope(inv, T_magma=T_magma, fO2_hint=3.5)
+    cal_fis = run_calliope(inv, T_magma=T_magma, fO2_hint=3.5, buffer='fischer')
+    cal_one = run_calliope(inv, T_magma=T_magma, fO2_hint=3.5, buffer='oneill')
     atm = run_atmodeller(inv, T_magma=T_magma)
-    log.info('CALLIOPE dIW = %+.3f', cal.fO2_shift_derived)
-    log.info('atmodeller dIW = %+.3f', atm.fO2_shift_derived)
+    log.info('CALLIOPE dIW (Fischer)  = %+.3f', cal_fis.fO2_shift_derived)
+    log.info("CALLIOPE dIW (O'Neill)  = %+.3f", cal_one.fO2_shift_derived)
+    log.info('atmodeller dIW          = %+.3f', atm.fO2_shift_derived)
     return dict(
         T_magma=T_magma,
-        cal_dIW=cal.fO2_shift_derived,
+        cal_fischer_dIW=cal_fis.fO2_shift_derived,
+        cal_oneill_dIW=cal_one.fO2_shift_derived,
         atm_dIW=atm.fO2_shift_derived,
-        cal_P_bar=cal.total_P_bar,
+        cal_fischer_P_bar=cal_fis.total_P_bar,
+        cal_oneill_P_bar=cal_one.total_P_bar,
         atm_P_bar=atm.total_P_bar,
-        cal_p_bar=cal.p_bar,
-        atm_p_bar=atm.p_bar,
     )
 
 
@@ -62,9 +64,11 @@ def make_figure(data: dict | None = None) -> dict:
         w = csv.writer(fh)
         w.writerow(['quantity', 'value'])
         w.writerow(['T_magma_K', data['T_magma']])
-        w.writerow(['cal_dIW', data['cal_dIW']])
+        w.writerow(['cal_fischer_dIW', data['cal_fischer_dIW']])
+        w.writerow(['cal_oneill_dIW', data['cal_oneill_dIW']])
         w.writerow(['atm_dIW', data['atm_dIW']])
-        w.writerow(['cal_P_total_bar', data['cal_P_bar']])
+        w.writerow(['cal_fischer_P_total_bar', data['cal_fischer_P_bar']])
+        w.writerow(['cal_oneill_P_total_bar', data['cal_oneill_P_bar']])
         w.writerow(['atm_P_total_bar', data['atm_P_bar']])
         w.writerow(['empirical_low_dIW', EARTH_MANTLE_DIW_LOW])
         w.writerow(['empirical_high_dIW', EARTH_MANTLE_DIW_HIGH])
@@ -78,15 +82,15 @@ def make_figure(data: dict | None = None) -> dict:
     ax.axvspan(EARTH_MANTLE_DIW_LOW, EARTH_MANTLE_DIW_HIGH,
                color=COLOR_BG, alpha=0.6,
                label='Frost & McCammon 2008 Earth-mantle range')
-    # Sossi 2020 anchor line: thicker dotted, raised z-order so it stays
-    # visible even if a backend lands at the same dIW (e.g. CALLIOPE at
-    # +3.50 here would otherwise hide the dotted line entirely).
     ax.axvline(SOSSI_2020_CENTER, color='k', alpha=0.7, linestyle=':',
                linewidth=1.8, zorder=3,
                label=fr'Sossi 2020 upper-mantle anchor: $\Delta\mathrm{{IW}} = {SOSSI_2020_CENTER:+.2f}$')
 
-    ax.axvline(data['cal_dIW'], color=COLOR_CAL, linewidth=2.0, zorder=2,
-               label=fr'CALLIOPE: $\Delta\mathrm{{IW}} = {data["cal_dIW"]:+.2f}$')
+    ax.axvline(data['cal_fischer_dIW'], color=COLOR_CAL, linewidth=2.0, zorder=2,
+               label=fr'CALLIOPE (Fischer, default): $\Delta\mathrm{{IW}} = {data["cal_fischer_dIW"]:+.2f}$')
+    ax.axvline(data['cal_oneill_dIW'], color=COLOR_FIS, linewidth=2.0, linestyle='--',
+               zorder=2, alpha=0.85,
+               label=fr"CALLIOPE (O'Neill, legacy): $\Delta\mathrm{{IW}} = {data['cal_oneill_dIW']:+.2f}$")
     ax.axvline(data['atm_dIW'], color=COLOR_ATM, linewidth=2.0, zorder=2,
                label=fr'atmodeller: $\Delta\mathrm{{IW}} = {data["atm_dIW"]:+.2f}$')
 

@@ -43,7 +43,7 @@ Pure data; no side effects, no logic.
 
 ### `oxygen_fugacity.py`
 
-Single class `OxygenFugacity` with two model methods (`oneill` default, `fischer`). Stateless: instantiate once, call repeatedly with `(T, fO2_shift)`. See [Oxygen fugacity](oxygen_fugacity.md) for the equations.
+Single class `OxygenFugacity` with two model methods (`fischer` default, `oneill` legacy). Stateless: instantiate once, call repeatedly with `(T, fO2_shift)`. See [Oxygen fugacity](oxygen_fugacity.md) for the equations.
 
 ### `chemistry.py`
 

@@ -18,17 +18,7 @@ $$
 
 which fixes a single curve $\log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T)$ in $T$-$f_{\mathrm{O}_2}$ space. CALLIOPE supports two parameterisations of this curve.
 
-### O'Neill & Eggins (2002), `oneill` (default)[^cite-oneilleggins2002]
-
-A thermochemically-constrained fit derived from low-temperature equilibrium data, expressed as Bower et al. (2022)[^cite-bower2022] Equation (7):
-
-$$
-\log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T) = \frac{2\left[-244118 + 115.559\,T - 8.474\,T \ln T\right]}{\ln(10)\, R\, T},
-$$
-
-with $R = 8.31441$ J K$^{-1}$ mol$^{-1}$. Bower et al. (2022)[^cite-bower2022] adopted this as the "IW buffer to which $f_{\mathrm{O}_2}$ is referenced". This is the function `OxygenFugacity.oneill(T)` in `oxygen_fugacity.py`.
-
-### Fischer et al. (2011), `fischer`[^cite-fischer2011]
+### Fischer et al. (2011), `fischer` (default)[^cite-fischer2011]
 
 A simpler two-parameter fit of the 1-bar IW buffer. The fit reproduces the 1-bar curve in Fischer et al. (2011)[^cite-fischer2011] Fig. 6, which itself derives from Chase (1998)[^cite-chase1998] NIST-JANAF tabulation. Fischer's own high-pressure measurements ($\le$200 GPa) extend the buffer to deep-mantle conditions but are not used by CALLIOPE.
 
@@ -38,8 +28,18 @@ $$
 
 Implemented as `OxygenFugacity.fischer(T)`.
 
+### O'Neill & Eggins (2002), `oneill` (legacy)[^cite-oneilleggins2002]
+
+A thermochemically-constrained fit derived from low-temperature equilibrium data, expressed as Bower et al. (2022)[^cite-bower2022] Equation (7):
+
+$$
+\log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T) = \frac{2\left[-244118 + 115.559\,T - 8.474\,T \ln T\right]}{\ln(10)\, R\, T},
+$$
+
+with $R = 8.31441$ J K$^{-1}$ mol$^{-1}$. Bower et al. (2022)[^cite-bower2022] adopted this as the "IW buffer to which $f_{\mathrm{O}_2}$ is referenced", and CALLIOPE used it as the default before the buffer audit. This is the function `OxygenFugacity.oneill(T)` in `oxygen_fugacity.py`; keep it as the choice when you need to reproduce results from the older literature line.
+
 !!! note "Choice of buffer"
-    The two parameterisations agree to within $\sim$0.3 dex near $T \approx 2000$ K but diverge with increasing temperature, reaching $\sim$0.7 dex by $T = 2500$ K and growing further at higher $T$. The disagreement is comparable to or smaller than the typical scatter in $\Delta\mathrm{IW}$ inferred from petrological observations of Earth's modern upper mantle (Sossi et al. 2020[^cite-sossi2020] give $\Delta\mathrm{IW} \approx +3.5$), so the choice between buffers rarely changes inferred partial pressures meaningfully. CALLIOPE defaults to O'Neill & Eggins because Bower et al. (2022)[^cite-bower2022] used it and it was validated end-to-end against PROTEUS coupled runs.
+    The two parameterisations agree to within $\sim$0.3 dex near $T \approx 1700$ K but diverge with increasing temperature, reaching $\sim$0.6 dex by $T = 2400$ K and growing to about $1$ dex at $3000$ K (Fischer becomes the more oxidising of the two). The choice matters at the few-tenths-of-a-dex level for inferred partial pressures across the magma-ocean range. CALLIOPE now defaults to Fischer 2011 because it sits within $\sim$0.2 dex of the Hirschmann composite used by atmodeller across the whole magma-ocean range and so produces cross-backend $\Delta\mathrm{IW}$ values that agree to a few tenths of a dex rather than up to $\sim 1$ dex with the older default. The legacy O'Neill choice remains available for reproducibility of pre-audit results; see [Backend comparison](cross_backend_comparison.md) for the quantitative comparison.
 
 ## How $\Delta\mathrm{IW}$ enters the chemistry
 

@@ -279,8 +279,13 @@ class TestEquilibriumChemistry:
 
         assert p_low > p_high, 'NH3 should be more abundant at lower T'
 
-    def test_H2_and_CO_unchanged(self):
-        """H2 and CO reactions should be unaffected by the chemistry changes."""
+    def test_H2_and_CO_reference_values(self):
+        """H2 and CO reactions: pin the modified equilibrium constant
+        at the canonical T = 2000 K, dIW = 0 evaluation.
+
+        Hidden coupling: the modified Keq folds fO2 in, so this pin
+        depends on the default IW buffer (Fischer et al. 2011).
+        """
         T = 2000.0
         mk_h2 = ModifiedKeq('janaf_H2')
         mk_co = ModifiedKeq('janaf_CO')
@@ -288,9 +293,9 @@ class TestEquilibriumChemistry:
         g_h2 = mk_h2(T, 0.0)
         g_co = mk_co(T, 0.0)
 
-        # Precomputed values from before the fix (must not change)
-        assert g_h2 == pytest.approx(1.469, rel=1e-2)
-        assert g_co == pytest.approx(6.581, rel=1e-2)
+        # Values computed at the default IW buffer (Fischer 2011).
+        assert g_h2 == pytest.approx(1.0896, rel=1e-3)
+        assert g_co == pytest.approx(4.8897, rel=1e-3)
 
     def test_get_partial_pressures_end_to_end(self):
         """End-to-end test: get_partial_pressures should produce positive,

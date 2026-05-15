@@ -11,7 +11,7 @@ log = logging.getLogger('fwl.' + __name__)
 class ModifiedKeq:
     """Modified equilibrium constant (includes fO2)"""
 
-    def __init__(self, Keq_model, fO2_model='oneill'):
+    def __init__(self, Keq_model, fO2_model='fischer'):
         self.fO2 = OxygenFugacity(fO2_model)
         self.callmodel = getattr(self, Keq_model)
 

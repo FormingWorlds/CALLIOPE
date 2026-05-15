@@ -1,6 +1,6 @@
 # Reproducing the Earth fiducial
 
-The [Backend comparison](../Explanations/cross_backend_comparison.md) explanation page anchors all of its figures on one shared Earth scenario: Krijt et al. 2023[^cite-krijt2023] BSE H/C/N/S, $T_\mathrm{magma} = 2000$ K, $\Phi = 1$, and a volatile O reference of $1.24 \times 10^{22}$ kg derived to put CALLIOPE on the Sossi et al. 2020[^cite-sossi2020] $\Delta\mathrm{IW} = +3.5$ Earth upper-mantle anchor. This tutorial walks you through reproducing those numbers from scratch so you can verify the docs are still consistent with the current solver, and so you have the workflow on hand when you want to anchor your own runs to a literature value.
+The [Backend comparison](../Explanations/cross_backend_comparison.md) explanation page anchors all of its figures on one shared Earth scenario: Krijt et al. 2023[^cite-krijt2023] BSE H/C/N/S, $T_\mathrm{magma} = 2000$ K, $\Phi = 1$, and a volatile O reference of $1.26 \times 10^{22}$ kg derived to put CALLIOPE on the Sossi et al. 2020[^cite-sossi2020] $\Delta\mathrm{IW} = +3.5$ Earth upper-mantle anchor with the current default Fischer 2011 buffer. This tutorial walks you through reproducing those numbers from scratch so you can verify the docs are still consistent with the current solver, and so you have the workflow on hand when you want to anchor your own runs to a literature value.
 
 By the end of it you will:
 
@@ -33,7 +33,7 @@ earth_hcns = {'H': 5.6e20, 'C': 3.1e21, 'N': 3.7e19, 'S': 1.0e21}
 
 This is the step that needs the tight `p_guess`.
 
-Without one, the buffered solver at high $\Delta\mathrm{IW}$ with a carbon-rich BSE inventory has two basins: the physical CO$_2$-dominated one at $P_\mathrm{surf} \approx 1712$ bar with $p_\mathrm{H_2O} \approx 5.6$ bar, and a spurious H$_2$O-free one at $P_\mathrm{surf} \approx 1497$ bar with $p_\mathrm{H_2O} = 0$. The Monte-Carlo restart lands in the spurious basin a few percent of the time (measured rate: 1 in 40 over an unseeded sample at this exact configuration), which is rare but too often for a reproducible tutorial.
+Without one, the buffered solver at high $\Delta\mathrm{IW}$ with a carbon-rich BSE inventory has two basins: the physical CO$_2$-dominated one at $P_\mathrm{surf} \approx 1755$ bar with $p_\mathrm{H_2O} \approx 5.6$ bar, and a spurious H$_2$O-free one at lower $P_\mathrm{surf}$ with $p_\mathrm{H_2O} = 0$. The Monte-Carlo restart lands in the spurious basin a few percent of the time, which is rare but too often for a reproducible tutorial.
 
 A `p_guess` near the CO$_2$-dominated basin pins the right answer reliably:
 
@@ -63,13 +63,13 @@ print(f'CO2               = {buf["CO2_bar"]:.0f} bar')
 Expected output:
 
 ```
-derived O_kg_total = 1.241e+22 kg
-P_surf            = 1712 bar
+derived O_kg_total = 1.260e+22 kg
+P_surf            = 1755 bar
 H2O               = 5.59 bar
-CO2               = 1499 bar
+CO2               = 1557 bar
 ```
 
-This is the same number stored as `EARTH_VOLATILE_O_REF_KG` in `scripts/cross_backend/inventories.py` and quoted on the backend-comparison page.
+This is the canonical Earth volatile-O reference under the current Fischer 2011 buffer default and matches the value used on the backend-comparison page.
 
 !!! note "Why a CO$_2$-dominated atmosphere here, not steam?"
     The cause is melt solubility, not bulk inventory. Earth's BSE inventory contains $\sim 5.6 \times 10^{23}$ mol H and $\sim 2.6 \times 10^{23}$ mol C, so hydrogen atoms outnumber carbon atoms by a factor of two. But at $\Phi = 1$ most of the H stays *dissolved* in the silicate melt because H$_2$O is roughly two orders of magnitude more soluble in basalt than CO$_2$ is; most of the C outgases. The atmosphere therefore looks CO$_2$-dominated even though the bulk volatile budget is H-rich. See [Speciation phase diagram](phase_diagram.md) for the same regime mapped across $(T, \Delta\mathrm{IW})$.

@@ -89,6 +89,32 @@ def _calliope_ddict(
     return ddict
 
 
+def _with_calliope_buffer(buffer: str):
+    """Context manager that temporarily pins CALLIOPE's default IW
+    buffer to ``buffer`` ('fischer' or 'oneill'). Restores the prior
+    default on exit. Use this to compare both buffer choices from the
+    same harness regardless of which one is the library default.
+    """
+    from contextlib import contextmanager
+
+    from calliope.chemistry import ModifiedKeq
+    from calliope.oxygen_fugacity import OxygenFugacity
+
+    @contextmanager
+    def _ctx():
+        of_old = OxygenFugacity.__init__.__defaults__
+        mk_old = ModifiedKeq.__init__.__defaults__
+        OxygenFugacity.__init__.__defaults__ = (buffer,)
+        ModifiedKeq.__init__.__defaults__ = (buffer,)
+        try:
+            yield
+        finally:
+            OxygenFugacity.__init__.__defaults__ = of_old
+            ModifiedKeq.__init__.__defaults__ = mk_old
+
+    return _ctx()
+
+
 def run_calliope(
     inventory: Inventory,
     T_magma: float,
@@ -97,13 +123,16 @@ def run_calliope(
     random_seed: int | None = 1234,
     nguess: int = 1500,
     print_result: bool = False,
+    buffer: str = 'fischer',
     **planet_overrides,
 ) -> BackendResult:
     """Run CALLIOPE's authoritative-O solver.
 
     Suppresses fsolve convergence-warning chatter for cleaner sweep
     output. The `random_seed` is fixed by default so a re-run of the
-    figure scripts produces identical numbers.
+    figure scripts produces identical numbers. ``buffer`` selects the
+    IW parameterisation; default 'fischer' matches the CALLIOPE
+    library default; 'oneill' reproduces the legacy CALLIOPE behaviour.
     """
     from calliope.solve import equilibrium_atmosphere_authoritative_O
 
@@ -116,9 +145,10 @@ def run_calliope(
         fO2_hint=fO2_hint,
         seed=random_seed,
         target_d=target_d,
+        buffer=buffer,
     )
     try:
-        with warnings.catch_warnings():
+        with warnings.catch_warnings(), _with_calliope_buffer(buffer):
             warnings.simplefilter('ignore')
             out = equilibrium_atmosphere_authoritative_O(
                 target_d,

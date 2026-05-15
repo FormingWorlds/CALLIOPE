@@ -19,7 +19,7 @@ This page summarises the model assumptions, the variables it solves for, and how
     | $\tfrac{1}{2}\,\mathrm{S_2} + \mathrm{H_2} \rightleftharpoons \mathrm{H_2S}$ | JANAF, doubled form (`janaf_H2S`) |
     | $\tfrac{1}{2}\,\mathrm{N_2} + \tfrac{3}{2}\,\mathrm{H_2} \rightleftharpoons \mathrm{NH_3}$ | JANAF, doubled form (`janaf_NH3`) |
 
-- **One oxygen-fugacity buffer**: O'Neill & Eggins (2002)[^cite-oneilleggins2002] iron-wüstite (default), or Fischer et al. (2011)[^cite-fischer2011] IW. The shift $\Delta\mathrm{IW}$ sets $\log_{10} f_{\mathrm{O}_2}$ relative to the buffer; under the buffered mode it is a user-prescribed input, under the authoritative-O mode it is a solver unknown.
+- **One oxygen-fugacity buffer**: Fischer et al. (2011)[^cite-fischer2011] iron-wüstite (default; close to atmodeller's Hirschmann composite across the magma-ocean range), or the legacy O'Neill & Eggins (2002)[^cite-oneilleggins2002] IW. The shift $\Delta\mathrm{IW}$ sets $\log_{10} f_{\mathrm{O}_2}$ relative to the buffer; under the buffered mode it is a user-prescribed input, under the authoritative-O mode it is a solver unknown.
 - **One solubility law per species** with multiple alternative compositions (peridotite, basalt, lunar glass, anorthite-diopside) selectable via constructor argument.
 
 ## What is *not* in the model
@@ -51,7 +51,7 @@ The four pieces of physics decompose cleanly:
 | Speciation tree (primary $\to$ secondary) | [Equilibrium chemistry](equilibrium_chemistry.md) | `chemistry.ModifiedKeq`, `solve.get_partial_pressures` |
 | Atmospheric column mass | [Mass balance & solver](mass_balance.md) | `solve.atmosphere_mass` |
 | Dissolved mass via Henry / power-law / multi-arg solubility | [Solubility laws](solubility.md) | `solubility.SolubilityH2O`, ..., `solve.dissolved_mass` |
-| O'Neill IW buffer | [Oxygen fugacity](oxygen_fugacity.md) | `oxygen_fugacity.OxygenFugacity` |
+| Fischer IW buffer (default), O'Neill IW buffer (legacy) | [Oxygen fugacity](oxygen_fugacity.md) | `oxygen_fugacity.OxygenFugacity` |
 
 ## Lineage
 

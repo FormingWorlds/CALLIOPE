@@ -61,17 +61,17 @@ print(f'Earth: P_surf = {earth_out["P_surf"]:6.1f} bar, M_atm = {earth_out["M_at
 print(f'Mars : P_surf = {mars_out["P_surf"]:6.1f} bar, M_atm = {mars_out["M_atm"]:.2e} kg')
 ```
 
-You should see:
+You should see (current default Fischer 2011 buffer):
 
 ```
-Earth: P_surf = 1396.6 bar, M_atm = 7.26e+21 kg
-Mars : P_surf =  213.4 bar, M_atm = 8.31e+20 kg
+Earth: P_surf = 1449.4 bar, M_atm = 7.54e+21 kg
+Mars : P_surf =  225.9 bar, M_atm = 8.79e+20 kg
 ```
 
 Two things are worth noticing:
 
 - The Mars atmosphere has about $1/9$ the mass of Earth's, in line with the $0.107$ inventory scaling. The chemistry is roughly mass-linear at this regime.
-- The Mars surface pressure is only $1/7$ of Earth's, not $1/9$, because the smaller gravity ($3.71$ m s$^{-2}$ vs $9.81$ m s$^{-2}$) trades against the smaller atmospheric mass: $P_\mathrm{surf} = g M_\mathrm{atm} / (4\pi R^2)$, so the gravity ratio (factor $0.38$) partly compensates the mass ratio (factor $0.11$).
+- The Mars surface pressure is only $\sim 1/6$ of Earth's, not $1/9$, because the smaller gravity ($3.71$ m s$^{-2}$ vs $9.81$ m s$^{-2}$) trades against the smaller atmospheric mass: $P_\mathrm{surf} = g M_\mathrm{atm} / (4\pi R^2)$, so the gravity ratio ($0.38$) partly compensates the mass ratio ($0.11$).
 
 ## Step 3: plot the comparison
 

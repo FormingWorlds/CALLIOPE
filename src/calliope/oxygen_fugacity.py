@@ -11,7 +11,7 @@ log = logging.getLogger('fwl.' + __name__)
 class OxygenFugacity:
     """log10 oxygen fugacity as a function of temperature"""
 
-    def __init__(self, model='oneill'):
+    def __init__(self, model='fischer'):
         self.callmodel = getattr(self, model)
 
     def __call__(self, T, fO2_shift=0):

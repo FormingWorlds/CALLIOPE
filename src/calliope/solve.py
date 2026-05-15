@@ -99,16 +99,20 @@ def _get_partial_pressures(pin, fO2_shift, ddict):
 
     # Silent clip: solver Monte-Carlo restarts can produce negative or
     # non-finite `pin`, which then propagates through the sqrt expressions;
-    # the downstream mass tallies require non-negative, finite pressures.
-    # `max(0.0, p_d[k])` alone is insufficient because Python's builtin
-    # max preserves NaN whenever NaN is the second argument (NaN < 0 is
-    # False, so max returns the second arg unchanged); the explicit
-    # finite-check below also handles +/-inf in the same path.
+    # the downstream mass tallies require non-negative, finite, real
+    # pressures.
+    # `max(0.0, p_d[k])` alone is insufficient: builtin max preserves NaN
+    # whenever NaN is the second argument (NaN < 0 is False, so max
+    # returns the second arg unchanged), and Python complex numbers do
+    # not define `<` at all. The explicit checks below pin every output
+    # to a non-negative real (clipping NaN, +/-inf, and any complex
+    # intermediate produced by sqrt-of-negative paths down to 0).
     for k in p_d.keys():
-        if not np.isfinite(p_d[k]):
+        v = p_d[k]
+        if isinstance(v, complex) or not np.isfinite(v):
             p_d[k] = 0.0
         else:
-            p_d[k] = max(0.0, p_d[k])
+            p_d[k] = max(0.0, float(v))
 
     return p_d
 

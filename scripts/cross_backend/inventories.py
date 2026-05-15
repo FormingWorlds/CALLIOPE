@@ -63,14 +63,16 @@ docstring.
 """
 
 
-EARTH_VOLATILE_O_REF_KG = 1.241e22
+EARTH_VOLATILE_O_REF_KG = 1.260e22
 """Earth's volatile O at the Sossi 2020 Delta-IW = +3.5, T = 2000 K state.
 
 Computed by `derive_earth_volatile_O()` from CALLIOPE's buffered-mode
-solver with EARTH_HCNS_KRIJT23 as the H/C/N/S target. Hard-coded here
-so the harness does not have to recompute it on every invocation; the
-provenance script `derive_earth_volatile_O()` re-derives it on demand
-to confirm the constant has not drifted.
+solver with EARTH_HCNS_KRIJT23 as the H/C/N/S target and the current
+default Fischer 2011 IW buffer. Hard-coded here so the harness does
+not have to recompute it on every invocation; the provenance script
+`derive_earth_volatile_O()` re-derives it on demand to confirm the
+constant has not drifted. The legacy O'Neill 2002 buffer gives a
+slightly different value (~1.241e22 kg).
 """
 
 

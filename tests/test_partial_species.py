@@ -122,24 +122,26 @@ class TestGetPartialPressuresExclusions:
         assert p_d['H2S'] > 0.0
 
     def test_unphysical_negative_partial_pressure_raises_or_clips(self):
-        """The function clips negative outputs to 0 via `max(0.0, p_d[k])`.
+        """The function clips negative outputs to 0 via the explicit
+        non-negative-real clip at the bottom of `_get_partial_pressures`.
         Feed it a primary pressure that drives a derived species negative
         (impossible at any real fO2 but the clip path must still hold).
-        Pass a NaN-like sentinel via T_magma to force a non-finite gamma;
-        the clip silently returns 0, which is a contract worth pinning.
         """
-        # Negative initial partial pressure for H2O — physically nonsense.
-        # The function does not raise; it propagates through but the final
-        # `max(0.0, p_d[k])` clip pins the output non-negative.
+        import warnings as _warnings
+
         ddict = _make_ddict()
         pin = {'H2O': -5.0, 'CO2': 10.0, 'N2': 1.0, 'S2': 0.1}
-        # Negative H2O => p_d['H2'] < 0 => NH3 = (... * H2**3) ** 0.5 raises
-        # a RuntimeWarning ("invalid value in scalar power"). Expected.
-        with pytest.warns(RuntimeWarning, match='invalid value'):
+        # Whether intermediate steps emit a RuntimeWarning, drop into a
+        # NaN path, or produce a complex sqrt-of-negative depends on the
+        # buffer; the clip must absorb all three. Suppress any warnings
+        # and pin the contract that matters: every output a non-negative
+        # real.
+        with _warnings.catch_warnings():
+            _warnings.simplefilter('ignore', RuntimeWarning)
             p_d = get_partial_pressures(pin, ddict)
 
-        # Clip contract: every output non-negative even if input is not.
         for sp, p in p_d.items():
+            assert isinstance(p, float), f'{sp} = {p!r} is not a real float'
             assert p >= 0.0, f'{sp} = {p} broke the non-negative clip'
 
 
