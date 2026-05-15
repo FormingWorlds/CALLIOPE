@@ -72,7 +72,7 @@ print(f'cold-start step: {wall[0]*1e3:6.1f} ms')
 print(f'warm-step median: {np.median(wall[1:])*1e3:6.1f} ms')
 ```
 
-You should see the warm steps run roughly 3-10x faster than the cold start (the exact ratio depends on how lucky the cold-start Monte-Carlo draw is on the first call).
+You should see the warm steps run several times faster than the cold start. The exact ratio depends on how lucky the cold-start Monte-Carlo draw is on the first call: when the draw is lucky the cold call already converges quickly and the warm steps are only a few-fold faster (~3x in the cached run on this page); when the cold draw needs many restarts the warm-step speed-up can be an order of magnitude or more.
 
 !!! note "Which keys to thread forward"
     The four primary partial pressures are `H2O`, `CO2`, `N2`, `S2`. CALLIOPE's solver uses these four as its unknowns; the other six species (`H2`, `CO`, `CH4`, `NH3`, `SO2`, `H2S`) are derived from the primaries via the equilibrium reactions, so they should *not* appear in `p_guess`. Passing them anyway is harmless (they will be ignored), but missing one of the four primaries raises `ValueError`.

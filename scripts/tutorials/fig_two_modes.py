@@ -56,6 +56,12 @@ def _base_ddict() -> dict:
 def collect() -> dict:
     """Run buffered -> authoritative-O for each input Delta-IW.
 
+    The buffered leg threads p_guess forward across the Delta-IW grid
+    so the Monte-Carlo restart never has to find the canonical basin
+    from a cold start at high Delta-IW (where the carbon-rich BSE
+    inventory has a documented spurious H2O-free basin that the cold
+    solver lands in ~20% of the time).
+
     Returns
     -------
     dict
@@ -63,26 +69,30 @@ def collect() -> dict:
     """
     recovered = np.full(DIW_GRID.size, np.nan)
     O_total = np.full(DIW_GRID.size, np.nan)
+    p_guess_buf = None
     for i, diw in enumerate(DIW_GRID):
-        # Step 1: buffered call at the input Delta-IW.
+        # Step 1: buffered call at the input Delta-IW. Warm-start
+        # from the previous grid point's converged pressures so the
+        # solver stays in the canonical basin across the sweep.
         ddict = _base_ddict()
         ddict['fO2_shift_IW'] = float(diw)
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
             buf = equilibrium_atmosphere(
-                EARTH_HCNS, ddict, hide_warnings=True, print_result=False,
+                EARTH_HCNS, ddict, p_guess=p_guess_buf,
+                hide_warnings=True, print_result=False,
             )
         O_kg = float(buf['O_kg_total'])
+        p_guess_buf = {s: float(buf[f'{s}_bar']) for s in ('H2O', 'CO2', 'N2', 'S2')}
 
         # Step 2: authoritative-O call with the buffered run's O budget.
         target = dict(EARTH_HCNS)
         target['O'] = O_kg
-        p_guess = {s: float(buf[f'{s}_bar']) for s in ('H2O', 'CO2', 'N2', 'S2')}
         ddict_auth = _base_ddict()
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
             auth = equilibrium_atmosphere_authoritative_O(
-                target, ddict_auth, p_guess=p_guess, fO2_hint=float(diw),
+                target, ddict_auth, p_guess=p_guess_buf, fO2_hint=float(diw),
                 hide_warnings=True, print_result=False,
             )
         recovered[i] = float(auth['fO2_shift_derived'])

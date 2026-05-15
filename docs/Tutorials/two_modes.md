@@ -72,7 +72,7 @@ print(f'Authoritative-O mode: dIW recovered = {auth["fO2_shift_derived"]:+.4f}, 
       f'residual = {auth["fO2_shift_derived"] - 1.0:+.2e} dex')
 ```
 
-You should see the recovered $\Delta\mathrm{IW}$ match the input to within solver tolerance (typically $\lesssim 10^{-6}$ dex with a warm start).
+You should see the recovered $\Delta\mathrm{IW}$ match the input to within solver tolerance (typically $\lesssim 10^{-4}$ dex with a warm start; the warm-started chain in Step 3 below tightens this further).
 
 !!! note "Two API differences"
     - The authoritative-O target dict **must** include a `'O'` key; a missing `'O'` raises `KeyError`.
@@ -80,7 +80,7 @@ You should see the recovered $\Delta\mathrm{IW}$ match the input to within solve
 
 ## Step 3: round-trip across the full redox range
 
-The round-trip should hold not only at the fiducial $\Delta\mathrm{IW} = +1$ but across the full magma-ocean redox range. Loop over a grid of buffer inputs, feed each one's `O_kg_total` back through authoritative-O, and store the recovered $\Delta\mathrm{IW}$:
+The round-trip should hold not only at the fiducial $\Delta\mathrm{IW} = +1$ but across the full magma-ocean redox range. Loop over a grid of buffer inputs, feed each one's `O_kg_total` back through authoritative-O, and store the recovered $\Delta\mathrm{IW}$. Thread the previous iteration's converged primary pressures forward as the next call's `p_guess` so the solver stays in the canonical basin across the sweep (without this, the buffered call at high $\Delta\mathrm{IW}$ can cold-start into a spurious basin and break closure for that grid point):
 
 ```python
 import numpy as np
@@ -88,13 +88,18 @@ import numpy as np
 diw_grid = np.array([-2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0])
 recovered = []
 
+p_guess = None      # cold-start the first buffered call
 for diw in diw_grid:
     ddict['fO2_shift_IW'] = float(diw)
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        buf = equilibrium_atmosphere(earth_hcns, ddict, print_result=False)
+        buf = equilibrium_atmosphere(
+            earth_hcns, ddict, p_guess=p_guess, print_result=False,
+        )
+    # Carry the converged primaries forward as the warm start for the
+    # next buffered call AND as the guess for the authoritative-O leg.
+    p_guess = {s: float(buf[f'{s}_bar']) for s in ('H2O', 'CO2', 'N2', 'S2')}
     target = dict(earth_hcns); target['O'] = buf['O_kg_total']
-    p_guess = {s: buf[f'{s}_bar'] for s in ('H2O', 'CO2', 'N2', 'S2')}
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         auth = equilibrium_atmosphere_authoritative_O(
@@ -108,13 +113,13 @@ residuals = recovered - diw_grid
 print('worst-case residual:', np.max(np.abs(residuals)))
 ```
 
-A successful run prints something like `worst-case residual: 8.21e-08`. Closure holds at machine precision because both entry points solve the same underlying system; the small numerical residual reflects fsolve's `xtol`, not any chemistry difference.
+A warm-started sweep prints something like `worst-case residual: 2.2e-11`. Closure holds at solver precision because both entry points solve the same underlying system; the residual reflects fsolve's `xtol`, not any chemistry difference. If you remove the `p_guess` threading, expect occasional grid points where the buffered call lands in a spurious basin and the closure residual jumps by several orders of magnitude.
 
 ## The goal of this tutorial
 
 ![Two-mode round-trip closure](../assets/figures/tutorials/two_modes_round_trip.png)
 
-*Recovered $\Delta\mathrm{IW}$ from authoritative-O mode against the input $\Delta\mathrm{IW}$ to buffered mode. Each circle is one input on the grid; the diagonal is perfect closure. Worst-case absolute residual ($8 \times 10^{-8}$ dex at this configuration) reflects the solver's mass-balance tolerance, not a calibration mismatch.*
+*Recovered $\Delta\mathrm{IW}$ from authoritative-O mode against the input $\Delta\mathrm{IW}$ to buffered mode. Each circle is one input on the grid; the diagonal is perfect closure. Worst-case absolute residual ($\sim 2 \times 10^{-11}$ dex on this warm-started sweep) reflects the solver's mass-balance tolerance, not a calibration mismatch.*
 
 If your version of this plot does not land on the diagonal, the most likely cause is a missing or mis-typed `'O'` key in the authoritative-O target dict, or reading `auth['fO2_shift_IW']` (which is the unused input slot) instead of `auth['fO2_shift_derived']`.
 

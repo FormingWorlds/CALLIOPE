@@ -1,6 +1,6 @@
 # Reproducing the Earth fiducial
 
-The [Backend comparison](../Explanations/cross_backend_comparison.md) explanation page anchors all of its figures on one shared Earth scenario: Krijt+2023 BSE H/C/N/S, $T_\mathrm{magma} = 2000$ K, $\Phi = 1$, and a volatile O reference of $1.24 \times 10^{22}$ kg derived to put CALLIOPE on the Sossi 2020 $\Delta\mathrm{IW} = +3.5$ Earth upper-mantle anchor. This tutorial walks you through reproducing those numbers from scratch so you can verify the docs are still consistent with the current solver, and so you have the workflow on hand when you want to anchor your own runs to a literature value.
+The [Backend comparison](../Explanations/cross_backend_comparison.md) explanation page anchors all of its figures on one shared Earth scenario: Krijt et al. 2023[^cite-krijt2023] BSE H/C/N/S, $T_\mathrm{magma} = 2000$ K, $\Phi = 1$, and a volatile O reference of $1.24 \times 10^{22}$ kg derived to put CALLIOPE on the Sossi et al. 2020[^cite-sossi2020] $\Delta\mathrm{IW} = +3.5$ Earth upper-mantle anchor. This tutorial walks you through reproducing those numbers from scratch so you can verify the docs are still consistent with the current solver, and so you have the workflow on hand when you want to anchor your own runs to a literature value.
 
 By the end of it you will:
 
@@ -33,7 +33,7 @@ earth_hcns = {'H': 5.6e20, 'C': 3.1e21, 'N': 3.7e19, 'S': 1.0e21}
 
 This is the step that needs the tight `p_guess`.
 
-Without one, the buffered solver at high $\Delta\mathrm{IW}$ with a carbon-rich BSE inventory has two basins: the physical CO$_2$-dominated one at $P_\mathrm{surf} \approx 1712$ bar and a spurious H$_2$O-free one at $P_\mathrm{surf} \approx 1497$ bar. The Monte-Carlo restart lands in the spurious basin roughly 1 time in 5, which is too often for a reproducible tutorial.
+Without one, the buffered solver at high $\Delta\mathrm{IW}$ with a carbon-rich BSE inventory has two basins: the physical CO$_2$-dominated one at $P_\mathrm{surf} \approx 1712$ bar with $p_\mathrm{H_2O} \approx 5.6$ bar, and a spurious H$_2$O-free one at $P_\mathrm{surf} \approx 1497$ bar with $p_\mathrm{H_2O} = 0$. The Monte-Carlo restart lands in the spurious basin a few percent of the time (measured rate: 1 in 40 over an unseeded sample at this exact configuration), which is rare but too often for a reproducible tutorial.
 
 A `p_guess` near the CO$_2$-dominated basin pins the right answer reliably:
 
@@ -72,7 +72,7 @@ CO2               = 1499 bar
 This is the same number stored as `EARTH_VOLATILE_O_REF_KG` in `scripts/cross_backend/inventories.py` and quoted on the backend-comparison page.
 
 !!! note "Why a CO$_2$-dominated atmosphere here, not steam?"
-    Earth's BSE C / H mass ratio in the Krijt+2023 budget is $\sim 5.5$. At $\Delta\mathrm{IW} = +3.5$ both elements oxidise; with so much more carbon than hydrogen, CO$_2$ dominates the atmosphere by mass even though H$_2$O is the more familiar magma-ocean atmospheric species. See [Speciation phase diagram](phase_diagram.md) for the same regime mapped across $(T, \Delta\mathrm{IW})$.
+    The cause is melt solubility, not bulk inventory. Earth's BSE inventory contains $\sim 5.6 \times 10^{23}$ mol H and $\sim 2.6 \times 10^{23}$ mol C, so hydrogen atoms outnumber carbon atoms by a factor of two. But at $\Phi = 1$ most of the H stays *dissolved* in the silicate melt because H$_2$O is roughly two orders of magnitude more soluble in basalt than CO$_2$ is; most of the C outgases. The atmosphere therefore looks CO$_2$-dominated even though the bulk volatile budget is H-rich. See [Speciation phase diagram](phase_diagram.md) for the same regime mapped across $(T, \Delta\mathrm{IW})$.
 
 ## Step 3: round-trip through authoritative-O
 
@@ -100,7 +100,7 @@ Expected output: `residual = -4.35e-09 dex`, i.e. essentially zero. The full pro
 
 ![Earth fiducial closure](../assets/figures/tutorials/earth_fiducial.png)
 
-*Earth fiducial reproduced from scratch. The cream band is the Frost & McCammon (2008) empirical Earth-mantle range, $\Delta\mathrm{IW} \in [+1, +5]$. The dotted vertical is the Sossi et al. (2020) upper-mantle anchor, $\Delta\mathrm{IW} = +3.50$. The solid line is the CALLIOPE recovered value after the buffered → authoritative-O round-trip. The summary box reports the derived O budget, the absolute closure residual (a few parts in $10^9$), and the converged surface pressure. The reproduced CALLIOPE line sits exactly on the Sossi anchor, as it should: the entire workflow is constructed to land on this value.*
+*Earth fiducial reproduced from scratch. The cream band represents the Frost & McCammon 2008[^cite-frostmccammon2008] empirical Earth-mantle range, $\Delta\mathrm{IW} \in [+1, +5]$ (a conversion of their stated FMQ $\pm 2$ dex upper-mantle window onto the IW reference). The dotted vertical is the Sossi et al. 2020[^cite-sossi2020] upper-mantle anchor, $\Delta\mathrm{IW} = +3.50$. The solid line is the CALLIOPE recovered value after the buffered $\to$ authoritative-O round-trip. The summary box reports the derived O budget, the absolute closure residual (a few parts in $10^9$), and the converged surface pressure. The reproduced CALLIOPE line sits exactly on the Sossi anchor, as it should: the entire workflow is constructed to land on this value.*
 
 If your reproduced figure does not show the CALLIOPE line on the Sossi anchor, the most likely cause is that you skipped the `canonical_guess` in Step 2 and the buffered solver landed in the spurious H$_2$O-free basin. Add the `p_guess` and re-run.
 
@@ -113,3 +113,7 @@ If your reproduced figure does not show the CALLIOPE line on the Sossi anchor, t
 ## Reproducing the figure
 
 Generated by [`scripts/tutorials/fig_earth_fiducial.py`](https://github.com/FormingWorlds/CALLIOPE/blob/main/scripts/tutorials/fig_earth_fiducial.py). Re-run with `python -m scripts.tutorials.fig_earth_fiducial` from the repository root.
+
+[^cite-frostmccammon2008]: D. J. Frost, C. A. McCammon, *[The redox state of Earth's mantle](https://doi.org/10.1146/annurev.earth.36.031207.124322)*, Annual Review of Earth and Planetary Sciences, 36, 389, 2008.
+[^cite-krijt2023]: S. Krijt, M. Kama, M. McClure, J. Teske, E. A. Bergin, O. Shorttle, K. J. Walsh, S. N. Raymond, *Chemical habitability: supply and retention of life's essential elements during planet formation*, in Protostars and Planets VII, S. Inutsuka, Y. Aikawa, T. Muto, K. Tomida, M. Tamura, eds., Astronomical Society of the Pacific Conference Series, 534, 1031, 2023.
+[^cite-sossi2020]: P. A. Sossi, A. D. Burnham, J. Badro, A. Lanzirotti, M. Newville, H. St. C. O'Neill, *[Redox state of Earth's magma ocean and its Venus-like early atmosphere](https://doi.org/10.1126/sciadv.abd1387)*, Science Advances, 6, eabd1387, 2020.
