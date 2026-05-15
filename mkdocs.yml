@@ -23,6 +23,7 @@ nav:
       - First run: Tutorials/firstrun.md
       - Two-mode round-trip: Tutorials/two_modes.md
       - Speciation phase diagram: Tutorials/phase_diagram.md
+      - Coupled-loop driver: Tutorials/coupled_loop.md
 
   - Explanations:
       - Model overview: Explanations/model.md
