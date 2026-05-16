@@ -81,4 +81,4 @@ If you use CALLIOPE in published work, please cite the four methods papers below
 
 ## License
 
-[Apache License 2.0](LICENSE.txt). CALLIOPE is part of the [Forming Worlds Lab](https://formingworlds.space/) PROTEUS framework.
+[Apache License 2.0](LICENSE.txt). CALLIOPE is part of the [PROTEUS framework](https://proteus-framework.org/PROTEUS).
