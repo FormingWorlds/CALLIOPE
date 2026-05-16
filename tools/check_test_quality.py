@@ -251,8 +251,11 @@ def _count_implicit_assertions(node: ast.AST) -> int:
 
     Recognized patterns:
 
-    - ``with pytest.raises(...)`` blocks.
-    - ``with pytest.warns(...)`` blocks.
+    - ``with pytest.raises(...)`` blocks. A ``match=`` keyword counts as a
+      second implicit assertion: it imposes a separate falsifiable
+      constraint on the exception message, distinct from the type check.
+    - ``with pytest.warns(...)`` blocks. Same ``match=`` rule.
+    - ``with pytest.deprecated_call()`` blocks.
     - ``mock.assert_called_with(...)`` / ``assert_called_once_with(...)`` /
       ``assert_not_called(...)`` etc. method calls on a Mock object.
     - ``pytest.fail(...)`` calls.
@@ -270,6 +273,12 @@ def _count_implicit_assertions(node: ast.AST) -> int:
                         and ctx.func.attr in ('raises', 'warns', 'deprecated_call')
                     ):
                         count += 1
+                        # A ``match=`` argument is a separate falsifiable
+                        # constraint on the exception or warning message:
+                        # ``pytest.raises(ValueError, match='non-negative')``
+                        # is strictly stronger than ``pytest.raises(ValueError)``.
+                        if any(kw.arg == 'match' for kw in ctx.keywords):
+                            count += 1
         if isinstance(child, ast.Call) and isinstance(child.func, ast.Attribute):
             attr = child.func.attr
             if attr.startswith('assert_called') or attr == 'assert_not_called':
