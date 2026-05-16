@@ -237,6 +237,9 @@ class TestDissolvedMassExclusions:
     """
 
     def test_co_excluded_writes_zero(self):
+        """When CO is excluded from the species list, dissolved_mass
+        writes an explicit 0.0 in the 'CO' key (not a missing key)
+        while still dissolving CO2 normally."""
         ddict = _make_ddict(included={'CO': 0})
         pin = {'H2O': 100.0, 'CO2': 10.0, 'N2': 1.0, 'S2': 0.1}
         m = dissolved_mass(pin, ddict)
@@ -249,6 +252,9 @@ class TestDissolvedMassExclusions:
         assert m['CO2'] > 0.0
 
     def test_ch4_excluded_writes_zero(self):
+        """When CH4 is excluded from the species list, dissolved_mass
+        writes an explicit 0.0 in the 'CH4' key (not a missing key)
+        while still dissolving CO and CO2 normally."""
         ddict = _make_ddict(included={'CH4': 0})
         pin = {'H2O': 100.0, 'CO2': 10.0, 'N2': 1.0, 'S2': 0.1}
         m = dissolved_mass(pin, ddict)
@@ -318,6 +324,9 @@ class TestSolubilityN2Libourel:
     """
 
     def test_libourel_linear_in_p(self):
+        """Libourel N2 solubility is a Henry's-law linear function of
+        p_N2 (`ppmw = 0.0611 * p`); the ratio sol(100) / sol(1) equals
+        100 exactly, ruling out sqrt or quadratic dependences."""
         sol = SolubilityN2('libourel')
         # Discriminating: at p=1, all of p^0.5/p/p^2 give 1.0. At p=100
         # they differ by a factor of 10 (sqrt) or 10000 (square), so the

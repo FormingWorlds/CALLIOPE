@@ -26,6 +26,9 @@ pytestmark = pytest.mark.unit
 
 
 def test_molar_mass_contains_expected_species():
+    """The `molar_mass` table includes every volatile species CALLIOPE
+    tracks (H2O, CO2, H2, CH4, CO, N2, O2, SO2, H2S, S2, NH3) with a
+    positive value for each."""
     required = {'H2O', 'CO2', 'H2', 'CH4', 'CO', 'N2', 'O2', 'SO2', 'H2S', 'S2', 'NH3'}
     assert required.issubset(set(molar_mass.keys()))
     # All molar masses should be positive
@@ -33,6 +36,8 @@ def test_molar_mass_contains_expected_species():
 
 
 def test_volatile_species_and_elements_defined():
+    """`volatile_species` is a non-empty list and `element_list` contains
+    the five CHNOS atoms PROTEUS budgets are written in."""
     assert isinstance(volatile_species, list) and len(volatile_species) > 0
     assert {'H', 'O', 'C', 'N', 'S'}.issubset(set(element_list))
 

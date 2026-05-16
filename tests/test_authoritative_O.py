@@ -328,6 +328,9 @@ class TestReproducibility:
     and for regression tests."""
 
     def test_same_seed_bit_identical(self):
+        """Two calls with the same random_seed produce bit-identical
+        output on all five primary pressures, derived fO2, and the
+        per-element residuals."""
         ddict = _ddict()
         target = dict(_earth_target_HCNS(), O=2.0e21)
 
@@ -426,6 +429,10 @@ class TestConvergenceFailure:
     """
 
     def test_impossible_O_target_raises_runtime_error(self):
+        """An O budget far outside the achievable range (e.g. 1e30 kg)
+        cannot satisfy the closure system; the solver exhausts its
+        restart budget and the entry point raises RuntimeError rather
+        than returning garbage."""
         ddict = _ddict()
         target = dict(_earth_target_HCNS(), O=1e30)
 

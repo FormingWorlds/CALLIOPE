@@ -138,6 +138,9 @@ class TestMassConservationPerElement:
 
     @pytest.mark.parametrize('T,dIW', _DEFAULT_TFO2)
     def test_atm_plus_liquid_equals_total(self, T, dIW):
+        """For every element, atmospheric mass + dissolved mass equals
+        total mass to within solver tolerance, at every parametrized
+        (T, dIW) point in the magma-ocean window."""
         result = _solve_buffered(T=T, dIW=dIW)
         seen_split = False
         for e in element_list:
@@ -197,6 +200,8 @@ class TestPressurePositivity:
 
     @pytest.mark.parametrize('T,dIW', _DEFAULT_TFO2)
     def test_all_species_pressures_nonnegative(self, T, dIW):
+        """Every species partial pressure is >= 0 at the converged
+        solution across the magma-ocean (T, dIW) window."""
         result = _solve_buffered(T=T, dIW=dIW)
         for s in volatile_species:
             assert result[f'{s}_bar'] >= 0.0, (
@@ -241,6 +246,8 @@ class TestVMRClosure:
 
     @pytest.mark.parametrize('T,dIW', _DEFAULT_TFO2)
     def test_vmrs_sum_to_one(self, T, dIW):
+        """Sum of volume mixing ratios across all volatile species equals
+        unity to within rel=1e-10 at every parametrized (T, dIW) point."""
         result = _solve_buffered(T=T, dIW=dIW)
         vmr_sum = sum(result[f'{s}_vmr'] for s in volatile_species)
         assert vmr_sum == pytest.approx(1.0, rel=1e-10), (
@@ -282,6 +289,8 @@ class TestTotalPressureConsistency:
 
     @pytest.mark.parametrize('T,dIW', _DEFAULT_TFO2)
     def test_psurf_equals_sum_of_pp(self, T, dIW):
+        """P_surf equals the sum of the per-species partial pressures
+        across the magma-ocean (T, dIW) window."""
         result = _solve_buffered(T=T, dIW=dIW)
         p_sum = sum(result[f'{s}_bar'] for s in volatile_species)
         assert result['P_surf'] == pytest.approx(p_sum, rel=1e-10)
@@ -315,6 +324,8 @@ class TestAtmosphericMassConsistency:
 
     @pytest.mark.parametrize('T,dIW', _DEFAULT_TFO2)
     def test_M_atm_equals_sum(self, T, dIW):
+        """M_atm equals the sum of per-species column masses across the
+        magma-ocean (T, dIW) window."""
         result = _solve_buffered(T=T, dIW=dIW)
         m_sum = sum(result[f'{s}_kg_atm'] for s in volatile_species)
         assert result['M_atm'] == pytest.approx(m_sum, rel=1e-10)
@@ -343,6 +354,10 @@ class TestFO2Reconstruction:
         (2200.0, 1.0e21),
     ])
     def test_derived_fO2_matches_p_O2(self, T, O_kg):
+        """In authoritative-O mode, the derived fO2 shift reproduces
+        log10(p_O2) minus the buffer log10(fO2) at IW; verifies the
+        closure between the new mode's fifth unknown and the gas-phase
+        O2 partial pressure."""
         result = _solve_authoritative(T=T, O_kg=O_kg, fO2_hint=0.0)
         buffer_log10 = OxygenFugacity()(T, 0.0)  # log10 fO2 at IW (shift=0)
         p_O2 = result['O2_bar']
@@ -370,6 +385,8 @@ class TestModifiedKeqIdentity:
 
     @pytest.mark.parametrize('T,dIW', [(1800.0, 0.0), (2200.0, 3.0)])
     def test_H2O_H2_ratio(self, T, dIW):
+        """p_H2 / p_H2O at convergence matches ModifiedKeq('janaf_H2')
+        evaluated at the same (T, dIW)."""
         result = _solve_buffered(T=T, dIW=dIW)
         Keq = ModifiedKeq('janaf_H2')
         Geq = Keq(T, dIW)
@@ -385,6 +402,8 @@ class TestModifiedKeqIdentity:
 
     @pytest.mark.parametrize('T,dIW', [(1800.0, 0.0), (2200.0, 3.0)])
     def test_CO2_CO_ratio(self, T, dIW):
+        """p_CO / p_CO2 at convergence matches ModifiedKeq('janaf_CO')
+        evaluated at the same (T, dIW)."""
         result = _solve_buffered(T=T, dIW=dIW)
         Keq = ModifiedKeq('janaf_CO')
         Geq = Keq(T, dIW)
@@ -406,6 +425,8 @@ class TestDissolvedMassNonNegativity:
 
     @pytest.mark.parametrize('T,dIW', _DEFAULT_TFO2)
     def test_all_dissolved_nonnegative(self, T, dIW):
+        """Every per-species dissolved mass is >= 0 at the converged
+        solution across the magma-ocean (T, dIW) window."""
         result = _solve_buffered(T=T, dIW=dIW)
         for s in volatile_species:
             assert result[f'{s}_kg_liquid'] >= 0.0, (
@@ -439,6 +460,9 @@ class TestDasguptaReducingEdgeSolver:
 
     @pytest.mark.parametrize('dIW', [-3.0, -4.0, -6.0])
     def test_buffered_solver_finite_at_reducing_edge(self, dIW):
+        """At the strongly-reducing edge of the Dasgupta calibration
+        footprint (dIW <= -3), the buffered solver still produces
+        finite, non-negative partial pressures for every species."""
         result = _solve_buffered(T=1800.0, dIW=dIW)
         for s in volatile_species:
             assert math.isfinite(result[f'{s}_bar'])
@@ -461,6 +485,10 @@ class TestGaillardOxidisingEdge:
 
     @pytest.mark.parametrize('dIW', [+4.0, +5.0, +6.0])
     def test_solver_converges_at_oxidising_edge(self, dIW):
+        """At the oxidising edge of the Gaillard sulfide-saturated
+        calibration (dIW >= +4), the buffered solver still produces
+        finite S2 and SO2 partial pressures, with SO2 dominating S2 by
+        dIW >= +5."""
         result = _solve_buffered(T=1800.0, dIW=dIW)
         assert math.isfinite(result['S2_bar'])
         assert math.isfinite(result['SO2_bar'])
@@ -505,6 +533,9 @@ class TestPGuessWarmStart:
     with one, it succeeds on the first attempt)."""
 
     def test_warm_start_reproduces_cold_pressures(self):
+        """A warm start with the cold-solve result as p_guess lands in
+        the same basin: primary AND derived species partial pressures
+        match the cold result within solver tolerance."""
         cold = equilibrium_atmosphere(
             _target_HCNS(),
             _ddict(T=1800.0, Phi=1.0, dIW=0.0),

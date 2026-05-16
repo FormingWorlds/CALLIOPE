@@ -140,6 +140,8 @@ def test_gaillard_monotonic_with_oxidation(p_S2, T, dIW_low, dIW_high):
 )
 @settings(deadline=None, max_examples=200)
 def test_gaillard_finite_nonnegative(p_S2, T, dIW):
+    """Hypothesis fuzz: Gaillard S2 solubility is finite and non-negative
+    everywhere in the (p_S2, T, dIW) physical input space."""
     S2 = SolubilityS2('gaillard')
     val = S2.gaillard(p_S2, T, dIW)
     assert math.isfinite(val)

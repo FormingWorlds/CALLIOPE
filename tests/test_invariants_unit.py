@@ -58,6 +58,9 @@ class TestCO2AtomCounting:
 
     @pytest.mark.parametrize('p_CO2_bar', [0.1, 1.0, 10.0, 100.0])
     def test_C_atom_count_from_CO2_only(self, p_CO2_bar):
+        """Single-species CO2 atmosphere at p_CO2 in {0.1, 1, 10, 100} bar:
+        the C tally equals (12/44) * CO2 column mass to within rel=1e-12,
+        with a wrong-factor-2 discrimination guard."""
         # Single-species atmosphere with only CO2 to isolate C contribution
         ddict = _ddict(T=1800.0, Phi=0.0, dIW=0.0)
         for sp in volatile_species:
@@ -109,6 +112,9 @@ class TestS2SolubilityMonotonicity:
     @pytest.mark.parametrize('p_S2_bar', [0.01, 0.1, 1.0])
     @pytest.mark.parametrize('T', [1500.0, 1800.0, 2200.0])
     def test_gaillard_strictly_decreasing_with_oxidation(self, T, p_S2_bar):
+        """Gaillard S2 solubility strictly decreases at every adjacent dIW
+        step across [-4, +4], with a span check requiring the endpoint
+        ratio to exceed 10x."""
         S2 = SolubilityS2('gaillard')
         dIWs = [-4.0, -2.0, 0.0, +2.0, +4.0]
         values = [S2.gaillard(p_S2_bar, T, dIW) for dIW in dIWs]
@@ -155,6 +161,9 @@ class TestN2SolubilityMonotonicity:
     @pytest.mark.parametrize('p_N2_bar', [0.1, 1.0, 10.0])
     @pytest.mark.parametrize('T', [1500.0, 1800.0, 2200.0])
     def test_dasgupta_monotonic_with_oxidation(self, T, p_N2_bar):
+        """Dasgupta N2 solubility is monotonically non-increasing as dIW
+        rises from -6 to +4, with a span check requiring the endpoint
+        ratio to exceed 10x."""
         N2 = SolubilityN2('dasgupta')
         dIWs = [-6.0, -4.0, -2.0, 0.0, +2.0, +4.0]
         values = [N2.dasgupta(p_N2_bar, p_N2_bar, T, dIW) for dIW in dIWs]

@@ -320,6 +320,8 @@ class TestPrintResult:
     INFO-level header line and one INFO line per species."""
 
     def test_print_result_emits_header_and_per_species(self, caplog):
+        """print_result=True writes the result header plus a per-species
+        partial-pressure line to the calliope logger."""
         target = _earth_target()
         ddict = _ddict()
 
