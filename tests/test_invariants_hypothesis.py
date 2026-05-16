@@ -17,12 +17,19 @@ from __future__ import annotations
 import math
 
 import pytest
-from hypothesis import given, settings
-from hypothesis import strategies as st
 
-from calliope.chemistry import ModifiedKeq
-from calliope.oxygen_fugacity import OxygenFugacity
-from calliope.solubility import SolubilityN2, SolubilityS2
+# Gate the `hypothesis` import behind ``pytest.importorskip``: the
+# Docker-based PR image installs with ``pip install --no-deps`` and
+# would otherwise fail collection on an unconditional ``import
+# hypothesis`` at module top.
+pytest.importorskip('hypothesis')
+
+from hypothesis import given, settings  # noqa: E402
+from hypothesis import strategies as st  # noqa: E402
+
+from calliope.chemistry import ModifiedKeq  # noqa: E402
+from calliope.oxygen_fugacity import OxygenFugacity  # noqa: E402
+from calliope.solubility import SolubilityN2, SolubilityS2  # noqa: E402
 
 pytestmark = pytest.mark.slow
 
