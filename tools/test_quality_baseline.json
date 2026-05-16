@@ -1,6 +1,4 @@
 {
   "missing_docstring": 41,
-  "missing_importorskip": 1,
-  "missing_module_pytestmark": 2,
   "no_assertions": 2
 }
