@@ -102,9 +102,9 @@ python tools/check_test_quality.py --check
 **Always run before committing**:
 
 ```bash
-ruff check src/ tests/        # Check for issues
-ruff check --fix src/ tests/  # Auto-fix issues
-ruff format src/ tests/       # Format code
+ruff check src/ tests/ tools/ scripts/        # Check for issues
+ruff check --fix src/ tests/ tools/ scripts/  # Auto-fix issues
+ruff format src/ tests/ tools/ scripts/       # Format code
 ```
 
 **Pre-commit hook** (runs automatically on commit):
@@ -122,7 +122,7 @@ pre-commit install -f
 3. **Test structure**: `bash tools/validate_test_structure.sh`.
 4. **Test quality**: `python tools/check_test_quality.py --check` (blocking).
 5. **Coverage ratchet guard**: rejects any PR that lowers `[tool.coverage.report].fail_under` below `min(base_ref, 90.0)`.
-6. **Lint**: `ruff check src/ tests/` and `ruff format --check src/ tests/`.
+6. **Lint**: `ruff check src/ tests/ tools/ scripts/` and `ruff format --check src/ tests/ tools/ scripts/`.
 
 **All must pass** before merge. Coverage thresholds auto-ratchet upward (never decrease).
 
@@ -288,8 +288,8 @@ A pull request that adds or substantially modifies > 50 lines of test code acros
 - Baseline regeneration (after a deliberate sweep): `python tools/check_test_quality.py --baseline`
 - Reference-pinned audit: `python tools/check_test_quality.py --reference-pinned-status`
 - Coverage ratchet (one-way, capped at 90): `python tools/update_coverage_threshold.py`
-- Format: `ruff format src/ tests/`
-- Lint: `ruff check src/ tests/`
+- Format: `ruff format src/ tests/ tools/ scripts/`
+- Lint: `ruff check src/ tests/ tools/ scripts/`
 
 ### Coverage architecture
 
@@ -328,7 +328,7 @@ Both gates ratchet toward 90, capped at 90 (`tools/update_coverage_threshold.py`
 3. **Write / update tests** in `tests/test_<file>.py` (mirror structure).
 4. **Run tests locally**: `pytest -m "(unit or smoke) and not skip"`.
 5. **Check coverage**: `pytest --cov=calliope --cov-report=html`.
-6. **Lint**: `ruff check --fix src/ tests/ && ruff format src/ tests/`.
+6. **Lint**: `ruff check --fix src/ tests/ tools/ scripts/ && ruff format src/ tests/ tools/ scripts/`.
 7. **Validate structure**: `bash tools/validate_test_structure.sh`.
 8. **Test quality**: `python tools/check_test_quality.py --check`.
 9. **Commit**: plain-language subject, first-person voice, no AI-process disclosure.
@@ -387,8 +387,8 @@ pytest -m "(unit or smoke) and not skip"
 pytest --cov=calliope --cov-report=html
 
 # Lint
-ruff check --fix src/ tests/
-ruff format src/ tests/
+ruff check --fix src/ tests/ tools/ scripts/
+ruff format src/ tests/ tools/ scripts/
 
 # Validate
 bash tools/validate_test_structure.sh
