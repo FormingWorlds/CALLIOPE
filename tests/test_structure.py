@@ -5,15 +5,12 @@ Exercises the mantle-mass closure model in `calculate_mantle_mass`:
 - Conservation: `M_mantle = M_planet - M_core` for any valid input.
 - Boundedness: `0 < M_mantle <= M_planet` for any physically valid (mass, radius, core_frac).
 - Monotonicity: increasing `core_frac` at fixed `(mass, radius)` decreases `M_mantle`.
-- Reference pin: Earth-like input recovers the Zeng et al. 2016 Earth
-  core mass fraction within tolerance (the constant the source file
-  cites at `src/calliope/structure.py` line 50).
+- Reference pin: Earth-like input recovers the Wang, Lineweaver & Ireland
+  (2017) Earth core mass fraction within tolerance (the constant the source
+  file cites at `src/calliope/structure.py` line 50).
 - Error contract: zero/negative mantle masses raise; missing or ambiguous
   `core_frac` raises `TypeError`; the deprecated `corefrac` alias emits
   `DeprecationWarning` while still computing the right value.
-
-See `.github/.claude/rules/calliope-tests.md` sections 1-3 for the
-anti-happy-path, discrimination-guard, and physics-invariant rules.
 """
 
 from __future__ import annotations
@@ -28,18 +25,21 @@ pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 
 @pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
-def test_calculate_mantle_mass_recovers_zeng_2016_earth_core_fraction():
-    """Earth-like inputs recover Zeng et al. (2016) core mass fraction 0.325.
+def test_calculate_mantle_mass_recovers_wang_2017_earth_core_fraction():
+    """Earth-like inputs recover Wang, Lineweaver & Ireland (2017) Earth
+    core mass fraction 0.325.
 
     The source file `src/calliope/structure.py` hard-codes `earth_fm = 0.325`
-    citing arxiv 1708.08718 (Zeng, Sasselov & Jacobsen 2016, Table 1). For
-    Earth radius, Earth mass, and `core_frac = 0.55` (Earth-like core radius
-    fraction), the computed core mass equals `0.325 * M_earth` by construction;
-    the mantle mass is `(1 - 0.325) * M_earth = 0.675 * M_earth`.
+    citing arxiv:1708.08718 (Wang, Lineweaver & Ireland 2017, "The Elemental
+    Abundances (with Uncertainties) of the Most Earth-like Planet"; the paper
+    reports 32.5 +/- 0.3 wt% Earth core mass fraction). For Earth radius,
+    Earth mass, and `core_frac = 0.55` (Earth-like core radius fraction), the
+    computed core mass equals `0.325 * M_earth` by construction; the mantle
+    mass is `(1 - 0.325) * M_earth = 0.675 * M_earth`.
 
     Cross-check: the reduced-mass orbital test in PROTEUS's satellite module
-    uses the same Zeng+2016 core-fraction value for Earth-Moon decomposition,
-    so this pin keeps the two codes consistent.
+    uses the same 0.325 core-fraction value for Earth-Moon decomposition, so
+    this pin keeps the two codes consistent.
     """
     expected = (1.0 - 0.325) * M_earth
     mantle = calculate_mantle_mass(R_earth, M_earth, core_frac=0.55)
