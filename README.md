@@ -6,9 +6,11 @@
 [![Unit Tests](https://img.shields.io/github/actions/workflow/status/FormingWorlds/CALLIOPE/tests.yaml?branch=main&label=Unit%20Tests)](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml)
 [![Integration Tests](https://img.shields.io/github/actions/workflow/status/FormingWorlds/CALLIOPE/nightly.yml?branch=main&label=Integration%20Tests)](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/nightly.yml)
 
-**CALLIOPE** is the equilibrium outgassing solver of the [PROTEUS](https://proteus-framework.org/PROTEUS) coupled atmosphere-interior evolution framework. It computes the partitioning of volatile elements (H, C, N, S) between a partially molten silicate mantle and an overlying gas-phase atmosphere, assuming both reservoirs are in thermochemical equilibrium at the planetary surface.
+**CALLIOPE** is the equilibrium outgassing solver of the [PROTEUS](https://proteus-framework.org/PROTEUS) coupled atmosphere-interior evolution framework. It computes the partitioning of volatile elements (H, C, N, O, S) between a partially molten silicate mantle and an overlying gas-phase atmosphere, assuming both reservoirs are in thermochemical equilibrium at the planetary surface.
 
-Given an elemental inventory, a magma ocean temperature, a melt fraction, and an oxygen fugacity (specified as a log<sub>10</sub> shift from the iron-wüstite buffer), CALLIOPE returns the surface partial pressures of eleven volatile species, the dissolved volatile masses, and the atmospheric mass.
+Given an elemental inventory, a magma ocean temperature, a melt fraction, and an oxygen fugacity (specified as a log<sub>10</sub> shift from the iron-wüstite buffer, defaulting to the Fischer et al. 2011 parameterisation), CALLIOPE returns the surface partial pressures of eleven volatile species, the dissolved volatile masses, and the atmospheric mass.
+
+Two solver modes are available: `equilibrium_atmosphere` takes fO<sub>2</sub> as a control variable and derives O from the buffered chemistry, while `equilibrium_atmosphere_authoritative_O` takes total O mass as input and inverts to recover fO<sub>2</sub>. The buffered mode remains the default for standalone use; the authoritative-O mode is the chemistry side of whole-planet oxygen accounting on the PROTEUS side.
 
 Named after the [Greek muse of eloquence and epic poetry](https://en.wikipedia.org/wiki/Calliope). Pronounced *kal-IGH-uh-pee*.
 
@@ -21,10 +23,10 @@ H<sub>2</sub>O, CO<sub>2</sub>, N<sub>2</sub>, S<sub>2</sub> (primary unknowns);
 Full documentation is at **[proteus-framework.org/CALLIOPE](https://proteus-framework.org/CALLIOPE)**, including:
 
 - [Getting started](https://proteus-framework.org/CALLIOPE/getting_started.html): installation and a quick path to running.
-- [First-run tutorial](https://proteus-framework.org/CALLIOPE/Tutorials/firstrun.html): Earth-like solve with a Δ-IW redox sweep.
-- [How-to guides](https://proteus-framework.org/CALLIOPE/How-to/installation.html): install, configure, run, couple to PROTEUS, test, release.
-- [Explanations](https://proteus-framework.org/CALLIOPE/Explanations/model.html): model overview, equilibrium chemistry, solubility laws, oxygen fugacity, mass balance, code architecture.
-- [API reference](https://proteus-framework.org/CALLIOPE/Reference/api/index.html): every public function with NumPy-style docstrings.
+- [Tutorials](https://proteus-framework.org/CALLIOPE/Tutorials/firstrun.html): first run, Earth and Mars fiducials, two-mode round-trip, coupled-loop driver, speciation phase diagram.
+- [How-to guides](https://proteus-framework.org/CALLIOPE/How-to/installation.html): install, configure, run, couple to PROTEUS, use the authoritative-oxygen mode, test, release.
+- [Explanations](https://proteus-framework.org/CALLIOPE/Explanations/model.html): model overview, equilibrium chemistry, solubility laws, oxygen fugacity, mass balance, authoritative-oxygen mode, [CALLIOPE-vs-atmodeller cross-backend comparison](https://proteus-framework.org/CALLIOPE/Explanations/cross_backend_comparison.html).
+- [API reference](https://proteus-framework.org/CALLIOPE/Reference/api/index.html) and [validation anchors](https://proteus-framework.org/CALLIOPE/Validation/oxygen_fugacity.html): every public function with NumPy-style docstrings, plus the per-source reference-pinned test inventory.
 
 ## Installation
 
