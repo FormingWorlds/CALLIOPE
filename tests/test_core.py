@@ -38,4 +38,10 @@ def test_volatile_species_and_elements_defined():
 
 
 def test_ocean_moles_positive():
+    """One Earth ocean is roughly 7.7e22 moles of H2O. The constant must
+    be positive, finite, and in a physically plausible order of magnitude."""
     assert ocean_moles > 0.0
+    # Discrimination guard: a stub that returned 1.0 (or any small constant)
+    # would pass the bare positivity check. The constant must be in the
+    # 1e22 - 1e23 mole range that matches the Earth-ocean reference.
+    assert 1e22 < ocean_moles < 1e23

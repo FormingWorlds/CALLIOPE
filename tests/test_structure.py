@@ -117,9 +117,17 @@ def test_calculate_mantle_mass_is_bounded_by_planet_mass():
     envelope.
     """
     mass = M_earth
+    mantles = {}
     for core_frac in (0.30, 0.55, 0.70):
         mantle = calculate_mantle_mass(R_earth, mass, core_frac=core_frac)
         assert 0 < mantle < mass
+        mantles[core_frac] = mantle
+
+    # Discrimination guard: mantle mass must decrease monotonically with
+    # core fraction (more core means less mantle at fixed planet mass).
+    # A stub that returned the same mantle mass for every core_frac
+    # would pass the bare envelope check but fail this ordering.
+    assert mantles[0.30] > mantles[0.55] > mantles[0.70]
 
 
 def test_calculate_mantle_mass_raises_when_core_exceeds_total():

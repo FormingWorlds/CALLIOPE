@@ -1,8 +1,6 @@
 {
-  "missing_docstring": 43,
+  "missing_docstring": 41,
   "missing_importorskip": 1,
   "missing_module_pytestmark": 2,
-  "no_assertions": 2,
-  "single_assert": 9,
-  "weak_assert_gt_zero": 1
+  "no_assertions": 2
 }

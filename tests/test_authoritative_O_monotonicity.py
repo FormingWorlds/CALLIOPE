@@ -105,6 +105,15 @@ class TestMonotonicity:
             'roots from different cold starts.'
         )
 
+        # Discrimination guard: monotonicity alone is satisfied by an
+        # arbitrarily flat function. The 10-dex span of dIW must produce
+        # a substantial change in O_kg, otherwise the inverse solver loses
+        # signal. Empirically the ratio is ~2-3x for Earth-like H/C/N/S.
+        assert O_kg[-1] / O_kg[0] > 1.5, (
+            f'O_kg span at T={T_magma}: {O_kg[0]:.3e} -> {O_kg[-1]:.3e} '
+            f'(ratio={O_kg[-1] / O_kg[0]:.2f}); expected > 1.5x'
+        )
+
     def test_O_kg_range_is_resolvable_for_inverse_solver(self):
         """The O_kg(fO2_shift) curve must have enough dynamic range
         over [-4, +6] that the inverse solver can resolve fO2 from
@@ -170,4 +179,12 @@ class TestMonotonicityRegimes:
         assert np.all(deltas > 0), (
             f'Non-monotonic at Phi=0.3: dIW={dIW_values.tolist()}, '
             f'O_kg={O_kg.tolist()}, deltas={deltas.tolist()}'
+        )
+
+        # Discrimination guard: at Phi=0.3 the atmospheric channel still
+        # carries most of the O variation with dIW, so the span over the
+        # 6-dex dIW range must remain substantial.
+        assert O_kg[-1] / O_kg[0] > 1.2, (
+            f'O_kg span at Phi=0.3: {O_kg[0]:.3e} -> {O_kg[-1]:.3e} '
+            f'(ratio={O_kg[-1] / O_kg[0]:.2f}); expected > 1.2x'
         )
