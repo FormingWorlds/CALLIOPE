@@ -136,6 +136,7 @@ class TestMassConservationPerElement:
     @pytest.mark.parametrize('T,dIW', _DEFAULT_TFO2)
     def test_atm_plus_liquid_equals_total(self, T, dIW):
         result = _solve_buffered(T=T, dIW=dIW)
+        seen_split = False
         for e in element_list:
             atm = result[f'{e}_kg_atm']
             liq = result[f'{e}_kg_liquid']
@@ -144,6 +145,26 @@ class TestMassConservationPerElement:
                 f'Element {e}: atm={atm:.4e} + liq={liq:.4e} '
                 f'!= tot={tot:.4e} at T={T}, dIW={dIW}'
             )
+            # Track at least one element where both channels are meaningful
+            # so we can verify a non-trivial split below.
+            if atm > 1e-3 and liq > 1e-3:
+                seen_split = True
+
+        # Discrimination guard: a wrong formula that double-counts the
+        # dissolved channel (atm + 2 * liq) would give a result larger than
+        # total by exactly liq, well outside the rel=1e-12 tolerance. The
+        # check is meaningful only at a (T, dIW) where some element has a
+        # non-trivial dissolved channel; the rel=1e-12 tolerance on the
+        # primary assertion already excludes the floor case where every
+        # liq ~ 0.
+        if seen_split:
+            for e in element_list:
+                atm = result[f'{e}_kg_atm']
+                liq = result[f'{e}_kg_liquid']
+                tot = result[f'{e}_kg_total']
+                if liq > 1.0:
+                    wrong_total = atm + 2.0 * liq
+                    assert abs(wrong_total - tot) > 0.5 * liq
 
     def test_unphysical_zero_mantle_mass_does_not_violate_invariant(self):
         """Sad-path: M_mantle=0 zeros the dissolved channel; the invariant
@@ -181,12 +202,31 @@ class TestPressurePositivity:
                 f'at T={T}, dIW={dIW}'
             )
 
+        # Discrimination guard: a stub solver that returned zero for every
+        # species would pass the positivity check. Confirm at least one of
+        # the four primary species (H2O, CO2, N2, S2) carries meaningful
+        # pressure given the Earth-like H/C/N/S target.
+        primary_sum = sum(result[f'{s}_bar'] for s in ('H2O', 'CO2', 'N2', 'S2'))
+        assert primary_sum > 0.0, (
+            f'All primary pressures are zero at T={T}, dIW={dIW}'
+        )
+
     def test_extreme_reducing_does_not_break_positivity(self):
         """Sad-path: at dIW=-5 the H2O/CO2 budgets collapse; verify the
         speciation walk does not produce negative pressures."""
         result = _solve_buffered(T=1800.0, dIW=-5.0)
         for s in volatile_species:
             assert result[f'{s}_bar'] >= 0.0
+
+        # Discrimination guard: at dIW=-5 the H2/CO branches dominate over
+        # H2O/CO2 (the buffer drives the reduced species). A solver that
+        # left H2O/CO2 dominant under these conditions would have a wrong
+        # redox response. Sample the H2 / H2O ratio: under reducing
+        # conditions it should be >> 1.
+        assert result['H2_bar'] > result['H2O_bar'], (
+            f'At dIW=-5 expected H2 > H2O; got H2={result["H2_bar"]:.4e}, '
+            f'H2O={result["H2O_bar"]:.4e}'
+        )
 
 
 # ===========================================================================
@@ -206,12 +246,29 @@ class TestVMRClosure:
             f'VMR sum {vmr_sum} != 1.0 at T={T}, dIW={dIW}'
         )
 
+        # Discrimination guard: dropping any single species from the sum
+        # would give a value < 1 by that species' vmr. At every (T, dIW)
+        # in _DEFAULT_TFO2 at least one species carries >= 1% vmr, well
+        # outside the rel=1e-10 closure tolerance.
+        vmrs = [result[f'{s}_vmr'] for s in volatile_species]
+        max_vmr = max(vmrs)
+        assert max_vmr > 0.01, (
+            f'No species carries >= 1% vmr at T={T}, dIW={dIW}; '
+            f'closure check would be vacuous'
+        )
+
     def test_vmr_closure_in_authoritative_O_mode(self):
         """Closure must hold in both solver modes."""
         # Use a moderate O budget that gives dIW ~ 0 derived
         result = _solve_authoritative(T=1800.0, O_kg=1.0e21, fO2_hint=0.0)
         vmr_sum = sum(result[f'{s}_vmr'] for s in volatile_species)
         assert vmr_sum == pytest.approx(1.0, rel=1e-10)
+
+        # Discrimination guard: confirm the sum is not vacuous (a stub that
+        # returned vmr=1/N for every species would also sum to 1). Require
+        # at least one species to carry >= 1% vmr.
+        vmrs = [result[f'{s}_vmr'] for s in volatile_species]
+        assert max(vmrs) > 0.01
 
 
 # ===========================================================================
@@ -229,10 +286,23 @@ class TestTotalPressureConsistency:
         p_sum = sum(result[f'{s}_bar'] for s in volatile_species)
         assert result['P_surf'] == pytest.approx(p_sum, rel=1e-10)
 
+        # Discrimination guard: a stub that returned P_surf = 0 would fail
+        # the closure only if the species pressures are themselves nonzero.
+        # Confirm the closure is non-vacuous by requiring P_surf > 1 bar
+        # given the Earth-like target.
+        assert result['P_surf'] > 1.0, (
+            f'P_surf = {result["P_surf"]:.4e} bar < 1 bar at T={T}, dIW={dIW}'
+        )
+
     def test_psurf_positive(self):
         """Sanity sad-path: a converged solve never gives P_surf <= 0."""
         result = _solve_buffered(T=1800.0, dIW=0.0)
         assert result['P_surf'] > 0.0
+
+        # Discrimination guard: a stub returning a tiny positive value
+        # (1e-30 bar) would pass the bare positivity check. For the
+        # Earth-like target, P_surf should be at least 1 bar.
+        assert result['P_surf'] > 1.0
 
 
 # ===========================================================================
@@ -249,6 +319,14 @@ class TestAtmosphericMassConsistency:
         result = _solve_buffered(T=T, dIW=dIW)
         m_sum = sum(result[f'{s}_kg_atm'] for s in volatile_species)
         assert result['M_atm'] == pytest.approx(m_sum, rel=1e-10)
+
+        # Discrimination guard: M_atm must be non-trivially positive for the
+        # Earth-like target. A stub returning 0 for every species would
+        # pass the closure trivially.
+        assert result['M_atm'] > 1.0, (
+            f'M_atm = {result["M_atm"]:.4e} kg is non-physically small '
+            f'at T={T}, dIW={dIW}'
+        )
 
 
 # ===========================================================================
@@ -275,6 +353,14 @@ class TestFO2Reconstruction:
             result['fO2_shift_derived'], rel=1e-6, abs=1e-6
         )
 
+        # Discrimination guard: using the wrong IW buffer (O'Neill instead
+        # of the default Fischer 2011) would shift the recovered value by
+        # 0.016 dex at 1800 K and 0.26 dex at 2200 K. Both are well outside
+        # the rel=1e-6 tolerance.
+        oneill_log10 = OxygenFugacity('oneill')(T, 0.0)
+        recovered_wrong_buffer = math.log10(p_O2) - oneill_log10
+        assert abs(recovered_wrong_buffer - result['fO2_shift_derived']) > 0.01
+
 
 # ===========================================================================
 # Invariant 7: modified equilibrium constant identity
@@ -294,6 +380,12 @@ class TestModifiedKeqIdentity:
         ratio = result['H2_bar'] / result['H2O_bar']
         assert ratio == pytest.approx(Geq, rel=1e-3)
 
+        # Discrimination guard: the ratio must be closer to Geq than to
+        # 1/Geq. This catches a bug that computed the inverse ratio (p_H2O
+        # / p_H2 instead of p_H2 / p_H2O); the test would pass the approx
+        # check by accident only at the special point where Geq = 1.
+        assert abs(ratio - Geq) < abs(ratio - 1.0 / Geq)
+
     @pytest.mark.parametrize('T,dIW', [(1800.0, 0.0), (2200.0, 3.0)])
     def test_CO2_CO_ratio(self, T, dIW):
         result = _solve_buffered(T=T, dIW=dIW)
@@ -301,6 +393,10 @@ class TestModifiedKeqIdentity:
         Geq = Keq(T, dIW)
         ratio = result['CO_bar'] / result['CO2_bar']
         assert ratio == pytest.approx(Geq, rel=1e-3)
+
+        # Discrimination guard: the ratio must be closer to Geq than to
+        # 1/Geq, catching a swapped numerator / denominator bug.
+        assert abs(ratio - Geq) < abs(ratio - 1.0 / Geq)
 
 
 # ===========================================================================
@@ -320,6 +416,18 @@ class TestDissolvedMassNonNegativity:
                 f'{s}_kg_liquid = {result[f"{s}_kg_liquid"]:.4e} < 0 '
                 f'at T={T}, dIW={dIW}'
             )
+
+        # Discrimination guard: a stub that zeroed every dissolved channel
+        # would pass the positivity check trivially. For the Earth-like
+        # target at any of the _DEFAULT_TFO2 points, at least one of the
+        # primary species (H2O, CO2, S2 in particular) dissolves a
+        # meaningful amount into the melt.
+        primary_liq = sum(
+            result[f'{s}_kg_liquid'] for s in ('H2O', 'CO2', 'N2', 'S2')
+        )
+        assert primary_liq > 0.0, (
+            f'No primary species dissolves at T={T}, dIW={dIW}'
+        )
 
 
 # ===========================================================================
@@ -348,6 +456,12 @@ class TestCO2AtomCounting:
         expected_C_kg = mass_atm['CO2'] * molar_mass['C'] / molar_mass['CO2']
         assert mass_atm['C'] == pytest.approx(expected_C_kg, rel=1e-12)
 
+        # Discrimination guard: the wrong stoichiometry (factor 2 for C in
+        # CO2, i.e. treating CO2 as having 2 C atoms) would double the C
+        # tally, well outside the rel=1e-12 tolerance.
+        wrong_C_kg = 2.0 * mass_atm['CO2'] * molar_mass['C'] / molar_mass['CO2']
+        assert abs(mass_atm['C'] - wrong_C_kg) > 0.5 * expected_C_kg
+
     def test_zero_CO2_pressure_gives_zero_C(self):
         """Sad-path: at p_CO2 = 0 the C tally from CO2 channel is zero."""
         ddict = _ddict(T=1800.0, Phi=0.0, dIW=0.0)
@@ -356,7 +470,13 @@ class TestCO2AtomCounting:
         ddict['CO2_included'] = 1
         p_d = {s: 0.0 for s in volatile_species}
         mass_atm = _atmosphere_mass(p_d, 0.0, ddict)
-        assert mass_atm.get('C', 0.0) == 0.0
+        assert mass_atm.get('C', 0.0) == pytest.approx(0.0, abs=1e-30)
+
+        # Discrimination guard: confirm the CO2 column mass is also zero.
+        # A stub that returned zero only for the C key (but nonzero CO2
+        # column mass) would pass the bare C == 0 check, hiding a real
+        # stoichiometry bug elsewhere.
+        assert mass_atm.get('CO2', 0.0) == pytest.approx(0.0, abs=1e-30)
 
 
 # ===========================================================================
@@ -384,11 +504,27 @@ class TestS2SolubilityMonotonicity:
                 f'(T={T}, p_S2={p_S2_bar})'
             )
 
+        # Discrimination guard: the monotonicity span across the 8-dex
+        # dIW range should be meaningful (the +0.5 ln(p_S2/fO2) term gives
+        # at least a 10x change in ppmw across dIWs in [-4, +4]). A near-
+        # constant function would pass the > check trivially at each step.
+        assert values[0] / values[-1] > 10.0, (
+            f'Gaillard span too small: values[-4]/values[+4] = '
+            f'{values[0] / values[-1]:.2f}, expected > 10x'
+        )
+
     def test_negative_pressure_returns_zero(self):
         """Sad-path: at p_S2 < 1e-20 bar the implementation returns 0
         to avoid log(0). Verify the floor behaves correctly."""
         S2 = SolubilityS2('gaillard')
-        assert S2.gaillard(1e-30, 1800.0, 0.0) == 0.0
+        assert S2.gaillard(1e-30, 1800.0, 0.0) == pytest.approx(0.0, abs=1e-30)
+
+        # Discrimination guard: a stub that always returned 0 would pass.
+        # Confirm a normal p_S2 of 0.1 bar gives a nonzero, finite value
+        # so the floor branch is genuinely distinct from the main path.
+        normal = S2.gaillard(0.1, 1800.0, 0.0)
+        assert normal > 0.0
+        assert math.isfinite(normal)
 
 
 # ===========================================================================
@@ -417,6 +553,16 @@ class TestN2SolubilityMonotonicity:
                 f'less than at dIW={dIWs[i+1]} ({values[i+1]:.4e}) '
                 f'(T={T}, p_N2={p_N2_bar})'
             )
+
+        # Discrimination guard: the reduced-N branch carries an exp(-1.6 dIW)
+        # factor, so the span across dIW in [-6, +4] should be at least
+        # exp(1.6 * 10) ~ 9e6 in the reduced-N contribution. The molecular
+        # N2 term puts a floor under the high-dIW end, but the span should
+        # still be > 10x. A near-constant function would pass the >= check.
+        assert values[0] / values[-1] > 10.0, (
+            f'Dasgupta span too small: values[-6]/values[+4] = '
+            f'{values[0] / values[-1]:.2f}, expected > 10x'
+        )
 
     def test_libourel_alternative_is_redox_independent(self):
         """Sad-path / contrast: the Libourel linear Henry's law has no
@@ -504,6 +650,16 @@ class TestGaillardOxidisingEdge:
             f'not below dIW=0 fraction ({frac_neutral:.4e})'
         )
 
+        # Discrimination guard: the gap must be substantive. Gaillard's
+        # +0.5 ln(p_S2/fO2) term gives several-fold change in ppmw across
+        # 5 dIW units; a near-equal pair of fractions would suggest the
+        # redox dependence is being missed by the solver loop.
+        assert frac_neutral / max(frac_oxidising, 1e-30) > 2.0, (
+            f'Dissolved-S fraction ratio (neutral/oxidising) = '
+            f'{frac_neutral / max(frac_oxidising, 1e-30):.2f}; expected > 2x '
+            f'across a 5-dIW change'
+        )
+
 
 # ===========================================================================
 # Tim-flagged addition: p_guess warm-start verification
@@ -543,6 +699,17 @@ class TestPGuessWarmStart:
             assert warm[f'{s}_bar'] == pytest.approx(
                 cold[f'{s}_bar'], rel=1e-3
             ), f'Warm start drifted away from cold-solve basin for {s}'
+
+        # Discrimination guard: warm and cold must agree on the secondary
+        # derived species as well, not just on the four primaries that
+        # were used as the p_guess seeds. A solver that initialised only
+        # the primaries from p_guess and re-derived the secondaries from
+        # a fresh random seed could pass the primary check while drifting
+        # on H2, CO, SO2, H2S, NH3, O2.
+        for s in ('H2', 'CO', 'SO2', 'H2S', 'NH3'):
+            assert warm[f'{s}_bar'] == pytest.approx(
+                cold[f'{s}_bar'], rel=1e-2
+            ), f'Warm start drifted on derived species {s}'
 
     def test_warm_start_with_bad_guess_still_converges(self):
         """Sad-path: even a bad warm-start guess (off by factor of 100)

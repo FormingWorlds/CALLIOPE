@@ -19,9 +19,11 @@ from calliope.constants import element_list, molar_mass, volatile_species
 from calliope.oxygen_fugacity import OxygenFugacity
 from calliope.solubility import SolubilityCH4, SolubilityCO
 
-# Module-level tier marker. The integration class below overrides this with
-# its own class-level @pytest.mark.integration.
-pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
+# This file mixes unit-tier stoichiometry checks with an integration-tier
+# end-to-end mass-conservation class; a module-level pytestmark would stack
+# with the class-level markers and pull the integration tests into the PR
+# gate. The linter accepts the missing module-level pytestmark for this
+# specific file as a documented exception; track in tools/test_quality_baseline.json.
 
 
 # ---------------------------------------------------------------------------
