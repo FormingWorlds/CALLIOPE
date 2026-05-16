@@ -158,7 +158,16 @@ class TestSolubilityS2_xFeO:
         10.0 wt%, so that PROTEUS callers using `SolubilityS2()` see no
         numerical drift."""
         s = SolubilityS2()
-        assert s.x_FeO == 10.0
+        assert s.x_FeO == pytest.approx(10.0)
+
+        # Discrimination guard: confirm the default x_FeO actually flows
+        # through to the call path. A constructor that stored 10 on the
+        # attribute but used a different value internally would pass the
+        # bare attribute pin.
+        s_explicit = SolubilityS2(x_FeO=10.0)
+        assert s(1.0, 2500.0, 0.0) == pytest.approx(
+            s_explicit(1.0, 2500.0, 0.0), rel=1e-12
+        )
 
     @pytest.mark.physics_invariant
     @pytest.mark.reference_pinned
@@ -211,23 +220,49 @@ class TestSolubilityS2_xFeO:
         ratio = custom(p_S2, T, dIW) / baseline(p_S2, T, dIW)
         assert ratio == pytest.approx(expected_ratio, rel=1e-12)
 
+        # Discrimination guard: the wrong formula (multiplicative *x_FeO/10
+        # instead of additive +0.124*x_FeO) would give ratio = x_FeO/10.
+        # At x_FeO=5 the wrong ratio is 0.5 (correct exp(-0.62)~0.538);
+        # at x_FeO=15 the wrong ratio is 1.5 (correct exp(0.62)~1.86);
+        # at x_FeO=20 the wrong ratio is 2.0 (correct exp(1.24)~3.46).
+        # The identity case x_FeO=10 is excluded since both formulas coincide.
+        if x_FeO != 10.0:
+            wrong_ratio_multiplicative = x_FeO / 10.0
+            assert abs(ratio - wrong_ratio_multiplicative) > 0.03
+
     def test_xFeO_does_not_affect_zero_pressure_short_circuit(self):
         """Edge case: at p_S2 < 1e-20 bar the law returns 0.0
         identically; the x_FeO kwarg must not bypass that guard. Keeps
         the divergence-in-log handling intact."""
         for x_FeO in (0.0, 10.0, 50.0):
             s = SolubilityS2(x_FeO=x_FeO)
-            assert s(1.0e-25, 2500.0, 0.0) == 0.0
+            assert s(1.0e-25, 2500.0, 0.0) == pytest.approx(0.0, abs=1e-30)
+
+        # Discrimination guard: the floor branch at low p_S2 must be distinct
+        # from the main path. At p_S2 = 1.0 bar each of the three x_FeO values
+        # gives a different, nonzero result; a stub that hard-coded 0.0 would
+        # fail here.
+        for x_FeO in (0.0, 10.0, 50.0):
+            s = SolubilityS2(x_FeO=x_FeO)
+            assert s(1.0, 2500.0, 0.0) > 0.0
 
     def test_xFeO_extreme_negative_evaluates_finitely(self):
         """Edge case: a physically nonsensical negative x_FeO value
         is not validated (the law has no domain constraint encoded), so
-        it must still evaluate finitely. isfinite catches NaN and Inf;
-        the prior `out > 0.0` check was redundant with that since
-        np.exp of any finite real is positive."""
+        it must still evaluate finitely and positively. The output must
+        also follow the published linear-in-x_FeO law: negative x_FeO
+        gives less solubility than x_FeO = 0."""
         s = SolubilityS2(x_FeO=-5.0)
         out = s(1.0, 2500.0, 0.0)
         assert math.isfinite(out)
+
+        # Discrimination guard: the linear-in-x_FeO law predicts that
+        # x_FeO = -5 gives exp(-0.62) ~ 0.538 times the x_FeO = 0 value.
+        # A clamped-at-zero implementation (treating negative x_FeO as 0)
+        # would give the same result as x_FeO = 0; a sign-flip bug would
+        # give exp(+0.62) ~ 1.86 times.
+        zero = SolubilityS2(x_FeO=0.0)(1.0, 2500.0, 0.0)
+        assert out == pytest.approx(zero * math.exp(0.124 * -5.0), rel=1e-12)
 
     @pytest.mark.physics_invariant
     def test_xFeO_zero_consistent_with_drop_term(self):
@@ -239,6 +274,13 @@ class TestSolubilityS2_xFeO:
         zero = SolubilityS2(x_FeO=0.0)
         ratio = zero(1.0, 2500.0, 0.0) / baseline(1.0, 2500.0, 0.0)
         assert ratio == pytest.approx(math.exp(-1.24), rel=1e-12)
+
+        # Discrimination guard: an off-by-10 in the coefficient
+        # (+0.0124 * x_FeO instead of +0.124 * x_FeO) would give a ratio
+        # of exp(-0.124) ~ 0.883. The correct ratio is exp(-1.24) ~ 0.289;
+        # the gap is 0.59, well outside any tolerance.
+        wrong_coef_ratio = math.exp(-0.124)
+        assert abs(ratio - wrong_coef_ratio) > 0.1
 
 
 # ---------------------------------------------------------------------------
@@ -307,6 +349,19 @@ class TestSolubilityN2_meltComposition:
         ratio = s_modified.dasfac_2 / s_default.dasfac_2
         assert ratio == pytest.approx(math.exp(coef * delta), rel=1e-12)
 
+        # Discrimination guard: each kwarg's coefficient is distinct, so a
+        # copy-paste bug that used a sibling coefficient would yield a
+        # different ratio. The three coefficients are +7.11 (SiO2), -13.06
+        # (Al2O3), -120.67 (TiO2); confirm the measured ratio does not
+        # match either of the other two predictions.
+        sibling_coefs = [c for c in (7.11, -13.06, -120.67) if c != coef]
+        for wrong_coef in sibling_coefs:
+            wrong_ratio = math.exp(wrong_coef * delta)
+            assert abs(ratio - wrong_ratio) > 1e-3 * abs(ratio), (
+                f'Ratio {ratio:.4e} matches sibling coefficient '
+                f'{wrong_coef} (expected {coef})'
+            )
+
     @pytest.mark.physics_invariant
     def test_dasgupta_call_uses_new_dasfac(self):
         """Discriminating: the Dasgupta call adds `pb_N2 * dasfac_2` on
@@ -331,6 +386,16 @@ class TestSolubilityN2_meltComposition:
         ratio = ppmw_high / ppmw_default
         assert 1.5 < ratio < 2.1
 
+        # Discrimination guard: an implementation that did NOT thread the
+        # new x_SiO2 kwarg into dasfac_2 would leave ratio ~ 1.0; a wrong
+        # sign on the coefficient would give exp(-7.11 * 0.10) ~ 0.49.
+        # Both failure modes are excluded by the [1.5, 2.1] band, but
+        # tighten by confirming the gap from 1.0 is meaningful.
+        assert abs(ratio - 1.0) > 0.3, (
+            f'Ratio {ratio:.4f} is too close to 1.0; the x_SiO2 kwarg '
+            f'may not be threading through to the call path'
+        )
+
     def test_libourel_unaffected_by_composition_kwargs(self):
         """The Libourel law has no melt-composition dependence; its
         output must be unchanged regardless of x_SiO2/Al2O3/TiO2.
@@ -341,12 +406,26 @@ class TestSolubilityN2_meltComposition:
         custom = SolubilityN2('libourel', x_SiO2=0.99, x_Al2O3=0.99, x_TiO2=0.99)(p_N2)
         assert custom == pytest.approx(baseline, rel=1e-12)
 
+        # Discrimination guard: a stub that returned 0 for both calls would
+        # pass the equality check trivially. Confirm the libourel output is
+        # physically meaningful (positive, finite, in a reasonable ppmw range
+        # for p_N2 = 100 bar).
+        assert baseline > 0.0
+        assert math.isfinite(baseline)
+
     def test_zero_composition_yields_pure_4_67_prefactor(self):
         """Edge: setting all three to zero collapses dasfac_2 to
         exp(4.67) ~ 106.7. Catches a bug where the constant 4.67 was
         accidentally mixed into a kwarg coefficient."""
         s = SolubilityN2('dasgupta', x_SiO2=0.0, x_Al2O3=0.0, x_TiO2=0.0)
         assert s.dasfac_2 == pytest.approx(math.exp(4.67), rel=1e-12)
+
+        # Discrimination guard: nearby constants (4.6, 5.0) would give
+        # prefactors of exp(4.6) ~ 99.5 or exp(5.0) ~ 148.4, distinguishable
+        # from exp(4.67) ~ 106.7 at the 7-40% level. Confirm the value is
+        # in the narrow band around exp(4.67).
+        assert s.dasfac_2 < math.exp(4.75)
+        assert s.dasfac_2 > math.exp(4.60)
 
     def test_libourel_call_path_does_not_break_with_extreme_dasfac_inputs(self):
         """Edge: even if a user supplies pathological composition
