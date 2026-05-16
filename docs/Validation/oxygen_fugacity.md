@@ -5,7 +5,7 @@ behaviour of `calliope.oxygen_fugacity` against published sources.
 
 | Test id | Reference | Source page | Scope |
 |---|---|---|---|
-| `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_matches_published_fit` | Fischer et al. (2011), EPSL 304, 496, Eq. 2 | [doi:10.1016/j.epsl.2011.02.011](https://doi.org/10.1016/j.epsl.2011.02.011) | Pins Fischer IW value at T = 2000 K against the closed-form fit `6.94059 - 28.1808e3 / T`; includes a wrong-buffer discrimination guard against O'Neill & Eggins (2002) at the same T. |
+| `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_matches_published_fit` | Fischer et al. (2011), EPSL 304, 496, Eq. 2 | [doi:10.1016/j.epsl.2011.02.025](https://doi.org/10.1016/j.epsl.2011.02.025) | Pins Fischer IW value at T = 2000 K against the closed-form fit `6.94059 - 28.1808e3 / T`; includes a wrong-buffer discrimination guard against O'Neill & Eggins (2002) at the same T. |
 
 ## Re-derivation note
 

@@ -45,11 +45,11 @@ Wrong-reaction discrimination guard: `schaefer_H` at the same T:
 
 ```
 Keq_schaefer = 10^(-12794 / 2000 + 2.7768)
-             = 10^-3.6232 ~ 2.380e-4
-Geq_schaefer = 10^(-3.6232 + 3.7039) = 10^0.0807 ~ 1.205
+             = 10^-3.6202 ~ 2.398e-4
+Geq_schaefer = 10^(-3.6202 + 3.7039) = 10^0.0837 ~ 1.213
 ```
 
-The 0.26 difference between `Geq_janaf_H2 ~ 1.467` and `Geq_schaefer_H ~ 1.205`
+The 0.25 difference between `Geq_janaf_H2 ~ 1.467` and `Geq_schaefer_H ~ 1.213`
 exceeds the test's discrimination guard threshold (`abs(g - wrong) > 0.2`).
 
 ## Anchor type

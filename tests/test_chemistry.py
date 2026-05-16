@@ -54,9 +54,9 @@ def test_modified_keq_janaf_H2_matches_closed_form_at_2000K_with_oneill():
     ```
 
     Discrimination guard: `schaefer_H` at the same conditions has
-    coefficients `(-12794 / T + 2.7768, 0.5)` -> Keq = 10^-3.6532 and
-    Geq = 10^(0.0507) ~ 1.124. A regression that silently dispatched
-    to the wrong reaction would land 0.34 units away.
+    coefficients `(-12794 / T + 2.7768, 0.5)` -> Keq = 10^-3.6202 and
+    Geq = 10^(0.0837) ~ 1.213. A regression that silently dispatched
+    to the wrong reaction would land 0.25 units away.
     """
     T = 2000.0
     mk = ModifiedKeq('janaf_H2', fO2_model='oneill')
@@ -67,7 +67,7 @@ def test_modified_keq_janaf_H2_matches_closed_form_at_2000K_with_oneill():
         - 0.5 * (2 * (-244118 + 115.559 * T - 8.474 * T * math.log(T)) / (math.log(10) * 8.31441 * T))
     )
     assert g == pytest.approx(expected, rel=1e-6)
-    # Wrong-model discrimination: schaefer_H at the same T gives ~1.124.
+    # Wrong-model discrimination: schaefer_H at the same T gives ~1.213.
     mk_schaefer = ModifiedKeq('schaefer_H', fO2_model='oneill')
     wrong = mk_schaefer(T, fO2_shift=0.0)
     assert abs(g - wrong) > 0.2
