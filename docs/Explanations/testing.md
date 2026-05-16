@@ -29,15 +29,15 @@ Layers 2 and 3 are advisory: the linter reports gaps but does not fail the build
 
 Every test in the suite carries exactly one tier marker, applied either at module level (`pytestmark = pytest.mark.X`) or per class (`@pytest.mark.X`).
 
-| Marker | What it tests | Per-test budget | CI surface | Current count |
-|---|---|---|---|---|
-| `unit` | Python logic, individual helpers, equilibrium-constant fits, solubility laws, structure formulae. No real `equilibrium_atmosphere` call. | < 100 ms | PR + nightly | 195 |
-| `smoke` | Real `equilibrium_atmosphere` invocations on minimal configurations (single composition, default species set, one solve). | < 30 s | PR + nightly | 107 |
-| `integration` | Full multi-species CHNS solves with mass-conservation invariants, all eleven species active. | minutes | Nightly only | 5 |
-| `slow` | Long parameter sweeps and convergence studies (authoritative-O monotonicity regimes, hypothesis fuzz, cross-buffer property checks). | up to an hour | Nightly only | 11 |
-| `skip` | Placeholder, deliberately disabled. | n/a | Never | a handful |
+| Marker | What it tests | Per-test budget | CI surface |
+|---|---|---|---|
+| `unit` | Python logic, individual helpers, equilibrium-constant fits, solubility laws, structure formulae. No real `equilibrium_atmosphere` call. | < 100 ms | PR + nightly |
+| `smoke` | Real `equilibrium_atmosphere` invocations on minimal configurations (single composition, default species set, one solve). | < 30 s | PR + nightly |
+| `integration` | Full multi-species CHNS solves with mass-conservation invariants, all eleven species active. | minutes | Nightly only |
+| `slow` | Long parameter sweeps and convergence studies (authoritative-O monotonicity regimes, hypothesis fuzz, cross-buffer property checks). | up to an hour | Nightly only |
+| `skip` | Placeholder, deliberately disabled. | n/a | Never |
 
-The counts above are read from `pytest --collect-only -q` and drift as the suite grows.
+Live counts per tier are shown by the `tests` badge at the top of this page (the total) and by `pytest -m <tier> --collect-only -q` locally.
 
 Tests without a tier marker are invisible to CI.
 The PR gate runs `pytest -m "(unit or smoke) and not skip"`; the nightly runs everything in `(unit or smoke or integration or slow) and not skip`.
@@ -153,10 +153,10 @@ Two advisory modes report gaps without failing CI:
 ## Local commands
 
 ```console
-pytest -m unit                              # 195 fast unit tests
-pytest -m smoke                             # 107 minimal-config solver tests
-pytest -m integration                       # 5 full CHNS solves
-pytest -m slow                              # 11 sweeps and hypothesis fuzz
+pytest -m unit                              # fast unit tests
+pytest -m smoke                             # minimal-config solver tests
+pytest -m integration                       # full multi-species CHNS solves
+pytest -m slow                              # sweeps and hypothesis fuzz
 pytest -m "(unit or smoke) and not skip"    # PR-gate selection
 pytest -m "not skip"                        # everything that should ever run
 ```

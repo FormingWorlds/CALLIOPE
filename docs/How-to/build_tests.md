@@ -13,11 +13,11 @@ The conceptual framing (marker scheme, badge system, coverage gates, AST linter)
 From the repository root, with `pip install -e ".[develop]"` already done:
 
 ```console
-pytest                                      # everything pytest can collect (318)
-pytest -m unit                              # 195 fast unit tests
-pytest -m smoke                             # 107 minimal-config solver tests
-pytest -m integration                       # 5 full CHNS solves
-pytest -m slow                              # 11 sweeps and hypothesis fuzz
+pytest                                      # everything pytest can collect
+pytest -m unit                              # fast unit tests
+pytest -m smoke                             # minimal-config solver tests
+pytest -m integration                       # full multi-species CHNS solves
+pytest -m slow                              # sweeps and hypothesis fuzz
 pytest -m "(unit or smoke) and not skip"    # PR-gate selection
 ```
 
