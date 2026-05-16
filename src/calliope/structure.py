@@ -48,7 +48,7 @@ def calculate_mantle_mass(
 
     earth_fr = 0.55  # earth core radius fraction
     # earth core mass fraction (32.5 +/- 0.3 wt%) from
-    # Wang, Lineweaver & Ireland (2017), arxiv:1708.08718
+    # Wang, Lineweaver & Ireland (2018), arxiv:1708.08718
     earth_fm = 0.325
 
     core_rho = (3.0 * earth_fm * M_earth) / (

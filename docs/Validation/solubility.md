@@ -5,8 +5,8 @@ behaviour of `calliope.solubility` against published sources.
 
 | Test id | Reference | Source page | Scope |
 |---|---|---|---|
-| `tests/test_solubility.py::TestSolubilityH2O::test_peridotite_default_matches_sossi_2023_fit` | Sossi et al. (2023) peridotite H2O fit: `ppmw = 524 * p^0.5` | `src/calliope/solubility.py:39-41` (`peridotite`) | Pins the default H2O parameterization at p = 100 bar against the Sossi 2023 constant; includes wrong-law (basalt_dixon) and wrong-exponent (1.0 vs 0.5) discrimination guards. |
-| `tests/test_solubility.py::TestSolubilityS2_xFeO::test_default_call_matches_gaillard_2022_earth_mantle_value` | Gaillard et al. (2022), EPSL 117255, S2 solubility law with `x_FeO = 10 wt%` Earth-mantle default | [doi:10.1016/j.epsl.2021.117255](https://doi.org/10.1016/j.epsl.2021.117255), `src/calliope/solubility.py:75-93` | Pins S2 ppmw at (p = 1 bar, T = 2500 K, fO2_shift = 0) against the closed-form Gaillard expression; couples to the Fischer 2011 IW buffer default. |
+| `tests/test_solubility.py::TestSolubilityH2O::test_peridotite_default_matches_sossi_2023_fit` | Sossi et al. (2023)[^cite-sossi2023] peridotite H2O fit: `ppmw = 524 * p^0.5` | `src/calliope/solubility.py:39-41` (`peridotite`) | Pins the default H2O parameterization at p = 100 bar against the Sossi 2023 constant; includes wrong-law (Dixon et al. 1995[^cite-dixon1995] basalt) and wrong-exponent (1.0 vs 0.5) discrimination guards. |
+| `tests/test_solubility.py::TestSolubilityS2_xFeO::test_default_call_matches_gaillard_2022_earth_mantle_value` | Gaillard et al. (2022)[^cite-gaillard2022], EPSL 117255, S2 solubility law with `x_FeO = 10 wt%` Earth-mantle default | [doi:10.1016/j.epsl.2021.117255](https://doi.org/10.1016/j.epsl.2021.117255), `src/calliope/solubility.py:75-93` | Pins S2 ppmw at (p = 1 bar, T = 2500 K, fO2_shift = 0) against the closed-form Gaillard expression; couples to the Fischer 2011[^cite-fischer2011] IW buffer default. |
 
 ## Re-derivation notes
 
@@ -64,7 +64,15 @@ value in the test (13085.87) matches the closed-form ppmw above to the
 - `src/calliope/solubility.py:30-57`: H2O parameterizations.
 - `src/calliope/solubility.py:60-100`: S2 with the `x_FeO` kwarg.
 - `src/calliope/solubility.py:100+`: N2 with the `x_SiO2`, `x_Al2O3`,
-  `x_TiO2` kwargs (Dasgupta 2022) plus Libourel as the no-composition
-  baseline.
+  `x_TiO2` kwargs (Dasgupta 2022[^cite-dasgupta2022]) plus Libourel 2003[^cite-libourel2003] as the no-composition baseline.
 - `docs/Explanations/solubility.md`: user-facing concept page with the
   validity envelope per parameterization.
+
+## References
+
+[^cite-dasgupta2022]: R. Dasgupta, E. Falksen, A. Pal, C. Sun, *[The fate of nitrogen during parent body partial melting and accretion of the inner Solar System bodies at reducing conditions](https://doi.org/10.1016/j.gca.2022.09.012)*, Geochimica et Cosmochimica Acta, 336, 291-307, 2022. [SciX](https://scixplorer.org/abs/2022GeCoA.336..291D/abstract).
+[^cite-dixon1995]: J. E. Dixon, E. M. Stolper, J. R. Holloway, *[An experimental study of water and carbon dioxide solubilities in mid-ocean ridge basaltic liquids. Part I: Calibration and solubility models](https://doi.org/10.1093/oxfordjournals.petrology.a037267)*, Journal of Petrology, 36(6), 1607-1631, 1995. [SciX](https://scixplorer.org/abs/1995JPet...36.1607D/abstract).
+[^cite-fischer2011]: R. A. Fischer, A. J. Campbell, G. A. Shofner, O. T. Lord, P. Dera, V. B. Prakapenka, *[Equation of state and phase diagram of FeO](https://doi.org/10.1016/j.epsl.2011.02.025)*, Earth and Planetary Science Letters, 304, 496-502, 2011. [SciX](https://scixplorer.org/abs/2011E%26PSL.304..496F/abstract).
+[^cite-gaillard2022]: F. Gaillard, F. Bernadou, M. Roskosz, M. A. Bouhifd, Y. Marrocchi, G. Iacono-Marziano, M. Moreira, B. Scaillet, G. Rogerie, *[Redox controls during magma ocean degassing](https://doi.org/10.1016/j.epsl.2021.117255)*, Earth and Planetary Science Letters, 577, 117255, 2022. [SciX](https://scixplorer.org/abs/2022E%26PSL.57717255G/abstract).
+[^cite-libourel2003]: G. Libourel, B. Marty, F. Humbert, *[Nitrogen solubility in basaltic melt. Part I. Effect of oxygen fugacity](https://doi.org/10.1016/S0016-7037(03)00259-X)*, Geochimica et Cosmochimica Acta, 67(21), 4123-4135, 2003. [SciX](https://scixplorer.org/abs/2003GeCoA..67.4123L/abstract).
+[^cite-sossi2023]: P. A. Sossi, P. M. E. Tollan, J. Badro, D. J. Bower, *[Solubility of water in peridotite liquids and the prevalence of steam atmospheres on rocky planets](https://doi.org/10.1016/j.epsl.2022.117894)*, Earth and Planetary Science Letters, 601, 117894, 2023. [SciX](https://scixplorer.org/abs/2023E%26PSL.60117894S/abstract).

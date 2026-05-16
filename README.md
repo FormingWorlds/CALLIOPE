@@ -72,9 +72,9 @@ See the [first-run tutorial](https://proteus-framework.org/CALLIOPE/Tutorials/fi
 
 If you use CALLIOPE in published work, please cite the three methods papers below. The full reference list (chemistry constants, solubility laws, oxygen-fugacity buffers, applications) is on the [Publications page](https://proteus-framework.org/CALLIOPE/Reference/publications.html).
 
-- Bower, D.J., Kitzmann, D., Wolf, A.S., Sanan, P., Dorn, C., & Oza, A.V. (2019). *Linking the evolution of terrestrial interiors and an early outgassed atmosphere to astrophysical observations.* **A&A** 631, A103. [\[ADS\]](https://ui.adsabs.harvard.edu/abs/2019A%26A...631A.103B) [\[DOI\]](https://doi.org/10.1051/0004-6361/201935710)
-- Bower, D.J., Hakim, K., Sossi, P.A., & Sanan, P. (2022). *Retention of water in terrestrial magma oceans and carbon-rich early atmospheres.* **PSJ** 3, 93. [\[ADS\]](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) [\[DOI\]](https://doi.org/10.3847/PSJ/ac5fb1)
-- Nicholls, H., Lichtenberg, T., Bower, D.J., & Pierrehumbert, R. (2024). *Magma ocean evolution at arbitrary redox state.* **JGR Planets** 129, e2024JE008576. [\[ADS\]](https://ui.adsabs.harvard.edu/abs/2024JGRE..12908576N) [\[DOI\]](https://doi.org/10.1029/2024JE008576) [\[arXiv\]](https://arxiv.org/abs/2411.19137)
+- Bower, D.J., Kitzmann, D., Wolf, A.S., Sanan, P., Dorn, C., & Oza, A.V. (2019). *Linking the evolution of terrestrial interiors and an early outgassed atmosphere to astrophysical observations.* **A&A** 631, A103. [\[SciX\]](https://scixplorer.org/abs/2019A%26A...631A.103B/abstract) [\[DOI\]](https://doi.org/10.1051/0004-6361/201935710)
+- Bower, D.J., Hakim, K., Sossi, P.A., & Sanan, P. (2022). *Retention of water in terrestrial magma oceans and carbon-rich early atmospheres.* **PSJ** 3, 93. [\[SciX\]](https://scixplorer.org/abs/2022PSJ.....3...93B/abstract) [\[DOI\]](https://doi.org/10.3847/PSJ/ac5fb1)
+- Nicholls, H., Lichtenberg, T., Bower, D.J., & Pierrehumbert, R. (2024). *Magma ocean evolution at arbitrary redox state.* **JGR Planets** 129, e2024JE008576. [\[SciX\]](https://scixplorer.org/abs/2024JGRE..12908576N/abstract) [\[DOI\]](https://doi.org/10.1029/2024JE008576) [\[arXiv\]](https://arxiv.org/abs/2411.19137)
 
 ## License
 

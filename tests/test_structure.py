@@ -25,12 +25,12 @@ pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 
 @pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
-def test_calculate_mantle_mass_recovers_wang_2017_earth_core_fraction():
-    """Earth-like inputs recover Wang, Lineweaver & Ireland (2017) Earth
+def test_calculate_mantle_mass_recovers_wang_2018_earth_core_fraction():
+    """Earth-like inputs recover Wang, Lineweaver & Ireland (2018) Earth
     core mass fraction 0.325.
 
     The source file `src/calliope/structure.py` hard-codes `earth_fm = 0.325`
-    citing arxiv:1708.08718 (Wang, Lineweaver & Ireland 2017, "The Elemental
+    citing arxiv:1708.08718 (Wang, Lineweaver & Ireland 2018, "The Elemental
     Abundances (with Uncertainties) of the Most Earth-like Planet"; the paper
     reports 32.5 +/- 0.3 wt% Earth core mass fraction). For Earth radius,
     Earth mass, and `core_frac = 0.55` (Earth-like core radius fraction), the

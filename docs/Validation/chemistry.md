@@ -5,7 +5,7 @@ behaviour of `calliope.chemistry` against published sources.
 
 | Test id | Reference | Source page | Scope |
 |---|---|---|---|
-| `tests/test_chemistry.py::test_modified_keq_janaf_H2_matches_closed_form_at_2000K_with_oneill` | NIST JANAF Thermochemical Tables (4th ed.), fits for `H2O = H2 + 0.5 O2` over 1500-3000 K | `src/calliope/chemistry.py:41-43` (`janaf_H2`) | Pins `Geq(janaf_H2)` at T = 2000 K under the O'Neill 2002 IW buffer against the closed-form `10^(Keq - 0.5 * log10_fO2)`; includes a wrong-reaction discrimination guard against `schaefer_H` at the same conditions. |
+| `tests/test_chemistry.py::test_modified_keq_janaf_H2_matches_closed_form_at_2000K_with_oneill` | NIST JANAF Thermochemical Tables[^cite-chase1998] (4th ed.), fits for `H2O = H2 + 0.5 O2` over 1500-3000 K | `src/calliope/chemistry.py:41-43` (`janaf_H2`) | Pins `Geq(janaf_H2)` at T = 2000 K under the O'Neill 2002[^cite-oneilleggins2002] IW buffer against the closed-form `10^(Keq - 0.5 * log10_fO2)`; includes a wrong-reaction discrimination guard against `schaefer_H`[^cite-schaeferfegley2017] at the same conditions. |
 
 ## Re-derivation note
 
@@ -64,3 +64,9 @@ switching from O'Neill to Fischer changes Geq beyond rel=1e-6.
 - `src/calliope/chemistry.py:11-22`: `ModifiedKeq` constructor and `__call__`.
 - `src/calliope/chemistry.py:24-62`: per-reaction coefficient methods.
 - `docs/Explanations/equilibrium_chemistry.md`: user-facing concept page.
+
+## References
+
+[^cite-chase1998]: M. W. Chase, *[NIST-JANAF Thermochemical Tables, 4th edition](https://janaf.nist.gov/)*, Journal of Physical and Chemical Reference Data Monograph 9, 1998.
+[^cite-oneilleggins2002]: H. St. C. O'Neill, S. M. Eggins, *[The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts](https://doi.org/10.1016/S0009-2541(01)00414-4)*, Chemical Geology, 186, 151-181, 2002. [SciX](https://scixplorer.org/abs/2002ChGeo.186..151O/abstract).
+[^cite-schaeferfegley2017]: L. Schaefer, B. Fegley, *[Redox states of initial atmospheres outgassed on rocky planets and planetesimals](https://doi.org/10.3847/1538-4357/aa784f)*, The Astrophysical Journal, 843(2), 120, 2017. [SciX](https://scixplorer.org/abs/2017ApJ...843..120S/abstract).

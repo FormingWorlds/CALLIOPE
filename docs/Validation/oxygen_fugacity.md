@@ -5,7 +5,7 @@ behaviour of `calliope.oxygen_fugacity` against published sources.
 
 | Test id | Reference | Source page | Scope |
 |---|---|---|---|
-| `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_matches_published_fit` | Fischer et al. (2011), EPSL 304, 496, Eq. 2 | [doi:10.1016/j.epsl.2011.02.025](https://doi.org/10.1016/j.epsl.2011.02.025) | Pins Fischer IW value at T = 2000 K against the closed-form fit `6.94059 - 28.1808e3 / T`; includes a wrong-buffer discrimination guard against O'Neill & Eggins (2002) at the same T. |
+| `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_matches_published_fit` | Fischer et al. (2011)[^cite-fischer2011], EPSL 304, 496, Eq. 2 | [doi:10.1016/j.epsl.2011.02.025](https://doi.org/10.1016/j.epsl.2011.02.025) | Pins Fischer IW value at T = 2000 K against the closed-form fit `6.94059 - 28.1808e3 / T`; includes a wrong-buffer discrimination guard against O'Neill & Eggins (2002)[^cite-oneilleggins2002] at the same T. |
 
 ## Re-derivation note
 
@@ -59,3 +59,8 @@ is the discrimination guard against a buffer-default flip.
 - `docs/Explanations/cross_backend_comparison.md`: empirical comparison
   of CALLIOPE Fischer vs atmodeller Hirschmann combined, showing the
   0.16 dex residual at Earth fiducial after the buffer-default flip.
+
+## References
+
+[^cite-fischer2011]: R. A. Fischer, A. J. Campbell, G. A. Shofner, O. T. Lord, P. Dera, V. B. Prakapenka, *[Equation of state and phase diagram of FeO](https://doi.org/10.1016/j.epsl.2011.02.025)*, Earth and Planetary Science Letters, 304, 496-502, 2011. [SciX](https://scixplorer.org/abs/2011E%26PSL.304..496F/abstract).
+[^cite-oneilleggins2002]: H. St. C. O'Neill, S. M. Eggins, *[The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts](https://doi.org/10.1016/S0009-2541(01)00414-4)*, Chemical Geology, 186, 151-181, 2002. [SciX](https://scixplorer.org/abs/2002ChGeo.186..151O/abstract).
