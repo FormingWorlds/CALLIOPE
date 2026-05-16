@@ -106,10 +106,8 @@ def _is_weak_assert(node: ast.Assert) -> str | None:
             and right.value is None
         ):
             return 'is_none_or_not_none'
-        # `assert x > 0`
-        if isinstance(op, ast.Gt) and isinstance(right, ast.Constant) and right.value == 0:
-            return 'gt_zero'
-        # `assert len(x) > 0`
+        # `assert len(x) > 0` (must come BEFORE the bare `> 0` check,
+        # since it is the more specific shape).
         if (
             isinstance(op, ast.Gt)
             and isinstance(test.left, ast.Call)
@@ -119,6 +117,9 @@ def _is_weak_assert(node: ast.Assert) -> str | None:
             and right.value == 0
         ):
             return 'len_gt_zero'
+        # `assert x > 0`
+        if isinstance(op, ast.Gt) and isinstance(right, ast.Constant) and right.value == 0:
+            return 'gt_zero'
     return None
 
 
@@ -152,20 +153,48 @@ def _is_exact_zero(value) -> bool:
     return isinstance(value, float) and value == 0.0
 
 
+def _unwrap_unary_minus_float(operand: ast.AST) -> float | None:
+    """Return the float value of ``UnaryOp(USub, Constant(float))``, or None.
+
+    The AST parses ``-1.5`` as ``UnaryOp(USub, Constant(1.5))``, NOT as
+    ``Constant(-1.5)``. A naive ``isinstance(node, ast.Constant)`` check
+    would miss negative float literals; this helper accepts both forms.
+    """
+    if (
+        isinstance(operand, ast.UnaryOp)
+        and isinstance(operand.op, ast.USub)
+        and isinstance(operand.operand, ast.Constant)
+        and isinstance(operand.operand.value, float)
+    ):
+        return -operand.operand.value
+    return None
+
+
+def _float_literal_value(operand: ast.AST) -> float | None:
+    """Return the float value of a positive or negative float-literal node."""
+    if isinstance(operand, ast.Constant) and isinstance(operand.value, float):
+        return operand.value
+    return _unwrap_unary_minus_float(operand)
+
+
 def _has_float_eq(node: ast.AST) -> bool:
-    """Return True if any descendant uses ``==`` against a non-zero float literal."""
+    """Return True if any descendant uses ``==`` against a non-zero float literal.
+
+    Accepts both ``Constant(1.5)`` (positive literal) and
+    ``UnaryOp(USub, Constant(1.5))`` (negative literal). The exact-zero
+    carve-out applies to both signs.
+    """
     for child in ast.walk(node):
         if isinstance(child, ast.Compare):
             for op, right in zip(child.ops, child.comparators):
-                if isinstance(op, ast.Eq):
-                    if isinstance(right, ast.Constant) and isinstance(right.value, float):
-                        if not _is_exact_zero(right.value):
-                            return True
-                    if isinstance(child.left, ast.Constant) and isinstance(
-                        child.left.value, float
-                    ):
-                        if not _is_exact_zero(child.left.value):
-                            return True
+                if not isinstance(op, ast.Eq):
+                    continue
+                right_val = _float_literal_value(right)
+                if right_val is not None and not _is_exact_zero(right_val):
+                    return True
+                left_val = _float_literal_value(child.left)
+                if left_val is not None and not _is_exact_zero(left_val):
+                    return True
     return False
 
 
@@ -202,7 +231,31 @@ def _tier_of_mark_node(n: ast.AST) -> str | None:
     return None
 
 
-def _func_markers(fn: ast.FunctionDef) -> set[str]:
+FuncDef = (ast.FunctionDef, ast.AsyncFunctionDef)
+
+
+def _iter_test_functions(tree: ast.Module):
+    """Yield every ``test_*`` function defined at module scope or as a
+    method of a class at module scope.
+
+    Does NOT recurse into function bodies: a `def test_x()` defined
+    inside another function body is a local helper, not an independent
+    pytest test, and must not be inspected as one. Recursing via
+    ``ast.walk`` would treat such helpers as phantom tests.
+
+    Async functions (`async def test_x`) are yielded alongside
+    synchronous ones; pytest-asyncio and other plugins run them.
+    """
+    for stmt in tree.body:
+        if isinstance(stmt, FuncDef) and stmt.name.startswith('test_'):
+            yield stmt
+        elif isinstance(stmt, ast.ClassDef):
+            for sub in stmt.body:
+                if isinstance(sub, FuncDef) and sub.name.startswith('test_'):
+                    yield sub
+
+
+def _func_markers(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
     """All ``pytest.mark.<x>`` markers on a function definition."""
     out: set[str] = set()
     for dec in fn.decorator_list:
@@ -219,7 +272,7 @@ def _func_markers(fn: ast.FunctionDef) -> set[str]:
     return out
 
 
-def _docstring_of(fn: ast.FunctionDef) -> str | None:
+def _docstring_of(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> str | None:
     if (
         fn.body
         and isinstance(fn.body[0], ast.Expr)
@@ -355,11 +408,7 @@ def check_file(path: Path) -> Violations:
     for dep in _missing_importorskip(tree):
         v.add('missing_importorskip', f'{rel}: {dep}')
 
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.FunctionDef):
-            continue
-        if not node.name.startswith('test_'):
-            continue
+    for node in _iter_test_functions(tree):
         where = f'{rel}::{node.name}'
 
         if _docstring_of(node) is None:
@@ -465,11 +514,7 @@ def physics_invariant_audit() -> list[str]:
         except SyntaxError:
             continue
         rel = str(test_path.relative_to(REPO_ROOT))
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.FunctionDef):
-                continue
-            if not node.name.startswith('test_'):
-                continue
+        for node in _iter_test_functions(tree):
             markers = _func_markers(node)
             if 'physics_invariant' in markers:
                 continue
