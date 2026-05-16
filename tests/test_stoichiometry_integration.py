@@ -153,6 +153,5 @@ class TestEquilibriumAtmosphereIntegration:
         for e, target_kg in target.items():
             total = result.get(f'{e}_kg_atm', 0) + result.get(f'{e}_kg_liquid', 0)
             assert 0.1 * target_kg < total < 10.0 * target_kg, (
-                f'{e}: total={total:.4e}, target={target_kg:.4e} '
-                f'(order-of-magnitude check)'
+                f'{e}: total={total:.4e}, target={target_kg:.4e} (order-of-magnitude check)'
             )

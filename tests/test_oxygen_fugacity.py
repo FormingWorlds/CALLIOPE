@@ -7,8 +7,9 @@ underlying fits:
   the closed-form `6.94059 - 28.1808e3 / T`, with a discrimination
   guard against the O'Neill & Eggins (2002) IW at the same T. The
   guard catches a regression that silently dispatches to the wrong
-  buffer (the canonical buffer-flip trap from
-  `.github/.claude/rules/calliope-tests.md` Section 16).
+  buffer; a default change in `oxygen_fugacity.py` would otherwise
+  silently shift every PROTEUS-side number pinned to the previous
+  default.
 - Monotonicity: `log10(fO2)` is monotonic in T along each buffer
   over the 1500-3000 K range.
 - Symmetry: `fO2_shift` is strictly additive: `of(T, dIW) = of(T, 0) + dIW`.
@@ -16,9 +17,6 @@ underlying fits:
 - Error contract: T <= 0 raises `ValueError` mentioning the divergence
   in the underlying formulae; unknown buffer names raise
   `AttributeError` at construction.
-
-See `.github/.claude/rules/calliope-tests.md` sections 1-3 for the
-anti-happy-path, discrimination-guard, and physics-invariant rules.
 """
 
 from __future__ import annotations
@@ -44,8 +42,7 @@ def test_oxygen_fugacity_fischer_value_at_2000K_matches_published_fit():
     Cross-buffer discrimination guard: O'Neill & Eggins (2002) at the
     same T gives ~-7.4078 (a 0.26 dex offset). A regression that
     silently dispatches to 'oneill' instead of 'fischer' would land
-    outside the tolerance, catching the buffer-flip trap from
-    `calliope-tests.md` Section 16.
+    outside the tolerance, catching a buffer-default flip.
     """
     of = OxygenFugacity('fischer')
     val = of(2000.0)

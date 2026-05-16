@@ -78,9 +78,7 @@ class TestWarmStart:
         # from p_guess and re-derived the secondaries from a fresh seed
         # could pass the primary check while drifting on the derived ones.
         for sp in ('H2', 'CO', 'SO2', 'H2S', 'NH3', 'O2'):
-            assert warm[f'{sp}_bar'] == pytest.approx(
-                cold[f'{sp}_bar'], rel=1e-2
-            )
+            assert warm[f'{sp}_bar'] == pytest.approx(cold[f'{sp}_bar'], rel=1e-2)
 
     def test_warm_start_with_zero_guess_clamps_ub(self):
         """When a guess slot is zero (or below 1e-10), the function
@@ -191,9 +189,7 @@ class TestPGuessValidation:
         # Call again with only the four required primaries (same values)
         # and confirm the converged P_surf matches. A solver that consumed
         # SO2 as a fifth guess slot would produce a different result.
-        guess_required_only = {
-            k: guess_with_extras[k] for k in ('H2O', 'CO2', 'N2', 'S2')
-        }
+        guess_required_only = {k: guess_with_extras[k] for k in ('H2O', 'CO2', 'N2', 'S2')}
         result_required = equilibrium_atmosphere(
             target, ddict, p_guess=guess_required_only, print_result=False, nguess=200
         )
@@ -305,7 +301,7 @@ class TestSingleSolverMode:
         result_alt = equilibrium_atmosphere(
             target, ddict, print_result=False, nguess=5000, opt_solver=True
         )
-        # Both should land on the same pressures (within 5% — solver
+        # Both should land on the same pressures (within 5%; solver
         # path is different but the basin is the same).
         assert result['H2O_bar'] == pytest.approx(result_alt['H2O_bar'], rel=0.1)
 

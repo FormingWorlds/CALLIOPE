@@ -32,10 +32,10 @@ Two modes:
 
 Optionally:
 
-* ``--reference-pinned-audit``  Print the physics source files that lack at
+* ``--reference-pinned-status``  Print the physics source files that lack at
   least one ``@pytest.mark.reference_pinned`` test in the matching
   ``tests/test_<source>.py``. Does not exit non-zero on its own (advisory).
-* ``--physics-invariant-audit``  Print physics-source tests that assert no
+* ``--physics-invariant-status``  Print physics-source tests that assert no
   invariant and are not tagged ``@pytest.mark.physics_invariant``. Advisory.
 
 All exits in ``--check`` mode use exit code 1 on regression; 0 otherwise.
@@ -473,7 +473,7 @@ def _file_has_decorator(path: Path, decorator_name: str) -> bool:
     return False
 
 
-def reference_pinned_audit() -> list[str]:
+def reference_pinned_status() -> list[str]:
     """Return physics source files lacking a reference_pinned test.
 
     For each source in PHYSICS_SOURCES, check whether the companion test file
@@ -494,7 +494,7 @@ def reference_pinned_audit() -> list[str]:
     return missing
 
 
-def physics_invariant_audit() -> list[str]:
+def physics_invariant_status() -> list[str]:
     """Return physics-source tests without an explicit invariant marker or
     property-based assertion language.
 
@@ -600,8 +600,8 @@ def cmd_check() -> int:
     return 0
 
 
-def cmd_reference_pinned_audit() -> int:
-    missing = reference_pinned_audit()
+def cmd_reference_pinned_status() -> int:
+    missing = reference_pinned_status()
     if not missing:
         print('All physics sources have a @pytest.mark.reference_pinned test.')
         return 0
@@ -611,8 +611,8 @@ def cmd_reference_pinned_audit() -> int:
     return 0
 
 
-def cmd_physics_invariant_audit() -> int:
-    flagged = physics_invariant_audit()
+def cmd_physics_invariant_status() -> int:
+    flagged = physics_invariant_status()
     if not flagged:
         print(
             'All physics-source tests either carry @pytest.mark.physics_invariant '
@@ -642,12 +642,12 @@ def main() -> int:
         help='CI mode: fail if violations exceed baseline.',
     )
     group.add_argument(
-        '--reference-pinned-audit',
+        '--reference-pinned-status',
         action='store_true',
         help='Advisory: list physics sources missing a @pytest.mark.reference_pinned test.',
     )
     group.add_argument(
-        '--physics-invariant-audit',
+        '--physics-invariant-status',
         action='store_true',
         help='Advisory: list physics-source tests without an invariant marker or '
         'property-based language.',
@@ -657,10 +657,10 @@ def main() -> int:
         return cmd_baseline()
     if args.check:
         return cmd_check()
-    if args.reference_pinned_audit:
-        return cmd_reference_pinned_audit()
-    if args.physics_invariant_audit:
-        return cmd_physics_invariant_audit()
+    if args.reference_pinned_status:
+        return cmd_reference_pinned_status()
+    if args.physics_invariant_status:
+        return cmd_physics_invariant_status()
     return 0
 
 

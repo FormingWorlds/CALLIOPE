@@ -276,8 +276,8 @@ The script refuses to regenerate if the new total exceeds the old; override with
 Two advisory modes report gaps without failing CI:
 
 ```console
-python tools/check_test_quality.py --reference-pinned-audit
-python tools/check_test_quality.py --physics-invariant-audit
+python tools/check_test_quality.py --reference-pinned-status
+python tools/check_test_quality.py --physics-invariant-status
 ```
 
 The first lists physics sources whose matching `tests/test_<source>.py` has no `@pytest.mark.reference_pinned` test.
@@ -317,7 +317,7 @@ ruff check --fix src/ tests/
 ruff format src/ tests/
 bash tools/validate_test_structure.sh
 python tools/check_test_quality.py --check
-python tools/check_test_quality.py --reference-pinned-audit
+python tools/check_test_quality.py --reference-pinned-status
 pytest -m "(unit or smoke) and not skip" --cov=calliope
 ```
 

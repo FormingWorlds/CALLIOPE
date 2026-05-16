@@ -94,8 +94,7 @@ def test_dasgupta_finite_nonnegative(p_N2, p_tot, T, dIW):
     N2 = SolubilityN2('dasgupta')
     val = N2.dasgupta(p_N2, p_tot, T, dIW)
     assert math.isfinite(val), (
-        f'Dasgupta NaN/Inf at p_N2={p_N2:.4e}, p_tot={p_tot:.4e}, '
-        f'T={T:.1f}, dIW={dIW:.2f}'
+        f'Dasgupta NaN/Inf at p_N2={p_N2:.4e}, p_tot={p_tot:.4e}, T={T:.1f}, dIW={dIW:.2f}'
     )
     assert val >= 0.0
 
@@ -169,7 +168,7 @@ def test_oneill_finite_over_bounds(T, dIW):
     # T-dIW window must be in roughly [-30, +5]. A stub returning 1.0
     # for any input would pass the finite check; this band excludes that.
     assert -30.0 < val < 5.0, (
-        f'O\'Neill log10(fO2) at T={T:.1f}, dIW={dIW:.2f} = {val:.3f} '
+        f"O'Neill log10(fO2) at T={T:.1f}, dIW={dIW:.2f} = {val:.3f} "
         f'outside the physically plausible window [-30, +5]'
     )
 
@@ -195,11 +194,11 @@ def test_oneill_fischer_disagree_by_less_than_dex(T):
     # T approaches 2200 K).
     assert -12.0 < oneill_val < -5.0, (
         f"O'Neill log10(fO2) at T={T:.1f} = {oneill_val:.3f} "
-        f"outside the expected [-12, -5] window for IW"
+        f'outside the expected [-12, -5] window for IW'
     )
     assert -12.0 < fischer_val < -5.0, (
         f'Fischer log10(fO2) at T={T:.1f} = {fischer_val:.3f} '
-        f"outside the expected [-12, -5] window for IW"
+        f'outside the expected [-12, -5] window for IW'
     )
 
 
@@ -216,11 +215,15 @@ def test_oneill_fischer_disagree_by_less_than_dex(T):
 def test_modified_keq_finite_positive(T, dIW):
     """Every modified equilibrium constant is finite and strictly
     positive across the physical input space (since K_eq = 10**(...))"""
-    for method in ('janaf_H2', 'janaf_CO', 'schaefer_CH4',
-                   'janaf_SO2', 'janaf_H2S', 'janaf_NH3'):
+    for method in (
+        'janaf_H2',
+        'janaf_CO',
+        'schaefer_CH4',
+        'janaf_SO2',
+        'janaf_H2S',
+        'janaf_NH3',
+    ):
         Keq = ModifiedKeq(method)
         val = Keq(T, dIW)
-        assert math.isfinite(val), (
-            f'{method}(T={T}, dIW={dIW}) = {val} is not finite'
-        )
+        assert math.isfinite(val), f'{method}(T={T}, dIW={dIW}) = {val} is not finite'
         assert val > 0.0

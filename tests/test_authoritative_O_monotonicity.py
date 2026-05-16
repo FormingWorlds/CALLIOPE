@@ -16,10 +16,10 @@ O_kg_total as output) and confirm monotonicity. We test two T_magma
 points inside the Dasgupta/Gaillard calibration range. Marked
 ``slow`` because each sweep runs 12 legacy solves.
 
-These also serve as the regression net for the reviewer-5
-non-confirmation: O(fO2) was empirically monotonic in [-5, +5] at
-1800 K and 3000 K during pre-fix adversarial review. If a future
-refactor of the chemistry breaks that property, this test fires.
+These also serve as the regression net for the chemistry refactor:
+O(fO2) is empirically monotonic in [-5, +5] at 1800 K and 3000 K.
+If a future refactor of the chemistry breaks that property, this
+test fires.
 """
 
 from __future__ import annotations
@@ -118,13 +118,13 @@ class TestMonotonicity:
         """The O_kg(fO2_shift) curve must have enough dynamic range
         over [-4, +6] that the inverse solver can resolve fO2 from
         a given O budget. For Earth-like H/C/N/S budgets this ratio
-        is empirically ~3x — moderate, but well above the noise floor
+        is empirically ~3x: moderate, but well above the noise floor
         the per-element tolerance imposes.
 
         With ratio=R over 10 dex, the average slope is log10(R)/10
         dex per dex. With per-element rtol=1e-5 on O, the inverse
         fO2 resolution is (rtol/d(log_O)/d(dIW)) which for R=2 is
-        ~3e-5 dex — far below any physically meaningful precision.
+        ~3e-5 dex: far below any physically meaningful precision.
         """
         dIW_low = -4.0
         dIW_high = 6.0

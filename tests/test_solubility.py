@@ -18,9 +18,6 @@ Dixon 1995, Hamilton 1964 / Wilson and Head 1981, Newcombe 2017), S2
   factor to floating-point precision.
 - Edge cases: zero-pressure short-circuit on S2, negative composition
   values evaluate finitely, libourel path unaffected by composition kwargs.
-
-See `.github/.claude/rules/calliope-tests.md` sections 1-3 for the
-anti-happy-path, discrimination-guard, and physics-invariant rules.
 """
 
 from __future__ import annotations
@@ -165,9 +162,7 @@ class TestSolubilityS2_xFeO:
         # attribute but used a different value internally would pass the
         # bare attribute pin.
         s_explicit = SolubilityS2(x_FeO=10.0)
-        assert s(1.0, 2500.0, 0.0) == pytest.approx(
-            s_explicit(1.0, 2500.0, 0.0), rel=1e-12
-        )
+        assert s(1.0, 2500.0, 0.0) == pytest.approx(s_explicit(1.0, 2500.0, 0.0), rel=1e-12)
 
     @pytest.mark.physics_invariant
     @pytest.mark.reference_pinned
@@ -358,8 +353,7 @@ class TestSolubilityN2_meltComposition:
         for wrong_coef in sibling_coefs:
             wrong_ratio = math.exp(wrong_coef * delta)
             assert abs(ratio - wrong_ratio) > 1e-3 * abs(ratio), (
-                f'Ratio {ratio:.4e} matches sibling coefficient '
-                f'{wrong_coef} (expected {coef})'
+                f'Ratio {ratio:.4e} matches sibling coefficient {wrong_coef} (expected {coef})'
             )
 
     @pytest.mark.physics_invariant
@@ -465,8 +459,8 @@ class TestBackwardCompatibility:
         broke PROTEUS-side runs.
 
         Hidden coupling: the S2 pin below couples to the default IW
-        buffer (Fischer et al. 2011). An IW-buffer coefficient audit
-        will require regenerating these numbers.
+        buffer (Fischer et al. 2011). A change to the IW-buffer
+        coefficients will require regenerating these numbers.
         """
         # SolubilityS2 default at (p_S2, T, dIW)
         s2 = SolubilityS2()

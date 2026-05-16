@@ -53,7 +53,7 @@ def _ddict(T: float = 1800.0, Phi: float = 1.0, dIW: float = 4.0) -> dict:
 
 
 def _earth_target_HCNS() -> dict:
-    """Earth-like H/C/N/S budget [kg] — converges cleanly in legacy mode."""
+    """Earth-like H/C/N/S budget [kg]; converges cleanly in legacy mode."""
     return {'H': 1.5e20, 'C': 1.5e19, 'N': 8.0e18, 'S': 8.0e20}
 
 
@@ -210,7 +210,7 @@ class TestRoundTrip:
     extending the unknown set from 4 to 5 and adding the O equation
     must reproduce the legacy chemistry. If the round-trip fails by
     more than the per-element tolerance, the new equation system has
-    a different fixed point than the legacy one — that's a bug.
+    a different fixed point than the legacy one, which is a bug.
     """
 
     @pytest.mark.parametrize('dIW', [-2.0, 0.0, 2.0, 4.0, 6.0])

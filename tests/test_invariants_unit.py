@@ -121,7 +121,7 @@ class TestS2SolubilityMonotonicity:
         for i in range(len(values) - 1):
             assert values[i] > values[i + 1], (
                 f'Gaillard ppmw at dIW={dIWs[i]} ({values[i]:.4e}) '
-                f'not greater than at dIW={dIWs[i+1]} ({values[i+1]:.4e}) '
+                f'not greater than at dIW={dIWs[i + 1]} ({values[i + 1]:.4e}) '
                 f'(T={T}, p_S2={p_S2_bar})'
             )
 
@@ -173,7 +173,7 @@ class TestN2SolubilityMonotonicity:
         for i in range(len(values) - 1):
             assert values[i] >= values[i + 1], (
                 f'Dasgupta ppmw at dIW={dIWs[i]} ({values[i]:.4e}) '
-                f'less than at dIW={dIWs[i+1]} ({values[i+1]:.4e}) '
+                f'less than at dIW={dIWs[i + 1]} ({values[i + 1]:.4e}) '
                 f'(T={T}, p_N2={p_N2_bar})'
             )
 

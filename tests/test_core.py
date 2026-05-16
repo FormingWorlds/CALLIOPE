@@ -11,8 +11,7 @@ from calliope.constants import (
 
 pytestmark = pytest.mark.unit
 
-# Per-source tests live in their 1:1-mirrored files (see
-# .github/.claude/rules/calliope-tests.md section 12):
+# Per-source tests live in their 1:1-mirrored files:
 #   chemistry.py        -> tests/test_chemistry.py
 #   oxygen_fugacity.py  -> tests/test_oxygen_fugacity.py
 #   solubility.py       -> tests/test_solubility.py

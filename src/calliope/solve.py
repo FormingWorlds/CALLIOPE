@@ -290,7 +290,7 @@ def _dissolved_mass(pin, fO2_shift, ddict):
     ppmw_S2 = sol_S2(p_d['S2'], ddict['T_magma'], fO2_shift)
     mass_int_d['S2'] = prefactor * ppmw_S2
 
-    # No SolubilityH2S / NH3 / SO2 / O2 / H2 in CALLIOPE — these
+    # No SolubilityH2S / NH3 / SO2 / O2 / H2 in CALLIOPE; these
     # species do not partition into the melt phase and contribute
     # zero to the dissolved-element tallies below.
     mass_int_d['H'] = mass_int_d['H2O'] * 2 / molar_mass['H2O']
@@ -599,7 +599,7 @@ def equilibrium_atmosphere(
         # Validate up front so a missing key surfaces as a clear ValueError
         # rather than a bare KeyError from the tuple construction below.
         # The isinstance check handles cases where a caller passes a list,
-        # a pandas Series, or accidentally a non-dict object — without it,
+        # a pandas Series, or accidentally a non-dict object; without it,
         # the membership test below would raise an opaque TypeError.
         if not isinstance(p_guess, dict):
             raise TypeError(f'p_guess must be a dict or None, got {type(p_guess).__name__}.')

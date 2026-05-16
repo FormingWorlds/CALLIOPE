@@ -222,7 +222,7 @@ Tag every test that asserts a physical invariant with `@pytest.mark.physics_inva
 
 ### Reference-pinned validation
 
-Tag tests that pin against a published benchmark, an analytical limit, or a cross-implementation cross-check with `@pytest.mark.reference_pinned`. Each of the five physics files must have at least one such test. The specific anchor is chosen by the test author and recorded in `docs/Validation/<file>.md` (created when the first reference_pinned test for that source lands). The `--reference-pinned-audit` mode of the linter reports the punch list of physics sources still missing a reference_pinned test.
+Tag tests that pin against a published benchmark, an analytical limit, or a cross-implementation cross-check with `@pytest.mark.reference_pinned`. Each of the five physics files must have at least one such test. The specific anchor is chosen by the test author and recorded in `docs/Validation/<file>.md` (created when the first reference_pinned test for that source lands). The `--reference-pinned-status` mode of the linter reports the punch list of physics sources still missing a reference_pinned test.
 
 ### Anti-happy-path rules (every new test)
 
@@ -286,7 +286,7 @@ A pull request that adds or substantially modifies > 50 lines of test code acros
 - Validate test structure: `bash tools/validate_test_structure.sh`
 - Test-quality lint: `python tools/check_test_quality.py --check`
 - Baseline regeneration (after a deliberate sweep): `python tools/check_test_quality.py --baseline`
-- Reference-pinned audit: `python tools/check_test_quality.py --reference-pinned-audit`
+- Reference-pinned audit: `python tools/check_test_quality.py --reference-pinned-status`
 - Coverage ratchet (one-way, capped at 90): `python tools/update_coverage_threshold.py`
 - Format: `ruff format src/ tests/`
 - Lint: `ruff check src/ tests/`

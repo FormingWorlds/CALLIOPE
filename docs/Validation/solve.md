@@ -5,7 +5,7 @@ behaviour of `calliope.solve` against published or self-consistency sources.
 
 | Test id | Reference | Source page | Scope |
 |---|---|---|---|
-| `tests/test_solve.py::test_round_trip_self_consistency_at_earth_fiducial` | Cross-implementation cross-check: CALLIOPE forward `equilibrium_atmosphere` vs CALLIOPE inverse `equilibrium_atmosphere_authoritative_O` | `src/calliope/solve.py` (forward and Path C entry points) | Pins the round-trip property at the Earth-fiducial input: forward solve at `fO2 = IW + 2` produces an O budget; Path C inverse from that budget recovers `fO2_shift_derived` within 0.05 dex. |
+| `tests/test_solve.py::test_round_trip_self_consistency_at_earth_fiducial` | Cross-implementation cross-check: CALLIOPE forward `equilibrium_atmosphere` vs CALLIOPE inverse `equilibrium_atmosphere_authoritative_O` | `src/calliope/solve.py` (forward and authoritative-O entry points) | Pins the round-trip property at the Earth-fiducial input: forward solve at `fO2 = IW + 2` produces an O budget; the authoritative-O inverse from that budget recovers `fO2_shift_derived` within 0.05 dex. |
 
 ## Re-derivation note
 
@@ -15,7 +15,7 @@ solver:
 - `equilibrium_atmosphere(target, ddict)` (legacy / forward): user
   supplies `fO2_shift_IW` in `ddict`; the solver returns the equilibrium
   partial pressures and per-species kg.
-- `equilibrium_atmosphere_authoritative_O(target, ddict)` (Path C /
+- `equilibrium_atmosphere_authoritative_O(target, ddict)` (authoritative-O
   inverse): user supplies the target `O_kg_total` in `target['O']`;
   the solver inverts to find the `fO2_shift_IW` that matches it, then
   forwards into the same equilibrium engine.
@@ -28,7 +28,8 @@ the recovered `fO2_shift_derived` matches the input within 0.05 dex.
 
 Anchor type: cross-implementation cross-check. The two entry points are
 distinct implementations (the legacy mode uses `fO2_shift_IW` as a
-control variable; Path C uses bisection on `O_kg_total`), and their
+control variable; the authoritative-O mode uses bisection on `O_kg_total`),
+and their
 agreement is the property the test pins. A regression that broke either
 the forward O mass-balance or the inverse bisection would lose the
 round-trip within 0.1 dex; the 0.05 dex envelope catches a coefficient-
@@ -39,9 +40,9 @@ only bug.
 `solve.py` is large (>1200 LOC) and its full test surface is split across
 several topical cross-cutting files for readability:
 
-- `tests/test_authoritative_O.py` and siblings: Path C contract,
-  monotonicity (`test_authoritative_O_monotonicity.py`), input validation
-  (`test_authoritative_O_validation.py`).
+- `tests/test_authoritative_O.py` and siblings: authoritative-O entry
+  point contract, monotonicity (`test_authoritative_O_monotonicity.py`),
+  input validation (`test_authoritative_O_validation.py`).
 - `tests/test_equilibrium_paths.py`: forward solver behaviour on
   multi-species compositions.
 - `tests/test_partial_species.py`: partial-species (some elements
@@ -56,8 +57,7 @@ several topical cross-cutting files for readability:
 
 This is a documented exception to the strict 1:1 source-to-test
 mirroring rule for sources >500 LOC where the test topics are
-independent enough that consolidation would hurt readability. See
-`.github/.claude/rules/calliope-tests.md` Section 12.
+independent enough that consolidation would hurt readability.
 
 ## Anchor types
 
@@ -68,9 +68,9 @@ independent enough that consolidation would hurt readability. See
 
 ## Cross-references
 
-- `src/calliope/solve.py`: forward and Path C entry points.
+- `src/calliope/solve.py`: forward and authoritative-O entry points.
 - `docs/Explanations/authoritative_oxygen.md`: user-facing concept page
-  on Path C.
+  on the authoritative-O entry point.
 - `docs/Explanations/cross_backend_comparison.md`: empirical comparison
   of CALLIOPE Fischer vs atmodeller Hirschmann at the Earth fiducial
   (ΔIW = 0.16 dex residual after the buffer-default flip).

@@ -264,7 +264,7 @@ class TestGetTargetFromPressures:
             nguess=10,  # warm start should converge fast
         )
 
-        # Recover within 1% — the target was built from these very
+        # Recover within 1%: the target was built from these very
         # pressures, so the solver lands here exactly modulo float
         # round-off and Powell-hybrid tolerance.
         assert result['H2O_bar'] == pytest.approx(P0['H2O'], rel=0.01)

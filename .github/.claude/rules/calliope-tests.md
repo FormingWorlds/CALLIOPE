@@ -147,7 +147,7 @@ Two markers track validation quality independently of line coverage:
 - **`@pytest.mark.reference_pinned`** -- this test pins behavior against a **published benchmark** (paper, figure, table; cite explicitly in the test docstring), an **analytical limit** (Henry's-law linear regime, single-species degenerate solve, IW buffer at a tabulated reference T), or a **cross-implementation cross-check** (CALLIOPE vs atmodeller at the Earth fiducial; see `docs/Explanations/cross_backend_comparison.md`).
   - **Per-source-file**: each of the five physics source files must have at least one `reference_pinned` test in `tests/test_<file>.py`. Anchor type is one of {published benchmark, analytical limit, cross-implementation cross-check}; the specific paper or limit is chosen by the test author and recorded in `docs/Validation/<file>.md`.
   - **Tracking**: each physics source gets a page at `docs/Validation/<file>.md`, created when the first reference_pinned test for that source lands. The page records: the source under test, the reference cited, the test ids carrying the marker, and the date of last comparison against the source.
-  - **Audit**: `python tools/check_test_quality.py --reference-pinned-audit` reports the physics source files missing a `reference_pinned` test. This is the punch list for follow-up validation work.
+  - **Status report**: `python tools/check_test_quality.py --reference-pinned-status` reports the physics source files missing a `reference_pinned` test. This is the punch list for follow-up validation work.
 
 Both markers are registered in `pyproject.toml` under `[tool.pytest.ini_options] markers`. They do not gate CI on their own; their coverage is a separate KPI surfaced in the PR summary comment.
 
@@ -337,7 +337,7 @@ The repo provides:
 - `bash tools/validate_test_structure.sh` -- structural check (marker presence, file naming).
 - `python tools/check_test_quality.py --check` -- CI mode: AST scan for the forbidden patterns in Section 1 and the marker requirement in Section 7. Fails the PR if violations exceed the baseline.
 - `python tools/check_test_quality.py --baseline` -- after a deliberate sweep, regenerates `tools/test_quality_baseline.json`. Only run when you have intentionally reduced violations.
-- `python tools/check_test_quality.py --reference-pinned-audit` -- prints physics source files missing a `reference_pinned` test.
+- `python tools/check_test_quality.py --reference-pinned-status` -- prints physics source files missing a `reference_pinned` test.
 - `python tools/update_coverage_threshold.py` -- ratchet the fast PR gate upward when measured coverage exceeds the current `fail_under`. Capped at the 90% ecosystem ceiling.
 - `ruff check src/ tests/` and `ruff format src/ tests/` -- run before commit.
 

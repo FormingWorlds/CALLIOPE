@@ -102,7 +102,7 @@ p_guess = {
 result_new = equilibrium_atmosphere(target_new, ddict_new, p_guess=p_guess, print_result=False)
 ```
 
-This is exactly what the PROTEUS wrapper does. With a good warm start, convergence typically takes 1–3 `fsolve` iterations; without one, CALLIOPE may need 20+ Monte-Carlo restarts before it lands on a plausible basin.
+This is exactly what the PROTEUS wrapper does. With a good warm start, convergence typically takes 1 to 3 `fsolve` iterations; without one, CALLIOPE may need 20+ Monte-Carlo restarts before it lands on a plausible basin.
 
 ## Choosing solubility laws
 

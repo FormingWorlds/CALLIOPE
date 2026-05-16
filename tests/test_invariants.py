@@ -98,8 +98,9 @@ def _solve_buffered(T: float, dIW: float, Phi: float = 1.0) -> dict:
     )
 
 
-def _solve_authoritative(T: float, O_kg: float, Phi: float = 1.0,
-                         fO2_hint: float = 0.0) -> dict:
+def _solve_authoritative(
+    T: float, O_kg: float, Phi: float = 1.0, fO2_hint: float = 0.0
+) -> dict:
     """Run authoritative-O mode with a five-element target."""
     target = _target_HCNS()
     target['O'] = O_kg
@@ -178,8 +179,12 @@ class TestMassConservationPerElement:
         ddict = _ddict(T=1800.0, Phi=1.0, dIW=0.0)
         ddict['M_mantle'] = 0.0
         result = equilibrium_atmosphere(
-            _target_HCNS(), ddict, nguess=200, nsolve=1500,
-            print_result=False, opt_solver=False,
+            _target_HCNS(),
+            ddict,
+            nguess=200,
+            nsolve=1500,
+            print_result=False,
+            opt_solver=False,
         )
         for e in element_list:
             assert result[f'{e}_kg_liquid'] == 0.0, (
@@ -214,9 +219,7 @@ class TestPressurePositivity:
         # the four primary species (H2O, CO2, N2, S2) carries meaningful
         # pressure given the Earth-like H/C/N/S target.
         primary_sum = sum(result[f'{s}_bar'] for s in ('H2O', 'CO2', 'N2', 'S2'))
-        assert primary_sum > 0.0, (
-            f'All primary pressures are zero at T={T}, dIW={dIW}'
-        )
+        assert primary_sum > 0.0, f'All primary pressures are zero at T={T}, dIW={dIW}'
 
     def test_extreme_reducing_does_not_break_positivity(self):
         """Sad-path: at dIW=-5 the H2O/CO2 budgets collapse; verify the
@@ -261,8 +264,7 @@ class TestVMRClosure:
         vmrs = [result[f'{s}_vmr'] for s in volatile_species]
         max_vmr = max(vmrs)
         assert max_vmr > 0.01, (
-            f'No species carries >= 1% vmr at T={T}, dIW={dIW}; '
-            f'closure check would be vacuous'
+            f'No species carries >= 1% vmr at T={T}, dIW={dIW}; closure check would be vacuous'
         )
 
     def test_vmr_closure_in_authoritative_O_mode(self):
@@ -334,8 +336,7 @@ class TestAtmosphericMassConsistency:
         # Earth-like target. A stub returning 0 for every species would
         # pass the closure trivially.
         assert result['M_atm'] > 1.0, (
-            f'M_atm = {result["M_atm"]:.4e} kg is non-physically small '
-            f'at T={T}, dIW={dIW}'
+            f'M_atm = {result["M_atm"]:.4e} kg is non-physically small at T={T}, dIW={dIW}'
         )
 
 
@@ -347,12 +348,15 @@ class TestAtmosphericMassConsistency:
 class TestFO2Reconstruction:
     """log10(p_O2 / fO2_IW_buffer(T)) == fO2_shift_derived."""
 
-    @pytest.mark.parametrize('T,O_kg', [
-        (1800.0, 5.0e20),
-        (1800.0, 1.0e21),
-        (1800.0, 2.0e21),
-        (2200.0, 1.0e21),
-    ])
+    @pytest.mark.parametrize(
+        'T,O_kg',
+        [
+            (1800.0, 5.0e20),
+            (1800.0, 1.0e21),
+            (1800.0, 2.0e21),
+            (2200.0, 1.0e21),
+        ],
+    )
     def test_derived_fO2_matches_p_O2(self, T, O_kg):
         """In authoritative-O mode, the derived fO2 shift reproduces
         log10(p_O2) minus the buffer log10(fO2) at IW; verifies the
@@ -362,9 +366,7 @@ class TestFO2Reconstruction:
         buffer_log10 = OxygenFugacity()(T, 0.0)  # log10 fO2 at IW (shift=0)
         p_O2 = result['O2_bar']
         recovered = math.log10(p_O2) - buffer_log10
-        assert recovered == pytest.approx(
-            result['fO2_shift_derived'], rel=1e-6, abs=1e-6
-        )
+        assert recovered == pytest.approx(result['fO2_shift_derived'], rel=1e-6, abs=1e-6)
 
         # Discrimination guard: using the wrong IW buffer (O'Neill instead
         # of the default Fischer 2011) would shift the recovered value by
@@ -430,8 +432,7 @@ class TestDissolvedMassNonNegativity:
         result = _solve_buffered(T=T, dIW=dIW)
         for s in volatile_species:
             assert result[f'{s}_kg_liquid'] >= 0.0, (
-                f'{s}_kg_liquid = {result[f"{s}_kg_liquid"]:.4e} < 0 '
-                f'at T={T}, dIW={dIW}'
+                f'{s}_kg_liquid = {result[f"{s}_kg_liquid"]:.4e} < 0 at T={T}, dIW={dIW}'
             )
 
         # Discrimination guard: a stub that zeroed every dissolved channel
@@ -439,12 +440,8 @@ class TestDissolvedMassNonNegativity:
         # target at any of the _DEFAULT_TFO2 points, at least one of the
         # primary species (H2O, CO2, S2 in particular) dissolves a
         # meaningful amount into the melt.
-        primary_liq = sum(
-            result[f'{s}_kg_liquid'] for s in ('H2O', 'CO2', 'N2', 'S2')
-        )
-        assert primary_liq > 0.0, (
-            f'No primary species dissolves at T={T}, dIW={dIW}'
-        )
+        primary_liq = sum(result[f'{s}_kg_liquid'] for s in ('H2O', 'CO2', 'N2', 'S2'))
+        assert primary_liq > 0.0, f'No primary species dissolves at T={T}, dIW={dIW}'
 
 
 # ===========================================================================
@@ -539,8 +536,10 @@ class TestPGuessWarmStart:
         cold = equilibrium_atmosphere(
             _target_HCNS(),
             _ddict(T=1800.0, Phi=1.0, dIW=0.0),
-            nguess=200, nsolve=1500,
-            print_result=False, opt_solver=False,
+            nguess=200,
+            nsolve=1500,
+            print_result=False,
+            opt_solver=False,
         )
         p_guess = {
             'H2O': cold['H2O_bar'],
@@ -551,15 +550,17 @@ class TestPGuessWarmStart:
         warm = equilibrium_atmosphere(
             _target_HCNS(),
             _ddict(T=1800.0, Phi=1.0, dIW=0.0),
-            nguess=200, nsolve=1500,
+            nguess=200,
+            nsolve=1500,
             p_guess=p_guess,
-            print_result=False, opt_solver=False,
+            print_result=False,
+            opt_solver=False,
         )
         # Warm start lands on the same basin: partial pressures match
         for s in ('H2O', 'CO2', 'N2', 'S2'):
-            assert warm[f'{s}_bar'] == pytest.approx(
-                cold[f'{s}_bar'], rel=1e-3
-            ), f'Warm start drifted away from cold-solve basin for {s}'
+            assert warm[f'{s}_bar'] == pytest.approx(cold[f'{s}_bar'], rel=1e-3), (
+                f'Warm start drifted away from cold-solve basin for {s}'
+            )
 
         # Discrimination guard: warm and cold must agree on the secondary
         # derived species as well, not just on the four primaries that
@@ -568,9 +569,9 @@ class TestPGuessWarmStart:
         # a fresh random seed could pass the primary check while drifting
         # on H2, CO, SO2, H2S, NH3, O2.
         for s in ('H2', 'CO', 'SO2', 'H2S', 'NH3'):
-            assert warm[f'{s}_bar'] == pytest.approx(
-                cold[f'{s}_bar'], rel=1e-2
-            ), f'Warm start drifted on derived species {s}'
+            assert warm[f'{s}_bar'] == pytest.approx(cold[f'{s}_bar'], rel=1e-2), (
+                f'Warm start drifted on derived species {s}'
+            )
 
     def test_warm_start_with_bad_guess_still_converges(self):
         """Sad-path: even a bad warm-start guess (off by factor of 100)
@@ -579,9 +580,11 @@ class TestPGuessWarmStart:
         warm = equilibrium_atmosphere(
             _target_HCNS(),
             _ddict(T=1800.0, Phi=1.0, dIW=0.0),
-            nguess=200, nsolve=1500,
+            nguess=200,
+            nsolve=1500,
             p_guess=bad_p_guess,
-            print_result=False, opt_solver=False,
+            print_result=False,
+            opt_solver=False,
         )
         # If we got here, the solver converged despite the bad guess
         for s in volatile_species:

@@ -183,9 +183,7 @@ class TestAtmosphericStoichiometry:
         # NH3 instead of 1, i.e. confusing the H subscript with an N count)
         # would add an extra 2 * mass_NH3_kg / molar_mass['NH3'] moles of N.
         # Under the reducing conditions of this test, NH3 is significant.
-        wrong_N_moles = (
-            2 * mass_N2_kg / molar_mass['N2'] + 3 * mass_NH3_kg / molar_mass['NH3']
-        )
+        wrong_N_moles = 2 * mass_N2_kg / molar_mass['N2'] + 3 * mass_NH3_kg / molar_mass['NH3']
         wrong_N_kg = wrong_N_moles * molar_mass['N']
         assert abs(mass['N'] - wrong_N_kg) > 0.01 * expected_N_kg
 
@@ -549,5 +547,3 @@ class TestCOSolubility:
             f'Pressure correction is too weak: c_low={c_low:.4e}, '
             f'c_high={c_high:.4e}, ratio={c_low / c_high:.4f}'
         )
-
-

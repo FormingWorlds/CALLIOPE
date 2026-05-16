@@ -36,18 +36,16 @@ would land 0.26 dex away from the expected value.
 ## Default buffer history
 
 The CALLIOPE default flipped from `'oneill'` to `'fischer'` in the
-2026-05 sweep that introduced the `from_O_budget` Path C entry point.
-Tests that pin an IW value MUST carry a discrimination guard so a future
-default flip (or accidental config-side override) does not silently
-change the test's reference point. This is the buffer-flip trap from
-`.github/.claude/rules/calliope-tests.md` Section 16.
+2026-05 sweep that introduced the `from_O_budget` authoritative-O entry
+point. Tests that pin an IW value MUST carry a discrimination guard so a
+future default flip (or accidental config-side override) does not
+silently change the test's reference point.
 
 ## Anchor type
 
 Published benchmark + cross-buffer discrimination. The Fischer 2011 cite
 is the published-benchmark anchor; the O'Neill 2002 value at the same T
-is the discrimination guard required by Section 2 rule 4 of
-`calliope-tests.md`.
+is the discrimination guard against a buffer-default flip.
 
 ## Cross-references
 

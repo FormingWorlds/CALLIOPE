@@ -20,11 +20,11 @@ H<sub>2</sub>O, CO<sub>2</sub>, N<sub>2</sub>, S<sub>2</sub> (primary unknowns);
 
 Full documentation is at **[proteus-framework.org/CALLIOPE](https://proteus-framework.org/CALLIOPE)**, including:
 
-- [Getting started](https://proteus-framework.org/CALLIOPE/getting_started.html) — installation and a quick path to running.
-- [First-run tutorial](https://proteus-framework.org/CALLIOPE/Tutorials/firstrun.html) — Earth-like solve with a Δ-IW redox sweep.
-- [How-to guides](https://proteus-framework.org/CALLIOPE/How-to/installation.html) — install, configure, run, couple to PROTEUS, test, release.
-- [Explanations](https://proteus-framework.org/CALLIOPE/Explanations/model.html) — model overview, equilibrium chemistry, solubility laws, oxygen fugacity, mass balance, code architecture.
-- [API reference](https://proteus-framework.org/CALLIOPE/Reference/api/index.html) — every public function with NumPy-style docstrings.
+- [Getting started](https://proteus-framework.org/CALLIOPE/getting_started.html): installation and a quick path to running.
+- [First-run tutorial](https://proteus-framework.org/CALLIOPE/Tutorials/firstrun.html): Earth-like solve with a Δ-IW redox sweep.
+- [How-to guides](https://proteus-framework.org/CALLIOPE/How-to/installation.html): install, configure, run, couple to PROTEUS, test, release.
+- [Explanations](https://proteus-framework.org/CALLIOPE/Explanations/model.html): model overview, equilibrium chemistry, solubility laws, oxygen fugacity, mass balance, code architecture.
+- [API reference](https://proteus-framework.org/CALLIOPE/Reference/api/index.html): every public function with NumPy-style docstrings.
 
 ## Installation
 

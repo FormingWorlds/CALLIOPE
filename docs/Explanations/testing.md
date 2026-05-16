@@ -93,8 +93,8 @@ The current anchors:
 | `chemistry.py` | JANAF Thermochemical Tables (4th ed.), $K_{eq}$ for $\mathrm{H_2O} \to \mathrm{H_2} + 0.5\,\mathrm{O_2}$ at 2000 K with the O'Neill & Eggins 2002 buffer | `tests/test_chemistry.py::test_modified_keq_janaf_H2_matches_closed_form_at_2000K_with_oneill` |
 | `oxygen_fugacity.py` | Fischer et al. 2011 (EPSL 304, 496) IW buffer at 2000 K | `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_matches_published_fit` |
 | `solubility.py` | Sossi et al. 2023 peridotite H$_2$O fit; Gaillard et al. 2022 (EPSL 117255) S$_2$ fit | `tests/test_solubility.py::TestSolubilityH2O::test_peridotite_default_matches_sossi_2023_fit` and `TestSolubilityS2_xFeO::test_default_call_matches_gaillard_2022_earth_mantle_value` |
-| `solve.py` | Self-consistency between `equilibrium_atmosphere` (buffered) and `equilibrium_atmosphere_authoritative_O` (Path C) at the Earth fiducial | `tests/test_solve.py::test_round_trip_recovers_fO2_within_tolerance` |
-| `structure.py` | Zeng, Sasselov & Jacobsen 2016 (arxiv:1708.08718) Earth core mass fraction 0.325 | `tests/test_structure.py::test_calculate_mantle_mass_recovers_zeng_2016_earth_core_fraction` |
+| `solve.py` | Self-consistency between `equilibrium_atmosphere` (buffered) and `equilibrium_atmosphere_authoritative_O` (the authoritative-O entry point) at the Earth fiducial | `tests/test_solve.py::test_round_trip_self_consistency_at_earth_fiducial` |
+| `structure.py` | Wang, Lineweaver & Ireland 2017 (arxiv:1708.08718) Earth core mass fraction 0.325 | `tests/test_structure.py::test_calculate_mantle_mass_recovers_wang_2017_earth_core_fraction` |
 
 The marker is not the same thing as physical correctness: a reference-pinned test certifies that *this implementation* reproduces *that anchor*; it does not certify that the anchor is the right physics for every astrophysical regime.
 
@@ -115,7 +115,7 @@ Each source file in `src/calliope/` has a same-named companion in `tests/`:
 Cross-cutting tests are the documented exception, not the rule:
 
 - `tests/test_invariants.py`, `tests/test_invariants_hypothesis.py`: contract clauses that span multiple sources (mass closure end-to-end, partial-species behaviour, stoichiometry of an arbitrary recipe).
-- `tests/test_authoritative_O.py`, `tests/test_authoritative_O_validation.py`, `tests/test_authoritative_O_monotonicity.py`: the Path C authoritative-O entry point, which touches `solve.py`, `chemistry.py`, and `oxygen_fugacity.py` together.
+- `tests/test_authoritative_O.py`, `tests/test_authoritative_O_validation.py`, `tests/test_authoritative_O_monotonicity.py`: the authoritative-O entry point, which touches `solve.py`, `chemistry.py`, and `oxygen_fugacity.py` together.
 - `tests/test_equilibrium_paths.py`, `tests/test_partial_species.py`, `tests/test_stoichiometry.py`, `tests/test_targets.py`: solver-architecture tests that span the same three files.
 
 When a new physics source is added, its 1:1 test file is created at the same time; the matching `docs/Validation/<file>.md` page is added when the first reference-pinned test for that source lands.
@@ -147,8 +147,8 @@ Override with `CALLIOPE_TEST_QUALITY_ALLOW_REGRESS=1` only when a new rule was a
 
 Two advisory modes report gaps without failing CI:
 
-- `python tools/check_test_quality.py --reference-pinned-audit`: lists physics sources whose matching `tests/test_<source>.py` has no `@pytest.mark.reference_pinned` test.
-- `python tools/check_test_quality.py --physics-invariant-audit`: lists physics-source tests that assert no invariant and are not tagged `@pytest.mark.physics_invariant`.
+- `python tools/check_test_quality.py --reference-pinned-status`: lists physics sources whose matching `tests/test_<source>.py` has no `@pytest.mark.reference_pinned` test.
+- `python tools/check_test_quality.py --physics-invariant-status`: lists physics-source tests that assert no invariant and are not tagged `@pytest.mark.physics_invariant`.
 
 ## Local commands
 
@@ -173,8 +173,8 @@ Lint and structure:
 ```console
 bash tools/validate_test_structure.sh         # module-level marker validator
 python tools/check_test_quality.py --check    # AST linter against baseline
-python tools/check_test_quality.py --reference-pinned-audit
-python tools/check_test_quality.py --physics-invariant-audit
+python tools/check_test_quality.py --reference-pinned-status
+python tools/check_test_quality.py --physics-invariant-status
 ```
 
 ## Public-facing badges versus internal taxonomy

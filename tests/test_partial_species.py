@@ -278,18 +278,14 @@ class TestDissolvedMassExclusions:
         m_zero = dissolved_mass(pin, ddict_zero)
         dissolved_species = {'H2O', 'CO2', 'CO', 'CH4', 'N2', 'S2'}
         for sp in dissolved_species:
-            assert m_zero[sp] == pytest.approx(0.0, abs=1e-30), (
-                f'{sp} nonzero at Phi=0'
-            )
+            assert m_zero[sp] == pytest.approx(0.0, abs=1e-30), f'{sp} nonzero at Phi=0'
 
         # Discrimination guard: at Phi=1.0 (fully molten) the same species
         # carry nonzero dissolved mass. A stub that hard-coded 0.0 for
         # every dissolved entry would also pass the Phi=0 loop above.
         ddict_full = _make_ddict(Phi_global=1.0)
         m_full = dissolved_mass(pin, ddict_full)
-        nonzero_at_full = sum(
-            1 for sp in dissolved_species if m_full[sp] > 0.0
-        )
+        nonzero_at_full = sum(1 for sp in dissolved_species if m_full[sp] > 0.0)
         assert nonzero_at_full >= 4, (
             f'Only {nonzero_at_full} of {len(dissolved_species)} species '
             f'dissolved at Phi=1.0; the zero-Phi check would be vacuous'
@@ -303,7 +299,7 @@ class TestDissolvedMassExclusions:
         ddict = _make_ddict(M_mantle=-1.0e24)
         pin = {'H2O': 100.0, 'CO2': 10.0, 'N2': 1.0, 'S2': 0.1}
         m = dissolved_mass(pin, ddict)
-        # Not all dissolved fields are clipped — only the per-element
+        # Not all dissolved fields are clipped; only the per-element
         # tallies at the bottom are. The per-species mass for H2O can go
         # negative when M_mantle is negative.
         assert m['H2O'] < 0.0  # documents non-validation

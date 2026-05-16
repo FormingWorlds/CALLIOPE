@@ -3,7 +3,7 @@
 Exercises the public API of the equilibrium-atmosphere solver:
 `equilibrium_atmosphere` (the conventional forward call with
 user-supplied `fO2_shift_IW`) and `equilibrium_atmosphere_authoritative_O`
-(the Path C inverse call with user-supplied `O_kg_total`).
+(the inverse call with user-supplied `O_kg_total`).
 
 `solve.py` is the largest CALLIOPE source file (>1200 LOC) and its
 test surface is split across this file and several **topical
@@ -11,8 +11,8 @@ cross-cutting** files for readability:
 
 - `tests/test_authoritative_O.py` and the two siblings
   (`test_authoritative_O_monotonicity.py`,
-  `test_authoritative_O_validation.py`) cover the Path C entry
-  point's contract, monotonicity properties, and input validation.
+  `test_authoritative_O_validation.py`) cover the authoritative-O
+  entry point's contract, monotonicity properties, and input validation.
 - `tests/test_equilibrium_paths.py` covers the forward solver's
   behaviour on multi-species compositions.
 - `tests/test_partial_species.py` covers the partial-species (only-
@@ -30,10 +30,6 @@ This file is the **primary per-source test file** required by the
 1:1 mirroring rule. It contains the reference-pinned anchor (round-
 trip self-consistency at the Earth fiducial) plus a small set of
 physics_invariant smoke tests that exercise both entry points.
-
-See `.github/.claude/rules/calliope-tests.md` sections 1-3 and 12
-for the anti-happy-path, discrimination-guard, physics-invariant,
-and 1:1 mirroring rules.
 """
 
 from __future__ import annotations
@@ -74,8 +70,8 @@ def _earth_ddict(T: float = 1800.0, Phi: float = 1.0, dIW: float = 2.0) -> dict:
 
 
 def _earth_target_HCNS() -> dict:
-    """Earth-like H / C / N / S budget [kg] used by the legacy and Path C
-    entry points; converges cleanly at the Earth-fiducial fO2 = IW + 2."""
+    """Earth-like H / C / N / S budget [kg] used by the legacy and the
+    authoritative-O entry points; converges cleanly at fO2 = IW + 2."""
     return {'H': 1.5e20, 'C': 1.5e19, 'N': 8.0e18, 'S': 8.0e20}
 
 
@@ -91,13 +87,13 @@ def test_round_trip_self_consistency_at_earth_fiducial():
 
     - `equilibrium_atmosphere` (legacy): user supplies `fO2_shift_IW`,
       solver returns species kg.
-    - `equilibrium_atmosphere_authoritative_O` (Path C): user supplies
+    - `equilibrium_atmosphere_authoritative_O` (authoritative-O entry point): user supplies
       the target `O_kg_total`, solver inverts to find the `fO2_shift_IW`
       that matches it.
 
     The round-trip is the contract: feeding the forward-mode `O_kg_total`
-    output into Path C must recover the original `fO2_shift_IW` within
-    the documented solver tolerance.
+    output into the authoritative-O entry point must recover the original
+    `fO2_shift_IW` within the documented solver tolerance.
 
     Discrimination guard: a regression that broke either the forward
     O mass-balance or the inverse bisection would lose the round-trip
@@ -126,7 +122,7 @@ def test_round_trip_self_consistency_at_earth_fiducial():
 
     # Inverse solve: target the forward-mode O budget; recover fO2_shift.
     target_with_O = dict(target, O=O_kg_total_forward)
-    path_c_result = equilibrium_atmosphere_authoritative_O(
+    inverse_result = equilibrium_atmosphere_authoritative_O(
         target_with_O,
         ddict,
         fO2_hint=fO2_shift,
@@ -135,7 +131,7 @@ def test_round_trip_self_consistency_at_earth_fiducial():
         nsolve=1000,
         print_result=False,
     )
-    fO2_derived = path_c_result['fO2_shift_derived']
+    fO2_derived = inverse_result['fO2_shift_derived']
     # Round-trip: |fO2_derived - 2.0| < 0.05 dex (well within solver xtol).
     assert fO2_derived == pytest.approx(fO2_shift, abs=0.05)
 

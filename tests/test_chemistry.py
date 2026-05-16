@@ -18,9 +18,6 @@ Physics invariants:
 - Monotonic decrease in Geq with positive `fO2_shift` for models with
   positive `fO2_stoich` (more oxidising -> less reduced product).
 - All JANAF and Schaefer call returns are finite for the documented T range.
-
-See `.github/.claude/rules/calliope-tests.md` sections 1-3 for the
-anti-happy-path, discrimination-guard, and physics-invariant rules.
 """
 
 from __future__ import annotations
@@ -64,7 +61,8 @@ def test_modified_keq_janaf_H2_matches_closed_form_at_2000K_with_oneill():
     # Closed-form expectation: 1.467.
     expected = 10 ** (
         (-13152.477779978302 / T + 3.038586383273608)
-        - 0.5 * (2 * (-244118 + 115.559 * T - 8.474 * T * math.log(T)) / (math.log(10) * 8.31441 * T))
+        - 0.5
+        * (2 * (-244118 + 115.559 * T - 8.474 * T * math.log(T)) / (math.log(10) * 8.31441 * T))
     )
     assert g == pytest.approx(expected, rel=1e-6)
     # Wrong-model discrimination: schaefer_H at the same T gives ~1.213.

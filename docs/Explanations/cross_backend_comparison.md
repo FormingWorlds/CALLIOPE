@@ -93,7 +93,7 @@ Both backends produce a $\Delta\mathrm{IW}$ from the Krijt+2023[^cite-krijt2023]
 
 ![Earth anchor](../assets/figures/cross_backend/fig5_earth_anchor.png)
 
-*Figure 5. Each backend's converged $\Delta\mathrm{IW}$ at the Earth fiducial, overlaid on the Frost & McCammon 2008 empirical range and the Sossi 2020 best estimate. Solid blue: CALLIOPE with the Fischer 2011 default. Dashed grey: CALLIOPE with the legacy O'Neill 2002 buffer (recovers $+3.50$ by construction because the volatile-O reference was derived from a CALLIOPE-O'Neill buffered call at this state). Solid red: atmodeller. With the Fischer default CALLIOPE lands at $\Delta\mathrm{IW} \approx +3.24$, between atmodeller and Sossi 2020; the CALLIOPE–atmodeller gap is now $0.16$ dex rather than the legacy $0.42$ dex.*
+*Figure 5. Each backend's converged $\Delta\mathrm{IW}$ at the Earth fiducial, overlaid on the Frost & McCammon 2008 empirical range and the Sossi 2020 best estimate. Solid blue: CALLIOPE with the Fischer 2011 default. Dashed grey: CALLIOPE with the legacy O'Neill 2002 buffer (recovers $+3.50$ by construction because the volatile-O reference was derived from a CALLIOPE-O'Neill buffered call at this state). Solid red: atmodeller. With the Fischer default CALLIOPE lands at $\Delta\mathrm{IW} \approx +3.24$, between atmodeller and Sossi 2020; the CALLIOPE-vs-atmodeller gap is now $0.16$ dex rather than the legacy $0.42$ dex.*
 
 All three backend points fall inside the empirical Frost & McCammon range. Neither parameterisation is in tension with petrology at this single fiducial; the cross-backend gap, even before the analytical buffer correction, is now well inside the petrological uncertainty on Earth's mantle $\Delta\mathrm{IW}$.
 
