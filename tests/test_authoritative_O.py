@@ -142,6 +142,7 @@ class TestPhysicalOutputContract:
             print_result=False,
         )
 
+        seen_nonzero = False
         for elem in ('H', 'C', 'N', 'S', 'O'):
             res = out[f'{elem}_res']
             tgt = target[elem]
@@ -149,6 +150,16 @@ class TestPhysicalOutputContract:
             assert abs(res) <= allowed, (
                 f'{elem}_res={res:.3e} exceeds tolerance {allowed:.3e} at dIW={dIW}'
             )
+            if tgt > 1.0:
+                seen_nonzero = True
+
+        # Discrimination guard: confirm the target inventory is meaningful
+        # at this dIW (at least one element carries a nonzero target). A
+        # stub that returned target = {} would pass the empty loop body
+        # trivially.
+        assert seen_nonzero, (
+            f'Target inventory is empty at dIW={dIW}; tolerance check is vacuous'
+        )
 
     def test_negative_T_magma_raises(self):
         """Unphysical sad-path: negative T_magma must raise (the
@@ -167,6 +178,23 @@ class TestPhysicalOutputContract:
                 nsolve=200,
                 print_result=False,
             )
+
+        # Discrimination guard: a stub `equilibrium_atmosphere_authoritative_O`
+        # that raised for every input would pass the bare pytest.raises.
+        # Confirm a sibling call with a normal positive T_magma does NOT
+        # raise and produces a finite physically plausible result.
+        ddict_valid = _ddict(dIW=0.0)
+        out_valid = equilibrium_atmosphere_authoritative_O(
+            target,
+            ddict_valid,
+            fO2_hint=0.0,
+            random_seed=0,
+            nguess=200,
+            nsolve=500,
+            print_result=False,
+        )
+        assert out_valid['P_surf'] > 0.0
+        assert -12.0 < out_valid['fO2_shift_derived'] < 12.0
 
 
 # ---------------------------------------------------------------------------
@@ -222,6 +250,26 @@ class TestRoundTrip:
             f'round-trip failed at dIW={dIW}: derived={derived:.4f}, delta={delta:.4f} dex'
         )
 
+        # Discrimination guard: a stub that returned derived = fO2_hint
+        # verbatim would pass the round-trip check trivially. Run the
+        # solver again with a deliberately wrong hint (5 dex away) and
+        # confirm it still recovers the true dIW from the O budget.
+        # This proves the recovery comes from the chemistry, not the hint.
+        out_wrong_hint = equilibrium_atmosphere_authoritative_O(
+            target,
+            ddict_legacy,
+            fO2_hint=dIW + 5.0,
+            random_seed=0,
+            nguess=500,
+            nsolve=1000,
+            print_result=False,
+        )
+        derived_wrong_hint = out_wrong_hint['fO2_shift_derived']
+        assert abs(derived_wrong_hint - dIW) < 0.1, (
+            f'round-trip failed at dIW={dIW} with wrong fO2_hint={dIW + 5.0}: '
+            f'derived={derived_wrong_hint:.4f}'
+        )
+
     def test_round_trip_primary_pressures_match_legacy(self):
         """Primary partial pressures should match the legacy output
         within solver tolerance after a round-trip."""
@@ -248,6 +296,7 @@ class TestRoundTrip:
         # Primary pressures within 0.5% (the legacy mode and the new
         # mode share the same physics so the same fixed point should
         # be found to within fsolve's xtol).
+        seen_nonzero_species = 0
         for key in ('H2O_bar', 'CO2_bar', 'N2_bar', 'S2_bar'):
             legacy_p = legacy[key]
             new_p = out[key]
@@ -256,6 +305,16 @@ class TestRoundTrip:
                 assert rel < 0.005, (
                     f'{key} mismatch: legacy={legacy_p:.6e}, new={new_p:.6e}, rel={rel:.3e}'
                 )
+                seen_nonzero_species += 1
+
+        # Discrimination guard: the loop is vacuous unless at least one
+        # primary species has legacy_p > 1e-20. At the oxidising dIW=4.0
+        # used here, H2O and CO2 dominate, so we expect >= 2 species to
+        # be non-trivial.
+        assert seen_nonzero_species >= 2, (
+            f'Only {seen_nonzero_species} primary species had legacy_p > 1e-20; '
+            f'mass-closure check is too thin'
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -291,7 +350,7 @@ class TestReproducibility:
             print_result=False,
         )
 
-        for key in (
+        keys_to_check = (
             'fO2_shift_derived',
             'H2O_bar',
             'CO2_bar',
@@ -302,9 +361,23 @@ class TestReproducibility:
             'N_res',
             'S_res',
             'O_res',
-        ):
+        )
+        for key in keys_to_check:
             assert out1[key] == out2[key], (
                 f'{key} differs between two same-seed calls: {out1[key]!r} vs {out2[key]!r}'
+            )
+
+        # Discrimination guard: a stub that returned a constant dict for
+        # every call would pass the equality check trivially. Confirm the
+        # values are physically meaningful (fO2_shift_derived in a finite
+        # range, primary pressures positive and bounded).
+        assert -12.0 < out1['fO2_shift_derived'] < 12.0, (
+            f'fO2_shift_derived = {out1["fO2_shift_derived"]:.4f} '
+            f'outside the physically plausible IW range'
+        )
+        for p_key in ('H2O_bar', 'CO2_bar', 'N2_bar', 'S2_bar'):
+            assert 0.0 < out1[p_key] < 1e6, (
+                f'{p_key} = {out1[p_key]:.4e} outside the [0, 1e6] bar range'
             )
 
     def test_different_seeds_may_differ(self):
