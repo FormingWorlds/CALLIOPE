@@ -48,6 +48,12 @@ nav:
           - Oxygen fugacity: Reference/api/calliope.oxygen_fugacity.md
           - Structure: Reference/api/calliope.structure.md
           - Constants: Reference/api/calliope.constants.md
+      - Validation anchors:
+          - Chemistry: Validation/chemistry.md
+          - Oxygen fugacity: Validation/oxygen_fugacity.md
+          - Solubility: Validation/solubility.md
+          - Solve: Validation/solve.md
+          - Structure: Validation/structure.md
       - Publications: Reference/publications.md
 
   - Community:

@@ -5,7 +5,7 @@ behaviour of `calliope.structure` against a published source.
 
 | Test id | Reference | Source page | Scope |
 |---|---|---|---|
-| `tests/test_structure.py::test_calculate_mantle_mass_recovers_wang_2017_earth_core_fraction` | Wang, Lineweaver & Ireland (2017), arxiv:1708.08718: Earth core mass fraction 32.5 +/- 0.3 wt% | [arxiv:1708.08718](https://arxiv.org/abs/1708.08718) | Pins the Earth-like mantle mass against the published core mass fraction and verifies the result lies in the [1e24, 1e25] kg envelope expected for an Earth-mass planet. |
+| `tests/test_structure.py::test_calculate_mantle_mass_recovers_wang_2017_earth_core_fraction` | Wang, Lineweaver & Ireland (2017), arxiv:1708.08718: Earth core mass fraction 32.5 +/- 0.3 wt% | [arxiv:1708.08718](https://arxiv.org/abs/1708.08718) | Pins the Earth-like mantle mass against the published core mass fraction and verifies the result lies in the 1e24 to 1e25 kg envelope expected for an Earth-mass planet. |
 
 ## Re-derivation note
 
