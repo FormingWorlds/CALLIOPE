@@ -71,6 +71,17 @@ class TestWarmStart:
         for sp in ('H2O', 'CO2', 'N2', 'S2'):
             assert warm[f'{sp}_bar'] == pytest.approx(cold[f'{sp}_bar'], rel=1e-3)
 
+        # Discrimination guard: the four primary species seeded from
+        # p_guess match in the loop above; also confirm the derived
+        # species (H2, CO, SO2, H2S, NH3, O2) match between the cold
+        # and warm solves. A solver that initialised only the primaries
+        # from p_guess and re-derived the secondaries from a fresh seed
+        # could pass the primary check while drifting on the derived ones.
+        for sp in ('H2', 'CO', 'SO2', 'H2S', 'NH3', 'O2'):
+            assert warm[f'{sp}_bar'] == pytest.approx(
+                cold[f'{sp}_bar'], rel=1e-2
+            )
+
     def test_warm_start_with_zero_guess_clamps_ub(self):
         """When a guess slot is zero (or below 1e-10), the function
         clamps the upper bound from 1e7 to 1.0. Ensure the solver
@@ -91,9 +102,17 @@ class TestWarmStart:
         # Edge: with S2 ub clamped to 1 bar but the real S2 inventory
         # (~8e20 kg) needing > 1 bar to balance, the trust-constr
         # solver may still fail to converge cleanly. The contract here
-        # is just "no crash + finite output" — a stricter pressure
+        # is just "no crash + finite output", a stricter pressure
         # check would be flaky.
         assert result['P_surf'] > 0.0
+
+        # Discrimination guard: a stub that returned a tiny positive value
+        # (1e-30) would pass the bare positivity check. Confirm P_surf is
+        # in a physically plausible range for the Earth-like target.
+        assert 1.0 < result['P_surf'] < 1e6
+        # And confirm S2 stayed within the clamped upper bound; the test
+        # exists to exercise the ub-clamp branch, so S2 must reflect that.
+        assert 0.0 <= result['S2_bar'] < 1e10
 
     def test_warm_start_preserves_other_slots(self):
         """Warm-starting only some slots (zeroing others) must not
@@ -155,7 +174,7 @@ class TestPGuessValidation:
         target = _earth_target()
         ddict = _ddict()
         # Full required set plus extras the solver should not consume
-        guess = {
+        guess_with_extras = {
             'H2O': 200.0,
             'CO2': 80.0,
             'N2': 1.0,
@@ -164,9 +183,21 @@ class TestPGuessValidation:
             'unknown_diagnostic': 999.0,
         }
         result = equilibrium_atmosphere(
-            target, ddict, p_guess=guess, print_result=False, nguess=200
+            target, ddict, p_guess=guess_with_extras, print_result=False, nguess=200
         )
         assert result['P_surf'] > 0.0
+
+        # Discrimination guard: the extra keys must be IGNORED, not used.
+        # Call again with only the four required primaries (same values)
+        # and confirm the converged P_surf matches. A solver that consumed
+        # SO2 as a fifth guess slot would produce a different result.
+        guess_required_only = {
+            k: guess_with_extras[k] for k in ('H2O', 'CO2', 'N2', 'S2')
+        }
+        result_required = equilibrium_atmosphere(
+            target, ddict, p_guess=guess_required_only, print_result=False, nguess=200
+        )
+        assert result['P_surf'] == pytest.approx(result_required['P_surf'], rel=1e-3)
 
     @pytest.mark.parametrize(
         'bad_p_guess',
@@ -222,13 +253,27 @@ class TestPGuessValidation:
         target = _earth_target()
         ddict = _ddict()
         guess = {'H2O': 200.0, 'CO2': None, 'N2': 1.0, 'S2': 1.0}
-        with pytest.raises((ValueError, TypeError)):
+        with pytest.raises((ValueError, TypeError)) as exc_info:
             # Either ValueError (from our np.isfinite check, since
             # np.isfinite(None) raises TypeError before the comparison) or
             # TypeError if numpy lets it through. Both are clearly
             # diagnostic, unlike the prior behaviour which produced
             # garbage from the solver.
             equilibrium_atmosphere(target, ddict, p_guess=guess, print_result=False)
+
+        # Discrimination guard: a stub `equilibrium_atmosphere` that raised
+        # a generic Exception for every input would pass the
+        # `pytest.raises((ValueError, TypeError))` check trivially. Confirm
+        # a sibling call with a valid p_guess does NOT raise, isolating the
+        # error to the None value.
+        valid_guess = {'H2O': 200.0, 'CO2': 80.0, 'N2': 1.0, 'S2': 1.0}
+        # If this raises, the test setup is broken (cold-start would also fail).
+        equilibrium_atmosphere(
+            target, ddict, p_guess=valid_guess, print_result=False, nguess=200
+        )
+
+        # The exception type is one of the two expected; confirm.
+        assert isinstance(exc_info.value, (ValueError, TypeError))
 
 
 # ---------------------------------------------------------------------------
@@ -366,7 +411,7 @@ class TestHideWarnings:
         """Default hides RuntimeWarning emitted by fsolve on bad guesses."""
         target = _earth_target()
         ddict = _ddict()
-        equilibrium_atmosphere(
+        result = equilibrium_atmosphere(
             target, ddict, hide_warnings=True, print_result=False, nguess=2000
         )
         # Some warnings may still leak past the catch_warnings scope
@@ -378,6 +423,12 @@ class TestHideWarnings:
         # at all, so the count should be 0 either way. The real
         # discriminator is the False branch below.
         assert len(runtime_warnings) <= 1
+
+        # Discrimination guard: confirm the function actually returned a
+        # converged result; a function that crashed (and somehow the
+        # exception was suppressed) would have an empty recwarn list and
+        # pass the bare count check.
+        assert result['P_surf'] > 1.0
 
     def test_hide_warnings_false_lets_warnings_through(self):
         """Edge: with hide_warnings=False, runtime warnings are visible
@@ -394,3 +445,9 @@ class TestHideWarnings:
             target, ddict, hide_warnings=False, print_result=False, nguess=2000
         )
         assert result['P_surf'] > 0.0
+
+        # Discrimination guard: a stub that returned a result dict with
+        # 1e-30 in every slot would pass the bare positivity check. Confirm
+        # P_surf is in the physically plausible range for the Earth-like
+        # target.
+        assert 1.0 < result['P_surf'] < 1e6

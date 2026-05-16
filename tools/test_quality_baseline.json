@@ -3,6 +3,6 @@
   "missing_importorskip": 1,
   "missing_module_pytestmark": 2,
   "no_assertions": 2,
-  "single_assert": 25,
-  "weak_assert_gt_zero": 4
+  "single_assert": 19,
+  "weak_assert_gt_zero": 1
 }
