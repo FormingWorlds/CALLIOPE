@@ -266,13 +266,13 @@ In scope (the voice rule is BANNED here):
 - GitHub Actions job names and step names that ship to the PR Checks tab.
 - Inline source comments and docstrings on `src/calliope/**`.
 - Log strings that ship with the repo.
+- **All public-facing documentation** (anything under `docs/`, the repo README, CONTRIBUTING.md, tutorials, wiki pages). Public docs apply the rule silently; they do NOT enumerate the banned phrases, name the voice rule, advertise the existence of `.github/.claude/` rule infrastructure, or cross-reference `.github/.claude/rules/*.md` files. A user docs page that describes the testing infrastructure must do so without naming the AI-process rules that produced it.
 
 Out of scope (these may NAME the procedures they define):
 
 - This file (`calliope-tests.md`).
 - `calliope-code-review.md`.
 - `copilot-instructions.md`.
-- Any documentation file whose CONTENT describes the rule infrastructure (`docs/How-to/build_tests.md`, future rule-meta docs). The scope test is **what the prose is about**, not what the path is. A doc that explains how the testing rules work may name the testing rules; a doc that explains user-facing simulator behavior must keep the voice rule.
 
 Banned phrases inside the in-scope artifacts: "audit", "review pass", "adversarial review", "Phase X" (when "X" is an AI-organized roadmap label, not a real project phase), "T1.x", "Group A/B/C/D" (when AI-organized work groups), `claude-config/...` paths, "Generated with Claude", AI-tool names, em-dashes, en-dashes (except in bibliographic page ranges within citations), process meta-commentary ("after careful analysis").
 

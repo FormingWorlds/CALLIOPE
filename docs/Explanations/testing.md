@@ -24,7 +24,6 @@ Five layers enforce test rigor across the suite:
 
 Layers 1, 4, and 5 are blocking on PRs.
 Layers 2 and 3 are advisory: the linter reports gaps but does not fail the build.
-The full normative ruleset for each layer lives in `.github/.claude/rules/calliope-tests.md`; the code-review companion lives at `.github/.claude/rules/calliope-code-review.md`.
 
 ## The four-marker tier scheme
 
@@ -225,5 +224,3 @@ Nightly (`.github/workflows/nightly.yml`) runs the full suite, uploads coverage 
 ## Canonical specification
 
 The repository-wide rules that every PROTEUS-ecosystem submodule follows are at [proteus-framework.org/PROTEUS/Explanations/ecosystem_testing_standard/](https://proteus-framework.org/PROTEUS/Explanations/ecosystem_testing_standard/).
-The CALLIOPE-specific deep-dive (anti-happy-path patterns, discrimination guard, physics-invariant tiering, buffer-flip propagation, hypothesis seed stability, solver intermediate-state assertions) lives at `.github/.claude/rules/calliope-tests.md`.
-The companion review-pass rules live at `.github/.claude/rules/calliope-code-review.md`.

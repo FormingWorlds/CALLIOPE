@@ -94,8 +94,6 @@ Forbidden patterns flagged by the AST linter:
 - `==` adjacent to a float literal.
 - A test asserting on a fixture's implicit default.
 
-The full ruleset and reasoning live in `.github/.claude/rules/calliope-tests.md`.
-
 ## The discrimination guard
 
 A pinned numeric value alone does not discriminate the correct formula from the most plausible wrong one.
@@ -244,19 +242,12 @@ monkeypatch.setattr('calliope.solve.DATA_DIR', tmp_path, raising=False)
 
 Patch both the env var (for downstream code that re-reads it) and the constant (for code that reads only the constant).
 
-## Voice rule for test artifacts
+## Test docstring style
 
-The repo-wide voice rule applies to test-skip reasons, test-file and function docstrings, test-function and class names, parametrize ids, log-capture assertions, commit messages on test-touching commits, and pull-request titles and bodies on test-touching PRs.
-Banned phrases inside those artifacts:
-
-- "audit", "review pass", AI-roadmap labels (`Phase X`, `Stage X.Y`, `Iteration N`),
-- AI-tool names ("Generated with Claude"),
-- em-dashes, en-dashes (carve-out: bibliographic page ranges in citations).
-
-Write the outcome, never the process.
-A test docstring should state the physical scenario the test verifies; it should not narrate how the test was authored.
-
-The rule files themselves (this page, `.github/.claude/rules/calliope-tests.md`, `.github/.claude/rules/calliope-code-review.md`) are out of scope: they may legitimately name the procedures they define.
+Every test function carries a one-line docstring (enforced by the test-quality lint).
+The docstring states the physical scenario or contract clause the test verifies, in plain language a non-developer reader can follow.
+Inline comments explain why a specific input range was chosen ("`T = 300 K` and `T = 1500 K` so the `T**3` vs `T**4` difference is resolved well above the tolerance").
+Avoid em-dashes and en-dashes in test prose; use commas, semicolons, colons, or parentheses instead.
 
 ## Marker validation
 
@@ -310,12 +301,6 @@ python tools/update_coverage_threshold.py     # one-way ratchet
 
 A pre-flight PR step rejects any change that drops `[tool.coverage.report].fail_under` below `min(base, 90.0)`.
 
-## The 50-line review trigger
-
-A pull request that adds or substantially modifies more than 50 lines of test code across all its commits triggers an independent review pass before merge.
-The denominator is PR-level (`git diff origin/main...HEAD -- 'tests/**'`); splitting into many sub-50-line commits does not dodge the trigger.
-The reviewer cites the anti-happy-path rule, the discrimination-guard requirement, and the physics-invariant tier; flags single-assert tests, weak `is not None` patterns, missing module-level marker, missing `physics_invariant` tag on a physics-source test, and dead tests (tests that pass for the wrong reason).
-
 ## Adding a new physics source
 
 When a new `src/calliope/<file>.py` lands:
@@ -352,6 +337,4 @@ Both run on every commit via the pre-commit hook (`pre-commit install -f` after 
 ## See also
 
 - [Testing suite](../Explanations/testing.md): the conceptual framing of the marker scheme, badges, coverage gates, and AST linter.
-- `.github/.claude/rules/calliope-tests.md`: the canonical deep-dive for anti-happy-path patterns, the discrimination guard, physics-invariant tiering, buffer-flip propagation, hypothesis seed stability, and solver intermediate-state assertions.
-- `.github/.claude/rules/calliope-code-review.md`: the companion review-pass rules.
 - [PROTEUS ecosystem testing standard](https://proteus-framework.org/PROTEUS/Explanations/ecosystem_testing_standard/): the repository-wide rules that every PROTEUS-ecosystem submodule follows.
