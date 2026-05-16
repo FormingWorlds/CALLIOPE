@@ -79,8 +79,11 @@ def collect() -> dict:
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
             buf = equilibrium_atmosphere(
-                EARTH_HCNS, ddict, p_guess=p_guess_buf,
-                hide_warnings=True, print_result=False,
+                EARTH_HCNS,
+                ddict,
+                p_guess=p_guess_buf,
+                hide_warnings=True,
+                print_result=False,
             )
         O_kg = float(buf['O_kg_total'])
         p_guess_buf = {s: float(buf[f'{s}_bar']) for s in ('H2O', 'CO2', 'N2', 'S2')}
@@ -92,16 +95,23 @@ def collect() -> dict:
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
             auth = equilibrium_atmosphere_authoritative_O(
-                target, ddict_auth, p_guess=p_guess_buf, fO2_hint=float(diw),
-                hide_warnings=True, print_result=False,
+                target,
+                ddict_auth,
+                p_guess=p_guess_buf,
+                fO2_hint=float(diw),
+                hide_warnings=True,
+                print_result=False,
             )
         recovered[i] = float(auth['fO2_shift_derived'])
         O_total[i] = O_kg
-        log.info('dIW_in = %+.2f, O_kg = %.3e, recovered = %+.4f, residual = %+.2e',
-                 diw, O_kg, recovered[i], recovered[i] - diw)
-    return dict(dIW_input=DIW_GRID.copy(),
-                dIW_recovered=recovered,
-                O_kg_total=O_total)
+        log.info(
+            'dIW_in = %+.2f, O_kg = %.3e, recovered = %+.4f, residual = %+.2e',
+            diw,
+            O_kg,
+            recovered[i],
+            recovered[i] - diw,
+        )
+    return dict(dIW_input=DIW_GRID.copy(), dIW_recovered=recovered, O_kg_total=O_total)
 
 
 def make_figure(data: dict | None = None) -> dict:
@@ -112,8 +122,10 @@ def make_figure(data: dict | None = None) -> dict:
     with csv_path.open('w', newline='') as fh:
         w = csv.writer(fh)
         w.writerow(['dIW_input', 'dIW_recovered', 'residual_dex', 'O_kg_total'])
-        for d_in, d_rec, O in zip(data['dIW_input'], data['dIW_recovered'], data['O_kg_total']):
-            w.writerow([d_in, d_rec, d_rec - d_in, O])
+        for d_in, d_rec, o_kg in zip(
+            data['dIW_input'], data['dIW_recovered'], data['O_kg_total']
+        ):
+            w.writerow([d_in, d_rec, d_rec - d_in, o_kg])
     log.info('Wrote %s', csv_path)
 
     residuals = data['dIW_recovered'] - data['dIW_input']
@@ -125,24 +137,32 @@ def make_figure(data: dict | None = None) -> dict:
     # y = x reference (i.e., perfect closure).
     lo = float(data['dIW_input'].min()) - 0.5
     hi = float(data['dIW_input'].max()) + 0.5
-    ax.plot([lo, hi], [lo, hi], color='k', alpha=0.4, linewidth=1.0,
-            label='perfect closure (y = x)')
+    ax.plot(
+        [lo, hi], [lo, hi], color='k', alpha=0.4, linewidth=1.0, label='perfect closure (y = x)'
+    )
 
     # The recovered points themselves.
     ax.scatter(
-        data['dIW_input'], data['dIW_recovered'],
-        s=85, color=COLOR_CAL, edgecolor='k', linewidth=0.6, zorder=3,
+        data['dIW_input'],
+        data['dIW_recovered'],
+        s=85,
+        color=COLOR_CAL,
+        edgecolor='k',
+        linewidth=0.6,
+        zorder=3,
         label='CALLIOPE buffered $\\rightarrow$ authoritative-O',
     )
 
     # Annotate worst-case residual so the reader has a number to quote.
     ax.text(
-        0.04, 0.96,
+        0.04,
+        0.96,
         f'worst-case |recovered − input| = {sci_fmt(worst_abs, unit="dex")}',
-        transform=ax.transAxes, fontsize=9.5,
-        va='top', ha='left',
-        bbox=dict(boxstyle='round,pad=0.4', facecolor='white',
-                  edgecolor='#cccccc'),
+        transform=ax.transAxes,
+        fontsize=9.5,
+        va='top',
+        ha='left',
+        bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='#cccccc'),
     )
 
     ax.set_xlabel(r'input $\Delta\mathrm{IW}$ (buffered mode) [dex]')
@@ -162,8 +182,9 @@ def make_figure(data: dict | None = None) -> dict:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)s %(levelname)s %(message)s')
+    logging.basicConfig(
+        level=logging.INFO, format='%(asctime)s %(name)s %(levelname)s %(message)s'
+    )
     out = make_figure()
     for ext, path in out.items():
         print(f'  {ext}: {path}')

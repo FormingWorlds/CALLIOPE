@@ -45,8 +45,7 @@ REPORTED_SPECIES = ['H2O', 'CO2', 'H2', 'CO', 'CH4', 'N2', 'NH3', 'S2', 'SO2', '
 
 
 def _base_ddict(T_magma: float, diw: float) -> dict:
-    ddict = {**PLANET, 'T_magma': T_magma, 'Phi_global': 1.0,
-             'fO2_shift_IW': diw}
+    ddict = {**PLANET, 'T_magma': T_magma, 'Phi_global': 1.0, 'fO2_shift_IW': diw}
     for sp in volatile_species:
         ddict[f'{sp}_included'] = 1
         ddict[f'{sp}_initial_bar'] = 0.0
@@ -75,7 +74,10 @@ def collect() -> dict:
                 warnings.simplefilter('ignore')
                 try:
                     res = equilibrium_atmosphere(
-                        EARTH_HCNS, ddict, p_guess=p_guess, print_result=False,
+                        EARTH_HCNS,
+                        ddict,
+                        p_guess=p_guess,
+                        print_result=False,
                     )
                 except Exception as exc:  # noqa: BLE001
                     log.warning('  T=%.0f dIW=%+.2f raised %s', T, diw, exc)
@@ -88,13 +90,15 @@ def collect() -> dict:
             P_total[iT, jd] = float(res['P_surf'])
             p_guess = {s: float(res[f'{s}_bar']) for s in ('H2O', 'CO2', 'N2', 'S2')}
             top4 = ', '.join(REPORTED_SPECIES[i] for i in order[:4])
-            log.info('  T=%4.0f dIW=%+5.2f  top-4=[%s]  P_surf=%.2e bar',
-                     T, diw, top4, P_total[iT, jd])
+            log.info(
+                '  T=%4.0f dIW=%+5.2f  top-4=[%s]  P_surf=%.2e bar',
+                T,
+                diw,
+                top4,
+                P_total[iT, jd],
+            )
 
-    return dict(T=T_GRID, dIW=DIW_GRID,
-                pressures=pressures,
-                rank_idx=rank_idx,
-                P_total=P_total)
+    return dict(T=T_GRID, dIW=DIW_GRID, pressures=pressures, rank_idx=rank_idx, P_total=P_total)
 
 
 def make_figure(data: dict | None = None) -> dict:
@@ -104,9 +108,10 @@ def make_figure(data: dict | None = None) -> dict:
     csv_path = DATA_DIR / 'phase_diagram.csv'
     with csv_path.open('w', newline='') as fh:
         w = csv.writer(fh)
-        w.writerow(['T_K', 'dIW_dex', 'rank1', 'rank2', 'rank3', 'rank4',
-                    'P_total_bar'] +
-                   [f'p_{sp}_bar' for sp in REPORTED_SPECIES])
+        w.writerow(
+            ['T_K', 'dIW_dex', 'rank1', 'rank2', 'rank3', 'rank4', 'P_total_bar']
+            + [f'p_{sp}_bar' for sp in REPORTED_SPECIES]
+        )
         for iT, T in enumerate(data['T']):
             for jd, diw in enumerate(data['dIW']):
                 idx4 = data['rank_idx'][iT, jd]
@@ -147,9 +152,9 @@ def make_figure(data: dict | None = None) -> dict:
     # Build sub-cell edges that quarter each original cell.
     def edges_doubled(arr: np.ndarray) -> np.ndarray:
         step = arr[1] - arr[0]
-        outer = np.concatenate([[arr[0] - 0.5 * step],
-                                0.5 * (arr[:-1] + arr[1:]),
-                                [arr[-1] + 0.5 * step]])
+        outer = np.concatenate(
+            [[arr[0] - 0.5 * step], 0.5 * (arr[:-1] + arr[1:]), [arr[-1] + 0.5 * step]]
+        )
         # Insert a midpoint between every consecutive pair of outer
         # edges so each original cell becomes two sub-cells.
         mids = 0.5 * (outer[:-1] + outer[1:])
@@ -161,9 +166,15 @@ def make_figure(data: dict | None = None) -> dict:
     t_edges = edges_doubled(data['T'])
     d_edges = edges_doubled(data['dIW'])
     pcm = ax.pcolormesh(
-        d_edges, t_edges, np.ma.masked_less(remapped, 0),
-        cmap=cmap, vmin=-0.5, vmax=len(seen) - 0.5,
-        shading='flat', edgecolors='white', linewidth=0.35,
+        d_edges,
+        t_edges,
+        np.ma.masked_less(remapped, 0),
+        cmap=cmap,
+        vmin=-0.5,
+        vmax=len(seen) - 0.5,
+        shading='flat',
+        edgecolors='white',
+        linewidth=0.35,
     )
     pcm.set_clim(-0.5, len(seen) - 0.5)
 
@@ -186,13 +197,21 @@ def make_figure(data: dict | None = None) -> dict:
 
     # Discrete species legend, plus a small rank-layout inset legend
     # so the reader knows which corner is rank 1 vs rank 4.
-    handles = [Patch(facecolor=species_palette[k],
-                     edgecolor='k', linewidth=0.4,
-                     label=species_label(REPORTED_SPECIES[seen[k]]))
-               for k in range(len(seen))]
+    handles = [
+        Patch(
+            facecolor=species_palette[k],
+            edgecolor='k',
+            linewidth=0.4,
+            label=species_label(REPORTED_SPECIES[seen[k]]),
+        )
+        for k in range(len(seen))
+    ]
     sp_legend = ax.legend(
-        handles=handles, loc='upper left', bbox_to_anchor=(1.02, 1.0),
-        title='species\n(any rank)', frameon=False,
+        handles=handles,
+        loc='upper left',
+        bbox_to_anchor=(1.02, 1.0),
+        title='species\n(any rank)',
+        frameon=False,
         title_fontsize=9.5,
     )
     ax.add_artist(sp_legend)
@@ -201,17 +220,29 @@ def make_figure(data: dict | None = None) -> dict:
     # sit inside each cell. Anchored below the species legend in the
     # right-hand margin of the figure so it does not overlap the data.
     from matplotlib.patches import Rectangle
+
     inset = fig.add_axes([0.82, 0.18, 0.09, 0.12])
-    inset.set_xlim(0, 2); inset.set_ylim(0, 2)
-    inset.set_xticks([]); inset.set_yticks([])
+    inset.set_xlim(0, 2)
+    inset.set_ylim(0, 2)
+    inset.set_xticks([])
+    inset.set_yticks([])
     for spine in inset.spines.values():
-        spine.set_edgecolor('#888888'); spine.set_linewidth(0.6)
+        spine.set_edgecolor('#888888')
+        spine.set_linewidth(0.6)
     rank_positions = {1: (0, 1), 2: (1, 1), 3: (0, 0), 4: (1, 0)}
     for rank, (rx, ry) in rank_positions.items():
-        inset.add_patch(Rectangle((rx, ry), 1, 1, facecolor='#f3f3f3',
-                                  edgecolor='white', linewidth=1.0))
-        inset.text(rx + 0.5, ry + 0.5, f'#{rank}',
-                   ha='center', va='center', fontsize=10, color='#333333')
+        inset.add_patch(
+            Rectangle((rx, ry), 1, 1, facecolor='#f3f3f3', edgecolor='white', linewidth=1.0)
+        )
+        inset.text(
+            rx + 0.5,
+            ry + 0.5,
+            f'#{rank}',
+            ha='center',
+            va='center',
+            fontsize=10,
+            color='#333333',
+        )
     inset.set_title('rank layout', fontsize=8.5, color='#555555', pad=2)
 
     paths = save(fig, 'phase_diagram')
@@ -220,8 +251,9 @@ def make_figure(data: dict | None = None) -> dict:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)s %(levelname)s %(message)s')
+    logging.basicConfig(
+        level=logging.INFO, format='%(asctime)s %(name)s %(levelname)s %(message)s'
+    )
     out = make_figure()
     for ext, path in out.items():
         print(f'  {ext}: {path}')

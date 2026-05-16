@@ -167,9 +167,11 @@ def run_calliope(
             inputs=inputs,
         )
 
-    p_bar = {sp: float(out[f'{sp}_bar']) for sp in (
-        'H2O', 'CO2', 'H2', 'CO', 'CH4', 'N2', 'NH3', 'S2', 'SO2', 'H2S'
-    ) if f'{sp}_bar' in out}
+    p_bar = {
+        sp: float(out[f'{sp}_bar'])
+        for sp in ('H2O', 'CO2', 'H2', 'CO', 'CH4', 'N2', 'NH3', 'S2', 'SO2', 'H2S')
+        if f'{sp}_bar' in out
+    }
     dissolved = {sp: float(out[f'{sp}_kg_liquid']) for sp in p_bar if f'{sp}_kg_liquid' in out}
     return BackendResult(
         backend='calliope',
@@ -276,11 +278,16 @@ def run_atmodeller(
         # Only include species whose constituent elements all have
         # non-zero budgets. Matches the wrapper's active-elements logic.
         species_elements = {
-            'H2O': {'H'}, 'H2': {'H'},
-            'CO2': {'C'}, 'CO': {'C'},
+            'H2O': {'H'},
+            'H2': {'H'},
+            'CO2': {'C'},
+            'CO': {'C'},
             'CH4': {'H', 'C'},
-            'N2': {'N'}, 'NH3': {'H', 'N'},
-            'S2': {'S'}, 'SO2': {'S'}, 'H2S': {'H', 'S'},
+            'N2': {'N'},
+            'NH3': {'H', 'N'},
+            'S2': {'S'},
+            'SO2': {'S'},
+            'H2S': {'H', 'S'},
             'O2': set(),
         }
         budgets = inventory.asdict()
@@ -359,8 +366,6 @@ def run_atmodeller(
                 continue
             p_bar[proteus_name] = float(np.squeeze(p_val))
 
-        gravity = p['gravity']
-        area = 4.0 * np.pi * p['radius'] ** 2
         dissolved = {}
         for proteus_name, atm_name in _ATM_SPECIES_MAP.items():
             key = f'{atm_name}_g'

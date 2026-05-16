@@ -32,7 +32,7 @@ import numpy as np
 from . import buffers
 from .inventories import EARTH_BSE_KRIJT23
 from .plot_style import COLOR_ATM, COLOR_CAL, COLOR_FIS, DATA_DIR, apply_style, save
-from .runners import _CALLIOPE_ALIGNED_ATM_SOL, _DEFAULT_ATM_SOL, run_atmodeller, run_calliope
+from .runners import _CALLIOPE_ALIGNED_ATM_SOL, run_atmodeller, run_calliope
 
 log = logging.getLogger('cross_backend.fig4')
 
@@ -61,7 +61,9 @@ def collect(T_magma: float = 2000.0) -> dict:
 
     log.info('Step 2: align atmodeller solubility to CALLIOPE convention')
     atm_align = run_atmodeller(
-        inv, T_magma=T_magma, solubility_map=_CALLIOPE_ALIGNED_ATM_SOL,
+        inv,
+        T_magma=T_magma,
+        solubility_map=_CALLIOPE_ALIGNED_ATM_SOL,
     )
     log.info('  atmodeller dIW (aligned) = %+.3f', atm_align.fO2_shift_derived)
     after_solubility = atm_align.fO2_shift_derived - cal_fis.fO2_shift_derived + buf_offset_fis
@@ -121,16 +123,24 @@ def make_figure(data: dict | None = None) -> dict:
             y = tol + 0.045
         else:
             y = val + 0.018
-        ax.text(x, y, f'{val:.2f} dex',
-                ha='center', va='bottom', fontsize=10, color='#1a1a1a')
+        ax.text(x, y, f'{val:.2f} dex', ha='center', va='bottom', fontsize=10, color='#1a1a1a')
 
     ax.axhline(tol, color='k', alpha=0.4, linestyle='--', linewidth=0.8)
     # Tolerance annotation parked in the gap between bars 1 and 2,
     # well clear of every bar label and the dashed line itself.
-    ax.text(0.5, tol + 0.005, 'per-element solver tolerance',
-            fontsize=8.5, va='bottom', ha='center', alpha=0.6)
+    ax.text(
+        0.5,
+        tol + 0.005,
+        'per-element solver tolerance',
+        fontsize=8.5,
+        va='bottom',
+        ha='center',
+        alpha=0.6,
+    )
 
-    ax.set_ylabel(r'$|\Delta\mathrm{IW}_{\mathrm{atm}}-\Delta\mathrm{IW}_{\mathrm{cal}}|$ [dex]')
+    ax.set_ylabel(
+        r'$|\Delta\mathrm{IW}_{\mathrm{atm}}-\Delta\mathrm{IW}_{\mathrm{cal}}|$ [dex]'
+    )
     ax.set_title(
         f'Attribution of cross-backend $\\Delta$IW disagreement '
         f'at Earth-BSE, $T={data["T_magma"]:.0f}$ K, $\\Phi=1$',
@@ -145,8 +155,9 @@ def make_figure(data: dict | None = None) -> dict:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)s %(levelname)s %(message)s')
+    logging.basicConfig(
+        level=logging.INFO, format='%(asctime)s %(name)s %(levelname)s %(message)s'
+    )
     out = make_figure()
     for ext, path in out.items():
         print(f'  {ext}: {path}')

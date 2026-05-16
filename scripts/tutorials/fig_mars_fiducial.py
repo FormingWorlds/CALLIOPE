@@ -24,7 +24,7 @@ import numpy as np
 from calliope.constants import dict_colors, volatile_species
 from calliope.solve import equilibrium_atmosphere
 
-from ._style import DATA_DIR, apply_style, sci_fmt_plain, save, species_label
+from ._style import DATA_DIR, apply_style, save, sci_fmt_plain, species_label
 
 log = logging.getLogger('tutorials.mars_fiducial')
 
@@ -51,13 +51,11 @@ T_MAGMA = 2500.0
 DIW = 0.5
 PHI = 1.0
 
-SPECIES_TO_PLOT = ['H2O', 'CO2', 'H2', 'CO', 'CH4',
-                   'N2', 'NH3', 'S2', 'SO2', 'H2S']
+SPECIES_TO_PLOT = ['H2O', 'CO2', 'H2', 'CO', 'CH4', 'N2', 'NH3', 'S2', 'SO2', 'H2S']
 
 
 def _solve(cfg: dict) -> dict:
-    ddict = {**cfg['planet'], 'T_magma': T_MAGMA, 'Phi_global': PHI,
-             'fO2_shift_IW': DIW}
+    ddict = {**cfg['planet'], 'T_magma': T_MAGMA, 'Phi_global': PHI, 'fO2_shift_IW': DIW}
     for sp in volatile_species:
         ddict[f'{sp}_included'] = 1
         ddict[f'{sp}_initial_bar'] = 0.0
@@ -75,8 +73,16 @@ def _solve(cfg: dict) -> dict:
 def collect() -> dict:
     earth_out = _solve(EARTH)
     mars_out = _solve(MARS)
-    log.info('Earth: P_surf = %.0f bar, M_atm = %.2e kg', earth_out['P_surf_bar'], earth_out['M_atm_kg'])
-    log.info('Mars : P_surf = %.0f bar, M_atm = %.2e kg', mars_out['P_surf_bar'], mars_out['M_atm_kg'])
+    log.info(
+        'Earth: P_surf = %.0f bar, M_atm = %.2e kg',
+        earth_out['P_surf_bar'],
+        earth_out['M_atm_kg'],
+    )
+    log.info(
+        'Mars : P_surf = %.0f bar, M_atm = %.2e kg',
+        mars_out['P_surf_bar'],
+        mars_out['M_atm_kg'],
+    )
     return {'Earth': earth_out, 'Mars': mars_out}
 
 
@@ -87,12 +93,16 @@ def make_figure(data: dict | None = None) -> dict:
     csv_path = DATA_DIR / 'mars_fiducial.csv'
     with csv_path.open('w', newline='') as fh:
         w = csv.writer(fh)
-        w.writerow(['planet'] + SPECIES_TO_PLOT + ['P_surf_bar', 'M_atm_kg', 'mean_mol_mass_g_per_mol'])
+        w.writerow(
+            ['planet'] + SPECIES_TO_PLOT + ['P_surf_bar', 'M_atm_kg', 'mean_mol_mass_g_per_mol']
+        )
         for planet in ('Earth', 'Mars'):
             row = [planet] + [data[planet]['pressures'][sp] for sp in SPECIES_TO_PLOT]
-            row += [data[planet]['P_surf_bar'],
-                    data[planet]['M_atm_kg'],
-                    data[planet]['mean_mol_mass']]
+            row += [
+                data[planet]['P_surf_bar'],
+                data[planet]['M_atm_kg'],
+                data[planet]['mean_mol_mass'],
+            ]
             w.writerow(row)
     log.info('Wrote %s', csv_path)
 
@@ -109,15 +119,28 @@ def make_figure(data: dict | None = None) -> dict:
 
     fig, ax = plt.subplots(figsize=(8.0, 5.4))
 
-    y = np.arange(len(species)) * 1.8       # extra space between species
+    y = np.arange(len(species)) * 1.8  # extra space between species
     bar_h = 0.7
-    ax.barh(y - bar_h / 2, earth_p, height=bar_h,
-            color=[dict_colors[sp] for sp in species],
-            edgecolor='black', linewidth=0.5, label='Earth-BSE')
-    ax.barh(y + bar_h / 2, mars_p, height=bar_h,
-            color=[dict_colors[sp] for sp in species], alpha=0.45,
-            edgecolor='black', linewidth=0.5, hatch='///',
-            label='Mars-scaled (0.107 x Earth inventory)')
+    ax.barh(
+        y - bar_h / 2,
+        earth_p,
+        height=bar_h,
+        color=[dict_colors[sp] for sp in species],
+        edgecolor='black',
+        linewidth=0.5,
+        label='Earth-BSE',
+    )
+    ax.barh(
+        y + bar_h / 2,
+        mars_p,
+        height=bar_h,
+        color=[dict_colors[sp] for sp in species],
+        alpha=0.45,
+        edgecolor='black',
+        linewidth=0.5,
+        hatch='///',
+        label='Mars-scaled (0.107 x Earth inventory)',
+    )
 
     ax.set_xscale('log')
     ax.set_yticks(y)
@@ -133,18 +156,20 @@ def make_figure(data: dict | None = None) -> dict:
     ax.set_xlim(x_lo, x_hi)
     ax.grid(axis='x', which='both', alpha=0.3)
     # Legend below the plot so it does not crowd the top bars.
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12), ncol=2,
-              frameon=False, fontsize=9.5)
+    ax.legend(
+        loc='upper center', bbox_to_anchor=(0.5, -0.12), ncol=2, frameon=False, fontsize=9.5
+    )
 
     # Per-planet diagnostics in the upper-right of the data area.
     # Use plain-text scientific notation (Unicode superscripts) so the
     # values line up in monospace columns.
     def _fmt(val, unit):
         return sci_fmt_plain(val, unit=unit)
-    e_p = _fmt(data["Earth"]["P_surf_bar"], 'bar')
-    m_p = _fmt(data["Mars"]["P_surf_bar"], 'bar')
-    e_m = _fmt(data["Earth"]["M_atm_kg"], 'kg')
-    m_m = _fmt(data["Mars"]["M_atm_kg"], 'kg')
+
+    e_p = _fmt(data['Earth']['P_surf_bar'], 'bar')
+    m_p = _fmt(data['Mars']['P_surf_bar'], 'bar')
+    e_m = _fmt(data['Earth']['M_atm_kg'], 'kg')
+    m_m = _fmt(data['Mars']['M_atm_kg'], 'kg')
     e_w = f'{data["Earth"]["mean_mol_mass"]:.2f} g/mol'
     m_w = f'{data["Mars"]["mean_mol_mass"]:.2f} g/mol'
     summary = (
@@ -154,12 +179,15 @@ def make_figure(data: dict | None = None) -> dict:
         f'mean M   {e_w:<18s}   {m_w}'
     )
     ax.text(
-        0.985, 0.04, summary,
+        0.985,
+        0.04,
+        summary,
         transform=ax.transAxes,
-        fontsize=8.5, family='monospace',
-        va='bottom', ha='right',
-        bbox=dict(boxstyle='round,pad=0.4', facecolor='white',
-                  edgecolor='#cccccc'),
+        fontsize=8.5,
+        family='monospace',
+        va='bottom',
+        ha='right',
+        bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='#cccccc'),
     )
 
     paths = save(fig, 'mars_fiducial')
@@ -168,8 +196,9 @@ def make_figure(data: dict | None = None) -> dict:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)s %(levelname)s %(message)s')
+    logging.basicConfig(
+        level=logging.INFO, format='%(asctime)s %(name)s %(levelname)s %(message)s'
+    )
     out = make_figure()
     for ext, path in out.items():
         print(f'  {ext}: {path}')

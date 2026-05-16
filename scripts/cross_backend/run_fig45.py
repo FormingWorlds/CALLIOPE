@@ -14,8 +14,9 @@ from . import fig4_attribution, fig5_earth_anchor
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)s %(levelname)s %(message)s')
+    logging.basicConfig(
+        level=logging.INFO, format='%(asctime)s %(name)s %(levelname)s %(message)s'
+    )
     print('=== Fig 5 (Earth anchor) ===')
     out5 = fig5_earth_anchor.make_figure()
     for ext, path in out5.items():

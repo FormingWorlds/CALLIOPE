@@ -23,7 +23,6 @@ from scripts.cross_backend.plot_style import (  # noqa: F401  re-exported for co
     panel_label,
 )
 
-
 _SPECIES_RE = re.compile(r'(\d+)')
 
 
@@ -63,7 +62,7 @@ def sci_fmt(x: float, *, prec: int = 2, unit: str = '') -> str:
     if 1e-2 <= abs_x < 1e4:
         return f'{_decimal(x, prec)}{suffix}'
     exp = int(math.floor(math.log10(abs_x)))
-    mant = x / (10 ** exp)
+    mant = x / (10**exp)
     return rf'${mant:.{prec}f} \times 10^{{{exp}}}${suffix}'
 
 
@@ -86,15 +85,12 @@ def sci_fmt_plain(x: float, *, prec: int = 2, unit: str = '') -> str:
     if 1e-2 <= abs_x < 1e4:
         return f'{_decimal(x, prec)}{suffix}'
     exp = int(math.floor(math.log10(abs_x)))
-    mant = x / (10 ** exp)
+    mant = x / (10**exp)
     return f'{mant:.{prec}f} × 10{str(exp).translate(_UNICODE_SUP)}{suffix}'
 
+
 FIGURE_DIR = (
-    Path(__file__).resolve().parent.parent.parent
-    / 'docs'
-    / 'assets'
-    / 'figures'
-    / 'tutorials'
+    Path(__file__).resolve().parent.parent.parent / 'docs' / 'assets' / 'figures' / 'tutorials'
 )
 FIGURE_DIR.mkdir(parents=True, exist_ok=True)
 

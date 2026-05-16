@@ -79,15 +79,30 @@ def make_figure(data: dict | None = None) -> dict:
 
     ax.axhspan(0.4, 0.6, xmin=0.0, xmax=1.0, color=COLOR_BG, alpha=0.0)
 
-    ax.axvspan(EARTH_MANTLE_DIW_LOW, EARTH_MANTLE_DIW_HIGH,
-               color=COLOR_BG, alpha=0.6,
-               label='Frost & McCammon 2008 Earth-mantle range')
-    ax.axvline(SOSSI_2020_CENTER, color='k', alpha=0.7, linestyle=':',
-               linewidth=1.8, zorder=3,
-               label=fr'Sossi 2020 upper-mantle anchor: $\Delta\mathrm{{IW}} = {SOSSI_2020_CENTER:+.2f}$')
+    ax.axvspan(
+        EARTH_MANTLE_DIW_LOW,
+        EARTH_MANTLE_DIW_HIGH,
+        color=COLOR_BG,
+        alpha=0.6,
+        label='Frost & McCammon 2008 Earth-mantle range',
+    )
+    ax.axvline(
+        SOSSI_2020_CENTER,
+        color='k',
+        alpha=0.7,
+        linestyle=':',
+        linewidth=1.8,
+        zorder=3,
+        label=rf'Sossi 2020 upper-mantle anchor: $\Delta\mathrm{{IW}} = {SOSSI_2020_CENTER:+.2f}$',
+    )
 
-    ax.axvline(data['cal_fischer_dIW'], color=COLOR_CAL, linewidth=2.0, zorder=2,
-               label=fr'CALLIOPE (Fischer, default): $\Delta\mathrm{{IW}} = {data["cal_fischer_dIW"]:+.2f}$')
+    ax.axvline(
+        data['cal_fischer_dIW'],
+        color=COLOR_CAL,
+        linewidth=2.0,
+        zorder=2,
+        label=rf'CALLIOPE (Fischer, default): $\Delta\mathrm{{IW}} = {data["cal_fischer_dIW"]:+.2f}$',
+    )
     # The O'Neill-buffer CALLIOPE result lands at ~+3.50 here by near-
     # coincidence (the canonical Earth O budget was derived under
     # O'Neill at +3.5, then re-derived under Fischer; the O'Neill
@@ -95,11 +110,22 @@ def make_figure(data: dict | None = None) -> dict:
     # derived O budget to two decimals). Render it as a thicker
     # long-dash stroke so it remains visible through the Sossi dotted
     # anchor at the same x.
-    ax.axvline(data['cal_oneill_dIW'], color=COLOR_FIS, linewidth=3.2,
-               linestyle=(0, (6, 4)), zorder=4, alpha=0.95,
-               label=fr"CALLIOPE (O'Neill, legacy): $\Delta\mathrm{{IW}} = {data['cal_oneill_dIW']:+.2f}$")
-    ax.axvline(data['atm_dIW'], color=COLOR_ATM, linewidth=2.0, zorder=2,
-               label=fr'atmodeller: $\Delta\mathrm{{IW}} = {data["atm_dIW"]:+.2f}$')
+    ax.axvline(
+        data['cal_oneill_dIW'],
+        color=COLOR_FIS,
+        linewidth=3.2,
+        linestyle=(0, (6, 4)),
+        zorder=4,
+        alpha=0.95,
+        label=rf"CALLIOPE (O'Neill, legacy): $\Delta\mathrm{{IW}} = {data['cal_oneill_dIW']:+.2f}$",
+    )
+    ax.axvline(
+        data['atm_dIW'],
+        color=COLOR_ATM,
+        linewidth=2.0,
+        zorder=2,
+        label=rf'atmodeller: $\Delta\mathrm{{IW}} = {data["atm_dIW"]:+.2f}$',
+    )
 
     # Suppress y-axis: this is a 1D figure.
     ax.set_yticks([])
@@ -115,9 +141,15 @@ def make_figure(data: dict | None = None) -> dict:
     # Legend below the plot so the four entries do not crowd into the
     # data region where the three vertical lines already sit close
     # together at dIW = +3 to +3.5.
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.22), ncol=2,
-              frameon=False, fontsize=9.0, columnspacing=1.6,
-              handlelength=2.4)
+    ax.legend(
+        loc='upper center',
+        bbox_to_anchor=(0.5, -0.22),
+        ncol=2,
+        frameon=False,
+        fontsize=9.0,
+        columnspacing=1.6,
+        handlelength=2.4,
+    )
 
     paths = save(fig, 'fig5_earth_anchor')
     plt.close(fig)
@@ -125,8 +157,9 @@ def make_figure(data: dict | None = None) -> dict:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)s %(levelname)s %(message)s')
+    logging.basicConfig(
+        level=logging.INFO, format='%(asctime)s %(name)s %(levelname)s %(message)s'
+    )
     out = make_figure()
     for ext, path in out.items():
         print(f'  {ext}: {path}')

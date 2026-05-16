@@ -18,8 +18,7 @@ from .plot_style import DATA_DIR
 def load_csv() -> dict:
     csv_path = DATA_DIR / 'fig3_grid.csv'
     if not csv_path.exists():
-        print(f'fig3_grid.csv not found at {csv_path}; run fig3_grid first',
-              file=sys.stderr)
+        print(f'fig3_grid.csv not found at {csv_path}; run fig3_grid first', file=sys.stderr)
         return None
 
     # Reconstruct the (nT, nO) arrays expected by make_figure.
@@ -50,9 +49,7 @@ def load_csv() -> dict:
         ):
             v = r[key]
             arr[i, j] = float(v) if v and v != 'nan' else np.nan
-        conv[i, j] = (
-            not np.isnan(dIW_cal[i, j]) and not np.isnan(dIW_atm[i, j])
-        )
+        conv[i, j] = not np.isnan(dIW_cal[i, j]) and not np.isnan(dIW_atm[i, j])
 
     return dict(
         dIW_cal=dIW_cal,

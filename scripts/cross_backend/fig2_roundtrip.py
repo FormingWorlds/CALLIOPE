@@ -53,7 +53,10 @@ T_COLORS = {
 def collect() -> dict:
     """Return {backend: [(T, dIW_in, dIW_out), ...]} for both backends."""
     out = {'calliope': [], 'atmodeller': []}
-    for backend, rt in (('calliope', round_trip_calliope), ('atmodeller', round_trip_atmodeller)):
+    for backend, rt in (
+        ('calliope', round_trip_calliope),
+        ('atmodeller', round_trip_atmodeller),
+    ):
         log.info('Round-trip: %s', backend)
         for T in T_GRID:
             for dIW in DIW_GRID:
@@ -92,8 +95,14 @@ def make_figure(data: dict | None = None) -> dict:
         (axes[0], 'calliope', 'CALLIOPE'),
         (axes[1], 'atmodeller', 'atmodeller'),
     ):
-        ax.axhspan(-tol_band, tol_band, color='k', alpha=0.07, linewidth=0,
-                   label=fr'$\pm {tol_band:g}$ dex band')
+        ax.axhspan(
+            -tol_band,
+            tol_band,
+            color='k',
+            alpha=0.07,
+            linewidth=0,
+            label=rf'$\pm {tol_band:g}$ dex band',
+        )
         ax.axhline(0.0, color='k', alpha=0.4, linewidth=0.7)
 
         # Small x-jitter per T so the four T markers fan out
@@ -109,7 +118,7 @@ def make_figure(data: dict | None = None) -> dict:
             xs_ok = []
             ys_ok = []
             xs_off = []
-            for (Tx, dIWx, recov) in data[backend]:
+            for Tx, dIWx, recov in data[backend]:
                 if Tx != T:
                     continue
                 if not np.isfinite(recov):
@@ -126,16 +135,26 @@ def make_figure(data: dict | None = None) -> dict:
                 xs_ok = np.array(xs_ok)[order] + dx
                 ys_ok = np.array(ys_ok)[order]
                 ax.plot(
-                    xs_ok, ys_ok,
-                    marker='o', markersize=7.0, linewidth=0,
-                    color=T_COLORS[T], markeredgecolor='k', markeredgewidth=0.5,
-                    label=fr'$T_\mathrm{{magma}} = {int(T)}$ K',
+                    xs_ok,
+                    ys_ok,
+                    marker='o',
+                    markersize=7.0,
+                    linewidth=0,
+                    color=T_COLORS[T],
+                    markeredgecolor='k',
+                    markeredgewidth=0.5,
+                    label=rf'$T_\mathrm{{magma}} = {int(T)}$ K',
                 )
             for dIWx in xs_off:
                 ax.plot(
-                    dIWx + dx, -y_window * 0.9,
-                    marker='v', markersize=12, linewidth=0,
-                    color=T_COLORS[T], markeredgecolor='k', markeredgewidth=0.6,
+                    dIWx + dx,
+                    -y_window * 0.9,
+                    marker='v',
+                    markersize=12,
+                    linewidth=0,
+                    color=T_COLORS[T],
+                    markeredgecolor='k',
+                    markeredgewidth=0.6,
                     clip_on=False,
                 )
 
@@ -153,15 +172,23 @@ def make_figure(data: dict | None = None) -> dict:
     order = sorted(range(len(labels)), key=lambda i: ('band' in labels[i], labels[i]))
     handles = [handles[i] for i in order]
     labels = [labels[i] for i in order]
-    fig.legend(handles, labels, loc='lower center', ncol=len(labels),
-               bbox_to_anchor=(0.5, -0.03), frameon=False, fontsize=9.5)
+    fig.legend(
+        handles,
+        labels,
+        loc='lower center',
+        ncol=len(labels),
+        bbox_to_anchor=(0.5, -0.03),
+        frameon=False,
+        fontsize=9.5,
+    )
 
     panel_label(axes[0], '(a)')
     panel_label(axes[1], '(b)')
 
     fig.suptitle(
         'Internal round-trip: buffered mode $\\to$ authoritative-O recovers the input $\\Delta$IW',
-        fontsize=11.5, y=0.99,
+        fontsize=11.5,
+        y=0.99,
     )
 
     # Compact the bottom margin to make room for the bottom legend.
@@ -173,8 +200,9 @@ def make_figure(data: dict | None = None) -> dict:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)s %(levelname)s %(message)s')
+    logging.basicConfig(
+        level=logging.INFO, format='%(asctime)s %(name)s %(levelname)s %(message)s'
+    )
     out = make_figure()
     for ext, path in out.items():
         print(f'  {ext}: {path}')

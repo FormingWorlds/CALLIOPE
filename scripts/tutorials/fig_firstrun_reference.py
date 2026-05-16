@@ -89,8 +89,7 @@ def make_figure(data: dict | None = None) -> dict:
 
     fig, ax = plt.subplots(figsize=(7.6, 4.6))
     y_pos = np.arange(len(species_sorted))
-    ax.barh(y_pos, pressures, color=colors,
-            edgecolor='black', linewidth=0.5)
+    ax.barh(y_pos, pressures, color=colors, edgecolor='black', linewidth=0.5)
 
     ax.set_xscale('log')
     ax.set_yticks(y_pos)
@@ -118,23 +117,30 @@ def make_figure(data: dict | None = None) -> dict:
             label = sci_fmt(p, unit='bar')
         ax.text(
             p * 2.0 if (p > 0 and np.isfinite(p)) else x_lo * 2.0,
-            yi, label,
-            ha='left', va='center', fontsize=9.0, color='#333333',
+            yi,
+            label,
+            ha='left',
+            va='center',
+            fontsize=9.0,
+            color='#333333',
         )
 
     # Summary box anchored bottom-right so it does not collide with the
     # H2O label (top bar, label extends to about 1 bar on the x axis).
     summary = (
-        f"$P_\\mathrm{{surf}}$ = {sci_fmt(data['P_surf_bar'], unit='bar')}\n"
-        f"$M_\\mathrm{{atm}}$ = {sci_fmt(data['M_atm_kg'], unit='kg')}\n"
-        f"mean $M$ = {sci_fmt(data['mean_mol_mass_g_per_mol'], unit='g/mol')}"
+        f'$P_\\mathrm{{surf}}$ = {sci_fmt(data["P_surf_bar"], unit="bar")}\n'
+        f'$M_\\mathrm{{atm}}$ = {sci_fmt(data["M_atm_kg"], unit="kg")}\n'
+        f'mean $M$ = {sci_fmt(data["mean_mol_mass_g_per_mol"], unit="g/mol")}'
     )
     ax.text(
-        0.985, 0.04, summary,
+        0.985,
+        0.04,
+        summary,
         transform=ax.transAxes,
-        fontsize=9.0, va='bottom', ha='right',
-        bbox=dict(boxstyle='round,pad=0.4', facecolor='white',
-                  edgecolor='#cccccc'),
+        fontsize=9.0,
+        va='bottom',
+        ha='right',
+        bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='#cccccc'),
     )
 
     paths = save(fig, 'firstrun_reference')
@@ -143,8 +149,9 @@ def make_figure(data: dict | None = None) -> dict:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)s %(levelname)s %(message)s')
+    logging.basicConfig(
+        level=logging.INFO, format='%(asctime)s %(name)s %(levelname)s %(message)s'
+    )
     out = make_figure()
     for ext, path in out.items():
         print(f'  {ext}: {path}')

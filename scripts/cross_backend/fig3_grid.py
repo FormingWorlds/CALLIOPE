@@ -62,10 +62,16 @@ def collect() -> dict:
     for i, T in enumerate(T_GRID):
         t0 = time.time()
         r_cal_fis = run_calliope(
-            EARTH_BSE_KRIJT23, T_magma=float(T), fO2_hint=FO2_HINT, buffer='fischer',
+            EARTH_BSE_KRIJT23,
+            T_magma=float(T),
+            fO2_hint=FO2_HINT,
+            buffer='fischer',
         )
         r_cal_one = run_calliope(
-            EARTH_BSE_KRIJT23, T_magma=float(T), fO2_hint=FO2_HINT, buffer='oneill',
+            EARTH_BSE_KRIJT23,
+            T_magma=float(T),
+            fO2_hint=FO2_HINT,
+            buffer='oneill',
         )
         r_atm = run_atmodeller(EARTH_BSE_KRIJT23, T_magma=float(T))
         dt = time.time() - t0
@@ -103,12 +109,12 @@ def make_figure(data: dict | None = None) -> dict:
     dIW_cal_one = data['dIW_cal_one']
     dIW_atm = data['dIW_atm']
 
-    buf_offset_one = np.array([
-        buffers.hirschmann_minus_oneill_offset(np.array([T]))[0] for T in T_GRID
-    ])
-    buf_offset_fis = np.array([
-        buffers.hirschmann_minus_fischer_offset(np.array([T]))[0] for T in T_GRID
-    ])
+    buf_offset_one = np.array(
+        [buffers.hirschmann_minus_oneill_offset(np.array([T]))[0] for T in T_GRID]
+    )
+    buf_offset_fis = np.array(
+        [buffers.hirschmann_minus_fischer_offset(np.array([T]))[0] for T in T_GRID]
+    )
     # Predicted cross-backend gap (atm - cal) under identical chemistry
     # is -(hirschmann - cal_buffer). The buffer-predicted atmodeller
     # curve is therefore (cal − buffer_offset).
@@ -121,42 +127,79 @@ def make_figure(data: dict | None = None) -> dict:
     csv_path = DATA_DIR / 'fig3_grid.csv'
     with csv_path.open('w', newline='') as fh:
         w = csv.writer(fh)
-        w.writerow(['T_K',
-                    'dIW_calliope_fischer', 'dIW_calliope_oneill',
-                    'dIW_atmodeller',
-                    'buffer_offset_HminusF_dex',
-                    'buffer_offset_HminusO_dex',
-                    'raw_gap_F_dex', 'raw_gap_O_dex',
-                    'residual_after_buffer_F_dex',
-                    'residual_after_buffer_O_dex',
-                    'P_total_cal_fischer_bar', 'P_total_cal_oneill_bar',
-                    'P_total_atm_bar'])
+        w.writerow(
+            [
+                'T_K',
+                'dIW_calliope_fischer',
+                'dIW_calliope_oneill',
+                'dIW_atmodeller',
+                'buffer_offset_HminusF_dex',
+                'buffer_offset_HminusO_dex',
+                'raw_gap_F_dex',
+                'raw_gap_O_dex',
+                'residual_after_buffer_F_dex',
+                'residual_after_buffer_O_dex',
+                'P_total_cal_fischer_bar',
+                'P_total_cal_oneill_bar',
+                'P_total_atm_bar',
+            ]
+        )
         for i, T in enumerate(T_GRID):
-            w.writerow([
-                T,
-                dIW_cal_fis[i], dIW_cal_one[i], dIW_atm[i],
-                buf_offset_fis[i], buf_offset_one[i],
-                raw_gap_fis[i], raw_gap_one[i],
-                corrected_fis[i], corrected_one[i],
-                data['P_cal_fis'][i], data['P_cal_one'][i], data['P_atm'][i],
-            ])
+            w.writerow(
+                [
+                    T,
+                    dIW_cal_fis[i],
+                    dIW_cal_one[i],
+                    dIW_atm[i],
+                    buf_offset_fis[i],
+                    buf_offset_one[i],
+                    raw_gap_fis[i],
+                    raw_gap_one[i],
+                    corrected_fis[i],
+                    corrected_one[i],
+                    data['P_cal_fis'][i],
+                    data['P_cal_one'][i],
+                    data['P_atm'][i],
+                ]
+            )
     log.info('Wrote %s', csv_path)
 
     fig, (ax_top, ax_bot) = plt.subplots(
-        2, 1, figsize=(7.6, 6.4), sharex=True,
+        2,
+        1,
+        figsize=(7.6, 6.4),
+        sharex=True,
         gridspec_kw={'height_ratios': [1.6, 1.0], 'hspace': 0.10},
     )
 
-    ax_top.plot(T_GRID, dIW_cal_fis, marker='o', color=COLOR_CAL,
-                label='CALLIOPE (Fischer 2011, default)')
-    ax_top.plot(T_GRID, dIW_cal_one, marker='o', linestyle='--',
-                color=COLOR_FIS, alpha=0.85,
-                label="CALLIOPE (O'Neill 2002, legacy)")
-    ax_top.plot(T_GRID, dIW_atm, marker='s', color=COLOR_ATM,
-                label='atmodeller (Hirschmann composite)')
-    ax_top.plot(T_GRID, dIW_atm_pred_from_fis, marker='x', linestyle=':',
-                color=COLOR_ATM, alpha=0.6,
-                label='atmodeller predicted from buffer alone\n(= CALLIOPE-F − (Hirschmann − Fischer))')
+    ax_top.plot(
+        T_GRID,
+        dIW_cal_fis,
+        marker='o',
+        color=COLOR_CAL,
+        label='CALLIOPE (Fischer 2011, default)',
+    )
+    ax_top.plot(
+        T_GRID,
+        dIW_cal_one,
+        marker='o',
+        linestyle='--',
+        color=COLOR_FIS,
+        alpha=0.85,
+        label="CALLIOPE (O'Neill 2002, legacy)",
+    )
+    ax_top.plot(
+        T_GRID, dIW_atm, marker='s', color=COLOR_ATM, label='atmodeller (Hirschmann composite)'
+    )
+    ax_top.plot(
+        T_GRID,
+        dIW_atm_pred_from_fis,
+        marker='x',
+        linestyle=':',
+        color=COLOR_ATM,
+        alpha=0.6,
+        label='atmodeller predicted from buffer alone\n(= CALLIOPE-F − (Hirschmann − Fischer))',
+    )
     ax_top.set_ylabel(r'$\Delta\mathrm{IW}$ [dex]')
     ax_top.set_title('Cross-backend $\\Delta$IW at Earth-BSE volatile inventory, $\\Phi = 1$')
     ymins = [
@@ -165,41 +208,72 @@ def make_figure(data: dict | None = None) -> dict:
         float(np.nanmin(dIW_cal_one)),
     ]
     y_top_min = min(ymins) - 0.55
-    y_top_max = max(
-        float(np.nanmax(dIW_cal_fis)),
-        float(np.nanmax(dIW_cal_one)),
-    ) + 0.40
+    y_top_max = (
+        max(
+            float(np.nanmax(dIW_cal_fis)),
+            float(np.nanmax(dIW_cal_one)),
+        )
+        + 0.40
+    )
     ax_top.set_ylim(y_top_min, y_top_max)
-    ax_top.legend(loc='lower left', fontsize=8.5,
-                  framealpha=0.92, facecolor='white', edgecolor='none')
+    ax_top.legend(
+        loc='lower left', fontsize=8.5, framealpha=0.92, facecolor='white', edgecolor='none'
+    )
     panel_label(ax_top, '(a)')
 
     ax_bot.axhline(0.0, color='k', alpha=0.4, linewidth=0.7)
     ax_bot.axhline(0.1, color='k', alpha=0.25, linestyle='--', linewidth=0.7)
     ax_bot.axhline(-0.1, color='k', alpha=0.25, linestyle='--', linewidth=0.7)
-    ax_bot.plot(T_GRID, raw_gap_fis, marker='o', color='#7a7a7a',
-                label='raw, Fischer default ($\\Delta$IW$_\\mathrm{atm}-\\Delta$IW$_\\mathrm{cal,F}$)')
-    ax_bot.plot(T_GRID, raw_gap_one, marker='o', linestyle='--',
-                color='#444444', alpha=0.7,
-                label="raw, O'Neill legacy ($\\Delta$IW$_\\mathrm{atm}-\\Delta$IW$_\\mathrm{cal,O}$)")
-    ax_bot.plot(T_GRID, corrected_fis, marker='D', color=COLOR_CAL,
-                label='after buffer correction\n(residual chemistry gap, either buffer)')
-    ax_bot.text(T_GRID[-1], 0.115, r'$\pm 0.1$ dex solver tolerance',
-                fontsize=8.5, va='bottom', ha='right', alpha=0.6)
+    ax_bot.plot(
+        T_GRID,
+        raw_gap_fis,
+        marker='o',
+        color='#7a7a7a',
+        label='raw, Fischer default ($\\Delta$IW$_\\mathrm{atm}-\\Delta$IW$_\\mathrm{cal,F}$)',
+    )
+    ax_bot.plot(
+        T_GRID,
+        raw_gap_one,
+        marker='o',
+        linestyle='--',
+        color='#444444',
+        alpha=0.7,
+        label="raw, O'Neill legacy ($\\Delta$IW$_\\mathrm{atm}-\\Delta$IW$_\\mathrm{cal,O}$)",
+    )
+    ax_bot.plot(
+        T_GRID,
+        corrected_fis,
+        marker='D',
+        color=COLOR_CAL,
+        label='after buffer correction\n(residual chemistry gap, either buffer)',
+    )
+    ax_bot.text(
+        T_GRID[-1],
+        0.115,
+        r'$\pm 0.1$ dex solver tolerance',
+        fontsize=8.5,
+        va='bottom',
+        ha='right',
+        alpha=0.6,
+    )
     ax_bot.set_xlabel(r'$T_\mathrm{magma}$ [K]')
     ax_bot.set_ylabel('disagreement [dex]')
-    y_bot_min = min(
-        float(np.nanmin(raw_gap_fis)),
-        float(np.nanmin(raw_gap_one)),
-    ) - 0.60
+    y_bot_min = (
+        min(
+            float(np.nanmin(raw_gap_fis)),
+            float(np.nanmin(raw_gap_one)),
+        )
+        - 0.60
+    )
     y_bot_max = max(
         0.75,
         float(np.nanmax(raw_gap_fis)) + 0.55,
         float(np.nanmax(corrected_fis)) + 0.55,
     )
     ax_bot.set_ylim(y_bot_min, y_bot_max)
-    ax_bot.legend(loc='lower left', fontsize=8.5,
-                  framealpha=0.92, facecolor='white', edgecolor='none')
+    ax_bot.legend(
+        loc='lower left', fontsize=8.5, framealpha=0.92, facecolor='white', edgecolor='none'
+    )
     panel_label(ax_bot, '(b)')
 
     paths = save(fig, 'fig3_grid')
@@ -208,8 +282,9 @@ def make_figure(data: dict | None = None) -> dict:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)s %(levelname)s %(message)s')
+    logging.basicConfig(
+        level=logging.INFO, format='%(asctime)s %(name)s %(levelname)s %(message)s'
+    )
     out = make_figure()
     for ext, path in out.items():
         print(f'  {ext}: {path}')

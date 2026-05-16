@@ -39,7 +39,7 @@ class Inventory:
     H: float
     C: float
     N: float
-    O: float
+    O: float  # noqa: E741  O is the oxygen-element field name across CALLIOPE
     S: float
     citation: str
     notes: str = ''
@@ -49,31 +49,26 @@ class Inventory:
         return {'H': self.H, 'C': self.C, 'N': self.N, 'O': self.O, 'S': self.S}
 
 
+# Krijt et al. (2023) PPVII Tables 1+2 BSE H/C/N/S in kg. Used as the
+# authoritative H/C/N/S inventory for the Earth fiducial; oxygen is
+# derived self-consistently from a chemistry call (see module docstring).
 EARTH_HCNS_KRIJT23 = {
     'H': 5.6e20,
     'C': 3.1e21,
     'N': 3.7e19,
     'S': 1.0e21,
 }
-"""Krijt et al. (2023) PPVII Tables 1+2 BSE H/C/N/S in kg.
-
-Used as the authoritative H/C/N/S inventory for the Earth fiducial.
-Oxygen is derived self-consistently from a chemistry call, see module
-docstring.
-"""
 
 
+# Earth's volatile O at the Sossi 2020 Delta-IW = +3.5, T = 2000 K state.
+# Computed by `derive_earth_volatile_O()` from CALLIOPE's buffered-mode
+# solver with EARTH_HCNS_KRIJT23 as the H/C/N/S target and the current
+# default Fischer 2011 IW buffer. Hard-coded here so the harness does
+# not have to recompute it on every invocation; the provenance script
+# `derive_earth_volatile_O()` re-derives it on demand to confirm the
+# constant has not drifted. The legacy O'Neill 2002 buffer gives a
+# slightly different value (~1.241e22 kg).
 EARTH_VOLATILE_O_REF_KG = 1.260e22
-"""Earth's volatile O at the Sossi 2020 Delta-IW = +3.5, T = 2000 K state.
-
-Computed by `derive_earth_volatile_O()` from CALLIOPE's buffered-mode
-solver with EARTH_HCNS_KRIJT23 as the H/C/N/S target and the current
-default Fischer 2011 IW buffer. Hard-coded here so the harness does
-not have to recompute it on every invocation; the provenance script
-`derive_earth_volatile_O()` re-derives it on demand to confirm the
-constant has not drifted. The legacy O'Neill 2002 buffer gives a
-slightly different value (~1.241e22 kg).
-"""
 
 
 EARTH_BSE_KRIJT23 = Inventory(
@@ -118,7 +113,10 @@ def derive_earth_volatile_O(T_magma: float = 2000.0, dIW: float = 3.5) -> float:
     with _warnings.catch_warnings():
         _warnings.simplefilter('ignore')
         out = equilibrium_atmosphere(
-            EARTH_HCNS_KRIJT23, ddict, hide_warnings=True, print_result=False,
+            EARTH_HCNS_KRIJT23,
+            ddict,
+            hide_warnings=True,
+            print_result=False,
         )
     return float(out['O_kg_total'])
 

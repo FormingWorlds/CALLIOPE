@@ -34,17 +34,15 @@ PLANET = {
     'radius': 6.371e6,
 }
 EARTH_HCNS = {'H': 5.6e20, 'C': 3.1e21, 'N': 3.7e19, 'S': 1.0e21}
-DIW_FIXED = 0.5         # holding redox fixed: the focus is the cooling sequence
+DIW_FIXED = 0.5  # holding redox fixed: the focus is the cooling sequence
 T_SEQUENCE = np.linspace(3000.0, 1500.0, 25)
-T_FREEZE = 1500.0       # temperature at which the magma-volume sweep runs
-PHI_SEQUENCE = np.linspace(1.0, 0.5, 11)   # melt-fraction crystallisation step
+T_FREEZE = 1500.0  # temperature at which the magma-volume sweep runs
+PHI_SEQUENCE = np.linspace(1.0, 0.5, 11)  # melt-fraction crystallisation step
 
-SPECIES_TO_PLOT = ['H2O', 'CO2', 'H2', 'CO', 'CH4',
-                   'N2', 'NH3', 'S2', 'SO2', 'H2S']
+SPECIES_TO_PLOT = ['H2O', 'CO2', 'H2', 'CO', 'CH4', 'N2', 'NH3', 'S2', 'SO2', 'H2S']
 
 
-def _run(ddict_template: dict, schedule: list[tuple[float, float]],
-         label: str) -> dict:
+def _run(ddict_template: dict, schedule: list[tuple[float, float]], label: str) -> dict:
     """Run a sequence of (T_magma, Phi_global) steps with warm-start
     threading. Returns per-step partial pressures, surface pressure,
     and wall time.
@@ -63,15 +61,25 @@ def _run(ddict_template: dict, schedule: list[tuple[float, float]],
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
             res = equilibrium_atmosphere(
-                EARTH_HCNS, ddict, p_guess=p_guess, print_result=False,
+                EARTH_HCNS,
+                ddict,
+                p_guess=p_guess,
+                print_result=False,
             )
         wall[i] = time.time() - t0
         for sp in SPECIES_TO_PLOT:
             pressures[sp][i] = float(res[f'{sp}_bar'])
         P_total[i] = float(res['P_surf'])
         p_guess = {s: float(res[f'{s}_bar']) for s in ('H2O', 'CO2', 'N2', 'S2')}
-        log.info('  %s step %2d  T=%4.0f K  Phi=%.2f  P_surf=%7.1f bar  %5.3f s',
-                 label, i, T, phi, P_total[i], wall[i])
+        log.info(
+            '  %s step %2d  T=%4.0f K  Phi=%.2f  P_surf=%7.1f bar  %5.3f s',
+            label,
+            i,
+            T,
+            phi,
+            P_total[i],
+            wall[i],
+        )
     return dict(pressures=pressures, P_total=P_total, wall_s=wall)
 
 
@@ -118,24 +126,31 @@ def make_figure(data: dict | None = None) -> dict:
     csv_path = DATA_DIR / 'coupled_loop.csv'
     with csv_path.open('w', newline='') as fh:
         w = csv.writer(fh)
-        w.writerow(['phase', 'step', 'T_K', 'Phi_global', 'wall_s',
-                    'P_total_bar'] + SPECIES_TO_PLOT)
+        w.writerow(
+            ['phase', 'step', 'T_K', 'Phi_global', 'wall_s', 'P_total_bar'] + SPECIES_TO_PLOT
+        )
         for i, T in enumerate(data['T_cool']):
-            row = ['cooling', i, T, 1.0, data['wall_cool'][i],
-                   data['P_total_cool'][i]] + [
+            row = ['cooling', i, T, 1.0, data['wall_cool'][i], data['P_total_cool'][i]] + [
                 data['pressures_cool'][sp][i] for sp in SPECIES_TO_PLOT
             ]
             w.writerow(row)
         for i, phi in enumerate(data['Phi_cryst']):
-            row = ['crystallisation', i, data['T_cryst'], phi,
-                   data['wall_cryst'][i], data['P_total_cryst'][i]] + [
-                data['pressures_cryst'][sp][i] for sp in SPECIES_TO_PLOT
-            ]
+            row = [
+                'crystallisation',
+                i,
+                data['T_cryst'],
+                phi,
+                data['wall_cryst'][i],
+                data['P_total_cryst'][i],
+            ] + [data['pressures_cryst'][sp][i] for sp in SPECIES_TO_PLOT]
             w.writerow(row)
     log.info('Wrote %s', csv_path)
 
     fig, (ax_cool, ax_cryst) = plt.subplots(
-        1, 2, figsize=(11.4, 5.0), sharey=True,
+        1,
+        2,
+        figsize=(11.4, 5.0),
+        sharey=True,
         gridspec_kw={'width_ratios': [1.6, 1.0], 'wspace': 0.08},
     )
 
@@ -144,16 +159,20 @@ def make_figure(data: dict | None = None) -> dict:
     # Phase 1: cooling at Phi = 1
     for sp in SPECIES_TO_PLOT:
         ys = data['pressures_cool'][sp]
-        ax_cool.plot(data['T_cool'], ys, color=dict_colors[sp], linewidth=1.8,
-                     marker='o', markersize=3.5, markeredgecolor='none',
-                     alpha=0.95 if np.nanmax(ys) > visible_threshold else 0.55)
+        ax_cool.plot(
+            data['T_cool'],
+            ys,
+            color=dict_colors[sp],
+            linewidth=1.8,
+            marker='o',
+            markersize=3.5,
+            markeredgecolor='none',
+            alpha=0.95 if np.nanmax(ys) > visible_threshold else 0.55,
+        )
     ax_cool.set_yscale('log')
     ax_cool.set_xlabel(r'$T_\mathrm{magma}$ [K] (cooling $\rightarrow$)')
     ax_cool.set_ylabel('Surface partial pressure (bar)')
-    ax_cool.set_title(
-        f'(a) cooling at $\\Phi = 1$, '
-        f'$\\Delta\\mathrm{{IW}} = {DIW_FIXED:+.1f}$'
-    )
+    ax_cool.set_title(f'(a) cooling at $\\Phi = 1$, $\\Delta\\mathrm{{IW}} = {DIW_FIXED:+.1f}$')
     ax_cool.invert_xaxis()
     ax_cool.set_ylim(1e-6, 1e4)
     ax_cool.grid(which='both', alpha=0.3)
@@ -162,17 +181,28 @@ def make_figure(data: dict | None = None) -> dict:
     for sp in SPECIES_TO_PLOT:
         ys = data['pressures_cryst'][sp]
         label = species_label(sp) if np.nanmax(ys) > visible_threshold else None
-        ax_cryst.plot(data['Phi_cryst'], ys, color=dict_colors[sp], linewidth=1.8,
-                      marker='s', markersize=3.5, markeredgecolor='none',
-                      label=label, alpha=0.95 if label else 0.55)
+        ax_cryst.plot(
+            data['Phi_cryst'],
+            ys,
+            color=dict_colors[sp],
+            linewidth=1.8,
+            marker='s',
+            markersize=3.5,
+            markeredgecolor='none',
+            label=label,
+            alpha=0.95 if label else 0.55,
+        )
     ax_cryst.set_xlabel(r'$\Phi_\mathrm{global}$ (crystallisation $\rightarrow$)')
-    ax_cryst.set_title(
-        f'(b) crystallisation at $T = {int(data["T_cryst"])}$ K'
-    )
+    ax_cryst.set_title(f'(b) crystallisation at $T = {int(data["T_cryst"])}$ K')
     ax_cryst.invert_xaxis()
     ax_cryst.grid(which='both', alpha=0.3)
-    ax_cryst.legend(loc='center left', bbox_to_anchor=(1.02, 0.5),
-                    frameon=False, title='major\nspecies', title_fontsize=9.5)
+    ax_cryst.legend(
+        loc='center left',
+        bbox_to_anchor=(1.02, 0.5),
+        frameon=False,
+        title='major\nspecies',
+        title_fontsize=9.5,
+    )
 
     # Wall-time annotation for the cooling panel.
     t_cold_ms = float(data['wall_cool'][0]) * 1e3
@@ -184,12 +214,15 @@ def make_figure(data: dict | None = None) -> dict:
         f'total wall (both):   {t_total_s:6.2f} s'
     )
     ax_cool.text(
-        0.02, 0.04, summary,
+        0.02,
+        0.04,
+        summary,
         transform=ax_cool.transAxes,
-        fontsize=9.0, family='monospace',
-        va='bottom', ha='left',
-        bbox=dict(boxstyle='round,pad=0.4', facecolor='white',
-                  edgecolor='#cccccc'),
+        fontsize=9.0,
+        family='monospace',
+        va='bottom',
+        ha='left',
+        bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='#cccccc'),
     )
 
     paths = save(fig, 'coupled_loop')
@@ -198,8 +231,9 @@ def make_figure(data: dict | None = None) -> dict:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)s %(levelname)s %(message)s')
+    logging.basicConfig(
+        level=logging.INFO, format='%(asctime)s %(name)s %(levelname)s %(message)s'
+    )
     out = make_figure()
     for ext, path in out.items():
         print(f'  {ext}: {path}')

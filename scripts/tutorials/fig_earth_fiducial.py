@@ -38,9 +38,9 @@ PLANET = {
 }
 EARTH_HCNS = {'H': 5.6e20, 'C': 3.1e21, 'N': 3.7e19, 'S': 1.0e21}
 T_MAGMA = 2000.0
-DIW_ANCHOR = 3.5     # Sossi et al. 2020 Earth upper-mantle anchor
+DIW_ANCHOR = 3.5  # Sossi et al. 2020 Earth upper-mantle anchor
 
-FROST_LO = 1.0       # Frost & McCammon (2008) Earth-mantle range, IW reference
+FROST_LO = 1.0  # Frost & McCammon (2008) Earth-mantle range, IW reference
 FROST_HI = 5.0
 
 
@@ -50,8 +50,7 @@ def collect() -> dict:
     Returns a dict with the buffered-mode O_kg_total and the
     authoritative-O recovered Delta-IW.
     """
-    ddict = {**PLANET, 'T_magma': T_MAGMA, 'Phi_global': 1.0,
-             'fO2_shift_IW': DIW_ANCHOR}
+    ddict = {**PLANET, 'T_magma': T_MAGMA, 'Phi_global': 1.0, 'fO2_shift_IW': DIW_ANCHOR}
     for sp in volatile_species:
         ddict[f'{sp}_included'] = 1
         ddict[f'{sp}_initial_bar'] = 0.0
@@ -65,26 +64,34 @@ def collect() -> dict:
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         buf = equilibrium_atmosphere(
-            EARTH_HCNS, ddict, p_guess=canonical_guess, print_result=False,
+            EARTH_HCNS,
+            ddict,
+            p_guess=canonical_guess,
+            print_result=False,
         )
     O_kg = float(buf['O_kg_total'])
-    log.info('Step 1 (buffered): dIW = %+.2f -> O_kg_total = %.3e kg',
-             DIW_ANCHOR, O_kg)
+    log.info('Step 1 (buffered): dIW = %+.2f -> O_kg_total = %.3e kg', DIW_ANCHOR, O_kg)
 
-    target = dict(EARTH_HCNS); target['O'] = O_kg
+    target = dict(EARTH_HCNS)
+    target['O'] = O_kg
     p_guess = {s: float(buf[f'{s}_bar']) for s in ('H2O', 'CO2', 'N2', 'S2')}
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         auth = equilibrium_atmosphere_authoritative_O(
-            target, ddict, p_guess=p_guess, fO2_hint=DIW_ANCHOR,
+            target,
+            ddict,
+            p_guess=p_guess,
+            fO2_hint=DIW_ANCHOR,
             print_result=False,
         )
     recovered = float(auth['fO2_shift_derived'])
-    log.info('Step 2 (authoritative-O): recovered dIW = %+.4f (residual %+.2e)',
-             recovered, recovered - DIW_ANCHOR)
+    log.info(
+        'Step 2 (authoritative-O): recovered dIW = %+.4f (residual %+.2e)',
+        recovered,
+        recovered - DIW_ANCHOR,
+    )
 
-    return dict(O_kg_total=O_kg, dIW_recovered=recovered,
-                P_surf_bar=float(auth['P_surf']))
+    return dict(O_kg_total=O_kg, dIW_recovered=recovered, P_surf_bar=float(auth['P_surf']))
 
 
 def make_figure(data: dict | None = None) -> dict:
@@ -106,19 +113,34 @@ def make_figure(data: dict | None = None) -> dict:
     fig, ax = plt.subplots(figsize=(7.6, 3.4))
 
     # Frost & McCammon (2008) Earth-mantle range as a soft band.
-    ax.axvspan(FROST_LO, FROST_HI, color=COLOR_BG, alpha=0.6,
-               label='Frost & McCammon 2008 Earth-mantle range')
+    ax.axvspan(
+        FROST_LO,
+        FROST_HI,
+        color=COLOR_BG,
+        alpha=0.6,
+        label='Frost & McCammon 2008 Earth-mantle range',
+    )
 
     # Sossi 2020 dotted anchor; raised z-order so the dotted pattern
     # stays visible if CALLIOPE recovers exactly +3.5.
-    ax.axvline(DIW_ANCHOR, color='k', alpha=0.7, linestyle=':',
-               linewidth=1.8, zorder=3,
-               label=fr'Sossi 2020 upper-mantle anchor: $\Delta\mathrm{{IW}} = {DIW_ANCHOR:+.2f}$')
+    ax.axvline(
+        DIW_ANCHOR,
+        color='k',
+        alpha=0.7,
+        linestyle=':',
+        linewidth=1.8,
+        zorder=3,
+        label=rf'Sossi 2020 upper-mantle anchor: $\Delta\mathrm{{IW}} = {DIW_ANCHOR:+.2f}$',
+    )
 
     # Reproduced CALLIOPE result.
-    ax.axvline(data['dIW_recovered'], color=COLOR_CAL, linewidth=2.4,
-               zorder=2,
-               label=fr'reproduced CALLIOPE: $\Delta\mathrm{{IW}} = {data["dIW_recovered"]:+.2f}$')
+    ax.axvline(
+        data['dIW_recovered'],
+        color=COLOR_CAL,
+        linewidth=2.4,
+        zorder=2,
+        label=rf'reproduced CALLIOPE: $\Delta\mathrm{{IW}} = {data["dIW_recovered"]:+.2f}$',
+    )
 
     # 1D layout: suppress y axis.
     ax.set_yticks([])
@@ -131,21 +153,27 @@ def make_figure(data: dict | None = None) -> dict:
     # Provenance summary box. Anchored to the right where the data
     # band ends but the data lines do not extend past dIW = +5.
     summary = (
-        f"derived $O_\\mathrm{{tot}}$ = {sci_fmt(data['O_kg_total'], unit='kg')}\n"
-        f"recovered − anchor = {sci_fmt(data['dIW_recovered'] - DIW_ANCHOR, unit='dex')}\n"
-        f"$P_\\mathrm{{surf}}$ = {sci_fmt(data['P_surf_bar'], unit='bar')}"
+        f'derived $O_\\mathrm{{tot}}$ = {sci_fmt(data["O_kg_total"], unit="kg")}\n'
+        f'recovered − anchor = {sci_fmt(data["dIW_recovered"] - DIW_ANCHOR, unit="dex")}\n'
+        f'$P_\\mathrm{{surf}}$ = {sci_fmt(data["P_surf_bar"], unit="bar")}'
     )
     ax.text(
-        0.985, 0.04, summary,
+        0.985,
+        0.04,
+        summary,
         transform=ax.transAxes,
-        fontsize=9.0, va='bottom', ha='right',
-        bbox=dict(boxstyle='round,pad=0.4', facecolor='white',
-                  edgecolor='#cccccc'),
+        fontsize=9.0,
+        va='bottom',
+        ha='right',
+        bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='#cccccc'),
     )
 
     ax.legend(
-        loc='upper center', bbox_to_anchor=(0.5, -0.22), ncol=1,
-        frameon=False, fontsize=9.0,
+        loc='upper center',
+        bbox_to_anchor=(0.5, -0.22),
+        ncol=1,
+        frameon=False,
+        fontsize=9.0,
     )
 
     paths = save(fig, 'earth_fiducial')
@@ -154,8 +182,9 @@ def make_figure(data: dict | None = None) -> dict:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)s %(levelname)s %(message)s')
+    logging.basicConfig(
+        level=logging.INFO, format='%(asctime)s %(name)s %(levelname)s %(message)s'
+    )
     out = make_figure()
     for ext, path in out.items():
         print(f'  {ext}: {path}')
