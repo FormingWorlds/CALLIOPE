@@ -36,19 +36,20 @@ At T = 2500 K, p_S2 = 1 bar, x_FeO = 10 wt%, fO2 from the Fischer 2011 IW
 buffer:
 
 ```
-log10(fO2) = -7.2832 (Fischer at 2500 K)
-fO2 = 10^-7.2832 = 5.21e-8 bar
-ln(X) = 13.8426 - 10.5904 + 1.24 + 0.5 * ln(1 / 5.21e-8)
-      = 13.8426 - 10.5904 + 1.24 + 0.5 * 16.770
-      = 12.876
-ppmw = exp(9.479) ~ 13086
+log10(fO2) = -4.3317 (Fischer at T=2500 K, dIW=0)
+fO2 = 10^-4.3317 = 4.659e-5 bar
+ln(p_S2/fO2) = ln(1 / 4.659e-5) = 9.9742
+ln(X) = 13.8426 - 10.5904 + 1.24 + 0.5 * 9.9742
+      = 3.2522 + 1.24 + 4.9871
+      = 9.4793
+ppmw = exp(9.4793) ~ 13086
 ```
 
-(The numbers differ slightly from a naive evaluation because the implementation
-returns `exp(out)` after the closed-form computation.) Hidden coupling: the pin
-depends on the Fischer 2011 IW buffer; any change to the buffer coefficients
-in `oxygen_fugacity.py` requires regenerating this number. The test docstring
-flags this coupling explicitly.
+Hidden coupling: the pin depends on the Fischer 2011 IW buffer; any change
+to the buffer coefficients in `oxygen_fugacity.py` requires regenerating this
+number. The test docstring flags this coupling explicitly. The reference
+value in the test (13085.87) matches the closed-form ppmw above to the
+4-significant-figure precision of the Fischer coefficients.
 
 ## Anchor types
 
