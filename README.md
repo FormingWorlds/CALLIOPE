@@ -74,11 +74,11 @@ See the [first-run tutorial](https://proteus-framework.org/CALLIOPE/Tutorials/fi
 
 If you use CALLIOPE in published work, please cite the four methods papers below. The full reference list (chemistry constants, solubility laws, oxygen-fugacity buffers, applications) is on the [Publications page](https://proteus-framework.org/CALLIOPE/Reference/publications.html).
 
-- Bower, D.J., Kitzmann, D., Wolf, A.S., Sanan, P., Dorn, C., & Oza, A.V. (2019). *Linking the evolution of terrestrial interiors and an early outgassed atmosphere to astrophysical observations.* **A&A** 631, A103. [\[SciX\]](https://scixplorer.org/abs/2019A%26A...631A.103B/abstract) [\[DOI\]](https://doi.org/10.1051/0004-6361/201935710)
-- Bower, D.J., Hakim, K., Sossi, P.A., & Sanan, P. (2022). *Retention of water in terrestrial magma oceans and carbon-rich early atmospheres.* **PSJ** 3, 93. [\[SciX\]](https://scixplorer.org/abs/2022PSJ.....3...93B/abstract) [\[DOI\]](https://doi.org/10.3847/PSJ/ac5fb1)
+- Bower, D.J., Kitzmann, D., Wolf, A.S., Sanan, P., Dorn, C., & Oza, A.V. (2019). *Linking the evolution of terrestrial interiors and an early outgassed atmosphere to astrophysical observations.* **A&A** 631, A103. [\[SciX\]](https://scixplorer.org/abs/2019A%26A...631A.103B/abstract) [\[DOI\]](https://doi.org/10.1051/0004-6361/201935710) [\[arXiv\]](https://arxiv.org/abs/1904.08300)
+- Bower, D.J., Hakim, K., Sossi, P.A., & Sanan, P. (2022). *Retention of water in terrestrial magma oceans and carbon-rich early atmospheres.* **PSJ** 3, 93. [\[SciX\]](https://scixplorer.org/abs/2022PSJ.....3...93B/abstract) [\[DOI\]](https://doi.org/10.3847/PSJ/ac5fb1) [\[arXiv\]](https://arxiv.org/abs/2110.08029)
 - Nicholls, H., Lichtenberg, T., Bower, D.J., & Pierrehumbert, R. (2024). *Magma ocean evolution at arbitrary redox state.* **JGR Planets** 129, e2024JE008576. [\[SciX\]](https://scixplorer.org/abs/2024JGRE..12908576N/abstract) [\[DOI\]](https://doi.org/10.1029/2024JE008576) [\[arXiv\]](https://arxiv.org/abs/2411.19137)
 - Nicholls, H., Lichtenberg, T., Chatterjee, R.D., Guimond, C.M., Postolec, E., & Pierrehumbert, R.T. (2026). *Volatile-rich evolution of molten super-Earth L 98-59 d.* **Nature Astronomy**. [\[SciX\]](https://scixplorer.org/abs/2026NatAs.tmp...61N/abstract) [\[DOI\]](https://doi.org/10.1038/s41550-026-02815-8)
 
 ## License
 
-[Apache License 2.0](LICENSE.txt). CALLIOPE is part of the [PROTEUS framework](https://proteus-framework.org/PROTEUS).
+[Apache License 2.0](LICENSE.txt). CALLIOPE is part of the [PROTEUS framework](https://proteus-framework.org/).
