@@ -25,13 +25,16 @@ permissions:
 
 jobs:
   test:
-    if: github.event.pull_request.draft == false
     name: CALLIOPE-check
     strategy:
       fail-fast: false
+      # Draft PRs run only ubuntu-latest / Python 3.12 for fast signal on the
+      # gating steps (validator, linter, ratchet, one test pass). Non-draft
+      # events (ready_for_review, push to main, workflow_dispatch) get the
+      # full 2x2 matrix.
       matrix:
-        os: ['ubuntu-latest', 'macos-latest']
-        python-version: ['3.12', '3.13']
+        os: ${{ github.event.pull_request.draft == true && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest", "macos-latest"]') }}
+        python-version: ${{ github.event.pull_request.draft == true && fromJSON('["3.12"]') || fromJSON('["3.12", "3.13"]') }}
 
     runs-on: ${{ matrix.os }}
     steps:
