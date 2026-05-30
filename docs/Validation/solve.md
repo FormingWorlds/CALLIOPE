@@ -26,14 +26,16 @@ the Earth-fiducial input (`T_magma = 1800 K`, `Phi = 1.0`, Earth-like
 H/C/N/S budget, all volatile species included, `fO2 = IW + 2`) and asserts
 the recovered `fO2_shift_derived` matches the input within 0.05 dex.
 
-Anchor type: cross-implementation cross-check. The two entry points are
-distinct implementations (the legacy mode uses `fO2_shift_IW` as a
-control variable; the authoritative-O mode uses bisection on `O_kg_total`),
-and their
-agreement is the property the test pins. A regression that broke either
-the forward O mass-balance or the inverse bisection would lose the
-round-trip within 0.1 dex; the 0.05 dex envelope catches a coefficient-
-only bug.
+Anchor type: forward-inverse closure of one engine. Both entry points
+share the same equilibrium chemistry. The legacy mode takes
+`fO2_shift_IW` as a control variable and returns the implied `O_kg_total`;
+the authoritative-O mode treats `fO2_shift_IW` as a fifth unknown and
+solves the 5x5 mass-balance system (four partial pressures plus fO2) for
+the `fO2_shift_derived` that reproduces the supplied `O_kg_total`. Their
+round-trip agreement is the property the test pins. A regression that
+broke either the forward O mass-balance or the inverse solve would lose
+the round-trip within 0.1 dex; the 0.05 dex envelope catches a
+coefficient-only bug.
 
 ## Cross-cutting topical test files
 

@@ -32,7 +32,7 @@ log = logging.getLogger('cross_backend.verification')
 
 
 def _earth_HCNS() -> dict:
-    """Earth H/C/N/S budget — same as round-trip regression test."""
+    """Earth H/C/N/S budget, same as the round-trip regression test."""
     inv = EARTH_BSE_KRIJT23
     return {'H': inv.H, 'C': inv.C, 'N': inv.N, 'S': inv.S}
 

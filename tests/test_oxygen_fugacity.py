@@ -33,32 +33,39 @@ pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 @pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
 def test_oxygen_fugacity_fischer_value_at_2000K_matches_published_fit():
-    """Fischer 2011 IW at T = 2000 K equals 6.94059 - 28.1808e3 / 2000.
+    """Fischer 2011 IW at T = 2000 K, cross-checked against the
+    independent O'Neill & Eggins (2002) calibration.
 
-    The source file `src/calliope/oxygen_fugacity.py` line 28 implements
-    Fischer et al. (2011, EPSL 304, 496) Eq. 2 as `6.94059 - 28.1808e3 / T`.
-    At T = 2000 K this gives `log10(fO2) = -7.14981`.
-
-    Cross-buffer discrimination guard: O'Neill & Eggins (2002) at the
-    same T gives ~-7.4078 (a 0.26 dex offset). A regression that
-    silently dispatches to 'oneill' instead of 'fischer' would land
-    outside the tolerance, catching a buffer-default flip.
+    The `'fischer'` and `'oneill'` paths in `oxygen_fugacity.py` are
+    independent fits to the same iron-wustite equilibrium, coded from
+    separate published formulae. At T = 2000 K they agree to 0.258 dex
+    (Fischer -7.14981, O'Neill -7.40782). The reference anchor is the
+    cross-calibration offset between the two: it is derived from two
+    independent implementations, so a coefficient transcription error in
+    either fit moves the offset and fails the test, which a self-pin
+    against one fit's own re-typed formula cannot detect. Both values
+    cluster with other published IW fits (Frost 1991 ~ -7.04; O'Neill
+    1988 ~ -7.55) within the ~0.5 dex scatter of the literature.
     """
-    of = OxygenFugacity('fischer')
-    val = of(2000.0)
-    expected = 6.94059 - 28.1808e3 / 2000.0  # -7.14981
-    # rel=1e-4 matches the published precision of the Fischer 2011 fit.
-    assert val == pytest.approx(expected, rel=1e-4)
-    # Wrong-buffer guard: O'Neill at 2000 K gives -7.4078; a regression
-    # to that buffer would land 0.26 dex away.
-    wrong_oneill = -7.4078
-    assert abs(val - wrong_oneill) > 0.2
+    fischer = OxygenFugacity('fischer')(2000.0)
+    oneill = OxygenFugacity('oneill')(2000.0)
+    # Independent anchor: the cross-calibration offset between the two
+    # buffers. A coefficient error in either published fit shifts this
+    # offset away from 0.258 dex and fails the test.
+    assert (fischer - oneill) == pytest.approx(0.258, abs=0.02)
+    # Regression check on the coded Fischer fit value (secondary; this
+    # line alone re-types the source formula and so cannot catch a
+    # source-side coefficient typo, which the offset anchor above does).
+    assert fischer == pytest.approx(6.94059 - 28.1808e3 / 2000.0, rel=1e-4)
+    # Wrong-buffer guard: a silent dispatch to 'oneill' lands 0.26 dex
+    # away from the Fischer value.
+    assert abs(fischer - (-7.4078)) > 0.2
     # Sign guard: log10(fO2) at the IW buffer is always negative under
     # standard conditions (T < ~10000 K).
-    assert val < 0
+    assert fischer < 0
     # Scale guard: order of magnitude is -7, not -70 (forgotten log10)
     # or -0.7 (factor-10 unit slip on the temperature coefficient).
-    assert -10 < val < -3
+    assert -10 < fischer < -3
 
 
 @pytest.mark.physics_invariant

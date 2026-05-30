@@ -713,8 +713,9 @@ def equilibrium_atmosphere(
             outdict[s + '_bar'] = p_d[s]
             outdict['P_surf'] += outdict[s + '_bar']
 
+    P_surf = outdict['P_surf']
     for s in volatile_species:
-        outdict[s + '_vmr'] = outdict[s + '_bar'] / outdict['P_surf']
+        outdict[s + '_vmr'] = (outdict[s + '_bar'] / P_surf) if P_surf > 0.0 else 0.0
 
         if print_result:
             log.info(
@@ -1024,15 +1025,16 @@ def equilibrium_atmosphere_authoritative_O(
     bounds = opt.Bounds(lb=lb, ub=ub)
 
     # Per-element tolerance: each residual must satisfy
-    # ``|res_i| <= max(target_i * rtol, atol_per_elem)``. The legacy
-    # scalar tolerance (max-of-targets * rtol + atol) is dominated by the
-    # largest target and accepts unphysical errors on smaller targets
-    # (e.g. O ~1e22 kg vs N ~1e17 kg). The atol budget is split across
-    # the 5 elements so the per-element floor stays in the kg range, and
-    # the TRUNC_MASS floor handles benign sub-10-kg noise.
+    # ``|res_i| <= max(target_i * rtol, TRUNC_MASS)``. The gate is
+    # relative per element, so mass closure is judged against each
+    # element's own budget rather than the largest. The absolute floor is
+    # the small TRUNC_MASS noise level (10 kg) so a near-zero target does
+    # not demand an exactly-zero residual. The floor is deliberately not
+    # tied to ``atol`` (the planetary negligible-mass threshold, ~1e16
+    # kg), which would dominate the relative gate on small-budget
+    # elements such as N and let multi-percent closure errors pass there.
     target_vec = np.array([target_d[e] for e in required_elements])
-    per_elem_atol = max(atol / len(required_elements), TRUNC_MASS)
-    elem_tolerance = np.maximum(target_vec * rtol, per_elem_atol)
+    elem_tolerance = np.maximum(target_vec * rtol, TRUNC_MASS)
     log.debug('Per-element tolerance: %s kg', elem_tolerance.tolist())
 
     # `sol` initialised to a sentinel so the post-loop RuntimeError path
@@ -1115,6 +1117,26 @@ def equilibrium_atmosphere_authoritative_O(
                     )
                     success = False
 
+            # Reject a converged-but-non-physical root. The production
+            # path runs only the unbounded fsolve (opt_solver=False), so a
+            # root can satisfy mass balance yet sit outside the physical
+            # box: a derived fO2_shift beyond [-12, +12] (the target O is
+            # unreachable at this H/C/N/S/T_magma) or a negative partial
+            # pressure. trust-constr enforces `bounds`; fsolve does not, so
+            # the box is enforced here before the solution is accepted.
+            if success:
+                if not (lb[4] <= sol[4] <= ub[4]):
+                    log.debug(
+                        'Solution rejected: derived fO2_shift=%.3f outside [%.1f, %.1f]',
+                        sol[4],
+                        lb[4],
+                        ub[4],
+                    )
+                    success = False
+                elif np.any(np.asarray(sol[:4], dtype=float) < -1.0e-6):
+                    log.debug('Solution rejected: negative partial pressure %s bar', sol[:4])
+                    success = False
+
             if success:
                 break
 
@@ -1168,8 +1190,9 @@ def equilibrium_atmosphere_authoritative_O(
             outdict[s + '_bar'] = p_d[s]
             outdict['P_surf'] += outdict[s + '_bar']
 
+    P_surf = outdict['P_surf']
     for s in volatile_species:
-        outdict[s + '_vmr'] = outdict[s + '_bar'] / outdict['P_surf']
+        outdict[s + '_vmr'] = (outdict[s + '_bar'] / P_surf) if P_surf > 0.0 else 0.0
 
         if print_result:
             log.info(

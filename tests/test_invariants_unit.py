@@ -188,15 +188,30 @@ class TestN2SolubilityMonotonicity:
         )
 
     def test_libourel_alternative_is_redox_independent(self):
-        """Sad-path / contrast: the Libourel linear Henry's law has no
-        fO2 term, so it does NOT show the Dasgupta monotonicity. This
-        documents that ``libourel`` and ``dasgupta`` are distinct laws
-        with distinct calibration footprints."""
+        """Contrast law: the Libourel linear Henry's law takes only the
+        N2 partial pressure and is therefore redox-independent by
+        construction, unlike the Dasgupta law whose reduced-N branch
+        carries an exp(-1.6 dIW) factor (see
+        test_dasgupta_monotonic_with_oxidation). Pins the structural
+        difference, the linearity, and the positivity of the Libourel
+        law."""
+        import inspect
+
         N2 = SolubilityN2('libourel')
-        # Libourel takes only p_N2; no fO2 dependence
-        assert N2.libourel(1.0) == N2.libourel(1.0)  # trivially deterministic
-        # Two different p_N2 give different values (linear)
+        # Structural redox-independence: libourel's signature has no fO2
+        # argument, while dasgupta carries an fO2_shift parameter. A
+        # regression that added redox dependence to libourel (or dropped
+        # it from dasgupta) would change these signatures and fail here.
+        libourel_params = [p.lower() for p in inspect.signature(N2.libourel).parameters]
+        dasgupta_params = [p.lower() for p in inspect.signature(N2.dasgupta).parameters]
+        assert not any('fo2' in p or 'iw' in p for p in libourel_params)
+        assert any('fo2' in p or 'iw' in p for p in dasgupta_params)
+        # Linearity: Libourel is a linear Henry's law in p_N2, so doubling
+        # the partial pressure doubles the dissolved abundance.
         assert N2.libourel(2.0) == pytest.approx(2.0 * N2.libourel(1.0))
+        # Positivity: a positive partial pressure dissolves a positive
+        # (non-zero) abundance.
+        assert N2.libourel(1.0) > 0
 
 
 # ===========================================================================

@@ -5,7 +5,7 @@ behaviour of `calliope.oxygen_fugacity` against published sources.
 
 | Test id | Reference | Source page | Scope |
 |---|---|---|---|
-| `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_matches_published_fit` | Fischer et al. (2011)[^cite-fischer2011], EPSL 304, 496, Eq. 2 | [doi:10.1016/j.epsl.2011.02.025](https://doi.org/10.1016/j.epsl.2011.02.025) | Pins Fischer IW value at T = 2000 K against the closed-form fit `6.94059 - 28.1808e3 / T`; includes a wrong-buffer discrimination guard against O'Neill & Eggins (2002)[^cite-oneilleggins2002] at the same T. |
+| `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_matches_published_fit` | Fischer et al. (2011)[^cite-fischer2011], EPSL 304, 496, Eq. 2; cross-checked against O'Neill & Eggins (2002)[^cite-oneilleggins2002] | [doi:10.1016/j.epsl.2011.02.025](https://doi.org/10.1016/j.epsl.2011.02.025) | Pins the Fischer-vs-O'Neill cross-calibration offset (0.258 dex at T = 2000 K) as the independent anchor, with a secondary regression check on the coded Fischer fit `6.94059 - 28.1808e3 / T` and a wrong-buffer discrimination guard against O'Neill & Eggins (2002) at the same T. |
 
 ## Re-derivation note
 
@@ -33,19 +33,22 @@ The 0.26 dex offset between the two buffers at 2000 K is the discrimination
 guard's anchor: a regression that silently dispatches to the wrong buffer
 would land 0.26 dex away from the expected value.
 
-## Default buffer history
+## Default buffer
 
-The CALLIOPE default flipped from `'oneill'` to `'fischer'` in the
-2026-05 sweep that introduced the `from_O_budget` authoritative-O entry
-point. Tests that pin an IW value MUST carry a discrimination guard so a
-future default flip (or accidental config-side override) does not
-silently change the test's reference point.
+The CALLIOPE default IW buffer is Fischer (2011). Tests that pin an IW
+value MUST carry a discrimination guard so a change of default (or an
+accidental config-side override) does not silently move the test's
+reference point.
 
 ## Anchor type
 
-Published benchmark + cross-buffer discrimination. The Fischer 2011 cite
-is the published-benchmark anchor; the O'Neill 2002 value at the same T
-is the discrimination guard against a buffer-default flip.
+Cross-implementation cross-check plus published benchmark. The
+independent anchor is the cross-calibration offset between the Fischer
+(2011) and O'Neill & Eggins (2002) IW fits, which are coded from separate
+published formulae; the offset is independent of either single fit, so a
+coefficient error in either moves it and fails the test. The coded
+Fischer value is pinned as a secondary regression check, and the O'Neill
+value also serves as the wrong-buffer discrimination guard.
 
 ## Cross-references
 

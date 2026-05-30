@@ -24,7 +24,7 @@ from calliope.solve import (
 
 logging.getLogger('calliope').setLevel(logging.WARNING)
 
-pytestmark = pytest.mark.smoke
+pytestmark = [pytest.mark.smoke, pytest.mark.timeout(60)]
 
 
 # ---------------------------------------------------------------------------
@@ -92,6 +92,10 @@ class TestPhysicalOutputContract:
             nguess=500,
             nsolve=1000,
             print_result=False,
+            # PROTEUS production dispatch (fsolve only); keeps the
+            # smoke-tier solve fast. Fallback path covered in
+            # TestReproducibility.
+            opt_solver=False,
         )
 
         # Required output keys
@@ -140,6 +144,7 @@ class TestPhysicalOutputContract:
             nguess=500,
             nsolve=1000,
             print_result=False,
+            opt_solver=False,
         )
 
         seen_nonzero = False
@@ -192,6 +197,7 @@ class TestPhysicalOutputContract:
             nguess=200,
             nsolve=500,
             print_result=False,
+            opt_solver=False,
         )
         assert out_valid['P_surf'] > 0.0
         assert -12.0 < out_valid['fO2_shift_derived'] < 12.0
@@ -229,7 +235,10 @@ class TestRoundTrip:
 
         # Run the new mode with the same ddict (whose fO2_shift_IW is
         # ignored under authoritative-O mode). fO2_hint = dIW so the
-        # solver starts at the right basin.
+        # solver starts at the right basin. opt_solver=False matches the
+        # PROTEUS production dispatch (fsolve only) and keeps the solve
+        # within the smoke-tier wall-time budget; the trust-constr
+        # fallback path is exercised by the reproducibility tests.
         out = equilibrium_atmosphere_authoritative_O(
             target,
             ddict_legacy,
@@ -238,6 +247,7 @@ class TestRoundTrip:
             nguess=500,
             nsolve=1000,
             print_result=False,
+            opt_solver=False,
         )
 
         derived = out['fO2_shift_derived']
@@ -263,6 +273,7 @@ class TestRoundTrip:
             nguess=500,
             nsolve=1000,
             print_result=False,
+            opt_solver=False,
         )
         derived_wrong_hint = out_wrong_hint['fO2_shift_derived']
         assert abs(derived_wrong_hint - dIW) < 0.1, (
@@ -291,6 +302,7 @@ class TestRoundTrip:
             nguess=500,
             nsolve=1000,
             print_result=False,
+            opt_solver=False,
         )
 
         # Primary pressures within 0.5% (the legacy mode and the new
@@ -383,17 +395,17 @@ class TestReproducibility:
                 f'{p_key} = {out1[p_key]:.4e} outside the [0, 1e6] bar range'
             )
 
-    def test_different_seeds_may_differ(self):
-        """Different seeds should produce different intermediate paths
-        even though the final root may be the same (the solver has a
-        unique attractor for canonical inputs). Verify the solver does
-        consume the seed by checking that the elapsed-time signature
-        of two different seeds is not identical."""
+    def test_different_seeds_converge_to_same_root(self):
+        """For a well-posed target the 5x5 system has a unique attractor,
+        so two different random_seed values must converge to the same
+        derived fO2 and the same partial pressures even though their
+        Monte-Carlo restart draws differ. Same-seed bit-identity is
+        covered by test_same_seed_bit_identical; this pins
+        seed-independence of the converged result for a well-posed
+        problem."""
         ddict = _ddict()
         target = dict(_earth_target_HCNS(), O=2.0e21)
 
-        # Both should converge to the same root since the problem is
-        # well-posed, so this test only checks the call completes.
         out1 = equilibrium_atmosphere_authoritative_O(
             target,
             ddict,
@@ -412,9 +424,14 @@ class TestReproducibility:
             nsolve=500,
             print_result=False,
         )
-        # Both converged to a valid fO2 within solver bounds
+        # Seed-independence: the converged root is the same regardless of
+        # the restart-draw seed (a near-1 dex difference would mean the
+        # solver landed in a different basin, i.e. non-unique attractor).
+        assert out1['fO2_shift_derived'] == pytest.approx(out2['fO2_shift_derived'], abs=1e-3)
+        for p_key in ('H2O_bar', 'CO2_bar', 'N2_bar', 'S2_bar'):
+            assert out1[p_key] == pytest.approx(out2[p_key], rel=1e-3)
+        # Both land inside the physical fO2 box.
         assert -12.0 <= out1['fO2_shift_derived'] <= 12.0
-        assert -12.0 <= out2['fO2_shift_derived'] <= 12.0
 
 
 # ---------------------------------------------------------------------------

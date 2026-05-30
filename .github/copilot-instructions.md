@@ -143,7 +143,7 @@ pre-commit install -f
   - `chemistry.py` - Equilibrium chemistry, modified Keq formulation (physics)
   - `oxygen_fugacity.py` - IW buffer formulas: Fischer 2011 (default), O'Neill & Eggins 2002 (physics)
   - `solubility.py` - Henry's-law solubility models (Dasgupta 2013, Gaillard 2003, Iacono-Marziano, etc.) (physics)
-  - `solve.py` - Root-finder, equilibrium-atmosphere solver, Path C authoritative-O entry (physics)
+  - `solve.py` - Root-finder, equilibrium-atmosphere solver, authoritative-O entry (physics)
   - `structure.py` - Interior structure: mantle-mass closure from Zeng+2016 core fraction (physics)
 
 - `tests/` - Test suite. Each physics source has a 1:1 test file at `tests/test_<file>.py`. Cross-cutting tests (`test_invariants_hypothesis.py`, `test_init.py`) are the exception.

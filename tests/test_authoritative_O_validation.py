@@ -20,7 +20,7 @@ from calliope.solve import equilibrium_atmosphere_authoritative_O
 
 logging.getLogger('calliope').setLevel(logging.WARNING)
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 
 
 # ---------------------------------------------------------------------------

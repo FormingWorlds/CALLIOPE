@@ -34,7 +34,7 @@ from calliope.solve import equilibrium_atmosphere
 
 logging.getLogger('calliope').setLevel(logging.WARNING)
 
-pytestmark = pytest.mark.slow
+pytestmark = [pytest.mark.slow, pytest.mark.timeout(3600)]
 
 
 def _ddict(T: float = 1800.0, dIW: float = 0.0) -> dict:

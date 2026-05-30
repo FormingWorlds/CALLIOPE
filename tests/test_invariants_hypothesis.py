@@ -31,7 +31,14 @@ from calliope.chemistry import ModifiedKeq  # noqa: E402
 from calliope.oxygen_fugacity import OxygenFugacity  # noqa: E402
 from calliope.solubility import SolubilityN2, SolubilityS2  # noqa: E402
 
-pytestmark = pytest.mark.slow
+# Fixed-seed (derandomized) profile so the property-based exploration
+# replays identically across hypothesis versions. A failure surfaced
+# here must be reproducible from the same input sequence rather than
+# depending on the per-run seed strategy.
+settings.register_profile('calliope_deterministic', derandomize=True)
+settings.load_profile('calliope_deterministic')
+
+pytestmark = [pytest.mark.slow, pytest.mark.timeout(3600)]
 
 
 # Physical bounds for the fuzzing strategies. These cover the

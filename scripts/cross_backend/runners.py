@@ -159,7 +159,7 @@ def run_calliope(
                 nguess=nguess,
                 print_result=print_result,
             )
-    except Exception as exc:  # noqa: BLE001 — sweep must survive isolated failures
+    except Exception as exc:  # noqa: BLE001  (sweep must survive isolated failures)
         return BackendResult(
             backend='calliope',
             converged=False,
