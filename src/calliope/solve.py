@@ -590,6 +590,7 @@ def equilibrium_atmosphere(
     nguess=7500,
     print_result=True,
     opt_solver=True,
+    p_max=P_GUESS_MAX_BAR,
 ):
     """Solve for surface partial pressures assuming melt-vapour equilibrium.
 
@@ -621,6 +622,10 @@ def equilibrium_atmosphere(
         If True, log final outgassed partial pressures at INFO level.
     opt_solver : bool, default True
         If True, alternate between fsolve and trust-constr on each restart.
+    p_max : float, default ``P_GUESS_MAX_BAR``
+        Upper bound [bar] of the Monte-Carlo cold-start pressure draw. Raise it
+        for high-pressure (e.g. sub-Neptune) cases whose surface pressure can
+        exceed the default; the solver box (``P_CEILING_BAR``) is unchanged.
 
     Returns
     -------
@@ -641,7 +646,7 @@ def equilibrium_atmosphere(
     ub = [P_CEILING_BAR] * 4
 
     if p_guess is None:
-        x0 = get_initial_pressures(target_d)
+        x0 = get_initial_pressures(target_d, p_max=p_max)
     else:
         # Validate up front so a missing key surfaces as a clear ValueError
         # rather than a bare KeyError from the tuple construction below.
@@ -717,7 +722,7 @@ def equilibrium_atmosphere(
             if success:
                 break
 
-            x0 = get_initial_pressures(target_d)
+            x0 = get_initial_pressures(target_d, p_max=p_max)
 
             # Alternate fsolve <-> trust-constr on each restart so a
             # basin one solver cannot escape gets a chance from the
@@ -834,6 +839,7 @@ def equilibrium_atmosphere_authoritative_O(
     print_result=True,
     opt_solver=True,
     random_seed=None,
+    p_max=P_GUESS_MAX_BAR,
 ):
     """Solve for partial pressures AND fO2 given total elemental masses including O.
 
@@ -898,6 +904,10 @@ def equilibrium_atmosphere_authoritative_O(
         ``np.random`` state (non-deterministic). An integer seed makes
         solver outcomes reproducible across calls, which is required
         for regression testing and for diffing two runs.
+    p_max : float, default ``P_GUESS_MAX_BAR``
+        Upper bound [bar] of the Monte-Carlo cold-start pressure draw. Raise it
+        for high-pressure (e.g. sub-Neptune) cases whose surface pressure can
+        exceed the default; the solver box (``P_CEILING_BAR``) is unchanged.
 
     Returns
     -------
@@ -1049,7 +1059,7 @@ def equilibrium_atmosphere_authoritative_O(
     p_ceiling = ub[0]
 
     if p_guess is None:
-        x0 = get_initial_pressures_with_fO2(target_d, fO2_hint, rng=rng)
+        x0 = get_initial_pressures_with_fO2(target_d, fO2_hint, rng=rng, p_max=p_max)
     else:
         if not isinstance(p_guess, dict):
             raise TypeError(f'p_guess must be a dict or None, got {type(p_guess).__name__}.')
@@ -1207,7 +1217,9 @@ def equilibrium_atmosphere_authoritative_O(
             # Restart. Redraw pressures from log-uniform; redraw fO2
             # from Uniform(-6, +8) to give it a chance from a different
             # basin if the hint led to a non-converging region.
-            x0 = get_initial_pressures_with_fO2(target_d, fO2_hint, restart=True, rng=rng)
+            x0 = get_initial_pressures_with_fO2(
+                target_d, fO2_hint, restart=True, rng=rng, p_max=p_max
+            )
 
             if opt_solver:
                 solver = 1 - solver

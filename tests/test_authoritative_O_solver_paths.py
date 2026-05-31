@@ -169,6 +169,75 @@ def test_get_initial_pressures_with_fO2_respects_custom_p_max():
     assert max(deflt) <= P_GUESS_MAX_BAR * (1 + 1e-9), 'default draw exceeded P_GUESS_MAX_BAR'
 
 
+def test_equilibrium_atmosphere_forwards_p_max_to_cold_start(monkeypatch):
+    """The forward (fixed-fO2) public entry forwards its ``p_max`` to the
+    Monte-Carlo cold-start draw, so a caller-supplied widened range (e.g. from
+    PROTEUS for a sub-Neptune) reaches the guess. A spy captures the value the
+    entry passes down and short-circuits before the solve; the default call
+    forwards the module default, discriminating a working forward from a
+    hard-coded one."""
+
+    class _Stop(Exception):
+        pass
+
+    captured = {}
+
+    def spy(target_d, p_max=calsolve.P_GUESS_MAX_BAR):
+        captured['p_max'] = p_max
+        raise _Stop
+
+    monkeypatch.setattr(calsolve, 'get_initial_pressures', spy)
+
+    with pytest.raises(_Stop):
+        calsolve.equilibrium_atmosphere(
+            _target(), _ddict(), p_guess=None, nguess=1, print_result=False, p_max=9.9e7
+        )
+    assert captured['p_max'] == pytest.approx(9.9e7)
+    assert captured['p_max'] != calsolve.P_GUESS_MAX_BAR  # discrimination: not the default
+
+    captured.clear()
+    with pytest.raises(_Stop):
+        calsolve.equilibrium_atmosphere(
+            _target(), _ddict(), p_guess=None, nguess=1, print_result=False
+        )
+    assert captured['p_max'] == pytest.approx(calsolve.P_GUESS_MAX_BAR)  # default forwarded
+
+
+def test_authoritative_O_forwards_p_max_to_cold_start(monkeypatch):
+    """The authoritative-O public entry (the path PROTEUS uses for
+    ``fO2_source='from_O_budget'``) forwards its ``p_max`` to the cold-start
+    helper. A delegating spy records the forwarded value while the stubbed
+    solver converges, so the call completes; the default call forwards the
+    module default."""
+    captured = {}
+    real = calsolve.get_initial_pressures_with_fO2
+
+    def spy(*args, **kwargs):
+        captured['p_max'] = kwargs.get('p_max')
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(calsolve, 'get_initial_pressures_with_fO2', spy)
+    _stub_solver(monkeypatch, [10.0, 5.0, 1.0, 0.5, 1.5], residual=np.zeros(5))
+
+    calsolve.equilibrium_atmosphere_authoritative_O(
+        _target(),
+        _ddict(),
+        fO2_hint=4.0,
+        opt_solver=False,
+        nguess=1,
+        print_result=False,
+        p_max=9.9e7,
+    )
+    assert captured['p_max'] == pytest.approx(9.9e7)
+    assert captured['p_max'] != calsolve.P_GUESS_MAX_BAR  # discrimination: not the default
+
+    captured.clear()
+    calsolve.equilibrium_atmosphere_authoritative_O(
+        _target(), _ddict(), fO2_hint=4.0, opt_solver=False, nguess=1, print_result=False
+    )
+    assert captured['p_max'] == pytest.approx(calsolve.P_GUESS_MAX_BAR)  # default forwarded
+
+
 # ---------------------------------------------------------------------------
 # Accept path
 # ---------------------------------------------------------------------------
