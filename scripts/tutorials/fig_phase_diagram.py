@@ -41,7 +41,7 @@ EARTH_HCNS = {'H': 5.6e20, 'C': 3.1e21, 'N': 3.7e19, 'S': 1.0e21}
 T_GRID = np.linspace(1500.0, 3000.0, 15)
 DIW_GRID = np.linspace(-4.0, 5.0, 12)
 
-REPORTED_SPECIES = ['H2O', 'CO2', 'H2', 'CO', 'CH4', 'N2', 'NH3', 'S2', 'SO2', 'H2S']
+REPORTED_SPECIES = ['H2O', 'CO2', 'O2', 'H2', 'CO', 'CH4', 'N2', 'NH3', 'S2', 'SO2', 'H2S']
 
 
 def _base_ddict(T_magma: float, diw: float) -> dict:

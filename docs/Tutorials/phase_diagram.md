@@ -28,7 +28,7 @@ earth_hcns = {'H': 5.6e20, 'C': 3.1e21, 'N': 3.7e19, 'S': 1.0e21}
 T_grid   = np.linspace(1500.0, 3000.0, 15)
 diw_grid = np.linspace(  -4.0,    5.0, 12)
 
-species_to_report = ['H2O', 'CO2', 'H2', 'CO', 'CH4',
+species_to_report = ['H2O', 'CO2', 'O2', 'H2', 'CO', 'CH4',
                      'N2',  'NH3', 'S2', 'SO2', 'H2S']
 
 pressures = np.full((T_grid.size, diw_grid.size, len(species_to_report)), np.nan)
@@ -138,11 +138,13 @@ fig.savefig('phase_diagram.pdf')
 
 ![Speciation phase diagram](../assets/figures/tutorials/phase_diagram.png)
 
-*Top-4 volatile species per cell in $(T_\mathrm{magma}, \Delta\mathrm{IW})$ at the Earth-BSE Krijt et al. 2023[^cite-krijt2023] H/C/N/S budget and $\Phi = 1$. Each grid cell is subdivided 2 by 2 in reading order (top-left = rank 1, top-right = rank 2, bottom-left = rank 3, bottom-right = rank 4) so the four most abundant species at that simulation point are visible at a glance. The redox boundary in the dominant species (top-left quadrant) separates a CO-dominated reducing regime (left) from a CO$_2$-dominated oxidising regime (right); the rank 2 to rank 4 quadrants reveal how H$_2$, H$_2$O, N$_2$, and SO$_2$ swap positions across the same boundary. A small CH$_4$ patch appears near $T \sim 1900$ K at the most reducing edge of the grid where methane synthesis becomes briefly thermodynamically competitive.*
+*Top-4 volatile species per cell in $(T_\mathrm{magma}, \Delta\mathrm{IW})$ at the Earth-BSE Krijt et al. 2023[^cite-krijt2023] H/C/N/S budget and $\Phi = 1$. Each grid cell is subdivided 2 by 2 in reading order (top-left = rank 1, top-right = rank 2, bottom-left = rank 3, bottom-right = rank 4) so the four most abundant species at that simulation point are visible at a glance. The redox boundary in the dominant species (top-left quadrant) separates a CO-dominated reducing regime (left) from a CO$_2$-dominated oxidising regime (right); the rank 2 to rank 4 quadrants reveal how H$_2$, H$_2$O, N$_2$, and SO$_2$ swap positions across the same boundary. A small CH$_4$ patch appears near $T \sim 1900$ K at the most reducing edge of the grid where methane synthesis becomes briefly thermodynamically competitive. At the hot, oxidising corner ($T \gtrsim 2700$ K and $\Delta\mathrm{IW} \gtrsim +4$) molecular O$_2$ itself enters the top four, reaching rank 2 at $T = 3000$ K, $\Delta\mathrm{IW} = +5$ (about 15% of $P_\mathrm{surf}$).*
 
 The result that may surprise a reader who thinks of magma-ocean atmospheres as "steam-dominated" is that on the *Earth* BSE inventory carbon sets the dominant species, even though hydrogen outnumbers carbon by molar count (5.6 $\times 10^{23}$ mol H against 2.6 $\times 10^{23}$ mol C). The cause is not the bulk inventory ratio but melt solubility: H$_2$O is roughly two orders of magnitude more soluble in silicate melt than CO$_2$, so at $\Phi = 1$ most of the H budget stays dissolved while most of the C outgases (Bower et al. 2022[^cite-bower2022] Section 3). A water-dominated atmosphere needs either a much higher H budget (gas-giant-like) or a much lower C budget (volatile-poor / dehydrated body); the planetary case study tutorial illustrates one such contrast.
 
 The CO / CO$_2$ phase boundary shifts from $\Delta\mathrm{IW} \approx +1$ at $T = 1500$ K to $\Delta\mathrm{IW} \approx +3$ at $T = 3000$ K, roughly $1.5$ dex of $T$-dependence across the grid. The shift reflects the temperature dependence of the CO + 1/2 O$_2$ $\rightleftharpoons$ CO$_2$ equilibrium constant (entropy favours CO at high $T$). At any given $T$, the boundary is sharp: cross it and CO$_2$ takes over within a single grid cell.
+
+A second feature lives at the hot, oxidising corner: molecular O$_2$ stops being a trace gas. The IW-buffer fugacity climbs steeply with temperature, the Fischer buffer rising about nine orders of magnitude from $\log_{10} f_{\mathrm{O}_2} \approx -11.6$ at $1500$ K to $\approx -2.5$ at $3000$ K, so a fixed $\Delta\mathrm{IW}$ offset maps to a far higher absolute O$_2$ fugacity at high $T$. At $T = 3000$ K and $\Delta\mathrm{IW} = +5$ the O$_2$ partial pressure reaches a few hundred bar, about $15\%$ of $P_\mathrm{surf}$ and second only to CO$_2$. Below $\sim 2700$ K, or at reducing $\Delta\mathrm{IW}$, O$_2$ falls back below the four reported species and does not appear; this is why the cooler and more reducing parts of the grid show no green.
 
 ## Where to go next
 
