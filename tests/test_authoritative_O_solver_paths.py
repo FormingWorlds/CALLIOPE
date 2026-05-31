@@ -133,15 +133,15 @@ def test_get_initial_pressures_with_fO2_default_rng():
     )
 
 
-def test_get_initial_pressures_with_fO2_respects_custom_p_max():
-    """The optional ``p_max`` widens the cold-start pressure draw without
+def test_get_initial_pressures_with_fO2_respects_custom_p_guess_max():
+    """The optional ``p_guess_max`` widens the cold-start pressure draw without
     touching the solver box, so a high-pressure (e.g. sub-Neptune) case can be
     seeded above the default ~100 kbar maximum.
 
-    Draws many seeded samples at a raised ``p_max`` and asserts the draw range
+    Draws many seeded samples at a raised ``p_guess_max`` and asserts the draw range
     actually extends past the default ``P_GUESS_MAX_BAR``, while the
-    default-``p_max`` draw never does. The two-sided comparison discriminates a
-    working argument from a no-op that ignores ``p_max``.
+    default-``p_guess_max`` draw never does. The two-sided comparison discriminates a
+    working argument from a no-op that ignores ``p_guess_max``.
     """
     from calliope.solve import P_GUESS_MAX_BAR
 
@@ -151,13 +151,15 @@ def test_get_initial_pressures_with_fO2_respects_custom_p_max():
         p
         for _ in range(200)
         for p in get_initial_pressures_with_fO2(
-            _target(), 0.0, restart=True, rng=rng_hi, p_max=raised
+            _target(), 0.0, restart=True, rng=rng_hi, p_guess_max=raised
         )[:4]
     ]
     # Every draw stays inside [floor, raised ceiling].
-    assert all(1e-13 < p <= raised * (1 + 1e-9) for p in hi), 'draw escaped [floor, p_max]'
+    assert all(1e-13 < p <= raised * (1 + 1e-9) for p in hi), (
+        'draw escaped [floor, p_guess_max]'
+    )
     # The raised ceiling is actually exercised: some draw lands above the default.
-    assert max(hi) > P_GUESS_MAX_BAR, 'p_max did not widen the draw range'
+    assert max(hi) > P_GUESS_MAX_BAR, 'p_guess_max did not widen the draw range'
 
     rng_def = np.random.default_rng(0)
     deflt = [
@@ -169,8 +171,8 @@ def test_get_initial_pressures_with_fO2_respects_custom_p_max():
     assert max(deflt) <= P_GUESS_MAX_BAR * (1 + 1e-9), 'default draw exceeded P_GUESS_MAX_BAR'
 
 
-def test_equilibrium_atmosphere_forwards_p_max_to_cold_start(monkeypatch):
-    """The forward (fixed-fO2) public entry forwards its ``p_max`` to the
+def test_equilibrium_atmosphere_forwards_p_guess_max_to_cold_start(monkeypatch):
+    """The forward (fixed-fO2) public entry forwards its ``p_guess_max`` to the
     Monte-Carlo cold-start draw, so a caller-supplied widened range (e.g. from
     PROTEUS for a sub-Neptune) reaches the guess. A spy captures the value the
     entry passes down and short-circuits before the solve; the default call
@@ -182,30 +184,34 @@ def test_equilibrium_atmosphere_forwards_p_max_to_cold_start(monkeypatch):
 
     captured = {}
 
-    def spy(target_d, p_max=calsolve.P_GUESS_MAX_BAR):
-        captured['p_max'] = p_max
+    def spy(target_d, p_guess_max=calsolve.P_GUESS_MAX_BAR):
+        captured['p_guess_max'] = p_guess_max
         raise _Stop
 
     monkeypatch.setattr(calsolve, 'get_initial_pressures', spy)
 
     with pytest.raises(_Stop):
         calsolve.equilibrium_atmosphere(
-            _target(), _ddict(), p_guess=None, nguess=1, print_result=False, p_max=9.9e7
+            _target(), _ddict(), p_guess=None, nguess=1, print_result=False, p_guess_max=9.9e7
         )
-    assert captured['p_max'] == pytest.approx(9.9e7)
-    assert captured['p_max'] != calsolve.P_GUESS_MAX_BAR  # discrimination: not the default
+    assert captured['p_guess_max'] == pytest.approx(9.9e7)
+    assert (
+        captured['p_guess_max'] != calsolve.P_GUESS_MAX_BAR
+    )  # discrimination: not the default
 
     captured.clear()
     with pytest.raises(_Stop):
         calsolve.equilibrium_atmosphere(
             _target(), _ddict(), p_guess=None, nguess=1, print_result=False
         )
-    assert captured['p_max'] == pytest.approx(calsolve.P_GUESS_MAX_BAR)  # default forwarded
+    assert captured['p_guess_max'] == pytest.approx(
+        calsolve.P_GUESS_MAX_BAR
+    )  # default forwarded
 
 
-def test_authoritative_O_forwards_p_max_to_cold_start(monkeypatch):
+def test_authoritative_O_forwards_p_guess_max_to_cold_start(monkeypatch):
     """The authoritative-O public entry (the path PROTEUS uses for
-    ``fO2_source='from_O_budget'``) forwards its ``p_max`` to the cold-start
+    ``fO2_source='from_O_budget'``) forwards its ``p_guess_max`` to the cold-start
     helper. A delegating spy records the forwarded value while the stubbed
     solver converges, so the call completes; the default call forwards the
     module default."""
@@ -213,7 +219,7 @@ def test_authoritative_O_forwards_p_max_to_cold_start(monkeypatch):
     real = calsolve.get_initial_pressures_with_fO2
 
     def spy(*args, **kwargs):
-        captured['p_max'] = kwargs.get('p_max')
+        captured['p_guess_max'] = kwargs.get('p_guess_max')
         return real(*args, **kwargs)
 
     monkeypatch.setattr(calsolve, 'get_initial_pressures_with_fO2', spy)
@@ -226,16 +232,104 @@ def test_authoritative_O_forwards_p_max_to_cold_start(monkeypatch):
         opt_solver=False,
         nguess=1,
         print_result=False,
-        p_max=9.9e7,
+        p_guess_max=9.9e7,
     )
-    assert captured['p_max'] == pytest.approx(9.9e7)
-    assert captured['p_max'] != calsolve.P_GUESS_MAX_BAR  # discrimination: not the default
+    assert captured['p_guess_max'] == pytest.approx(9.9e7)
+    assert (
+        captured['p_guess_max'] != calsolve.P_GUESS_MAX_BAR
+    )  # discrimination: not the default
 
     captured.clear()
     calsolve.equilibrium_atmosphere_authoritative_O(
         _target(), _ddict(), fO2_hint=4.0, opt_solver=False, nguess=1, print_result=False
     )
-    assert captured['p_max'] == pytest.approx(calsolve.P_GUESS_MAX_BAR)  # default forwarded
+    assert captured['p_guess_max'] == pytest.approx(
+        calsolve.P_GUESS_MAX_BAR
+    )  # default forwarded
+
+
+@pytest.mark.parametrize('bad', [0.0, -1.0, float('inf'), float('nan'), 1.0e-15])
+def test_get_initial_pressures_rejects_invalid_ceiling(bad):
+    """An out-of-range cold-start ceiling fails loudly instead of silently
+    degenerating the draw. A ceiling below P_GUESS_MIN_BAR would invert the
+    log-uniform range (which np.random.uniform does not reject), and a
+    non-finite ceiling would feed inf/nan into the draw; both must raise."""
+    with pytest.raises(ValueError, match='p_guess_max'):
+        get_initial_pressures_with_fO2(_target(), 0.0, p_guess_max=bad)
+    # The forward helper guards identically.
+    from calliope.solve import get_initial_pressures
+
+    with pytest.raises(ValueError, match='p_guess_max'):
+        get_initial_pressures(_target(), p_guess_max=bad)
+
+
+def test_equilibrium_atmosphere_forwards_p_guess_max_on_restart(monkeypatch):
+    """The restart redraw, not only the initial cold start, forwards
+    p_guess_max. fsolve is stubbed to never converge so the loop reaches the
+    restart draw on every iteration; the spy asserts every draw (initial plus
+    each restart) received the forwarded value, killing a regression that drops
+    p_guess_max only on the restart path."""
+    calls = []
+    real = calsolve.get_initial_pressures
+
+    def spy(*args, **kwargs):
+        calls.append(kwargs.get('p_guess_max'))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(calsolve, 'get_initial_pressures', spy)
+    # ier != 1 => fsolve reports non-convergence => the loop redraws every pass.
+    monkeypatch.setattr(
+        calsolve.opt,
+        'fsolve',
+        lambda *a, **k: (np.array([10.0, 5.0, 1.0, 0.5]), {}, 0, 'stub: not converged'),
+    )
+
+    with pytest.raises(RuntimeError):
+        calsolve.equilibrium_atmosphere(
+            _target(),
+            _ddict(),
+            p_guess=None,
+            nguess=3,
+            opt_solver=False,
+            print_result=False,
+            p_guess_max=9.9e6,
+        )
+    assert len(calls) >= 2, 'restart redraw was never reached'
+    assert all(c == pytest.approx(9.9e6) for c in calls), (
+        'a cold-start draw did not receive the forwarded p_guess_max'
+    )
+
+
+def test_authoritative_O_forwards_p_guess_max_on_restart(monkeypatch):
+    """Mirror of the forward-path restart test for the authoritative-O entry:
+    the residual gate rejects every stubbed root, so the loop redraws each pass,
+    and every draw must carry the forwarded p_guess_max."""
+    calls = []
+    real = calsolve.get_initial_pressures_with_fO2
+
+    def spy(*args, **kwargs):
+        calls.append(kwargs.get('p_guess_max'))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(calsolve, 'get_initial_pressures_with_fO2', spy)
+    # Converged-looking root but a residual far above tolerance => rejected =>
+    # the loop redraws on every pass and finally raises RuntimeError.
+    _stub_solver(monkeypatch, [10.0, 5.0, 1.0, 0.5, 1.5], residual=np.full(5, 1.0e30))
+
+    with pytest.raises(RuntimeError):
+        calsolve.equilibrium_atmosphere_authoritative_O(
+            _target(),
+            _ddict(),
+            fO2_hint=4.0,
+            opt_solver=False,
+            nguess=3,
+            print_result=False,
+            p_guess_max=9.9e6,
+        )
+    assert len(calls) >= 2, 'restart redraw was never reached'
+    assert all(c == pytest.approx(9.9e6) for c in calls), (
+        'a cold-start draw did not receive the forwarded p_guess_max'
+    )
 
 
 # ---------------------------------------------------------------------------
