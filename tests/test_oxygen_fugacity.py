@@ -186,3 +186,33 @@ def test_oxygen_fugacity_unknown_buffer_name_raises():
         OxygenFugacity('hirschmann')  # not implemented in CALLIOPE
     with pytest.raises(AttributeError):
         OxygenFugacity('typo_fisher')
+
+
+@pytest.mark.physics_invariant
+def test_default_fo2_model_is_shared_by_oxygen_fugacity_and_chemistry():
+    """OxygenFugacity and chemistry.ModifiedKeq default to the same single
+    DEFAULT_FO2_MODEL constant, so a future change to the default cannot be
+    applied to one but not the other.
+
+    The behavioural check pins that the shared default actually dispatches to
+    the Fischer buffer: the bare-default OxygenFugacity matches the closed-form
+    Fischer value at 2500 K, and a regression that flipped the default to
+    O'Neill would land ~0.3 dex away, outside the tolerance."""
+    from calliope.chemistry import ModifiedKeq
+    from calliope.oxygen_fugacity import DEFAULT_FO2_MODEL, OxygenFugacity
+
+    assert DEFAULT_FO2_MODEL == 'fischer'
+
+    # Both classes carry the same default in their signature: changing one
+    # without the other is the trap this guards against.
+    assert OxygenFugacity.__init__.__defaults__ == (DEFAULT_FO2_MODEL,)
+    assert ModifiedKeq.__init__.__defaults__ == (DEFAULT_FO2_MODEL,)
+
+    # The bare default dispatches to Fischer (not O'Neill): pin the value and
+    # guard against the wrong-buffer regression.
+    T = 2500.0
+    default_val = OxygenFugacity()(T)
+    fischer_val = 6.94059 - 28.1808e3 / T
+    assert default_val == pytest.approx(fischer_val, rel=1e-6)
+    oneill_val = OxygenFugacity('oneill')(T)
+    assert abs(default_val - oneill_val) > 0.1  # buffers differ; default is Fischer

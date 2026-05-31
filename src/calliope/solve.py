@@ -32,6 +32,33 @@ log = logging.getLogger('fwl.' + __name__)
 # not rejected for sub-10-kg mass-balance noise.
 TRUNC_MASS = 1e1
 
+# Solver bounds, in one place so the cold-start guess range, the trust-constr
+# box, and the fO2-hint validation cannot drift apart.
+#
+# Pressure cold-start draw is log-uniform over [P_GUESS_MIN_BAR, P_GUESS_MAX_BAR].
+# The trust-constr box and the acceptance gate allow pressures up to
+# P_CEILING_BAR, which is well above any realistic magma-ocean surface pressure;
+# the wider box lets the solver explore from a poor cold start without escaping
+# to non-physical territory. Sub-Neptune surface pressures can exceed the
+# default guess maximum, so the guess helpers accept an optional ``p_max`` to
+# widen the cold-start range without touching the box.
+P_GUESS_MIN_BAR = 1.0e-12
+P_GUESS_MAX_BAR = 1.0e5
+P_CEILING_BAR = 1.0e7
+
+# fO2-shift cold-start redraw range (log10 IW offset) and the hard solver box.
+# The redraw range spans reducing-mantle to highly-oxidized; the wider hard box
+# gives trust-constr room on poor cold starts.
+FO2_GUESS_MIN = -6.0
+FO2_GUESS_MAX = 8.0
+FO2_HARD_MIN = -12.0
+FO2_HARD_MAX = 12.0
+
+# Surface pressure below which volatile mixing ratios are reported as zero,
+# rather than dividing P_surf into a denormal and amplifying floating-point
+# noise into spurious mixing ratios.
+P_SURF_FLOOR_BAR = 1.0e-30
+
 
 def is_included(gas, ddict):
     return bool(ddict[gas + '_included'] > 0)
@@ -402,31 +429,45 @@ def obj_authoritative_O(x_arr, ddict, mass_target_d):
     return np.dot(res_l, res_l) ** 0.5
 
 
-def get_initial_pressures(target_d):
+def get_initial_pressures(target_d, p_max=P_GUESS_MAX_BAR):
     """Cold-start guesses for the four primary partial pressures [bar].
 
-    Log-uniform draw over [1e-12, 1e5] bar, covering ~17 orders of
-    magnitude from trace-volatile undersaturation up to ~100 kbar
-    (the upper end of magma-ocean surface-pressure regimes).
-    `target_d` is accepted for API stability but not consulted.
+    Log-uniform draw over [P_GUESS_MIN_BAR, ``p_max``] bar, covering ~17
+    orders of magnitude from trace-volatile undersaturation up to the
+    default ~100 kbar (the upper end of magma-ocean surface-pressure
+    regimes). `target_d` is accepted for API stability but not consulted.
+
+    Parameters
+    ----------
+    target_d : dict
+        Accepted for API parity; not consulted.
+    p_max : float, default ``P_GUESS_MAX_BAR``
+        Upper bound of the log-uniform pressure draw [bar]. Raise it for
+        high-pressure (e.g. sub-Neptune) cases whose surface pressure can
+        exceed the default; the solver box (``P_CEILING_BAR``) is unchanged.
     """
-    pH2O = 10 ** np.random.uniform(low=-12, high=5)
-    pCO2 = 10 ** np.random.uniform(low=-12, high=5)
-    pN2 = 10 ** np.random.uniform(low=-12, high=5)
-    pS2 = 10 ** np.random.uniform(low=-12, high=5)
+    hi = np.log10(p_max)
+    lo = np.log10(P_GUESS_MIN_BAR)
+    pH2O = 10 ** np.random.uniform(low=lo, high=hi)
+    pCO2 = 10 ** np.random.uniform(low=lo, high=hi)
+    pN2 = 10 ** np.random.uniform(low=lo, high=hi)
+    pS2 = 10 ** np.random.uniform(low=lo, high=hi)
 
     return pH2O, pCO2, pN2, pS2
 
 
-def get_initial_pressures_with_fO2(target_d, fO2_hint, restart=False, rng=None):
+def get_initial_pressures_with_fO2(
+    target_d, fO2_hint, restart=False, rng=None, p_max=P_GUESS_MAX_BAR
+):
     """Cold-start guesses for the five unknowns of the authoritative-O solver.
 
     Returns ``[pH2O, pCO2, pN2, pS2, fO2_shift]``. The four pressures use
     the same log-uniform draw as ``get_initial_pressures`` over
-    ``[1e-12, 1e5]`` bar. The fifth element is ``fO2_hint`` on the first
-    attempt; on solver restart (``restart=True``) it is redrawn from a
-    uniform distribution over ``[-6, +8]``, which covers the
-    reducing-mantle to highly-oxidized regimes likely to be encountered.
+    ``[P_GUESS_MIN_BAR, p_max]`` bar. The fifth element is ``fO2_hint`` on
+    the first attempt; on solver restart (``restart=True``) it is redrawn
+    from a uniform distribution over ``[FO2_GUESS_MIN, FO2_GUESS_MAX]``,
+    which covers the reducing-mantle to highly-oxidized regimes likely to
+    be encountered.
 
     Parameters
     ----------
@@ -437,14 +478,18 @@ def get_initial_pressures_with_fO2(target_d, fO2_hint, restart=False, rng=None):
         Initial guess for the IW-buffer offset (log10 units). Typical
         PROTEUS user values lie in ``[-4, +6]``.
     restart : bool, default False
-        When True, redraw fO2_shift from ``Uniform(-6, +8)``. When False,
-        return ``fO2_hint`` unchanged.
+        When True, redraw fO2_shift from ``Uniform(FO2_GUESS_MIN,
+        FO2_GUESS_MAX)``. When False, return ``fO2_hint`` unchanged.
     rng : np.random.Generator or None, default None
         Random number generator for the log-uniform pressure draw and
         (when ``restart=True``) the fO2 redraw. When None, the global
         ``np.random`` state is used. The authoritative-O entry point
         threads a seeded generator through this argument to make solver
         outcomes reproducible across calls.
+    p_max : float, default ``P_GUESS_MAX_BAR``
+        Upper bound of the log-uniform pressure draw [bar]. Raise it for
+        high-pressure (e.g. sub-Neptune) cases; the solver box
+        (``P_CEILING_BAR``) is unchanged.
 
     Returns
     -------
@@ -454,13 +499,15 @@ def get_initial_pressures_with_fO2(target_d, fO2_hint, restart=False, rng=None):
     if rng is None:
         rng = np.random
 
-    pH2O = 10 ** rng.uniform(low=-12, high=5)
-    pCO2 = 10 ** rng.uniform(low=-12, high=5)
-    pN2 = 10 ** rng.uniform(low=-12, high=5)
-    pS2 = 10 ** rng.uniform(low=-12, high=5)
+    hi = np.log10(p_max)
+    lo = np.log10(P_GUESS_MIN_BAR)
+    pH2O = 10 ** rng.uniform(low=lo, high=hi)
+    pCO2 = 10 ** rng.uniform(low=lo, high=hi)
+    pN2 = 10 ** rng.uniform(low=lo, high=hi)
+    pS2 = 10 ** rng.uniform(low=lo, high=hi)
 
     if restart:
-        fO2 = rng.uniform(low=-6.0, high=8.0)
+        fO2 = rng.uniform(low=FO2_GUESS_MIN, high=FO2_GUESS_MAX)
     else:
         fO2 = float(fO2_hint)
 
@@ -587,11 +634,11 @@ def equilibrium_atmosphere(
         log.info('Solving for equilibrium partial pressures at surface')
     log.debug('    target masses: %s' % str(target_d))
 
-    # Hard ub = 1e7 bar is well above any realistic magma-ocean
+    # Hard ub = P_CEILING_BAR is well above any realistic magma-ocean
     # surface pressure; it prevents trust-constr from exploring
     # non-physical regions during a poor cold start.
     lb = [0.0] * 4
-    ub = [1e7] * 4
+    ub = [P_CEILING_BAR] * 4
 
     if p_guess is None:
         x0 = get_initial_pressures(target_d)
@@ -715,7 +762,9 @@ def equilibrium_atmosphere(
 
     P_surf = outdict['P_surf']
     for s in volatile_species:
-        outdict[s + '_vmr'] = (outdict[s + '_bar'] / P_surf) if P_surf > 0.0 else 0.0
+        outdict[s + '_vmr'] = (
+            (outdict[s + '_bar'] / P_surf) if P_surf > P_SURF_FLOOR_BAR else 0.0
+        )
 
         if print_result:
             log.info(
@@ -887,9 +936,7 @@ def equilibrium_atmosphere_authoritative_O(
     NH3, O2, SO2, H2S) and the two fO2-coupled solubility laws (N2
     Dasgupta, S2 Gaillard) consume fO2_shift through the same
     physics functions ``_get_partial_pressures``, ``_atmosphere_mass``,
-    ``_dissolved_mass`` that ``equilibrium_atmosphere`` uses. The
-    two solver modes therefore share all physics; only the unknown
-    set and equation set differ.
+    ``_dissolved_mass`` that ``equilibrium_atmosphere`` uses.
 
     Examples
     --------
@@ -936,11 +983,12 @@ def equilibrium_atmosphere_authoritative_O(
         raise ValueError(
             'fO2_hint must be a finite real number (log10 IW offset), got %r.' % fO2_hint
         )
-    if not (-12.0 <= fO2_hint <= 12.0):
+    if not (FO2_HARD_MIN <= fO2_hint <= FO2_HARD_MAX):
         raise ValueError(
-            'fO2_hint=%.3f is outside the solver bounds [-12, +12]. '
-            'Pick a value in [-6, +8] for physically realistic mantle '
-            'redox states.' % fO2_hint
+            'fO2_hint=%.3f is outside the solver bounds [%+g, %+g]. '
+            'Pick a value in [%+g, %+g] for physically realistic mantle '
+            'redox states.'
+            % (fO2_hint, FO2_HARD_MIN, FO2_HARD_MAX, FO2_GUESS_MIN, FO2_GUESS_MAX)
         )
 
     for required_ddict_key in ('M_mantle', 'Phi_global', 'T_magma', 'gravity', 'radius'):
@@ -985,13 +1033,13 @@ def equilibrium_atmosphere_authoritative_O(
         )
     log.debug('    target masses: %s', target_d)
 
-    # Bounds. Pressures: [0, 1e7] bar (same as equilibrium_atmosphere).
-    # fO2_shift: [-12, +12] log10 units. The physically meaningful range
-    # is roughly [-6, +8] (mantle reducing to highly oxidized); wider
-    # bounds give trust-constr room to explore on poor cold starts
-    # without escaping to non-physical territory.
-    lb = [0.0, 0.0, 0.0, 0.0, -12.0]
-    ub = [1e7, 1e7, 1e7, 1e7, 12.0]
+    # Bounds. Pressures: [0, P_CEILING_BAR] bar (same as equilibrium_atmosphere).
+    # fO2_shift: [FO2_HARD_MIN, FO2_HARD_MAX] log10 units. The physically
+    # meaningful range is roughly [FO2_GUESS_MIN, FO2_GUESS_MAX] (mantle
+    # reducing to highly oxidized); the wider hard box gives trust-constr room
+    # to explore on poor cold starts without escaping to non-physical territory.
+    lb = [0.0, 0.0, 0.0, 0.0, FO2_HARD_MIN]
+    ub = [P_CEILING_BAR, P_CEILING_BAR, P_CEILING_BAR, P_CEILING_BAR, FO2_HARD_MAX]
 
     # Physical pressure ceiling for the acceptance gate, captured before
     # the per-guess ub-collapse below mutates ub. The gate tests against
@@ -1208,7 +1256,9 @@ def equilibrium_atmosphere_authoritative_O(
 
     P_surf = outdict['P_surf']
     for s in volatile_species:
-        outdict[s + '_vmr'] = (outdict[s + '_bar'] / P_surf) if P_surf > 0.0 else 0.0
+        outdict[s + '_vmr'] = (
+            (outdict[s + '_bar'] / P_surf) if P_surf > P_SURF_FLOOR_BAR else 0.0
+        )
 
         if print_result:
             log.info(

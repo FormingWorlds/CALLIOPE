@@ -133,6 +133,42 @@ def test_get_initial_pressures_with_fO2_default_rng():
     )
 
 
+def test_get_initial_pressures_with_fO2_respects_custom_p_max():
+    """The optional ``p_max`` widens the cold-start pressure draw without
+    touching the solver box, so a high-pressure (e.g. sub-Neptune) case can be
+    seeded above the default ~100 kbar maximum.
+
+    Draws many seeded samples at a raised ``p_max`` and asserts the draw range
+    actually extends past the default ``P_GUESS_MAX_BAR``, while the
+    default-``p_max`` draw never does. The two-sided comparison discriminates a
+    working argument from a no-op that ignores ``p_max``.
+    """
+    from calliope.solve import P_GUESS_MAX_BAR
+
+    raised = 1.0e8  # well above the default P_GUESS_MAX_BAR (1e5)
+    rng_hi = np.random.default_rng(0)
+    hi = [
+        p
+        for _ in range(200)
+        for p in get_initial_pressures_with_fO2(
+            _target(), 0.0, restart=True, rng=rng_hi, p_max=raised
+        )[:4]
+    ]
+    # Every draw stays inside [floor, raised ceiling].
+    assert all(1e-13 < p <= raised * (1 + 1e-9) for p in hi), 'draw escaped [floor, p_max]'
+    # The raised ceiling is actually exercised: some draw lands above the default.
+    assert max(hi) > P_GUESS_MAX_BAR, 'p_max did not widen the draw range'
+
+    rng_def = np.random.default_rng(0)
+    deflt = [
+        p
+        for _ in range(200)
+        for p in get_initial_pressures_with_fO2(_target(), 0.0, restart=True, rng=rng_def)[:4]
+    ]
+    # Discrimination: the default draw never exceeds the default ceiling.
+    assert max(deflt) <= P_GUESS_MAX_BAR * (1 + 1e-9), 'default draw exceeded P_GUESS_MAX_BAR'
+
+
 # ---------------------------------------------------------------------------
 # Accept path
 # ---------------------------------------------------------------------------
