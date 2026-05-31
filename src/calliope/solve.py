@@ -993,6 +993,13 @@ def equilibrium_atmosphere_authoritative_O(
     lb = [0.0, 0.0, 0.0, 0.0, -12.0]
     ub = [1e7, 1e7, 1e7, 1e7, 12.0]
 
+    # Physical pressure ceiling for the acceptance gate, captured before
+    # the per-guess ub-collapse below mutates ub. The gate tests against
+    # this documented 1e7 bar bound, not a collapsed conditioning value,
+    # so a tiny-guess slot whose root legitimately lands above its
+    # collapsed 1.0 bar bound is not falsely rejected.
+    p_ceiling = ub[0]
+
     if p_guess is None:
         x0 = get_initial_pressures_with_fO2(target_d, fO2_hint, rng=rng)
     else:
@@ -1121,10 +1128,12 @@ def equilibrium_atmosphere_authoritative_O(
             # path runs only the unbounded fsolve (opt_solver=False), so a
             # root can satisfy mass balance yet sit outside the physical
             # box: a derived fO2_shift beyond [-12, +12] (the target O is
-            # unreachable at this H/C/N/S/T_magma) or a negative partial
-            # pressure. trust-constr enforces `bounds`; fsolve does not, so
-            # the box is enforced here before the solution is accepted.
+            # unreachable at this H/C/N/S/T_magma), a negative partial
+            # pressure, or a partial pressure above the 1e7 bar ceiling.
+            # trust-constr enforces `bounds`; fsolve does not, so the full
+            # box is enforced here before the solution is accepted.
             if success:
+                sol_p = np.asarray(sol[:4], dtype=float)
                 if not (lb[4] <= sol[4] <= ub[4]):
                     log.debug(
                         'Solution rejected: derived fO2_shift=%.3f outside [%.1f, %.1f]',
@@ -1133,8 +1142,15 @@ def equilibrium_atmosphere_authoritative_O(
                         ub[4],
                     )
                     success = False
-                elif np.any(np.asarray(sol[:4], dtype=float) < -1.0e-6):
+                elif np.any(sol_p < -1.0e-6):
                     log.debug('Solution rejected: negative partial pressure %s bar', sol[:4])
+                    success = False
+                elif np.any(sol_p > p_ceiling * (1.0 + 1.0e-6)):
+                    log.debug(
+                        'Solution rejected: partial pressure above %.1e bar ceiling: %s bar',
+                        p_ceiling,
+                        sol[:4],
+                    )
                     success = False
 
             if success:

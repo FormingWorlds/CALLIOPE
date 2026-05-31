@@ -7,8 +7,9 @@ it applies three guards that the happy-path smoke tests never trip:
 - a per-element residual gate (a converged-looking root whose mass
   residual exceeds tolerance is rejected),
 - a physical-box gate (a root with a derived fO2_shift outside
-  [-12, +12] or a negative partial pressure is rejected, because the
-  production unbounded fsolve does not enforce ``bounds``),
+  [-12, +12], a negative partial pressure, or a partial pressure above
+  the 1e7 bar ceiling is rejected, because the production unbounded
+  fsolve does not enforce ``bounds``),
 - an exception firewall (a solver call or residual evaluation that
   raises is treated as a failed attempt, not a crash).
 
@@ -262,6 +263,32 @@ def test_root_with_negative_pressure_is_rejected(monkeypatch, caplog):
     # Discrimination guard: the fO2 is in-box, so ONLY the negative-pressure
     # branch (not the out-of-box branch) can have rejected this root.
     assert -12.0 <= sol[4] <= 12.0 and min(sol[:4]) < 0.0
+
+
+def test_root_above_pressure_ceiling_is_rejected(monkeypatch, caplog):
+    """A converged root with a partial pressure above the 1e7 bar ceiling
+    is rejected, because unbounded fsolve does not enforce the upper box.
+
+    A mass budget can drive fsolve to a root that closes the element
+    balance yet places one partial pressure above the documented 1e7 bar
+    bound that trust-constr's ``ub`` array would have enforced. The box
+    gate rejects it; with one restart the loop raises RuntimeError instead
+    of returning the non-physical state.
+    """
+    sol = [2.0e7, 5.0, 1.0, 0.5, 2.0]  # H2O = 2e7 bar > 1e7 ceiling, in-box fO2
+    _stub_solver(monkeypatch, sol, residual=np.zeros(5))
+
+    caplog.set_level(logging.DEBUG, logger=_SOLVE_LOGGER)
+    with pytest.raises(RuntimeError, match='Could not find solution'):
+        equilibrium_atmosphere_authoritative_O(
+            _target(), _ddict(), fO2_hint=2.0, opt_solver=False, nguess=1, print_result=False
+        )
+
+    assert 'ceiling' in caplog.text, 'above-ceiling rejection must be logged'
+    # Discrimination guard: fO2 is in-box and every pressure is non-negative,
+    # so ONLY the upper-ceiling branch (not the out-of-box or negative-pressure
+    # branches) can have rejected this root.
+    assert -12.0 <= sol[4] <= 12.0 and min(sol[:4]) >= 0.0 and max(sol[:4]) > 1e7
 
 
 def test_root_with_excess_residual_is_rejected(monkeypatch, caplog):
