@@ -3,7 +3,7 @@
 [![codecov](https://img.shields.io/codecov/c/github/FormingWorlds/CALLIOPE?label=coverage&logo=codecov)](https://app.codecov.io/gh/FormingWorlds/CALLIOPE)
 [![Unit Tests](https://img.shields.io/github/actions/workflow/status/FormingWorlds/CALLIOPE/tests.yaml?branch=main&label=Unit%20Tests)](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml)
 [![Integration Tests](https://img.shields.io/github/actions/workflow/status/FormingWorlds/CALLIOPE/nightly.yml?branch=main&label=Integration%20Tests)](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/nightly.yml)
-[![tests](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/FormingWorlds/CALLIOPE/main/.github/badges/tests-total.json)](https://proteus-framework.org/testing)
+[![tests](https://img.shields.io/endpoint?url=https://proteus-framework.org/CALLIOPE/badges/tests-total.json)](https://proteus-framework.org/testing)
 
 This page is the practical contributor guide for adding or modifying a test in CALLIOPE.
 The conceptual framing (marker scheme, badge system, coverage gates, AST linter) lives in the [testing suite](../Explanations/testing.md) explainer; read it first if you have not yet.

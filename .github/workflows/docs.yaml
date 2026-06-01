@@ -22,6 +22,10 @@ jobs:
           python-version: 3.x
       - run: pip install zensical markdown-include pymdown-extensions mkdocstrings mkdocstrings-python
       - run: zensical build --clean
+      - name: Add test-count badges to the site
+        run: |
+          pip install ".[develop]"
+          python tools/generate_test_badges.py --out site/badges/
       - uses: actions/upload-pages-artifact@v4
         with:
           path: site
