@@ -43,7 +43,7 @@ Pure data; no side effects, no logic.
 
 ### `oxygen_fugacity.py`
 
-Single class `OxygenFugacity` with two model methods (`oneill` default, `fischer`). Stateless: instantiate once, call repeatedly with `(T, fO2_shift)`. See [Oxygen fugacity](oxygen_fugacity.md) for the equations.
+Single class `OxygenFugacity` with two model methods (`fischer` default, `oneill` legacy). Stateless: instantiate once, call repeatedly with `(T, fO2_shift)`. See [Oxygen fugacity](oxygen_fugacity.md) for the equations.
 
 ### `chemistry.py`
 
@@ -57,15 +57,22 @@ See [Solubility laws](solubility.md) for the equations.
 
 ### `solve.py`
 
-The orchestration layer. Five public functions:
+The orchestration layer. Two solver entry points, the buffered mode and the authoritative-O mode, share the speciation tree and aggregation functions:
+
+- `equilibrium_atmosphere(target, ddict, ...)`: buffered-mode outer driver. Takes a four-key `target` and the IW-buffer offset in `ddict`, solves the $4\times 4$ H/C/N/S mass-balance system.
+- `equilibrium_atmosphere_authoritative_O(target_d, ddict, ...)`: authoritative-O outer driver. Takes a five-key `target_d` (H, C, N, S, O) and solves the $5\times 5$ system for the four pressures plus $\Delta\mathrm{IW}$. See [Authoritative-oxygen mode](authoritative_oxygen.md) for the augmented mass balance.
+
+Plus seven shared helpers:
 
 - `get_partial_pressures(pin, ddict)`: walks the eleven-species speciation tree from the four primary pressures.
-- `atmosphere_mass(pin, ddict)`: applies [Bower et al. (2019)](https://ui.adsabs.harvard.edu/abs/2019A%26A...631A.103B) Eq. 2 to every species and aggregates atomic-mass tallies per element.
+- `atmosphere_mass(pin, ddict)`: applies Bower et al. (2019)[^cite-bower2019] Eq. 2 to every species and aggregates atomic-mass tallies per element.
 - `dissolved_mass(pin, ddict)`: applies the chosen solubility law for each soluble species and aggregates atomic-mass tallies per element.
-- `get_target_from_params(ddict)`: translates `hydrogen_earth_oceans`, `CH_ratio`, `nitrogen_ppmw`, `sulfur_ppmw` into kg-per-element targets.
+- `get_target_from_params(ddict)`: translates `hydrogen_earth_oceans`, `CH_ratio`, `nitrogen_ppmw`, `sulfur_ppmw` into kg-per-element targets (four-key, for the buffered mode).
 - `get_target_from_pressures(ddict)`: back-computes kg-per-element targets from prescribed initial atmospheric pressures.
+- `get_initial_pressures(target_d)`: cold-start guess generator for the four primary pressures.
+- `get_initial_pressures_with_fO2(target_d, fO2_hint, ...)`: cold-start guess generator for the five-unknown authoritative-O solver, with a separate restart redraw for $\Delta\mathrm{IW}$.
 
-Plus the inner-loop residual functions `func` (returns the four-vector residual) and `obj` (returns the L2 norm), and the outer driver `equilibrium_atmosphere(target, ddict, ...)` that ties it all together.
+Plus the inner-loop residual functions `func` (four-vector for buffered) and `func_authoritative_O` (five-vector), the L2-norm objectives `obj` and `obj_authoritative_O`, and three private versions (`_get_partial_pressures`, `_atmosphere_mass`, `_dissolved_mass`) that take `fO2_shift` as a positional argument so both solver modes can share the physics path.
 
 `get_partial_pressures` is *the* call that defines what species CALLIOPE knows about. To add a new species, you add an entry in `volatile_species` (constants.py), an entry in `molar_mass` (constants.py), a `ModifiedKeq` model method (chemistry.py) if it is a derived species, a `Solubility` subclass (solubility.py) if it has dissolved-melt physics, and the speciation step in `get_partial_pressures` plus the atomic-mass tally in `atmosphere_mass`. Tests need the analytical-vs-code consistency check in `tests/test_stoichiometry.py`.
 
@@ -76,32 +83,34 @@ Single function `calculate_mantle_mass(radius, mass, core_frac)` that returns `M
 ## Call graph
 
 ```
-                                    equilibrium_atmosphere
+            equilibrium_atmosphere              equilibrium_atmosphere_authoritative_O
+                       │                                          │
+                       ▼                                          ▼
+              get_initial_pressures              get_initial_pressures_with_fO2
+                       │                                          │
+                       └────────────┬─────────────────────────────┘
+                                    ▼
+                    scipy.optimize.fsolve / minimize  ◄─── ModifiedKeq.__call__
+                                    │                              ▲
+                                    ▼                              │
+                       func / func_authoritative_O                 │
+                                    │                              │
+                  ┌─────────────────┴─────────────────┐            │
+                  ▼                                   ▼            │
+        _atmosphere_mass                     _dissolved_mass       │
+                  │                                   │            │
+                  │     ┌─────────────────────────────┤            │
+                  │     ▼                             ▼            │
+                  │     _get_partial_pressures  Solubility{...}.__call__
+                  │             │                                  │
+                  ▼             ▼                                  │
+        atmosphere_mean_molar_mass     ModifiedKeq.__call__  ◄─────┘
                                               │
-                  ┌───────────────────────────┼───────────────────────────┐
-                  ▼                           ▼                           ▼
-            get_initial_pressures        scipy.optimize.fsolve     scipy.optimize.minimize
-                                              │                           │
-                                              └─────────┬─────────────────┘
-                                                        ▼
-                                                       func    ◄─── ModifiedKeq.__call__
-                                                        │              ▲
-                  ┌─────────────────────────────────────┤              │
-                  ▼                                     ▼              │
-            atmosphere_mass                       dissolved_mass       │
-                  │                                     │              │
-                  │      ┌──────────────────────────────┤              │
-                  │      ▼                              ▼              │
-                  │      get_partial_pressures   Solubility{H2O,CO2,…}.__call__
-                  │              │                                     │
-                  ▼              ▼                                     │
-            atmosphere_mean_molar_mass     ModifiedKeq.__call__  ◄─────┘
-                                                  │
-                                                  ▼
-                                            OxygenFugacity.__call__
+                                              ▼
+                                       OxygenFugacity.__call__
 ```
 
-The graph is a DAG with a single feedback loop (the outer `fsolve` → `func` → ... → `ModifiedKeq` cycle). No module imports any other module's private state; all couplings are through the `pin`/`ddict` dictionaries.
+The graph is a DAG with a single feedback loop (the outer solver → residual → speciation → modified-equilibrium-constant cycle) and two parallel entry points that diverge at the cold-start generator and re-merge at the residual function. The private versions (`_get_partial_pressures`, `_atmosphere_mass`, `_dissolved_mass`) take `fO2_shift` as a positional argument so both modes share the physics path; the public versions read it from `ddict` for backward compatibility. No module imports any other module's private state; all couplings are through the `pin`/`ddict` dictionaries.
 
 ## What is *not* in CALLIOPE
 
@@ -130,3 +139,5 @@ For batch use cases (sensitivity sweeps, parameter studies), wrap a Python loop 
 
 - [API reference](../Reference/api/index.md) for the auto-generated per-symbol documentation.
 - [Source on GitHub](https://github.com/FormingWorlds/CALLIOPE/tree/main/src/calliope) for the actual implementation.
+
+[^cite-bower2019]: D. J. Bower, D. Kitzmann, A. S. Wolf, P. Sanan, C. Dorn, A. V. Oza, *[Linking the evolution of terrestrial interiors and an early outgassed atmosphere to astrophysical observations](https://doi.org/10.1051/0004-6361/201935710)*, Astronomy & Astrophysics, 631, A103, 2019. [SciX](https://scixplorer.org/abs/2019A%26A...631A.103B/abstract).

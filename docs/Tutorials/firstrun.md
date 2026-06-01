@@ -42,7 +42,7 @@ for sp in volatile_species:
 ```
 
 !!! note "What these numbers mean"
-    `hydrogen_earth_oceans = 1.0` corresponds to $\sim 1.55 \times 10^{20}$ kg of H, which the wrapper translates via `H_kg = N_ocean_moles * ocean_moles * molar_mass['H2']`. `CH_ratio = 0.1` is a mass ratio chosen to roughly match estimates of Earth's bulk silicate Earth C/H. `nitrogen_ppmw = 2.0` matches the [Wang et al. (2018)](https://ui.adsabs.harvard.edu/abs/2018Icar..299..460W) primitive-mantle estimate that [Nicholls et al. (2024)](https://ui.adsabs.harvard.edu/abs/2024JGRE..12908576N) used as their fiducial value.
+    `hydrogen_earth_oceans = 1.0` corresponds to $\sim 1.55 \times 10^{20}$ kg of H, which the wrapper translates via `H_kg = N_ocean_moles * ocean_moles * molar_mass['H2']`. `CH_ratio = 0.1` is a mass ratio chosen to roughly match estimates of Earth's bulk silicate Earth C/H. `nitrogen_ppmw = 2.0` matches the Wang et al. (2018)[^cite-wang2018] primitive-mantle estimate that Nicholls et al. (2024)[^cite-nicholls2024] used as their fiducial value.
 
 ## Step 2: build the elemental targets and solve
 
@@ -72,7 +72,7 @@ for sp in sorted(volatile_species, key=lambda s: -result[f'{s}_bar']):
         print(f'  {sp:5s}: {p:9.3e} bar  (VMR {x:.3e})')
 ```
 
-For the inputs above (1 ocean H, $\Delta\mathrm{IW} = +0.5$, $T = 2500$ K, $\Phi = 1$) you should see a multi-thousand-bar atmosphere dominated by H$_2$O, with sub-percent CO$_2$ and traces of CO, H$_2$, and S species. The exact values depend on the solubility-law defaults; see [Solubility laws](../Explanations/solubility.md) for what each species uses.
+For the inputs above (1 ocean H, $\Delta\mathrm{IW} = +0.5$, $T = 2500$ K, $\Phi = 1$) you should see roughly a 10 bar atmosphere with CO dominant, then CO$_2$, N$_2$, and H$_2$O at the bar level, and H$_2$ plus the S and N trace species below. The exact values depend on the solubility-law defaults; see [Solubility laws](../Explanations/solubility.md) for what each species uses.
 
 ## Step 4: verify mass balance
 
@@ -111,6 +111,16 @@ plt.show()
 
 `dict_colors` from `calliope.constants` is the colour scheme used across the PROTEUS ecosystem so figures stay visually consistent.
 
+### Compare your output against the reference
+
+The figure below is the same Earth-like inputs run through `equilibrium_atmosphere` on a clean CALLIOPE install. Your numbers should reproduce these to within a few percent (the residual reflects Monte-Carlo restart variability, not a calibration issue).
+
+![First-run reference](../assets/figures/tutorials/firstrun_reference.png)
+
+*Reference output for the first-run inputs. Species ordered top-to-bottom by partial pressure. The summary box top-right shows the three aggregate diagnostics from Step 3 ($P_\mathrm{surf}$, $M_\mathrm{atm}$, mean molar mass).*
+
+The five large reservoirs (CO, N$_2$, CO$_2$, H$_2$, H$_2$O all between $\sim 0.2$ and $\sim 5$ bar) account for essentially the entire $\sim 9$ bar atmosphere; the four trace species (SO$_2$, H$_2$S, S$_2$, NH$_3$) sit two to seven orders of magnitude lower; CH$_4$ is effectively absent at this temperature. If your output disagrees by more than a factor of $\sim 2$ on a major species or by orders of magnitude on the speciation ordering, recheck the `ddict` keys against the snippet above. The script that produces this reference figure is checked in at [`scripts/tutorials/fig_firstrun_reference.py`](https://github.com/FormingWorlds/CALLIOPE/blob/main/scripts/tutorials/fig_firstrun_reference.py) and can be re-run with `python -m scripts.tutorials.fig_firstrun_reference` from the repository root.
+
 ## Step 6: sweep one parameter
 
 Repeat the solve along a grid of $\Delta\mathrm{IW}$ to see the redox dependence directly. Reuse the previous solution as the warm start each time:
@@ -143,9 +153,9 @@ fig.savefig('redox_sweep.pdf')
 plt.show()
 ```
 
-The expected qualitative behaviour, consistent with [Bower et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) Section 3 and [Nicholls et al. (2024)](https://ui.adsabs.harvard.edu/abs/2024JGRE..12908576N) Figure 6:
+The expected qualitative behaviour, consistent with Bower et al. (2022)[^cite-bower2022] Section 3 and Nicholls et al. (2024)[^cite-nicholls2024] Figure 6:
 
-- At $\Delta\mathrm{IW} \le -2$ (reducing), H$_2$ and CO dominate; H$_2$O and CO$_2$ collapse;
+- At $\Delta\mathrm{IW} \le -1$ (reducing), H$_2$ and CO dominate; H$_2$O and CO$_2$ collapse;
 - Around $\Delta\mathrm{IW} \approx 0$, the H$_2$O/H$_2$ and CO$_2$/CO ratios are of order unity;
 - At $\Delta\mathrm{IW} \ge +2$ (oxidising), H$_2$O and CO$_2$ dominate; H$_2$ and CO are sub-percent.
 
@@ -157,3 +167,7 @@ S$_2$ stays roughly constant (inventory-controlled), while SO$_2$ rises and H$_2
 - For the solubility laws and their references, read [Solubility laws](../Explanations/solubility.md).
 - For the mass-balance system that ties the partial pressures to the elemental inventory, read [Mass balance & solver](../Explanations/mass_balance.md).
 - For the PROTEUS-coupled invocation pattern, read [Coupling to PROTEUS (how-to)](../How-to/proteus_coupling.md).
+
+[^cite-bower2022]: D. J. Bower, K. Hakim, P. A. Sossi, P. Sanan, *[Retention of water in terrestrial magma oceans and carbon-rich early atmospheres](https://doi.org/10.3847/PSJ/ac5fb1)*, The Planetary Science Journal, 3(4), 93, 2022. [SciX](https://scixplorer.org/abs/2022PSJ.....3...93B/abstract).
+[^cite-nicholls2024]: H. Nicholls, T. Lichtenberg, D. J. Bower, R. Pierrehumbert, *[Magma ocean evolution at arbitrary redox state](https://doi.org/10.1029/2024JE008576)*, Journal of Geophysical Research: Planets, 129, e2024JE008576, 2024. [SciX](https://scixplorer.org/abs/2024JGRE..12908576N/abstract).
+[^cite-wang2018]: H. S. Wang, C. H. Lineweaver, T. R. Ireland, *[The elemental abundances (with uncertainties) of the most Earth-like planet](https://doi.org/10.1016/j.icarus.2017.08.024)*, Icarus, 299, 460–474, 2018. [SciX](https://scixplorer.org/abs/2018Icar..299..460W/abstract).

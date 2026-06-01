@@ -19,7 +19,11 @@ src/calliope/
 
 ### Solver
 
-- [`calliope.solve`](calliope.solve.md) - `equilibrium_atmosphere()` (the public entry point), the residual function `func`, the L2-norm objective `obj`, the speciation tree `get_partial_pressures`, the column-mass aggregation `atmosphere_mass`, the dissolved-mass aggregation `dissolved_mass`, and the elemental-target builders `get_target_from_params` / `get_target_from_pressures`.
+- [`calliope.solve`](calliope.solve.md) - two public entry points:
+    - `equilibrium_atmosphere()` (buffered mode): takes $\Delta\mathrm{IW}$ as input and solves the four-residual H/C/N/S mass-balance system.
+    - `equilibrium_atmosphere_authoritative_O()` (authoritative-O mode): takes a five-element target including O and solves a five-residual system with $\Delta\mathrm{IW}$ as the additional unknown. See [Authoritative-oxygen mode](../../Explanations/authoritative_oxygen.md) for the augmented mass balance.
+
+    Plus supporting functions: the residual functions `func` / `func_authoritative_O`, the L2-norm objectives `obj` / `obj_authoritative_O`, the speciation tree `get_partial_pressures`, the column-mass aggregation `atmosphere_mass`, the dissolved-mass aggregation `dissolved_mass`, the cold-start guess generators `get_initial_pressures` / `get_initial_pressures_with_fO2`, and the elemental-target builders `get_target_from_params` / `get_target_from_pressures`.
 
 ### Chemistry
 

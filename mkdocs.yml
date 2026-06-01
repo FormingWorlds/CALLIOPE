@@ -14,12 +14,18 @@ nav:
       - Installation: How-to/installation.md
       - Configuration: How-to/configuration.md
       - Usage: How-to/usage.md
+      - Authoritative-oxygen mode: How-to/authoritative_oxygen.md
       - Coupling to PROTEUS: How-to/proteus_coupling.md
       - Build a new test: How-to/build_tests.md
       - Releasing: How-to/releasing.md
 
   - Tutorials:
       - First run: Tutorials/firstrun.md
+      - Two-mode round-trip: Tutorials/two_modes.md
+      - Speciation phase diagram: Tutorials/phase_diagram.md
+      - Coupled-loop driver: Tutorials/coupled_loop.md
+      - Reproducing the Earth fiducial: Tutorials/earth_fiducial.md
+      - Mars-like atmosphere: Tutorials/mars_fiducial.md
 
   - Explanations:
       - Model overview: Explanations/model.md
@@ -27,7 +33,9 @@ nav:
       - Solubility laws: Explanations/solubility.md
       - Oxygen fugacity: Explanations/oxygen_fugacity.md
       - Mass balance & solver: Explanations/mass_balance.md
+      - Authoritative-oxygen mode: Explanations/authoritative_oxygen.md
       - Coupling to PROTEUS: Explanations/proteus_coupling.md
+      - Backend comparison: Explanations/cross_backend_comparison.md
       - Code architecture: Explanations/code_architecture.md
       - Testing suite: Explanations/testing.md
 
@@ -40,6 +48,12 @@ nav:
           - Oxygen fugacity: Reference/api/calliope.oxygen_fugacity.md
           - Structure: Reference/api/calliope.structure.md
           - Constants: Reference/api/calliope.constants.md
+      - Validation anchors:
+          - Chemistry: Validation/chemistry.md
+          - Oxygen fugacity: Validation/oxygen_fugacity.md
+          - Solubility: Validation/solubility.md
+          - Solve: Validation/solve.md
+          - Structure: Validation/structure.md
       - Publications: Reference/publications.md
 
   - Community:

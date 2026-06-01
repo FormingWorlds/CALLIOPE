@@ -122,24 +122,26 @@ class TestGetPartialPressuresExclusions:
         assert p_d['H2S'] > 0.0
 
     def test_unphysical_negative_partial_pressure_raises_or_clips(self):
-        """The function clips negative outputs to 0 via `max(0.0, p_d[k])`.
+        """The function clips negative outputs to 0 via the explicit
+        non-negative-real clip at the bottom of `_get_partial_pressures`.
         Feed it a primary pressure that drives a derived species negative
         (impossible at any real fO2 but the clip path must still hold).
-        Pass a NaN-like sentinel via T_magma to force a non-finite gamma;
-        the clip silently returns 0, which is a contract worth pinning.
         """
-        # Negative initial partial pressure for H2O — physically nonsense.
-        # The function does not raise; it propagates through but the final
-        # `max(0.0, p_d[k])` clip pins the output non-negative.
+        import warnings as _warnings
+
         ddict = _make_ddict()
         pin = {'H2O': -5.0, 'CO2': 10.0, 'N2': 1.0, 'S2': 0.1}
-        # Negative H2O => p_d['H2'] < 0 => NH3 = (... * H2**3) ** 0.5 raises
-        # a RuntimeWarning ("invalid value in scalar power"). Expected.
-        with pytest.warns(RuntimeWarning, match='invalid value'):
+        # Whether intermediate steps emit a RuntimeWarning, drop into a
+        # NaN path, or produce a complex sqrt-of-negative depends on the
+        # buffer; the clip must absorb all three. Suppress any warnings
+        # and pin the contract that matters: every output a non-negative
+        # real.
+        with _warnings.catch_warnings():
+            _warnings.simplefilter('ignore', RuntimeWarning)
             p_d = get_partial_pressures(pin, ddict)
 
-        # Clip contract: every output non-negative even if input is not.
         for sp, p in p_d.items():
+            assert isinstance(p, float), f'{sp} = {p!r} is not a real float'
             assert p >= 0.0, f'{sp} = {p} broke the non-negative clip'
 
 
@@ -158,36 +160,56 @@ class TestAtmosphereMassExclusions:
         species is excluded. The expected H mass is exactly
         2 * M_H * mass_H2O / M_H2O.
         """
-        ddict = _make_ddict(included={'H2': 0, 'CH4': 0, 'H2S': 0, 'NH3': 0})
+        ddict_off = _make_ddict(included={'H2': 0, 'CH4': 0, 'H2S': 0, 'NH3': 0})
         pin = {'H2O': 100.0, 'CO2': 10.0, 'N2': 1.0, 'S2': 0.1}
-        mass = atmosphere_mass(pin, ddict)
+        mass_off = atmosphere_mass(pin, ddict_off)
 
         # mass_atm_d['H2O'] is computed inside atmosphere_mass; recompute
         # the analytical column mass (modulo the mu-correction, which we
         # invert by reading mass_atm_d['H2O'] back).
-        expected_H = 2 * mass['H2O'] / molar_mass['H2O'] * molar_mass['H']
-        assert mass['H'] == pytest.approx(expected_H, rel=1e-9)
+        expected_H = 2 * mass_off['H2O'] / molar_mass['H2O'] * molar_mass['H']
+        assert mass_off['H'] == pytest.approx(expected_H, rel=1e-9)
 
-        # Discriminating: with all reduced species ON the H tally is
-        # higher, so this exact match would not hold.
+        # Discrimination guard: with all reduced H-bearing species ON, the
+        # H tally is strictly higher because H2, CH4, H2S, and NH3 each
+        # carry additional H atoms. The exact-match-to-H2O equality above
+        # would not hold.
+        ddict_on = _make_ddict(included={'H2': 1, 'CH4': 1, 'H2S': 1, 'NH3': 1})
+        mass_on = atmosphere_mass(pin, ddict_on)
+        assert mass_on['H'] > mass_off['H'], (
+            f'H tally with reduced species ON ({mass_on["H"]:.4e}) is not '
+            f'greater than with them OFF ({mass_off["H"]:.4e})'
+        )
 
     def test_c_tally_excludes_co_ch4_when_off(self):
         """C tally collapses to mass_CO2 / M_CO2 when CO and CH4 off."""
-        ddict = _make_ddict(included={'CO': 0, 'CH4': 0})
+        ddict_off = _make_ddict(included={'CO': 0, 'CH4': 0})
         pin = {'H2O': 100.0, 'CO2': 10.0, 'N2': 1.0, 'S2': 0.1}
-        mass = atmosphere_mass(pin, ddict)
+        mass_off = atmosphere_mass(pin, ddict_off)
 
-        expected_C = mass['CO2'] / molar_mass['CO2'] * molar_mass['C']
-        assert mass['C'] == pytest.approx(expected_C, rel=1e-9)
+        expected_C = mass_off['CO2'] / molar_mass['CO2'] * molar_mass['C']
+        assert mass_off['C'] == pytest.approx(expected_C, rel=1e-9)
+
+        # Discrimination guard: with CO and CH4 ON, the C tally is strictly
+        # higher (CO and CH4 each contribute additional C atoms).
+        ddict_on = _make_ddict(included={'CO': 1, 'CH4': 1})
+        mass_on = atmosphere_mass(pin, ddict_on)
+        assert mass_on['C'] > mass_off['C']
 
     def test_s_tally_excludes_so2_h2s_when_off(self):
         """S tally collapses to 2 * mass_S2 / M_S2 when SO2 and H2S off."""
-        ddict = _make_ddict(included={'SO2': 0, 'H2S': 0})
+        ddict_off = _make_ddict(included={'SO2': 0, 'H2S': 0})
         pin = {'H2O': 100.0, 'CO2': 10.0, 'N2': 1.0, 'S2': 0.1}
-        mass = atmosphere_mass(pin, ddict)
+        mass_off = atmosphere_mass(pin, ddict_off)
 
-        expected_S = 2 * mass['S2'] / molar_mass['S2'] * molar_mass['S']
-        assert mass['S'] == pytest.approx(expected_S, rel=1e-9)
+        expected_S = 2 * mass_off['S2'] / molar_mass['S2'] * molar_mass['S']
+        assert mass_off['S'] == pytest.approx(expected_S, rel=1e-9)
+
+        # Discrimination guard: with SO2 and H2S ON, the S tally is strictly
+        # higher (each contributes one additional S atom per molecule).
+        ddict_on = _make_ddict(included={'SO2': 1, 'H2S': 1})
+        mass_on = atmosphere_mass(pin, ddict_on)
+        assert mass_on['S'] > mass_off['S']
 
     def test_zero_pressure_inputs_yield_nonneg_masses(self):
         """Edge case: every primary at numerical zero. Output masses must
@@ -215,6 +237,9 @@ class TestDissolvedMassExclusions:
     """
 
     def test_co_excluded_writes_zero(self):
+        """When CO is excluded from the species list, dissolved_mass
+        writes an explicit 0.0 in the 'CO' key (not a missing key)
+        while still dissolving CO2 normally."""
         ddict = _make_ddict(included={'CO': 0})
         pin = {'H2O': 100.0, 'CO2': 10.0, 'N2': 1.0, 'S2': 0.1}
         m = dissolved_mass(pin, ddict)
@@ -227,6 +252,9 @@ class TestDissolvedMassExclusions:
         assert m['CO2'] > 0.0
 
     def test_ch4_excluded_writes_zero(self):
+        """When CH4 is excluded from the species list, dissolved_mass
+        writes an explicit 0.0 in the 'CH4' key (not a missing key)
+        while still dissolving CO and CO2 normally."""
         ddict = _make_ddict(included={'CH4': 0})
         pin = {'H2O': 100.0, 'CO2': 10.0, 'N2': 1.0, 'S2': 0.1}
         m = dissolved_mass(pin, ddict)
@@ -242,15 +270,26 @@ class TestDissolvedMassExclusions:
         """Edge: with zero melt fraction, every dissolved mass is zero.
 
         `dissolved_mass` only writes the species that can dissolve in
-        a silicate melt (H2O, CO2, CO, CH4, N2, S2) — never O2, SO2,
+        a silicate melt (H2O, CO2, CO, CH4, N2, S2), never O2, SO2,
         H2S, NH3, or H2. Iterate only over those keys.
         """
-        ddict = _make_ddict(Phi_global=0.0)
+        ddict_zero = _make_ddict(Phi_global=0.0)
         pin = {'H2O': 100.0, 'CO2': 10.0, 'N2': 1.0, 'S2': 0.1}
-        m = dissolved_mass(pin, ddict)
+        m_zero = dissolved_mass(pin, ddict_zero)
         dissolved_species = {'H2O', 'CO2', 'CO', 'CH4', 'N2', 'S2'}
         for sp in dissolved_species:
-            assert m[sp] == pytest.approx(0.0, abs=1e-30), f'{sp} nonzero at Phi=0'
+            assert m_zero[sp] == pytest.approx(0.0, abs=1e-30), f'{sp} nonzero at Phi=0'
+
+        # Discrimination guard: at Phi=1.0 (fully molten) the same species
+        # carry nonzero dissolved mass. A stub that hard-coded 0.0 for
+        # every dissolved entry would also pass the Phi=0 loop above.
+        ddict_full = _make_ddict(Phi_global=1.0)
+        m_full = dissolved_mass(pin, ddict_full)
+        nonzero_at_full = sum(1 for sp in dissolved_species if m_full[sp] > 0.0)
+        assert nonzero_at_full >= 4, (
+            f'Only {nonzero_at_full} of {len(dissolved_species)} species '
+            f'dissolved at Phi=1.0; the zero-Phi check would be vacuous'
+        )
 
     def test_unphysical_negative_mantle_mass_propagates(self):
         """Pin the contract: negative M_mantle is not validated here, it
@@ -260,7 +299,7 @@ class TestDissolvedMassExclusions:
         ddict = _make_ddict(M_mantle=-1.0e24)
         pin = {'H2O': 100.0, 'CO2': 10.0, 'N2': 1.0, 'S2': 0.1}
         m = dissolved_mass(pin, ddict)
-        # Not all dissolved fields are clipped — only the per-element
+        # Not all dissolved fields are clipped; only the per-element
         # tallies at the bottom are. The per-species mass for H2O can go
         # negative when M_mantle is negative.
         assert m['H2O'] < 0.0  # documents non-validation
@@ -281,6 +320,9 @@ class TestSolubilityN2Libourel:
     """
 
     def test_libourel_linear_in_p(self):
+        """Libourel N2 solubility is a Henry's-law linear function of
+        p_N2 (`ppmw = 0.0611 * p`); the ratio sol(100) / sol(1) equals
+        100 exactly, ruling out sqrt or quadratic dependences."""
         sol = SolubilityN2('libourel')
         # Discriminating: at p=1, all of p^0.5/p/p^2 give 1.0. At p=100
         # they differ by a factor of 10 (sqrt) or 10000 (square), so the
@@ -297,6 +339,15 @@ class TestSolubilityN2Libourel:
         """Edge: zero pressure should give zero dissolved concentration."""
         sol = SolubilityN2('libourel')
         assert sol(0.0) == pytest.approx(0.0, abs=1e-30)
+
+        # Discrimination guard: a stub that always returned 0 would pass
+        # the bare zero-input check. Confirm the call path is genuinely
+        # linear by checking that a small positive p gives a small positive
+        # output and a larger p gives a proportionally larger one.
+        small = sol(1e-6)
+        large = sol(1.0)
+        assert small > 0.0
+        assert large > small * 100.0  # linear should give exactly 1e6x
 
     def test_libourel_negative_p_propagates_unchecked(self):
         """The Henry's-law power-law is not guarded against p < 0;

@@ -44,7 +44,7 @@ $$
 \log_{10} K_\mathrm{eq}^{\mathrm{H_2}}(T) = -\frac{13152.4778}{T} + 3.0386
 $$
 
-(`janaf_H2` in `chemistry.py`; [JANAF](https://janaf.nist.gov/) fit, valid $1500 \le T \le 3000$ K). [Bower et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) give the equivalent [Schaefer & Fegley (2017)](https://ui.adsabs.harvard.edu/abs/2017ApJ...843..120S) fit $-12794/T + 2.7768$ as `schaefer_H`. The two differ by $\sim$1% in the resulting $G_\mathrm{eq}$ across the validation range; CALLIOPE uses the JANAF coefficients by default in `solve.get_partial_pressures`. Stoichiometric coefficient on $f_{\mathrm{O}_2}$ is $+0.5$.
+(`janaf_H2` in `chemistry.py`; JANAF[^cite-chase1998] fit, valid $1500 \le T \le 3000$ K). Bower et al. (2022)[^cite-bower2022] give the equivalent Schaefer & Fegley (2017)[^cite-schaeferfegley2017] fit $-12794/T + 2.7768$ as `schaefer_H`. The two differ by $\sim$1% in the resulting $G_\mathrm{eq}$ across the validation range; CALLIOPE uses the JANAF coefficients by default in `solve.get_partial_pressures`. Stoichiometric coefficient on $f_{\mathrm{O}_2}$ is $+0.5$.
 
 ### CO from CO$_2$ ($\mathrm{CO_2} \rightleftharpoons \mathrm{CO} + \tfrac{1}{2}\,\mathrm{O_2}$)
 
@@ -52,7 +52,7 @@ $$
 \log_{10} K_\mathrm{eq}^{\mathrm{CO}}(T) = -\frac{14467.5114}{T} + 4.3481
 $$
 
-(`janaf_CO`; [JANAF](https://janaf.nist.gov/) fit). [Schaefer & Fegley (2017)](https://ui.adsabs.harvard.edu/abs/2017ApJ...843..120S) equivalent in `schaefer_C`: $-14787/T + 4.5472$. Stoichiometric coefficient $+0.5$.
+(`janaf_CO`; JANAF[^cite-chase1998] fit). Schaefer & Fegley (2017)[^cite-schaeferfegley2017] equivalent in `schaefer_C`: $-14787/T + 4.5472$. Stoichiometric coefficient $+0.5$.
 
 ### CH$_4$ from CO$_2$ + 2H$_2$ ($\mathrm{CO_2} + 2\,\mathrm{H_2} \rightleftharpoons \mathrm{CH_4} + \mathrm{O_2}$)
 
@@ -60,7 +60,7 @@ $$
 \log_{10} K_\mathrm{eq}^{\mathrm{CH_4}}(T) = -\frac{16276}{T} - 5.4738
 $$
 
-(`schaefer_CH4`, IVTHANTHERMO via [Schaefer & Fegley 2017](https://ui.adsabs.harvard.edu/abs/2017ApJ...843..120S)). Stoichiometric coefficient $+1.0$. The methane abundance is then $p_{\mathrm{CH_4}} = G_\mathrm{eq} \cdot p_{\mathrm{CO_2}} \cdot p_{\mathrm{H_2}}^2$; this is the only species whose speciation depends on a second primary species (H$_2$ via H$_2$O).
+(`schaefer_CH4`, IVTHANTHERMO via Schaefer & Fegley 2017[^cite-schaeferfegley2017]). Stoichiometric coefficient $+1.0$. The methane abundance is then $p_{\mathrm{CH_4}} = G_\mathrm{eq} \cdot p_{\mathrm{CO_2}} \cdot p_{\mathrm{H_2}}^2$; this is the only species whose speciation depends on a second primary species (H$_2$ via H$_2$O).
 
 ### SO$_2$ from S$_2$ + 2O$_2$ ($\mathrm{S_2} + 2\,\mathrm{O_2} \rightleftharpoons 2\,\mathrm{SO_2}$, doubled form)
 
@@ -125,12 +125,17 @@ After the walk, every `p_d[s]` is clipped to be non-negative. The function retur
 
 ## Why this is the right level of detail
 
-The choice to expand only six redox couples is a deliberate trade-off between completeness and well-posedness. Adding more species (e.g. HCN, HCl, CS$_2$) requires either (i) more elemental constraints (Cl, additional H atoms in HCN), or (ii) extra equilibrium reactions whose constants are calibrated outside the relevant $T$-range. In the present species set, every secondary species has a clean reduction back to one of the four primaries via a [JANAF](https://janaf.nist.gov/) or IVTHANTHERMO fit. The underlying fits are valid over a wider window ($\sim$500-4000 K for the [Schaefer & Fegley 2017](https://ui.adsabs.harvard.edu/abs/2017ApJ...843..120S) IVTHANTHERMO sources, similar for the JANAF fits used here); CALLIOPE restricts itself to $1500 \le T \le 3000$ K because that matches the magma-ocean regime the solver is targeted at and the calibration window of the solubility laws (see [Solubility laws](solubility.md)).
+The choice to expand only six redox couples is a deliberate trade-off between completeness and well-posedness. Adding more species (e.g. HCN, HCl, CS$_2$) requires either (i) more elemental constraints (Cl, additional H atoms in HCN), or (ii) extra equilibrium reactions whose constants are calibrated outside the relevant $T$-range. In the present species set, every secondary species has a clean reduction back to one of the four primaries via a [JANAF](https://janaf.nist.gov/) or IVTHANTHERMO fit. The underlying fits are valid over a wider window ($\sim$500-4000 K for the Schaefer & Fegley 2017[^cite-schaeferfegley2017] IVTHANTHERMO sources, similar for the JANAF fits used here); CALLIOPE restricts itself to $1500 \le T \le 3000$ K because that matches the magma-ocean regime the solver is targeted at and the calibration window of the solubility laws (see [Solubility laws](solubility.md)).
 
-For application contexts that require Cl-bearing species, sub-ideal real-gas effects, or condensation, the [atmodeller](https://atmodeller.readthedocs.io/) JAX-based solver ([Bower et al. 2025](https://ui.adsabs.harvard.edu/abs/2025ApJ...995...59B)) is the supported alternative within the PROTEUS framework.
+For application contexts that require Cl-bearing species, sub-ideal real-gas effects, or condensation, the [atmodeller](https://atmodeller.readthedocs.io/) JAX-based solver (Bower et al. 2025[^cite-bower2025]) is the supported alternative within the PROTEUS framework.
 
 ## See also
 
 - [Oxygen fugacity](oxygen_fugacity.md): how the IW buffer enters the modified equilibrium constants
 - [Mass balance & solver](mass_balance.md): how the four primary partial pressures are determined from the elemental conservation constraints
 - [Solubility laws](solubility.md): how the dissolved-volatile masses close the system
+
+[^cite-bower2022]: D. J. Bower, K. Hakim, P. A. Sossi, P. Sanan, *[Retention of water in terrestrial magma oceans and carbon-rich early atmospheres](https://doi.org/10.3847/PSJ/ac5fb1)*, The Planetary Science Journal, 3(4), 93, 2022. [SciX](https://scixplorer.org/abs/2022PSJ.....3...93B/abstract).
+[^cite-bower2025]: D. J. Bower, M. A. Thompson, K. Hakim, M. Tian, P. A. Sossi, *Diversity of low-mass planet atmospheres in the C-H-O-N-S-Cl system with interior dissolution, nonideality, and condensation: application to TRAPPIST-1e and sub-Neptunes*, The Astrophysical Journal, 995, 59, 2025. [SciX](https://scixplorer.org/abs/2025ApJ...995...59B/abstract).
+[^cite-chase1998]: M. W. Chase, *[NIST-JANAF Thermochemical Tables, 4th edition](https://janaf.nist.gov/)*, Journal of Physical and Chemical Reference Data Monograph 9, 1998.
+[^cite-schaeferfegley2017]: L. Schaefer, B. Fegley, *[Redox states of initial atmospheres outgassed on rocky planets and planetesimals](https://doi.org/10.3847/1538-4357/aa784f)*, The Astrophysical Journal, 843(2), 120, 2017. [SciX](https://scixplorer.org/abs/2017ApJ...843..120S/abstract).

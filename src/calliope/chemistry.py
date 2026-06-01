@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 
-from .oxygen_fugacity import OxygenFugacity
+from .oxygen_fugacity import DEFAULT_FO2_MODEL, OxygenFugacity
 
 log = logging.getLogger('fwl.' + __name__)
 
@@ -11,7 +11,7 @@ log = logging.getLogger('fwl.' + __name__)
 class ModifiedKeq:
     """Modified equilibrium constant (includes fO2)"""
 
-    def __init__(self, Keq_model, fO2_model='oneill'):
+    def __init__(self, Keq_model, fO2_model=DEFAULT_FO2_MODEL):
         self.fO2 = OxygenFugacity(fO2_model)
         self.callmodel = getattr(self, Keq_model)
 

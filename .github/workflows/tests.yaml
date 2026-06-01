@@ -25,26 +25,29 @@ permissions:
 
 jobs:
   test:
-    if: github.event.pull_request.draft == false
-    name: CALLIOPE-check (${{ matrix.os }}, py${{ matrix.python-version }})
+    name: CALLIOPE-check
     strategy:
       fail-fast: false
+      # Draft PRs run only ubuntu-latest / Python 3.12 for fast signal on the
+      # gating steps (validator, linter, ratchet, one test pass). Non-draft
+      # events (ready_for_review, push to main, workflow_dispatch) get the
+      # full 2x2 matrix.
       matrix:
-        os: ['ubuntu-latest', 'macos-latest']
-        python-version: ['3.12', '3.13']
+        os: ${{ github.event.pull_request.draft == true && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest", "macos-latest"]') }}
+        python-version: ${{ github.event.pull_request.draft == true && fromJSON('["3.12"]') || fromJSON('["3.12", "3.13"]') }}
 
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         id: cache-virtualenv
         with:
           path: ${{ env.pythonLocation }}
@@ -58,6 +61,10 @@ jobs:
       - name: Validate test markers
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12' }}
         run: bash tools/validate_test_structure.sh
+
+      - name: Run test-quality lint
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12' }}
+        run: python tools/check_test_quality.py --check
 
       - name: Pre-flight fail_under ratchet check
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12' }}
@@ -141,4 +148,8 @@ jobs:
 
       - name: Run unit + smoke tests
         run: |
-          pytest -m "(unit or smoke) and not skip"
+          FAST_FAIL_UNDER=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['tool']['calliope']['coverage_fast']['fail_under'])")
+          echo "Fast gate fail_under: ${FAST_FAIL_UNDER}%"
+          pytest -m "(unit or smoke) and not skip" \
+            --cov=calliope \
+            --cov-fail-under=${FAST_FAIL_UNDER}

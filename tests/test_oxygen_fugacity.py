@@ -1,0 +1,218 @@
+"""Tests for `src/calliope/oxygen_fugacity.py`.
+
+Exercises the `OxygenFugacity` IW-buffer dispatcher and its two
+underlying fits:
+
+- Reference pin: Fischer et al. (2011) IW value at T = 2000 K against
+  the closed-form `6.94059 - 28.1808e3 / T`, with a discrimination
+  guard against the O'Neill & Eggins (2002) IW at the same T. The
+  guard catches a regression that silently dispatches to the wrong
+  buffer; a default change in `oxygen_fugacity.py` would otherwise
+  silently shift every PROTEUS-side number pinned to the previous
+  default.
+- Monotonicity: `log10(fO2)` is monotonic in T along each buffer
+  over the 1500-3000 K range.
+- Symmetry: `fO2_shift` is strictly additive: `of(T, dIW) = of(T, 0) + dIW`.
+- Boundedness: `log10(fO2)` is finite for any valid (T > 0, dIW finite).
+- Error contract: T <= 0 raises `ValueError` mentioning the divergence
+  in the underlying formulae; unknown buffer names raise
+  `AttributeError` at construction.
+"""
+
+from __future__ import annotations
+
+import math
+
+import pytest
+
+from calliope.oxygen_fugacity import OxygenFugacity
+
+pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.reference_pinned
+def test_oxygen_fugacity_fischer_value_at_2000K_matches_published_fit():
+    """Fischer 2011 IW at T = 2000 K, cross-checked against the
+    independent O'Neill & Eggins (2002) calibration.
+
+    The `'fischer'` and `'oneill'` paths in `oxygen_fugacity.py` are
+    independent fits to the same iron-wustite equilibrium, coded from
+    separate published formulae. At T = 2000 K they agree to 0.258 dex
+    (Fischer -7.14981, O'Neill -7.40782). The reference anchor is the
+    cross-calibration offset between the two: it is derived from two
+    independent implementations, so a coefficient transcription error in
+    either fit moves the offset and fails the test, which a self-pin
+    against one fit's own re-typed formula cannot detect. Both values
+    cluster with other published IW fits (Frost 1991 ~ -7.04; O'Neill
+    1988 ~ -7.55) within the ~0.5 dex scatter of the literature.
+    """
+    fischer = OxygenFugacity('fischer')(2000.0)
+    oneill = OxygenFugacity('oneill')(2000.0)
+    # Independent anchor: the cross-calibration offset between the two
+    # buffers. A coefficient error in either published fit shifts this
+    # offset away from 0.258 dex and fails the test.
+    assert (fischer - oneill) == pytest.approx(0.258, abs=0.02)
+    # Regression check on the coded Fischer fit value (secondary; this
+    # line alone re-types the source formula and so cannot catch a
+    # source-side coefficient typo, which the offset anchor above does).
+    assert fischer == pytest.approx(6.94059 - 28.1808e3 / 2000.0, rel=1e-4)
+    # Wrong-buffer guard: a silent dispatch to 'oneill' lands 0.26 dex
+    # away from the Fischer value.
+    assert abs(fischer - (-7.4078)) > 0.2
+    # Sign guard: log10(fO2) at the IW buffer is always negative under
+    # standard conditions (T < ~10000 K).
+    assert fischer < 0
+    # Scale guard: order of magnitude is -7, not -70 (forgotten log10)
+    # or -0.7 (factor-10 unit slip on the temperature coefficient).
+    assert -10 < fischer < -3
+
+
+@pytest.mark.physics_invariant
+def test_oxygen_fugacity_oneill_value_at_2000K_matches_published_fit():
+    """O'Neill & Eggins (2002) IW at T = 2000 K matches the closed form.
+
+    Implements Eq. 11 of O'Neill & Eggins (2002, J. Chem. Thermodyn. 34, 1311):
+    `2 * (-244118 + 115.559*T - 8.474*T*ln(T)) / (ln(10) * 8.31441 * T)`.
+    At T = 2000 K this evaluates to ~-7.4078. The discrimination guard
+    against Fischer is the mirror of the test above.
+    """
+    of = OxygenFugacity('oneill')
+    val = of(2000.0)
+    expected = -7.407823842131363
+    assert val == pytest.approx(expected, rel=1e-3, abs=5e-3)
+    # Wrong-buffer guard: Fischer at 2000 K is -7.14981.
+    wrong_fischer = -7.14981
+    assert abs(val - wrong_fischer) > 0.2
+    # Sign and scale guards.
+    assert val < 0
+    assert -10 < val < -3
+
+
+@pytest.mark.physics_invariant
+def test_oxygen_fugacity_shift_is_strictly_additive():
+    """`fO2_shift` adds linearly to the buffer value for both buffers.
+
+    The dispatcher at `__call__` returns `callmodel(T) + fO2_shift`. A
+    regression that multiplies instead of adds, or that applies the
+    shift twice, would break this identity.
+    """
+    for buffer_name in ('fischer', 'oneill'):
+        of = OxygenFugacity(buffer_name)
+        base = of(1800.0, fO2_shift=0.0)
+        plus_half = of(1800.0, fO2_shift=0.5)
+        plus_three = of(1800.0, fO2_shift=3.0)
+        # Strict additivity to floating-point precision.
+        assert plus_half == pytest.approx(base + 0.5, abs=1e-12)
+        assert plus_three == pytest.approx(base + 3.0, abs=1e-12)
+        # Negative shifts work too (reduced fO2).
+        minus_two = of(1800.0, fO2_shift=-2.0)
+        assert minus_two == pytest.approx(base - 2.0, abs=1e-12)
+
+
+@pytest.mark.physics_invariant
+def test_oxygen_fugacity_monotonic_in_T():
+    """Both buffers produce `log10(fO2)` strictly increasing with T over 1500-3000 K.
+
+    A hot magma ocean is more reducing on an absolute scale than a cool
+    one at the IW buffer, but the IW buffer itself is defined by the
+    Fe-FeO equilibrium and its log10(fO2) becomes less negative (closer
+    to zero) as T increases. The chosen window spans realistic surface
+    temperatures from solidification (~1500 K) to early Earth magma
+    ocean (~3000 K), giving a delta large enough to resolve a regression
+    that flipped the sign of the slope.
+    """
+    for buffer_name in ('fischer', 'oneill'):
+        of = OxygenFugacity(buffer_name)
+        low = of(1500.0)
+        mid = of(2250.0)
+        high = of(3000.0)
+        # Strict ordering: monotonic, not just non-decreasing.
+        assert low < mid < high
+        # Discrimination: the 1500 K -> 3000 K delta is ~2 dex for
+        # Fischer (28180.8/1500 - 28180.8/3000 = 9.39). A regression
+        # that flipped the slope sign would invert the ordering above
+        # but pin the magnitude to catch a coefficient-only bug too.
+        assert (high - low) > 1.0
+
+
+@pytest.mark.physics_invariant
+def test_oxygen_fugacity_finite_over_realistic_temperature_range():
+    """`log10(fO2)` is finite for any T in the realistic 800-5000 K range.
+
+    Boundedness check: no nan, no inf, no complex intermediate. Catches a
+    regression that introduces a `log(negative)` or `0/0` along an
+    unexpected code path.
+    """
+    for buffer_name in ('fischer', 'oneill'):
+        of = OxygenFugacity(buffer_name)
+        for T in (800.0, 1500.0, 2500.0, 3500.0, 5000.0):
+            for dIW in (-3.0, 0.0, 1.5):
+                val = of(T, fO2_shift=dIW)
+                assert math.isfinite(val)
+                # Bounded order-of-magnitude: log10(fO2) on the IW buffer
+                # stays in [-40, +5] over the 800-5000 K window for any
+                # dIW in [-3, +1.5]. The lower edge is set by the
+                # T = 800 K / dIW = -3 corner (~-31). Pin the envelope so
+                # a unit-conversion bug (e.g. log10 -> ln, factor 2.3)
+                # surfaces.
+                assert -40 < val < 5
+
+
+@pytest.mark.parametrize('bad_T', [0.0, -1.0, -300.0])
+def test_oxygen_fugacity_nonpositive_T_raises(bad_T):
+    """`T <= 0` raises `ValueError` for both buffers.
+
+    Without the guard, T = 0 silently propagates `nan` through every
+    downstream equilibrium constant via the `1/T` and `T * log(T)` terms.
+    The error message must name the temperature so users debugging an IC
+    file can find the offending input.
+    """
+    for buffer_name in ('fischer', 'oneill'):
+        of = OxygenFugacity(buffer_name)
+        with pytest.raises(ValueError, match='Temperature must be positive'):
+            of(bad_T)
+
+
+def test_oxygen_fugacity_unknown_buffer_name_raises():
+    """Constructing with an unknown buffer name raises `AttributeError`.
+
+    The dispatcher uses `getattr(self, model)` so a typo lands as an
+    `AttributeError` at construction (eager), not at first call (lazy).
+    Eager failure is preferable: it surfaces config typos before any
+    chemistry step runs.
+    """
+    with pytest.raises(AttributeError):
+        OxygenFugacity('hirschmann')  # not implemented in CALLIOPE
+    with pytest.raises(AttributeError):
+        OxygenFugacity('typo_fisher')
+
+
+@pytest.mark.physics_invariant
+def test_default_fo2_model_is_shared_by_oxygen_fugacity_and_chemistry():
+    """OxygenFugacity and chemistry.ModifiedKeq default to the same single
+    DEFAULT_FO2_MODEL constant, so a future change to the default cannot be
+    applied to one but not the other.
+
+    The behavioural check pins that the shared default actually dispatches to
+    the Fischer buffer: the bare-default OxygenFugacity matches the closed-form
+    Fischer value at 2500 K, and a regression that flipped the default to
+    O'Neill would land ~0.3 dex away, outside the tolerance."""
+    from calliope.chemistry import ModifiedKeq
+    from calliope.oxygen_fugacity import DEFAULT_FO2_MODEL, OxygenFugacity
+
+    assert DEFAULT_FO2_MODEL == 'fischer'
+
+    # Both classes carry the same default in their signature: changing one
+    # without the other is the trap this guards against.
+    assert OxygenFugacity.__init__.__defaults__ == (DEFAULT_FO2_MODEL,)
+    assert ModifiedKeq.__init__.__defaults__ == (DEFAULT_FO2_MODEL,)
+
+    # The bare default dispatches to Fischer (not O'Neill): pin the value and
+    # guard against the wrong-buffer regression.
+    T = 2500.0
+    default_val = OxygenFugacity()(T)
+    fischer_val = 6.94059 - 28.1808e3 / T
+    assert default_val == pytest.approx(fischer_val, rel=1e-6)
+    oneill_val = OxygenFugacity('oneill')(T)
+    assert abs(default_val - oneill_val) > 0.1  # buffers differ; default is Fischer

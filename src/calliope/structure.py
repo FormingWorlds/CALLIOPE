@@ -47,7 +47,9 @@ def calculate_mantle_mass(
         raise TypeError("calculate_mantle_mass() missing required argument: 'core_frac'")
 
     earth_fr = 0.55  # earth core radius fraction
-    earth_fm = 0.325  # earth core mass fraction  (https://arxiv.org/pdf/1708.08718.pdf)
+    # earth core mass fraction (32.5 +/- 0.3 wt%) from
+    # Wang, Lineweaver & Ireland (2018), arxiv:1708.08718
+    earth_fm = 0.325
 
     core_rho = (3.0 * earth_fm * M_earth) / (
         4.0 * np.pi * (earth_fr * R_earth) ** 3.0

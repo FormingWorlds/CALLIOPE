@@ -50,7 +50,7 @@ When CALLIOPE is called from PROTEUS, the wrapper in `proteus.outgas.calliope` s
 
 ## The `target` dictionary
 
-`target` carries the elemental conservation constraints, in kilograms:
+`target` carries the elemental conservation constraints, in kilograms. For the buffered-mode entry point [`equilibrium_atmosphere`](usage.md), the dict has four keys:
 
 ```python
 target = {
@@ -61,14 +61,28 @@ target = {
 }
 ```
 
-CALLIOPE solves a four-equation system that requires the sum of dissolved + atmospheric mass of each element to equal the target value. Oxygen is **not** a free constraint: it is set by $f_{\mathrm{O}_2}$ and the speciation of the H, C, N, S equilibria.
+In this mode, CALLIOPE solves a four-equation system requiring the sum of dissolved + atmospheric mass of each element to equal the target value. Oxygen is **not** a free constraint: it is set by the user-supplied $\Delta\mathrm{IW}$ and the speciation of the H/C/N/S equilibria.
 
-You can build `target` two ways:
+For the [authoritative-oxygen entry point](../Explanations/authoritative_oxygen.md), the dict has a fifth key:
+
+```python
+target = {
+    'H': 1.0e20,    # total H mass [kg]
+    'C': 1.0e17,
+    'N': 1.0e17,
+    'S': 1.0e16,
+    'O': 1.4e21,    # total O mass [kg]
+}
+```
+
+CALLIOPE then solves a five-equation system for the four primary pressures plus $\Delta\mathrm{IW}$; the value in `ddict['fO2_shift_IW']` is ignored.
+
+You can build the four-key `target` two ways:
 
 - `get_target_from_params(ddict)`: derives it from `hydrogen_earth_oceans`, `CH_ratio`, `nitrogen_ppmw`, `sulfur_ppmw`. Used when you specify the planet's bulk composition as an inventory.
 - `get_target_from_pressures(ddict)`: derives it from `<species>_initial_bar` by computing the implied dissolved + atmospheric masses at $t=0$. Used when you want to specify the planet by its initial atmospheric composition.
 
-The PROTEUS-side `volatile_mode` config knob switches between these two paths.
+The PROTEUS-side `volatile_mode` config knob switches between these two paths. For the authoritative-O mode, the caller is responsible for supplying the O budget alongside the H/C/N/S targets.
 
 ## Solver tuning knobs
 

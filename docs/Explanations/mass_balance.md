@@ -1,6 +1,6 @@
 # Mass balance & solver
 
-CALLIOPE's prognostic equations are four nonlinear elemental mass-conservation constraints, one per solved element (H, C, N, S). This page documents the residual function, the solver strategy, the mass-from-pressure relations, and the convergence criterion.
+CALLIOPE's prognostic equations are four nonlinear elemental mass-conservation constraints, one per solved element (H, C, N, S). This page documents the residual function, the solver strategy, the mass-from-pressure relations, and the convergence criterion of this "buffered" mode, where the oxygen fugacity is an input and oxygen mass is derived. CALLIOPE also offers an [authoritative-oxygen mode](authoritative_oxygen.md) where the system is closed by adding O as a fifth budget and treating $\Delta\mathrm{IW}$ as an unknown; the two modes share all the physics functions and differ only in their unknown set.
 
 ## The conservation system
 
@@ -26,7 +26,7 @@ def func(pin_arr, ddict, mass_target_d):
 
 ## Atmospheric column mass
 
-The relation between a species' surface partial pressure and its column mass follows directly from hydrostatic equilibrium under the assumption of a well-mixed atmosphere. [Bower et al. (2019)](https://ui.adsabs.harvard.edu/abs/2019A%26A...631A.103B) Equation (2) writes it as
+The relation between a species' surface partial pressure and its column mass follows directly from hydrostatic equilibrium under the assumption of a well-mixed atmosphere. Bower et al. (2019)[^cite-bower2019] Equation (2) writes it as
 
 $$
 m_v^\mathrm{atm} = 4\pi R_p^2 \cdot \frac{\mu_v}{\bar\mu} \cdot \frac{p_v}{g},
@@ -40,7 +40,7 @@ mass_atm_d[key] *= 4.0 * np.pi * ddict['radius'] ** 2.0
 mass_atm_d[key] *= molar_mass[key] / mu_atm
 ```
 
-The `mu_v / mu_atm` ratio is the part [Bower et al. (2019)](https://ui.adsabs.harvard.edu/abs/2019A%26A...631A.103B) §4.1.1 emphasises was missing from the pre-2019 mass-balance formulations of [Elkins-Tanton (2008)](https://ui.adsabs.harvard.edu/abs/2008E%26PSL.271..181E), [Lebrun et al. (2013)](https://ui.adsabs.harvard.edu/abs/2013JGRE..118.1155L), [Salvador et al. (2017)](https://ui.adsabs.harvard.edu/abs/2017JGRE..122.1458S), and [Nikolaou et al. (2019)](https://ui.adsabs.harvard.edu/abs/2019ApJ...875...11N). Without it, multi-species atmospheres receive an unphysical bias in the inferred reservoir partitioning.
+The `mu_v / mu_atm` ratio is the part Bower et al. (2019)[^cite-bower2019] §4.1.1 emphasises was missing from the pre-2019 mass-balance formulations of Elkins-Tanton (2008)[^cite-elkinstanton2008], Lebrun et al. (2013)[^cite-lebrun2013], Salvador et al. (2017)[^cite-salvador2017], and Nikolaou et al. (2019)[^cite-nikolaou2019]. Without it, multi-species atmospheres receive an unphysical bias in the inferred reservoir partitioning.
 
 After computing per-species column masses, `atmosphere_mass()` aggregates them into per-element atomic masses by stoichiometric atom-counting:
 
@@ -60,7 +60,7 @@ $$
 
 where $M_\mathrm{mantle}$ is the (molten + solid) silicate mantle mass and $\Phi_\mathrm{global}$ is the global melt fraction. Setting $\Phi_\mathrm{global} = 0$ disables solubility entirely; setting $\Phi_\mathrm{global} = 1$ (fully molten) gives the maximum dissolved-mass contribution.
 
-Like for atmospheric mass, the per-species dissolved masses are aggregated into per-element atomic masses. Note the asymmetry with the atmospheric path: CALLIOPE only includes a subset of species in the dissolved-mass tally (H$_2$O, CO$_2$, CO, CH$_4$, N$_2$, S$_2$); the remaining species (H$_2$, NH$_3$, SO$_2$, H$_2$S, O$_2$) are assumed to have negligible solubility, consistent with [Bower et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022PSJ.....3...93B) §2.2.3.
+Like for atmospheric mass, the per-species dissolved masses are aggregated into per-element atomic masses. Note the asymmetry with the atmospheric path: CALLIOPE only includes a subset of species in the dissolved-mass tally (H$_2$O, CO$_2$, CO, CH$_4$, N$_2$, S$_2$); the remaining species (H$_2$, NH$_3$, SO$_2$, H$_2$S, O$_2$) are assumed to have negligible solubility, consistent with Bower et al. (2022)[^cite-bower2022] §2.2.3.
 
 ## Solver: hybrid Powell + trust-region with Monte-Carlo restart
 
@@ -92,7 +92,15 @@ The `result` dictionary returned by `equilibrium_atmosphere()` includes `H_res`,
 
 ## See also
 
+- [Authoritative-oxygen mode](authoritative_oxygen.md) for the dual five-residual formulation where O is an input budget and $\Delta\mathrm{IW}$ is the additional unknown.
 - [Equilibrium chemistry](equilibrium_chemistry.md) for the speciation tree that maps $\mathbf{p}$ to all eleven partial pressures.
 - [Solubility laws](solubility.md) for the form of $X_i^\mathrm{melt}(p_i)$ in `dissolved_mass()`.
 - [Coupling to PROTEUS (theory)](proteus_coupling.md) for how the wrapper builds `target` and `ddict` from `hf_row`.
 - [API reference for `calliope.solve`](../Reference/api/calliope.solve.md).
+
+[^cite-bower2019]: D. J. Bower, D. Kitzmann, A. S. Wolf, P. Sanan, C. Dorn, A. V. Oza, *[Linking the evolution of terrestrial interiors and an early outgassed atmosphere to astrophysical observations](https://doi.org/10.1051/0004-6361/201935710)*, Astronomy & Astrophysics, 631, A103, 2019. [SciX](https://scixplorer.org/abs/2019A%26A...631A.103B/abstract).
+[^cite-bower2022]: D. J. Bower, K. Hakim, P. A. Sossi, P. Sanan, *[Retention of water in terrestrial magma oceans and carbon-rich early atmospheres](https://doi.org/10.3847/PSJ/ac5fb1)*, The Planetary Science Journal, 3(4), 93, 2022. [SciX](https://scixplorer.org/abs/2022PSJ.....3...93B/abstract).
+[^cite-elkinstanton2008]: L. T. Elkins-Tanton, *[Linked magma ocean solidification and atmospheric growth for Earth and Mars](https://doi.org/10.1016/j.epsl.2008.03.062)*, Earth and Planetary Science Letters, 271, 181–191, 2008. [SciX](https://scixplorer.org/abs/2008E%26PSL.271..181E/abstract).
+[^cite-lebrun2013]: T. Lebrun, H. Massol, E. Chassefière, A. Davaille, E. Marcq, P. Sarda, F. Leblanc, G. Brandeis, *[Thermal evolution of an early magma ocean in interaction with the atmosphere](https://doi.org/10.1002/jgre.20068)*, Journal of Geophysical Research: Planets, 118, 1155–1176, 2013. [SciX](https://scixplorer.org/abs/2013JGRE..118.1155L/abstract).
+[^cite-salvador2017]: A. Salvador, H. Massol, A. Davaille, E. Marcq, P. Sarda, E. Chassefière, *The relative influence of H$_2$O and CO$_2$ on the primitive surface conditions and evolution of rocky planets*, Journal of Geophysical Research: Planets, 122, 1458–1486, 2017. [SciX](https://scixplorer.org/abs/2017JGRE..122.1458S/abstract).
+[^cite-nikolaou2019]: A. Nikolaou, N. Katyal, N. Tosi, M. Godolt, J. L. Grenfell, H. Rauer, *[What factors affect the duration and outgassing of the terrestrial magma ocean?](https://doi.org/10.3847/1538-4357/ab08ed)*, The Astrophysical Journal, 875, 11, 2019. [SciX](https://scixplorer.org/abs/2019ApJ...875...11N/abstract).
