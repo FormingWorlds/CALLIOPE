@@ -173,7 +173,7 @@ After the writeback, `wrapper.run_outgassing` recomputes `M_atm` from the per-sp
 
 ## Where the binodal lives
 
-If `config.outgas.h2_binodal = true`, `wrapper.run_outgassing` calls `apply_binodal_h2` *after* CALLIOPE returns. This applies the Rogers et al. (2025)[^cite-rogers2025] H$_2$-MgSiO$_3$ miscibility correction as a post-processing step on top of the CALLIOPE equilibrium. CALLIOPE itself does not know about miscibility; it produces the ideal-mixing baseline that the binodal then perturbs.
+If `config.outgas.h2_binodal = true`, `wrapper.run_outgassing` calls `apply_binodal_h2` *after* CALLIOPE returns. This applies the Rogers et al. (2025) [^cite-rogers2025] H$_2$-MgSiO$_3$ miscibility correction as a post-processing step on top of the CALLIOPE equilibrium. CALLIOPE itself does not know about miscibility; it produces the ideal-mixing baseline that the binodal then perturbs.
 
 When `config.interior_struct.zalmoxis.global_miscibility = true` (Zalmoxis radial binodal), the bulk binodal step is skipped because Zalmoxis has already done a per-radial-shell partition during the structure update. See the [Zalmoxis binodal page](https://proteus-framework.org/Zalmoxis/Explanations/binodal.html) for that mechanism.
 
@@ -188,4 +188,4 @@ When `config.interior_struct.zalmoxis.global_miscibility = true` (Zalmoxis radia
 - [Authoritative-oxygen mode](authoritative_oxygen.md) for the augmented mass balance that `from_O_budget` dispatches to.
 - The PROTEUS-side wrapper code: [`src/proteus/outgas/calliope.py`](https://github.com/FormingWorlds/PROTEUS/blob/main/src/proteus/outgas/calliope.py), [`src/proteus/outgas/wrapper.py`](https://github.com/FormingWorlds/PROTEUS/blob/main/src/proteus/outgas/wrapper.py), [`src/proteus/config/_outgas.py`](https://github.com/FormingWorlds/PROTEUS/blob/main/src/proteus/config/_outgas.py).
 
-[^cite-rogers2025]: J. G. Rogers, E. D. Young, H. E. Schlichting, *Redefining interiors and envelopes: hydrogen-silicate miscibility and its consequences for the structure and evolution of sub-Neptunes*, Monthly Notices of the Royal Astronomical Society, 544(4), 3496–3511, 2025. [SciX](https://scixplorer.org/abs/2025MNRAS.544.3496R/abstract).
+ [^cite-rogers2025]: J. G. Rogers, E. D. Young, H. E. Schlichting, *Redefining interiors and envelopes: hydrogen-silicate miscibility and its consequences for the structure and evolution of sub-Neptunes*, Monthly Notices of the Royal Astronomical Society, 544(4), 3496–3511, 2025. [SciX](https://scixplorer.org/abs/2025MNRAS.544.3496R/abstract).

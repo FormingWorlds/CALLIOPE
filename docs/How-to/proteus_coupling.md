@@ -197,7 +197,7 @@ What the wrapper does on the first call: builds the five-element target $(m_\mat
 
 | Use `user_constant` when | Use `from_O_budget` when |
 |---|---|
-| You want a fixed redox state for a parameter sweep (Nicholls et al. 2024[^cite-nicholls2024] explored seven $\Delta\mathrm{IW}$ values this way) | You want whole-planet O accounting where escape, ingassing, and the mantle FeO inventory all debit the same O reservoir |
+| You want a fixed redox state for a parameter sweep (Nicholls et al. 2024 [^cite-nicholls2024] explored seven $\Delta\mathrm{IW}$ values this way) | You want whole-planet O accounting where escape, ingassing, and the mantle FeO inventory all debit the same O reservoir |
 | You don't have an independent constraint on the planet's O budget | You have an O constraint from an FeO-content estimate, a chondritic O/Si ratio, or an observational retrieval |
 | Buffered chemistry is good enough for your scientific question | The mantle redox state is itself the unknown you're trying to infer |
 
@@ -205,18 +205,18 @@ The two modes give bit-identical results in the cases where they should: for any
 
 ## Redox state
 
-`fO2_shift_IW` is in $\log_{10}$ units relative to the O'Neill & Eggins (2002)[^cite-oneilleggins2002] IW buffer. Under `fO2_source = "user_constant"` this value is the buffer offset; under `fO2_source = "from_O_budget"` it is only the initial-guess seed. Common reference values:
+`fO2_shift_IW` is in $\log_{10}$ units relative to the O'Neill & Eggins (2002) [^cite-oneilleggins2002] IW buffer. Under `fO2_source = "user_constant"` this value is the buffer offset; under `fO2_source = "from_O_budget"` it is only the initial-guess seed. Common reference values:
 
 | $\Delta\mathrm{IW}$ | Description |
 |---|---|
-| $-5$ | Highly reduced (Mercury-like; sulphur-derived estimate IW-5.4, Cartier & Wood 2019[^cite-cartierwood2019]) |
-| $-3$ | Reduced (e.g. enstatite-chondrite-like; Mercury Fe-based estimate IW-2.8 to IW-4.5, Cartier & Wood 2019[^cite-cartierwood2019]) |
-| $-1$ | Moderately reduced; near the Mars-mantle source range (Wadhwa 2001[^cite-wadhwa2001] places the shergottite-source mantle at $\approx$ IW) |
+| $-5$ | Highly reduced (Mercury-like; sulphur-derived estimate IW-5.4, Cartier & Wood 2019 [^cite-cartierwood2019]) |
+| $-3$ | Reduced (e.g. enstatite-chondrite-like; Mercury Fe-based estimate IW-2.8 to IW-4.5, Cartier & Wood 2019 [^cite-cartierwood2019]) |
+| $-1$ | Moderately reduced; near the Mars-mantle source range (Wadhwa 2001 [^cite-wadhwa2001] places the shergottite-source mantle at $\approx$ IW) |
 | $0$  | At iron-wüstite buffer (core formation equilibrium at depth) |
-| $+3.5$ | Sossi et al. (2020)[^cite-sossi2020] preferred Earth's mantle $f_{\mathrm{O}_2}$ |
-| $+4$ | CALLIOPE PROTEUS-side default; near-modern Earth upper mantle (within FMQ$\,\pm\,2$ per Frost & McCammon 2008[^cite-frostmccammon2008]) |
+| $+3.5$ | Sossi et al. (2020) [^cite-sossi2020] preferred Earth's mantle $f_{\mathrm{O}_2}$ |
+| $+4$ | CALLIOPE PROTEUS-side default; near-modern Earth upper mantle (within FMQ$\,\pm\,2$ per Frost & McCammon 2008 [^cite-frostmccammon2008]) |
 
-Sossi et al. (2020)[^cite-sossi2020] place Earth's modern upper mantle at $\Delta\mathrm{IW} \approx +3.5$; Frost & McCammon (2008)[^cite-frostmccammon2008] report a broader FMQ$\,\pm\,2$ range across mantle settings (approximately IW+1.5 to IW+5.5). CALLIOPE defaults sit at $\Delta\mathrm{IW} = 4.0$, consistent with a modern terrestrial composition.
+Sossi et al. (2020) [^cite-sossi2020] place Earth's modern upper mantle at $\Delta\mathrm{IW} \approx +3.5$; Frost & McCammon (2008) [^cite-frostmccammon2008] report a broader FMQ$\,\pm\,2$ range across mantle settings (approximately IW+1.5 to IW+5.5). CALLIOPE defaults sit at $\Delta\mathrm{IW} = 4.0$, consistent with a modern terrestrial composition.
 
 ## Solver tolerances
 
@@ -253,9 +253,9 @@ For `Time > 1` yr, the wrapper builds `p_guess` from the previous-iteration `H2O
 
 For what the wrapper actually does on each iteration (sequence diagram, mapping table, hf_row keys), read [Coupling to PROTEUS (theory)](../Explanations/proteus_coupling.md).
 
-[^cite-cartierwood2019]: C. Cartier, B. J. Wood, *[The role of reducing conditions in building Mercury](https://doi.org/10.2138/gselements.15.1.39)*, Elements, 15(1), 39–45, 2019. [SciX](https://scixplorer.org/abs/2019Eleme..15...39C/abstract).
-[^cite-frostmccammon2008]: D. J. Frost, C. A. McCammon, *[The redox state of Earth's mantle](https://doi.org/10.1146/annurev.earth.36.031207.124322)*, Annual Review of Earth and Planetary Sciences, 36, 389–420, 2008. [SciX](https://scixplorer.org/abs/2008AREPS..36..389F/abstract).
-[^cite-nicholls2024]: H. Nicholls, T. Lichtenberg, D. J. Bower, R. Pierrehumbert, *[Magma ocean evolution at arbitrary redox state](https://doi.org/10.1029/2024JE008576)*, Journal of Geophysical Research: Planets, 129, e2024JE008576, 2024. [SciX](https://scixplorer.org/abs/2024JGRE..12908576N/abstract).
-[^cite-oneilleggins2002]: H. St. C. O'Neill, S. M. Eggins, *[The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts](https://doi.org/10.1016/S0009-2541(01)00414-4)*, Chemical Geology, 186, 151–181, 2002. [SciX](https://scixplorer.org/abs/2002ChGeo.186..151O/abstract).
-[^cite-sossi2020]: P. A. Sossi, A. D. Burnham, J. Badro, A. Lanzirotti, M. Newville, H. St. C. O'Neill, *[Redox state of Earth's magma ocean and its Venus-like early atmosphere](https://doi.org/10.1126/sciadv.abd1387)*, Science Advances, 6, eabd1387, 2020. [SciX](https://scixplorer.org/abs/2020SciA....6.1387S/abstract).
-[^cite-wadhwa2001]: M. Wadhwa, *[Redox state of Mars' upper mantle and crust from Eu anomalies in shergottite pyroxenes](https://doi.org/10.1126/science.1057594)*, Science, 291, 1527–1530, 2001. [SciX](https://scixplorer.org/abs/2001Sci...291.1527W/abstract).
+ [^cite-cartierwood2019]: C. Cartier, B. J. Wood, *[The role of reducing conditions in building Mercury](https://doi.org/10.2138/gselements.15.1.39)*, Elements, 15(1), 39–45, 2019. [SciX](https://scixplorer.org/abs/2019Eleme..15...39C/abstract).
+ [^cite-frostmccammon2008]: D. J. Frost, C. A. McCammon, *[The redox state of Earth's mantle](https://doi.org/10.1146/annurev.earth.36.031207.124322)*, Annual Review of Earth and Planetary Sciences, 36, 389–420, 2008. [SciX](https://scixplorer.org/abs/2008AREPS..36..389F/abstract).
+ [^cite-nicholls2024]: H. Nicholls, T. Lichtenberg, D. J. Bower, R. Pierrehumbert, *[Magma ocean evolution at arbitrary redox state](https://doi.org/10.1029/2024JE008576)*, Journal of Geophysical Research: Planets, 129, e2024JE008576, 2024. [SciX](https://scixplorer.org/abs/2024JGRE..12908576N/abstract).
+ [^cite-oneilleggins2002]: H. St. C. O'Neill, S. M. Eggins, *[The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts](https://doi.org/10.1016/S0009-2541(01)00414-4)*, Chemical Geology, 186, 151–181, 2002. [SciX](https://scixplorer.org/abs/2002ChGeo.186..151O/abstract).
+ [^cite-sossi2020]: P. A. Sossi, A. D. Burnham, J. Badro, A. Lanzirotti, M. Newville, H. St. C. O'Neill, *[Redox state of Earth's magma ocean and its Venus-like early atmosphere](https://doi.org/10.1126/sciadv.abd1387)*, Science Advances, 6, eabd1387, 2020. [SciX](https://scixplorer.org/abs/2020SciA....6.1387S/abstract).
+ [^cite-wadhwa2001]: M. Wadhwa, *[Redox state of Mars' upper mantle and crust from Eu anomalies in shergottite pyroxenes](https://doi.org/10.1126/science.1057594)*, Science, 291, 1527–1530, 2001. [SciX](https://scixplorer.org/abs/2001Sci...291.1527W/abstract).
