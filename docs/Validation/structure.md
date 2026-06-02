@@ -5,7 +5,7 @@ behaviour of `calliope.structure` against a published source.
 
 | Test id | Reference | Source page | Scope |
 |---|---|---|---|
-| `tests/test_structure.py::test_calculate_mantle_mass_recovers_wang_2018_earth_core_fraction` | Wang, Lineweaver & Ireland (2018)[^cite-wang2018], arxiv:1708.08718: Earth core mass fraction 32.5 +/- 0.3 wt% | [arxiv:1708.08718](https://arxiv.org/abs/1708.08718) | Pins the Earth-like mantle mass against the published core mass fraction and verifies the result lies in the 1e24 to 1e25 kg envelope expected for an Earth-mass planet. |
+| `tests/test_structure.py::test_calculate_mantle_mass_recovers_wang_2018_earth_core_fraction` | Wang, Lineweaver & Ireland (2018) [^cite-wang2018], arxiv:1708.08718: Earth core mass fraction 32.5 +/- 0.3 wt% | [arxiv:1708.08718](https://arxiv.org/abs/1708.08718) | Pins the Earth-like mantle mass against the published core mass fraction and verifies the result lies in the 1e24 to 1e25 kg envelope expected for an Earth-mass planet. |
 
 ## Re-derivation note
 
@@ -13,7 +13,7 @@ behaviour of `calliope.structure` against a published source.
 core mass from the total planetary mass. The core mass is the volume of a
 sphere of radius `core_frac * R_planet` multiplied by a core density derived
 from Earth: `core_rho = 3 * earth_fm * M_earth / (4 pi * (earth_fr * R_earth)^3)`
-with `earth_fm = 0.325` and `earth_fr = 0.55` from Wang et al. (2018)[^cite-wang2018].
+with `earth_fm = 0.325` and `earth_fr = 0.55` from Wang et al. (2018) [^cite-wang2018].
 
 For Earth-like input (`R = R_earth`, `M = M_earth`, `core_frac = 0.55`), the
 construction is degenerate: the core density times the Earth-radius core
@@ -39,4 +39,4 @@ as the analytical-limit second-line check.
 
 ## References
 
-[^cite-wang2018]: H. S. Wang, C. H. Lineweaver, T. R. Ireland, *[The elemental abundances (with uncertainties) of the most Earth-like planet](https://doi.org/10.1016/j.icarus.2017.08.024)*, Icarus, 299, 460-474, 2018. [SciX](https://scixplorer.org/abs/2018Icar..299..460W/abstract).
+ [^cite-wang2018]: H. S. Wang, C. H. Lineweaver, T. R. Ireland, *[The elemental abundances (with uncertainties) of the most Earth-like planet](https://doi.org/10.1016/j.icarus.2017.08.024)*, Icarus, 299, 460-474, 2018. [SciX](https://scixplorer.org/abs/2018Icar..299..460W/abstract).

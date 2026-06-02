@@ -80,9 +80,9 @@ nav:
       - "\U0001F517 Zalmoxis": https://proteus-framework.org/Zalmoxis/
       - "\U0001F517 Aragog": https://proteus-framework.org/aragog/
       - "\U0001F517 SPIDER": https://proteus-framework.org/SPIDER/
-      - "\U0001F517 Atmodeller": https://atmodeller.readthedocs.io/en/latest/
-      - "\U0001F517 FastChem": https://newstrangeworlds.github.io/FastChem/
-      - "\U0001F517 PLATON": https://platon.readthedocs.io/en/latest/
+      - "\U0001F517 Atmodeller": https://github.com/FormingWorlds/atmodeller
+      - "\U0001F517 FastChem": https://github.com/FormingWorlds/FastChem
+      - "\U0001F517 SOCRATES": https://proteus-framework.org/SOCRATES/
 
 theme:
   name: material
@@ -124,6 +124,8 @@ theme:
 
 extra_css:
   - stylesheets/extra.css
+  - stylesheets/proteus_theme.css
+  - stylesheets/footnotes.css
 
 markdown_extensions:
   - admonition

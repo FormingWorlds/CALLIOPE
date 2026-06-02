@@ -5,7 +5,7 @@ behaviour of `calliope.oxygen_fugacity` against published sources.
 
 | Test id | Reference | Source page | Scope |
 |---|---|---|---|
-| `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_matches_published_fit` | Fischer et al. (2011)[^cite-fischer2011], EPSL 304, 496, Eq. 2; cross-checked against O'Neill & Eggins (2002)[^cite-oneilleggins2002] | [doi:10.1016/j.epsl.2011.02.025](https://doi.org/10.1016/j.epsl.2011.02.025) | Pins the Fischer-vs-O'Neill cross-calibration offset (0.258 dex at T = 2000 K) as the independent anchor, with a secondary regression check on the coded Fischer fit `6.94059 - 28.1808e3 / T` and a wrong-buffer discrimination guard against O'Neill & Eggins (2002) at the same T. |
+| `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_matches_published_fit` | Fischer et al. (2011) [^cite-fischer2011], EPSL 304, 496, Eq. 2; cross-checked against O'Neill & Eggins (2002) [^cite-oneilleggins2002] | [doi:10.1016/j.epsl.2011.02.025](https://doi.org/10.1016/j.epsl.2011.02.025) | Pins the Fischer-vs-O'Neill cross-calibration offset (0.258 dex at T = 2000 K) as the independent anchor, with a secondary regression check on the coded Fischer fit `6.94059 - 28.1808e3 / T` and a wrong-buffer discrimination guard against O'Neill & Eggins (2002) at the same T. |
 
 ## Re-derivation note
 
@@ -65,5 +65,5 @@ value also serves as the wrong-buffer discrimination guard.
 
 ## References
 
-[^cite-fischer2011]: R. A. Fischer, A. J. Campbell, G. A. Shofner, O. T. Lord, P. Dera, V. B. Prakapenka, *[Equation of state and phase diagram of FeO](https://doi.org/10.1016/j.epsl.2011.02.025)*, Earth and Planetary Science Letters, 304, 496-502, 2011. [SciX](https://scixplorer.org/abs/2011E%26PSL.304..496F/abstract).
-[^cite-oneilleggins2002]: H. St. C. O'Neill, S. M. Eggins, *[The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts](https://doi.org/10.1016/S0009-2541(01)00414-4)*, Chemical Geology, 186, 151-181, 2002. [SciX](https://scixplorer.org/abs/2002ChGeo.186..151O/abstract).
+ [^cite-fischer2011]: R. A. Fischer, A. J. Campbell, G. A. Shofner, O. T. Lord, P. Dera, V. B. Prakapenka, *[Equation of state and phase diagram of FeO](https://doi.org/10.1016/j.epsl.2011.02.025)*, Earth and Planetary Science Letters, 304, 496-502, 2011. [SciX](https://scixplorer.org/abs/2011E%26PSL.304..496F/abstract).
+ [^cite-oneilleggins2002]: H. St. C. O'Neill, S. M. Eggins, *[The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts](https://doi.org/10.1016/S0009-2541(01)00414-4)*, Chemical Geology, 186, 151-181, 2002. [SciX](https://scixplorer.org/abs/2002ChGeo.186..151O/abstract).

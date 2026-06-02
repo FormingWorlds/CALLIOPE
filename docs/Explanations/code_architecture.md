@@ -65,7 +65,7 @@ The orchestration layer. Two solver entry points, the buffered mode and the auth
 Plus seven shared helpers:
 
 - `get_partial_pressures(pin, ddict)`: walks the eleven-species speciation tree from the four primary pressures.
-- `atmosphere_mass(pin, ddict)`: applies Bower et al. (2019)[^cite-bower2019] Eq. 2 to every species and aggregates atomic-mass tallies per element.
+- `atmosphere_mass(pin, ddict)`: applies Bower et al. (2019) [^cite-bower2019] Eq. 2 to every species and aggregates atomic-mass tallies per element.
 - `dissolved_mass(pin, ddict)`: applies the chosen solubility law for each soluble species and aggregates atomic-mass tallies per element.
 - `get_target_from_params(ddict)`: translates `hydrogen_earth_oceans`, `CH_ratio`, `nitrogen_ppmw`, `sulfur_ppmw` into kg-per-element targets (four-key, for the buffered mode).
 - `get_target_from_pressures(ddict)`: back-computes kg-per-element targets from prescribed initial atmospheric pressures.
@@ -140,4 +140,4 @@ For batch use cases (sensitivity sweeps, parameter studies), wrap a Python loop 
 - [API reference](../Reference/api/index.md) for the auto-generated per-symbol documentation.
 - [Source on GitHub](https://github.com/FormingWorlds/CALLIOPE/tree/main/src/calliope) for the actual implementation.
 
-[^cite-bower2019]: D. J. Bower, D. Kitzmann, A. S. Wolf, P. Sanan, C. Dorn, A. V. Oza, *[Linking the evolution of terrestrial interiors and an early outgassed atmosphere to astrophysical observations](https://doi.org/10.1051/0004-6361/201935710)*, Astronomy & Astrophysics, 631, A103, 2019. [SciX](https://scixplorer.org/abs/2019A%26A...631A.103B/abstract).
+ [^cite-bower2019]: D. J. Bower, D. Kitzmann, A. S. Wolf, P. Sanan, C. Dorn, A. V. Oza, *[Linking the evolution of terrestrial interiors and an early outgassed atmosphere to astrophysical observations](https://doi.org/10.1051/0004-6361/201935710)*, Astronomy & Astrophysics, 631, A103, 2019. [SciX](https://scixplorer.org/abs/2019A%26A...631A.103B/abstract).
