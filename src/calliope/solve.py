@@ -216,7 +216,7 @@ def dissolved_mass(pin, ddict):
 
     # H2O
     sol_H2O = SolubilityH2O()  # gets the default solubility model
-    ppmw_H2O = sol_H2O(p_d['H2O'])
+    ppmw_H2O = sol_H2O(p_d['H2O'], ddict['T_magma']) #added t_magma for temp
     mass_int_d['H2O'] = prefactor * ppmw_H2O
 
     # CO2

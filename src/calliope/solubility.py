@@ -28,7 +28,7 @@ class SolubilityH2O(Solubility):
     """H2O solubility models"""
 
     # below default gives the default model used
-    def __init__(self, composition='peridotite'):
+    def __init__(self, composition='test_peridotite_Sossi_2023'):
         super().__init__(composition)
 
     def anorthite_diopside(self, p):
@@ -37,7 +37,7 @@ class SolubilityH2O(Solubility):
 
     def peridotite(self, p):
         """Sossi et al. (2022)"""
-        return self.power_law(p, 524, 0.5)
+        return self.power_law(p, 524, 0.5) #524 default try 647 : basalt (check)
 
     def basalt_dixon(self, p):
         """Dixon et al. (1995) refit by Paolo Sossi"""
@@ -51,6 +51,14 @@ class SolubilityH2O(Solubility):
         """Newcombe et al. (2017)"""
         return self.power_law(p, 683, 0.5)
 
+    def test_peridotite_Sossi_2023(self, p, temp):
+        """We use Sossi et al. (2023) to test the temperature dependence of the H2O solubility."""
+        deltaG = -54552 - temp * (-115.2)
+        K = np.exp(-deltaG/(8.314*temp))
+        alpha_x_H2O = np.sqrt(K*0.43) ########## 0.43 for now but need to change it as soon as we have a better estimate of the melt composition
+        alpha_H2O = alpha_x_H2O / (5.55 *10**(-6))
+        ppmw = alpha_H2O * p ** 0.5
+        return ppmw
 
 class SolubilityS2(Solubility):
     """S2 solubility models"""
