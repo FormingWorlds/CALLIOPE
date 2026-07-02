@@ -1,0 +1,325 @@
+"""Noble gas partitioning in `src/calliope/solve.py`.
+
+Exercises the melt-atmosphere partitioning of the noble gases (He, Ne, Ar,
+Kr, Xe) added to the equilibrium solver. A noble gas is monatomic and inert,
+so its element and species are the same entity, it takes no part in the CHNOS
+reaction network, and it partitions by a single linear Henry's law. It still
+enters the total pressure and the mean molar mass, so it is solved jointly
+with the CHNOS primaries rather than bolted on afterwards.
+
+- Conservation: per-gas mass closure `kg_atm + kg_liquid ~ kg_total` and
+  agreement with the supplied target inventory.
+- Boundedness / positivity: non-negative partial pressures and reservoir
+  masses; an excluded noble gas contributes exactly zero.
+- Monotonicity: a larger noble gas budget yields a larger partial pressure
+  and a larger dissolved mass.
+- Coupling: a noble-gas-dominated atmosphere measurably shifts the CHNOS
+  partial pressures through the mean molar mass, proving the coupling is
+  solved rather than bypassed.
+- Symmetry / inertness: noble gas partitioning is independent of the fO2
+  buffer offset, which the reactive CHNOS species are not.
+- Reference (analytical limit): the dissolved-to-atmospheric mass ratio
+  equals the closed-form Henry-versus-hydrostatic-column ratio.
+
+See `docs/How-to/build_tests.md` for the testing standards these follow.
+"""
+
+from __future__ import annotations
+
+import numpy as np
+import pytest
+
+from calliope.constants import molar_mass, noble_gases
+from calliope.solubility import jambon86_ppmw_per_bar
+from calliope.solve import (
+    equilibrium_atmosphere,
+    equilibrium_atmosphere_authoritative_O,
+)
+
+pytestmark = [pytest.mark.smoke, pytest.mark.timeout(60)]
+
+
+def _ddict(active=('He', 'Ne', 'Ar', 'Kr', 'Xe'), dIW=0.0):
+    """Earth-scale magma-ocean options with CHNOS + selected noble gases."""
+    d = {
+        'M_mantle': 4.0e24,
+        'Phi_global': 1.0,
+        'T_magma': 1800.0,
+        'gravity': 9.81,
+        'radius': 6.37e6,
+        'fO2_shift_IW': dIW,
+    }
+    from calliope.constants import volatile_species
+
+    for sp in volatile_species:
+        d[f'{sp}_included'] = 1 if sp in ('H2O', 'CO2', 'N2', 'S2') else 0
+        d[f'{sp}_initial_bar'] = 0.0
+    for gas in noble_gases:
+        d[f'{gas}_included'] = 1 if gas in active else 0
+        d[f'{gas}_initial_bar'] = 0.0
+    return d
+
+
+_CHNOS = {'H': 1.5e20, 'C': 1.0e20, 'N': 2.0e18, 'S': 5.0e19}
+_NOBLE = {'He': 3.0e16, 'Ne': 1.0e15, 'Ar': 2.0e16, 'Kr': 5.0e14, 'Xe': 1.0e14}
+
+
+@pytest.mark.physics_invariant
+def test_every_noble_gas_conserves_mass():
+    """Each active noble gas closes its own mass budget: the atmospheric
+    plus dissolved mass equals the supplied target, and equals the reported
+    `_kg_total`. Runs all five simultaneously so an index or ordering bug in
+    the residual vector would surface as a mismatched gas.
+    """
+    np.random.seed(42)
+    ddict = _ddict()
+    target = dict(_CHNOS, **_NOBLE)
+    out = equilibrium_atmosphere(
+        target, ddict, print_result=False, opt_solver=False, nguess=2000
+    )
+
+    for gas in noble_gases:
+        reservoir = out[f'{gas}_kg_atm'] + out[f'{gas}_kg_liquid']
+        # Closure against the target inventory (the solver's mass balance).
+        assert reservoir == pytest.approx(target[gas], rel=1e-6)
+        # Internal consistency: _kg_total is the atm + liquid sum (no solid).
+        assert out[f'{gas}_kg_total'] == pytest.approx(reservoir, rel=1e-12)
+        assert out[f'{gas}_kg_solid'] == 0.0
+        # Positivity of the split.
+        assert out[f'{gas}_kg_atm'] > 0.0
+        assert out[f'{gas}_kg_liquid'] > 0.0
+
+
+@pytest.mark.physics_invariant
+def test_dissolved_mass_follows_closed_form_henry_law():
+    """Reference (analytical limit): after the solve, each noble gas's
+    dissolved mass must equal the closed-form Henry's law evaluated at the
+    solved partial pressure, `M_diss = (1e-6 * M_mantle * Phi) * const * p`.
+    This pins the melt side of the partitioning against the published
+    Jambon et al. (1986) constants independent of the solver internals.
+    """
+    np.random.seed(7)
+    ddict = _ddict()
+    target = dict(_CHNOS, **_NOBLE)
+    out = equilibrium_atmosphere(
+        target, ddict, print_result=False, opt_solver=False, nguess=2000
+    )
+
+    prefactor = 1.0e-6 * ddict['M_mantle'] * ddict['Phi_global']
+    for gas in noble_gases:
+        predicted = prefactor * jambon86_ppmw_per_bar(gas) * out[f'{gas}_bar']
+        assert out[f'{gas}_kg_liquid'] == pytest.approx(predicted, rel=1e-9)
+
+    # Discrimination guard: a swapped Henry constant (using Ne's for He)
+    # would break the He match by the ratio of the two constants (~2.25x),
+    # far outside the 1e-9 tolerance.
+    wrong = prefactor * jambon86_ppmw_per_bar('Ne') * out['He_bar']
+    assert abs(out['He_kg_liquid'] - wrong) > 0.1 * out['He_kg_liquid']
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.reference_pinned
+def test_partition_ratio_matches_henry_versus_hydrostatic_column():
+    """Reference (analytical limit): the dissolved-to-atmospheric mass ratio
+    of a noble gas is the closed-form ratio of its Henry coefficient to its
+    hydrostatic column coefficient,
+
+        M_liquid / M_atm = (prefactor * const) / (1e5 * A / g * M / mu),
+
+    with `A = 4 pi R^2` and `mu` the mean molar mass. Both sides are computed
+    independently of each other, so agreement pins the whole partitioning
+    against first principles and the published solubility constant.
+    """
+    np.random.seed(11)
+    ddict = _ddict()
+    target = dict(_CHNOS, **_NOBLE)
+    out = equilibrium_atmosphere(
+        target, ddict, print_result=False, opt_solver=False, nguess=2000
+    )
+
+    area = 4.0 * np.pi * ddict['radius'] ** 2.0
+    mu = out['atm_kg_per_mol']  # kg/mol
+    prefactor = 1.0e-6 * ddict['M_mantle'] * ddict['Phi_global']
+    for gas in ('He', 'Ar', 'Xe'):
+        k_diss = prefactor * jambon86_ppmw_per_bar(gas)
+        k_atm = 1.0e5 * area / ddict['gravity'] * molar_mass[gas] / mu
+        predicted_ratio = k_diss / k_atm
+        actual_ratio = out[f'{gas}_kg_liquid'] / out[f'{gas}_kg_atm']
+        assert actual_ratio == pytest.approx(predicted_ratio, rel=1e-6)
+
+    # Sign + scale guards: the ratio is positive and, for this Earth-scale
+    # mantle at ~50 bar, dissolved He is a small but non-zero fraction of
+    # atmospheric He (the mantle is a modest reservoir at low pressure).
+    ratio_he = out['He_kg_liquid'] / out['He_kg_atm']
+    assert ratio_he > 0.0
+    assert ratio_he < 10.0
+
+
+@pytest.mark.physics_invariant
+def test_noble_partial_pressure_and_dissolved_increase_with_budget():
+    """Monotonicity: raising the He budget raises both its partial pressure
+    and its dissolved mass. A sign error on the residual or a mislabeled
+    unknown would break this ordering.
+    """
+    ddict = _ddict(active=('He',))
+    outs = []
+    for he_budget in (1.0e15, 1.0e16, 1.0e17):
+        np.random.seed(3)
+        target = dict(_CHNOS, He=he_budget)
+        outs.append(
+            equilibrium_atmosphere(
+                target, ddict, print_result=False, opt_solver=False, nguess=2000
+            )
+        )
+    bars = [o['He_bar'] for o in outs]
+    diss = [o['He_kg_liquid'] for o in outs]
+    assert bars[0] < bars[1] < bars[2]
+    assert diss[0] < diss[1] < diss[2]
+    # Linear Henry law + near-fixed mu: a 10x budget increase raises the
+    # partial pressure by close to 10x. Guards against a saturating or
+    # sub-linear bug that would compress the spacing.
+    assert bars[2] / bars[0] > 50.0
+
+
+@pytest.mark.physics_invariant
+def test_noble_dominated_atmosphere_shifts_chnos_pressures():
+    """Coupling: a noble-gas-dominated atmosphere lowers the mean molar
+    mass, which changes the mapping from CHNOS partial pressures to column
+    masses, so at fixed CHNOS targets the solved CHNOS pressures must move.
+    A bypassed implementation that solved the noble gases against a frozen
+    CHNOS mean molar mass would leave the CHNOS pressures untouched; this
+    test fails in that case.
+    """
+    np.random.seed(5)
+    ddict_free = _ddict(active=())
+    out_free = equilibrium_atmosphere(
+        dict(_CHNOS), ddict_free, print_result=False, opt_solver=False, nguess=2000
+    )
+
+    np.random.seed(5)
+    ddict_he = _ddict(active=('He',))
+    # He budget comparable to the hydrogen budget: He dominates the column,
+    # pulling the mean molar mass toward 4 g/mol.
+    out_he = equilibrium_atmosphere(
+        dict(_CHNOS, He=5.0e20), ddict_he, print_result=False, opt_solver=False, nguess=2000
+    )
+
+    # The mean molar mass must drop substantially once He dominates.
+    assert out_he['atm_kg_per_mol'] < 0.5 * out_free['atm_kg_per_mol']
+    # And the CHNOS partial pressures must shift measurably. Hydrogen is
+    # mostly dissolved here, so the mean-molar-mass change reaches only its
+    # smaller atmospheric part; the resulting H2O shift is sub-percent but
+    # is ~100x above the ~1e-5 solver tolerance. A frozen-mu bypass would
+    # leave the CHNOS pressures unchanged (rel_shift at solver-noise level).
+    rel_shift = abs(out_he['H2O_bar'] - out_free['H2O_bar']) / out_free['H2O_bar']
+    assert rel_shift > 1.0e-3
+    # CHNOS mass balance still holds in the He-dominated solve.
+    assert out_he['H_res'] == pytest.approx(0.0, abs=max(1e-6 * _CHNOS['H'], 1e3))
+
+
+@pytest.mark.physics_invariant
+def test_noble_partitioning_independent_of_fo2():
+    """Symmetry: noble gases are chemically inert, so their partition
+    between melt and atmosphere must not depend on the fO2 buffer offset,
+    unlike the reactive CHNOS species (whose speciation shifts strongly with
+    fO2). Solve the same He budget at two very different redox states and
+    require the He partial pressure and dissolved mass to match.
+    """
+    target = dict(_CHNOS, He=3.0e16)
+    np.random.seed(9)
+    out_red = equilibrium_atmosphere(
+        target,
+        _ddict(active=('He',), dIW=-4.0),
+        print_result=False,
+        opt_solver=False,
+        nguess=2000,
+    )
+    np.random.seed(9)
+    out_ox = equilibrium_atmosphere(
+        target,
+        _ddict(active=('He',), dIW=+4.0),
+        print_result=False,
+        opt_solver=False,
+        nguess=2000,
+    )
+
+    # He partitioning is set by its own budget and the column, not redox.
+    # A small residual difference is allowed because the CHNOS background
+    # (and hence mu) shifts slightly with fO2, but it must be minor.
+    assert out_ox['He_kg_liquid'] / out_ox['He_kg_atm'] == pytest.approx(
+        out_red['He_kg_liquid'] / out_red['He_kg_atm'], rel=1e-2
+    )
+    # Discrimination: the sulfur partitioning is fO2-dependent (the Gaillard
+    # S2 melt solubility carries an explicit fO2 term), so S2_bar differs
+    # between the reducing and oxidising solves, confirming the two redox
+    # states are genuinely different and that noble inertness is not an
+    # artifact of identical inputs.
+    assert out_ox['S2_bar'] != pytest.approx(out_red['S2_bar'], rel=0.1)
+
+
+def test_excluded_noble_gas_is_absent_from_the_solve():
+    """Edge case: with only He included, the other four noble gases must
+    report exactly zero reservoirs and must not be required in the target
+    dict. This is the backward-compatible gate that keeps a CHNOS-only or
+    single-noble run from dragging in unused species.
+    """
+    np.random.seed(1)
+    ddict = _ddict(active=('He',))
+    target = dict(_CHNOS, He=3.0e16)  # no Ne/Ar/Kr/Xe targets supplied
+    out = equilibrium_atmosphere(
+        target, ddict, print_result=False, opt_solver=False, nguess=2000
+    )
+
+    # Only active gases appear in the output schema, so an unused noble gas
+    # leaves no keys behind (a CHNOS-only run is likewise noble-free).
+    for gas in ('Ne', 'Ar', 'Kr', 'Xe'):
+        assert f'{gas}_bar' not in out
+        assert f'{gas}_kg_total' not in out
+    # He, the one included gas, is present and non-trivial.
+    assert out['He_bar'] > 0.0
+    assert out['He_kg_total'] == pytest.approx(3.0e16, rel=1e-6)
+
+
+def test_included_noble_gas_without_target_raises():
+    """Error contract: an included noble gas with no target mass is a
+    misconfiguration and must fail loudly, not silently solve for zero.
+    """
+    np.random.seed(1)
+    ddict = _ddict(active=('He', 'Ar'))
+    target = dict(_CHNOS, He=3.0e16)  # Ar included but no Ar target
+    with pytest.raises(KeyError, match='Ar'):
+        equilibrium_atmosphere(target, ddict, print_result=False, nguess=100)
+
+
+@pytest.mark.physics_invariant
+def test_authoritative_o_mode_conserves_noble_mass_and_recovers_fo2():
+    """The authoritative-O solver (PROTEUS Path C) carries the noble gases
+    as extra unknowns after the O residual and must both close their mass
+    budgets and recover the redox state, unchanged by their presence.
+    """
+    dIW = 4.0
+    ddict = _ddict(dIW=dIW)
+    target_chnos = dict(_CHNOS, **_NOBLE)
+    np.random.seed(2)
+    legacy = equilibrium_atmosphere(target_chnos, ddict, print_result=False, nguess=1000)
+    target = dict(target_chnos, O=legacy['O_kg_total'])
+
+    out = equilibrium_atmosphere_authoritative_O(
+        target,
+        ddict,
+        fO2_hint=dIW,
+        random_seed=0,
+        nguess=1000,
+        nsolve=1000,
+        print_result=False,
+        opt_solver=False,
+    )
+
+    for gas in noble_gases:
+        reservoir = out[f'{gas}_kg_atm'] + out[f'{gas}_kg_liquid']
+        assert reservoir == pytest.approx(target[gas], rel=1e-5)
+        # Each noble gas gets its own residual key in this mode.
+        assert abs(out[f'{gas}_res']) < max(1e-5 * target[gas], 1e3)
+    # The derived redox state is the one the O budget was built at; the
+    # noble gases do not perturb it.
+    assert out['fO2_shift_derived'] == pytest.approx(dIW, abs=0.05)

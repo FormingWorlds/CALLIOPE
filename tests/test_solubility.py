@@ -27,7 +27,16 @@ import warnings
 
 import pytest
 
-from calliope.solubility import SolubilityH2O, SolubilityN2, SolubilityS2
+from calliope.constants import molar_mass, noble_gases
+from calliope.solubility import (
+    JAMBON86_STP_HENRY,
+    STP_MOLAR_VOLUME_CM3,
+    SolubilityH2O,
+    SolubilityN2,
+    SolubilityNobleGas,
+    SolubilityS2,
+    jambon86_ppmw_per_bar,
+)
 
 pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 
@@ -473,3 +482,143 @@ class TestBackwardCompatibility:
         # Regression value: N2 solubility under dasgupta has no fO2
         # dependence at this dIW=0 evaluation, so this is buffer-agnostic.
         assert ppmw_N2 == pytest.approx(2.14133, rel=1e-5)
+
+
+# ---------------------------------------------------------------------------
+# SolubilityNobleGas :: Jambon, Weill & Braun (1986) Henry's law
+# ---------------------------------------------------------------------------
+
+
+class TestSolubilityNobleGas:
+    """Noble gases dissolve by a single linear Henry's law,
+    `ppmw = const * p`, with `const` derived from the Jambon et al. (1986)
+    STP-volume solubility constant, the molar mass, and the STP molar
+    volume. Tests pin the derived constant, the linearity, the physical
+    ordering set by the tabulated data, and the melt-independence, and
+    cross-check the constant against atmodeller."""
+
+    def test_conversion_matches_closed_form_for_every_gas(self):
+        """`jambon86_ppmw_per_bar` must equal the closed-form chain
+        `(k_STP / V_STP) * M[g/mol] * 1e6` for each noble gas. Pinning
+        every gas guards against a per-gas transcription error in either
+        the STP constants or the molar masses."""
+        for gas in noble_gases:
+            expected = (
+                (JAMBON86_STP_HENRY[gas] / STP_MOLAR_VOLUME_CM3)
+                * (molar_mass[gas] * 1.0e3)
+                * 1.0e6
+            )
+            assert jambon86_ppmw_per_bar(gas) == pytest.approx(expected, rel=1e-12)
+
+        # Discrimination guard: a unit slip that forgot the kg->g factor
+        # (molar_mass in kg/mol, not g/mol) would make every constant 1000x
+        # too small. Pin the He magnitude against that failure mode.
+        assert jambon86_ppmw_per_bar('He') > 1.0e-3
+
+    @pytest.mark.physics_invariant
+    @pytest.mark.reference_pinned
+    def test_helium_constant_matches_jambon_1986(self):
+        """Pin the He Henry constant against the Jambon et al. (1986)
+        tholeiitic-basalt value of 56e-5 cm3 STP/g/bar.
+
+        const = (56e-5 / 2.24e4) * 4.0026 * 1e6 ~ 0.100065 ppmw/bar.
+
+        Discrimination guards below rule out the plausible bug classes:
+        wrong molar mass, wrong STP volume, wrong power, sign, and scale.
+        """
+        const = jambon86_ppmw_per_bar('He')
+        assert const == pytest.approx(0.100065, rel=1e-4)
+        # Wrong-molar-mass guard: using Ne's molar mass (20.1797) instead of
+        # He's (4.0026) would give ~0.5045, a factor of ~5 larger.
+        wrong_mass = (56e-5 / STP_MOLAR_VOLUME_CM3) * 20.1797 * 1.0e6
+        assert abs(const - wrong_mass) > 0.1
+        # Sign guard: solubility constants are strictly positive.
+        assert const > 0
+        # Scale guard: order 1e-1 ppmw/bar, not 1e2 (missing STP-volume
+        # division) or 1e-4 (kg/g slip).
+        assert 1e-2 < const < 1e0
+
+    @pytest.mark.physics_invariant
+    @pytest.mark.reference_pinned
+    def test_noble_constants_cross_check_against_atmodeller(self):
+        """Cross-implementation check: CALLIOPE and atmodeller derive the
+        Jambon et al. (1986) Henry constants from the same primitives, so
+        the two backends must agree to floating point. This is what makes
+        the coupled cross-backend comparison a true parity test rather than
+        two independent calibrations.
+        """
+        pytest.importorskip('atmodeller')
+        from atmodeller.solubility import get_solubility_models
+
+        models = get_solubility_models()
+        for gas in noble_gases:
+            cal = jambon86_ppmw_per_bar(gas)
+            model = models[f'{gas}_basalt_jambon86']
+            # atmodeller's power law is linear in fugacity, so the ppmw at
+            # 1 bar is the Henry constant itself.
+            try:
+                atm = float(model.concentration(1.0, temperature=1500.0))
+            except TypeError:
+                atm = float(model.concentration(1.0))
+            assert cal == pytest.approx(atm, rel=1e-10), f'{gas}: {cal} vs {atm}'
+
+        # Discrimination guard: the five constants are distinct, so a
+        # transcription that reused He's value for every gas would fail the
+        # per-gas comparison. Confirm they span a real range.
+        vals = [jambon86_ppmw_per_bar(g) for g in noble_gases]
+        assert max(vals) / min(vals) > 2.0
+
+    @pytest.mark.physics_invariant
+    def test_henry_law_is_linear_in_pressure(self):
+        """Noble gas solubility is linear (exponent 1), which distinguishes
+        it from the square-root CHNOS laws. Doubling the pressure doubles
+        the dissolved concentration exactly; a sqrt law would scale by
+        `sqrt(2)`.
+        """
+        s = SolubilityNobleGas('Ar')
+        low = s(10.0)
+        high = s(20.0)
+        # Linear: exactly a factor of 2.
+        assert high == pytest.approx(2.0 * low, rel=1e-12)
+        # Wrong-exponent guard: a p^0.5 law would give a factor of sqrt(2).
+        assert abs(high / low - 2.0**0.5) > 0.2
+        # Zero-pressure boundary: identically zero dissolved gas.
+        assert s(0.0) == 0.0
+
+    @pytest.mark.physics_invariant
+    def test_dissolved_concentration_monotonic_and_positive(self):
+        """Every noble gas is strictly increasing and positive in pressure,
+        the Henry's-law sign convention. Discriminating because a sign flip
+        on the constant would invert the ordering."""
+        for gas in noble_gases:
+            s = SolubilityNobleGas(gas)
+            a, b, c = s(1.0), s(100.0), s(1.0e4)
+            assert 0.0 < a < b < c
+            # Linearity pins the spacing: c/a == 1e4 exactly.
+            assert c == pytest.approx(1.0e4 * a, rel=1e-12)
+
+    def test_melt_composition_independence(self):
+        """The Jambon law carries no melt-composition, temperature, or
+        redox dependence: the class takes only the gas name and the call
+        takes only pressure. Verify the mapping from gas to constant is the
+        published ordering (Ne most soluble by weight, Xe least of the pair
+        with He), which a swapped-constant bug would violate."""
+        consts = {g: SolubilityNobleGas(g)(1.0) for g in noble_gases}
+        # Ne has the largest ppmw/bar of the five (25e-5 STP constant times
+        # its molar mass dominates); Xe the smallest.
+        assert consts['Ne'] == max(consts.values())
+        assert consts['Xe'] == min(consts.values())
+        # Discrimination: He and Ar are close (0.1001 vs 0.1052) but not
+        # equal; a bug that collapsed all gases to one constant would fail.
+        assert consts['He'] != pytest.approx(consts['Ar'], rel=1e-3)
+
+    def test_rejects_non_noble_gas(self):
+        """The constructor validates its argument: a non-noble species
+        (e.g. a CHNOS gas passed by mistake) raises ValueError rather than
+        silently building a broken model."""
+        with pytest.raises(ValueError, match='not a noble gas'):
+            SolubilityNobleGas('H2O')
+        with pytest.raises(ValueError, match='not a noble gas'):
+            SolubilityNobleGas('CO2')
+        # A valid gas must still build and evaluate.
+        assert SolubilityNobleGas('He')(1.0) > 0.0
