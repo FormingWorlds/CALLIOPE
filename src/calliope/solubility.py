@@ -12,14 +12,16 @@ log = logging.getLogger('fwl.' + __name__)
 
 # Jambon, Weill & Braun (1986), doi:10.1016/0016-7037(86)90193-6. Henry's-law
 # solubility constants for noble gases in tholeiitic basalt melt, in units of
-# cm3 STP per gram of melt per bar of partial pressure. These are the average
-# values at 1400 C from the Table 5 data, which span 1250-1600 C. atmodeller
-# derives its `<gas>_basalt_jambon86` models from the same paper: for Ne, Ar,
-# Kr and Xe the constants are identical, so those gases agree to solver
-# tolerance, while for He atmodeller uses the abstract's rounded 56e-5 rather
-# than the Table 5 value of 56.5e-5, a difference below one percent.
-JAMBON86_STP_HENRY = {  # cm3 STP / g / bar (average at 1400 C, Jambon+1986 Table 5)
-    'He': 56.5e-5,
+# cm3 STP per gram of melt per bar of partial pressure, measured between 1250
+# and 1600 C. These are the exact primitives atmodeller uses for its
+# `<gas>_basalt_jambon86` models, so the two backends produce identical Henry
+# constants for all five gases and agree to solver tolerance. Helium keeps the
+# abstract's 56e-5 to match atmodeller: the paper's Table 5 gives a marginally
+# more precise 56.5e-5, but exact cross-backend agreement is more useful here
+# than the sub-percent refinement, since the shared calibration is what makes
+# the coupled cross-backend comparison a true parity test.
+JAMBON86_STP_HENRY = {  # cm3 STP / g / bar
+    'He': 56e-5,
     'Ne': 25e-5,
     'Ar': 5.9e-5,
     'Kr': 3.0e-5,
