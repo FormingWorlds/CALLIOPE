@@ -885,7 +885,12 @@ def equilibrium_atmosphere(
 
     bounds = opt.Bounds(lb=lb, ub=ub)
 
-    tolerance = np.amax(list(target_d.values())) * rtol + atol + TRUNC_MASS
+    # Scalar CHNOS acceptance gate, keyed to the largest CHNOS budget only.
+    # Noble gas budgets are deliberately excluded from this maximum: a large
+    # noble inventory would otherwise inflate the tolerance and loosen the
+    # closure demanded of the trace CHNOS elements. The noble gases are held
+    # to their own per-gas gate below.
+    tolerance = np.amax([target_d[e] for e in ('H', 'C', 'N', 'S')]) * rtol + atol + TRUNC_MASS
     log.debug('Required tolerance: %g' % tolerance)
 
     with warnings.catch_warnings():

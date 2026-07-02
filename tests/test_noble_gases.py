@@ -26,9 +26,12 @@ See `docs/How-to/build_tests.md` for the testing standards these follow.
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 import pytest
 
+from calliope import solve as calsolve
 from calliope.constants import molar_mass, noble_gases
 from calliope.solubility import jambon86_ppmw_per_bar
 from calliope.solve import (
@@ -36,6 +39,7 @@ from calliope.solve import (
     equilibrium_atmosphere_authoritative_O,
     get_target_from_params,
     get_target_from_pressures,
+    is_included,
 )
 
 pytestmark = [pytest.mark.smoke, pytest.mark.timeout(60)]
@@ -350,20 +354,44 @@ def test_get_target_from_pressures_tallies_noble_initial_bar():
 
     target = get_target_from_pressures(ddict)
 
-    # Reconstruct the expected He inventory from the same primitives the
-    # builder uses, computing the mean molar mass over the included species.
-    from calliope.solve import atmosphere_mass, dissolved_mass
+    # Independent closed-form He inventory, built from first principles rather
+    # than from the functions the builder calls. The oxygen fugacity (and
+    # hence the negligible O2 partial pressure) comes from the separate
+    # OxygenFugacity module, so nothing here re-uses atmosphere_mass or
+    # dissolved_mass.
+    from calliope.oxygen_fugacity import OxygenFugacity
 
-    pin = {'H2O': 100.0, 'CO2': 10.0, 'N2': 5.0, 'S2': 1.0, 'He': 20.0}
-    expected = atmosphere_mass(pin, ddict)['He'] + dissolved_mass(pin, ddict)['He']
-    assert target['He'] == pytest.approx(expected, rel=1e-9)
-    # He inventory must be strictly positive at 20 bar and dominated by the
+    p_O2 = 10.0 ** OxygenFugacity()(1800.0, 0.0)
+    pin_all = {'H2O': 100.0, 'CO2': 10.0, 'N2': 5.0, 'S2': 1.0, 'He': 20.0, 'O2': p_O2}
+    mu = sum(molar_mass[s] * pin_all[s] for s in pin_all) / sum(pin_all.values())
+    area = 4.0 * np.pi * ddict['radius'] ** 2.0
+    he_atm = 20.0 * 1.0e5 / ddict['gravity'] * area * molar_mass['He'] / mu
+    he_diss = (
+        1.0e-6 * ddict['M_mantle'] * ddict['Phi_global'] * jambon86_ppmw_per_bar('He') * 20.0
+    )
+    expected = he_atm + he_diss
+    assert target['He'] == pytest.approx(expected, rel=1e-6)
+    # He inventory is strictly positive at 20 bar and dominated by the
     # atmospheric column for this Earth-scale mantle at modest pressure.
     assert target['He'] > 0.0
+    assert he_atm > he_diss
     # Discrimination guard: the CHNOS targets must also be present and
     # positive, confirming the noble branch did not displace them.
     for e in ('H', 'C', 'N', 'S'):
         assert target[e] > 0.0
+
+
+def test_get_target_from_pressures_rejects_empty_atmosphere():
+    """Error contract: if every initial partial pressure is below the
+    surface-pressure floor, there is no atmosphere to invert and the builder
+    raises rather than returning a degenerate zero-pressure target.
+    """
+    ddict = _ddict(active=('He',))
+    for s in ('H2O', 'CO2', 'N2', 'S2'):
+        ddict[f'{s}_initial_bar'] = 1.0e-30
+    ddict['He_initial_bar'] = 1.0e-30
+    with pytest.raises(Exception, match='too low'):
+        get_target_from_pressures(ddict)
 
 
 @pytest.mark.physics_invariant
@@ -385,14 +413,21 @@ def test_chnos_only_solve_is_unchanged_by_noble_gas_support():
         assert f'{gas}_kg_total' not in out
         assert f'{gas}/H_atm' not in out
 
-    # CHNOS mass balance closes and the primaries are physical, so the
-    # numbers a downstream consumer reads are the pre-noble CHNOS values.
+    # CHNOS mass balance closes.
     assert out['H_res'] == pytest.approx(0.0, abs=max(1e-6 * _CHNOS['H'], 1e3))
     assert out['S_res'] == pytest.approx(0.0, abs=max(1e-6 * _CHNOS['S'], 1e3))
-    assert out['H2O_bar'] > 0.0
-    assert out['P_surf'] > 0.0
-    # atm_kg_per_mol is a CHNOS-only mean molar mass (order 1e-2 kg/mol).
-    assert 1e-3 < out['atm_kg_per_mol'] < 1e-1
+
+    # Pin the primary partial pressures and the mean molar mass against the
+    # values the pre-noble solver produced at this fixed seed. A regression
+    # that perturbed the CHNOS path while still closing mass balance (for
+    # example by letting an inactive noble gas leak into the mean molar mass)
+    # would move these numbers and fail here. Captured from the CHNOS-only
+    # solver at seed 17.
+    assert out['H2O_bar'] == pytest.approx(4.0844429849e-01, rel=1e-6)
+    assert out['CO2_bar'] == pytest.approx(5.1936704868e01, rel=1e-6)
+    assert out['N2_bar'] == pytest.approx(5.6066338860e-01, rel=1e-6)
+    assert out['S2_bar'] == pytest.approx(1.4249796437e-07, rel=1e-5)
+    assert out['atm_kg_per_mol'] == pytest.approx(4.3639799394e-02, rel=1e-6)
 
 
 @pytest.mark.physics_invariant
@@ -427,3 +462,87 @@ def test_authoritative_o_mode_conserves_noble_mass_and_recovers_fo2():
     # The derived redox state is the one the O budget was built at; the
     # noble gases do not perturb it.
     assert out['fO2_shift_derived'] == pytest.approx(dIW, abs=0.05)
+
+
+def test_is_included_strict_for_chnos_soft_for_noble():
+    """The inclusion predicate is opt-in for noble gases but fail-loud for the
+    CHNOS reaction-network species. A missing noble flag defaults to excluded;
+    a missing CHNOS flag is a malformed options dict and raises, so a species
+    cannot silently vanish from the solve.
+    """
+    # Noble gases: absent flag means excluded, present flag is honoured.
+    assert is_included('He', {}) is False
+    assert is_included('Ne', {'Ne_included': 1}) is True
+    assert is_included('Ar', {'Ar_included': 0}) is False
+    # CHNOS: a missing flag raises rather than defaulting.
+    with pytest.raises(KeyError):
+        is_included('CO2', {})
+    with pytest.raises(KeyError):
+        is_included('N2', {})
+    # A present CHNOS flag still works both ways.
+    assert is_included('CO2', {'CO2_included': 1}) is True
+    assert is_included('CO2', {'CO2_included': 0}) is False
+
+
+def test_noble_residual_gate_rejects_mass_unbalanced_solution(monkeypatch, caplog):
+    """The per-gas noble closure gate must reject a converged-looking root
+    whose noble residual exceeds the gas's own budget, even when the scalar
+    CHNOS gate would accept it. Force the inner solver to return such a root
+    and confirm the solve is rejected rather than returned.
+    """
+    ddict = _ddict(active=('He',))
+    target = dict(_CHNOS, He=3.0e16)
+    # Supply a warm guess so the two-stage cold start is skipped and the
+    # single stubbed attempt is the whole solve.
+    p_guess = {'H2O': 1.0, 'CO2': 1.0, 'N2': 1.0, 'S2': 1.0, 'He': 1.0}
+
+    # Root fsolve reports as converged (ier == 1).
+    def _fake_fsolve(*args, **kwargs):
+        return np.array([1.0, 1.0, 1.0, 1.0, 1.0]), {}, 1, 'stub'
+
+    # Residual: CHNOS closed (0), but the He residual (3e13 kg) is far above
+    # the He per-gas tolerance (3e16 * 1e-5 = 3e11 kg) while staying under the
+    # scalar CHNOS gate (~1.5e15 kg), so only the noble gate can catch it.
+    def _fake_func(*args, **kwargs):
+        return [0.0, 0.0, 0.0, 0.0, 3.0e13]
+
+    monkeypatch.setattr(calsolve.opt, 'fsolve', _fake_fsolve)
+    monkeypatch.setattr(calsolve, 'func', _fake_func)
+
+    with caplog.at_level(logging.DEBUG, logger='fwl.calliope.solve'):
+        with pytest.raises(RuntimeError, match='Could not find solution'):
+            equilibrium_atmosphere(
+                target, ddict, p_guess=p_guess, nguess=1, print_result=False, opt_solver=False
+            )
+    # The rejection reason is the noble gate, not the scalar CHNOS gate.
+    assert any('noble gas residual' in r.message for r in caplog.records)
+
+
+def test_two_stage_cold_start_falls_back_when_core_presolve_fails(monkeypatch, caplog):
+    """When the CHNOS core pre-solve of the two-stage cold start does not
+    converge, the solver logs a warning and falls back to the random draw,
+    which still recovers a valid solution. Force the recursive core call to
+    raise and confirm both the warning and the recovery.
+    """
+    real = calsolve.equilibrium_atmosphere
+    calls = {'n': 0}
+
+    def wrapper(*args, **kwargs):
+        calls['n'] += 1
+        # The first call is the outer solve; the second is the recursive
+        # CHNOS core pre-solve, which we force to fail.
+        if calls['n'] == 2:
+            raise RuntimeError('forced core pre-solve failure')
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(calsolve, 'equilibrium_atmosphere', wrapper)
+
+    ddict = _ddict(active=('He',))
+    target = dict(_CHNOS, He=3.0e16)
+    np.random.seed(0)
+    with caplog.at_level(logging.WARNING, logger='fwl.calliope.solve'):
+        out = wrapper(target, ddict, print_result=False, opt_solver=False, nguess=4000)
+
+    # The fallback warning fired, and the random draw still closed He mass.
+    assert any('random high-dimensional draw' in r.message for r in caplog.records)
+    assert out['He_kg_atm'] + out['He_kg_liquid'] == pytest.approx(3.0e16, rel=1e-5)
