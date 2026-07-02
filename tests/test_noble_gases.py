@@ -546,3 +546,92 @@ def test_two_stage_cold_start_falls_back_when_core_presolve_fails(monkeypatch, c
     # The fallback warning fired, and the random draw still closed He mass.
     assert any('random high-dimensional draw' in r.message for r in caplog.records)
     assert out['He_kg_atm'] + out['He_kg_liquid'] == pytest.approx(3.0e16, rel=1e-5)
+
+
+def test_abundant_noble_residual_within_budget_is_accepted(monkeypatch):
+    """A converged root whose noble residual is within the noble gas's own
+    per-gas tolerance must be accepted even when that residual exceeds the
+    CHNOS-keyed scalar tolerance. The scalar acceptance gate judges only the
+    CHNOS residuals; an abundant noble gas is governed by its per-gas gate.
+    Without the CHNOS-only slice the scalar gate would reject this root and
+    the solve would spuriously fail.
+    """
+    ddict = _ddict(active=('He',))
+    # Trace CHNOS, abundant He: the He per-gas tolerance (He*rtol = 1e13)
+    # exceeds the CHNOS scalar tolerance (dominated by atol ~ 1e10).
+    target = {'H': 1.0e12, 'C': 1.0e12, 'N': 1.0e12, 'S': 1.0e12, 'He': 1.0e18}
+    p_guess = {'H2O': 1.0, 'CO2': 1.0, 'N2': 1.0, 'S2': 1.0, 'He': 1.0}
+
+    def _fake_fsolve(*args, **kwargs):
+        return np.array([1.0, 1.0, 1.0, 1.0, 1.0]), {}, 1, 'stub'
+
+    # CHNOS residuals closed; He residual 5e12 is within the He per-gas
+    # tolerance (1e13) but above the CHNOS scalar tolerance (~1e10).
+    def _fake_func(*args, **kwargs):
+        return [0.0, 0.0, 0.0, 0.0, 5.0e12]
+
+    monkeypatch.setattr(calsolve.opt, 'fsolve', _fake_fsolve)
+    monkeypatch.setattr(calsolve, 'func', _fake_func)
+
+    out = equilibrium_atmosphere(
+        target,
+        ddict,
+        p_guess=p_guess,
+        nguess=1,
+        atol=1.0e10,
+        rtol=1.0e-5,
+        print_result=False,
+        opt_solver=False,
+    )
+    # Accepted: a result dict is returned rather than a RuntimeError.
+    assert isinstance(out, dict)
+    assert 'He_res' in out
+
+
+def test_authoritative_o_two_stage_fallback_warns(monkeypatch, caplog):
+    """When the CHNOS core pre-solve of the authoritative-O two-stage cold
+    start fails, the solver logs a warning and falls back to the random draw,
+    the same contract the fixed-fO2 path has. Exercises the fallback branch of
+    the authoritative-O entry point.
+    """
+    real = calsolve.equilibrium_atmosphere_authoritative_O
+    calls = {'n': 0}
+
+    def wrapper(*args, **kwargs):
+        calls['n'] += 1
+        # First call is the outer solve; second is the recursive CHNOS + O
+        # core pre-solve, which we force to fail.
+        if calls['n'] == 2:
+            raise RuntimeError('forced core pre-solve failure')
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(calsolve, 'equilibrium_atmosphere_authoritative_O', wrapper)
+
+    dIW = 4.0
+    ddict = _ddict(dIW=dIW)
+    target_chnos = dict(_CHNOS, **_NOBLE)
+    np.random.seed(2)
+    legacy = equilibrium_atmosphere(target_chnos, ddict, print_result=False, nguess=1000)
+    target = dict(target_chnos, O=legacy['O_kg_total'])
+
+    with caplog.at_level(logging.WARNING, logger='fwl.calliope.solve'):
+        try:
+            out = wrapper(
+                target,
+                ddict,
+                fO2_hint=dIW,
+                random_seed=0,
+                nguess=2000,
+                nsolve=1000,
+                print_result=False,
+                opt_solver=False,
+            )
+        except RuntimeError:
+            out = None
+
+    # The fallback warning fired, so the branch is exercised regardless of
+    # whether the high-dimensional random draw then reconverged.
+    assert any('random high-dimensional draw' in r.message for r in caplog.records)
+    # If the random draw did recover, noble mass still closes.
+    if out is not None:
+        assert out['He_kg_atm'] + out['He_kg_liquid'] == pytest.approx(target['He'], rel=1e-5)

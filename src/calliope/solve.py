@@ -924,18 +924,24 @@ def equilibrium_atmosphere(
             # tolerance: fsolve and trust-constr converge by their own
             # criteria, which are not the kg-mass-balance criterion.
             this_resid = func(sol, ddict, target_d)
-            loss = np.amax(np.abs(this_resid))
+            # The scalar gate is keyed to the CHNOS budgets, so it must judge
+            # only the CHNOS residuals (indices 0-3). Including the noble
+            # residuals here would gate an abundant noble gas against the
+            # CHNOS tolerance and spuriously reject an otherwise valid root;
+            # the noble gases are held to their own per-gas gate below.
+            chnos_resid = np.abs(np.asarray(this_resid[:4]))
+            loss = np.amax(chnos_resid)
             if loss > tolerance:
                 if success:
-                    log.debug('Solution rejected by residual')
-                    log.debug('    d(i=%d) = %.2e kg' % (np.argmax(this_resid), loss))
+                    log.debug('Solution rejected by CHNOS residual')
+                    log.debug('    d(i=%d) = %.2e kg' % (np.argmax(chnos_resid), loss))
                 success = False
 
-            # The scalar gate above keys its tolerance to the largest budget,
-            # which is loose for a trace noble gas (its whole inventory can be
-            # orders of magnitude below the dominant element). Add a per-gas
-            # closure check for the noble residuals so a mass-unbalanced noble
-            # solution is not accepted, mirroring the per-element gate the
+            # The scalar gate above keys its tolerance to the largest CHNOS
+            # budget, which is loose for a trace noble gas (its whole inventory
+            # can be orders of magnitude below the dominant element). Add a
+            # per-gas closure check for the noble residuals so a mass-unbalanced
+            # noble solution is not accepted, mirroring the per-element gate the
             # authoritative-O path already uses.
             if success and active:
                 noble_resid = np.abs(np.asarray(this_resid[4:]))
