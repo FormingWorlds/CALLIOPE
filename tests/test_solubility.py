@@ -497,11 +497,53 @@ class TestSolubilityNobleGas:
     ordering set by the tabulated data, and the melt-independence, and
     cross-check the constant against atmodeller."""
 
+    @pytest.mark.physics_invariant
+    @pytest.mark.reference_pinned
+    def test_every_gas_constant_pinned_to_independent_literal(self):
+        """Pin each noble gas Henry constant [ppmw/bar] to an independently
+        hand-computed literal, so a fat-fingered entry in `JAMBON86_STP_HENRY`
+        or `molar_mass` for ANY of the five gases fails here even on a CI
+        image without atmodeller installed.
+
+        Each literal is `(k_STP / 2.24e4) * M[g/mol] * 1e6` evaluated by hand
+        from the Jambon et al. (1986) constants and the molar masses:
+        He 0.100065, Ne 0.225220, Ar 0.105220, Kr 0.112229, Xe 0.099642.
+        """
+        expected = {
+            'He': 0.100065,
+            'Ne': 0.225220,
+            'Ar': 0.105220,
+            'Kr': 0.112229,
+            'Xe': 0.099642,
+        }
+        for gas in noble_gases:
+            assert jambon86_ppmw_per_bar(gas) == pytest.approx(expected[gas], rel=1e-4)
+
+        # Discrimination guard: the constants are close for several pairs
+        # (He/Ar/Xe all near 0.1), so pin that each gas differs from every
+        # other by more than the tolerance. A doubled Ar constant (0.105 ->
+        # 0.210) would move it next to Ne and fail its own pin; this loop
+        # catches a value copied from the wrong gas.
+        for a in noble_gases:
+            for b in noble_gases:
+                if a == b:
+                    continue
+                if abs(expected[a] - expected[b]) > 1e-3:
+                    assert jambon86_ppmw_per_bar(a) != pytest.approx(expected[b], rel=1e-4), (
+                        f'{a} constant collides with {b}'
+                    )
+
+        # Unit-slip guard: forgetting the kg->g factor would make every
+        # constant 1000x too small (order 1e-4). All five are order 1e-1.
+        for gas in noble_gases:
+            assert 1e-2 < jambon86_ppmw_per_bar(gas) < 1e0
+
     def test_conversion_matches_closed_form_for_every_gas(self):
-        """`jambon86_ppmw_per_bar` must equal the closed-form chain
-        `(k_STP / V_STP) * M[g/mol] * 1e6` for each noble gas. Pinning
-        every gas guards against a per-gas transcription error in either
-        the STP constants or the molar masses."""
+        """`jambon86_ppmw_per_bar` reproduces the closed-form chain
+        `(k_STP / V_STP) * M[g/mol] * 1e6`, confirming the helper wires the
+        module constants together as documented. This is a construction
+        check; the independent numeric anchor is the literal-pin test above.
+        """
         for gas in noble_gases:
             expected = (
                 (JAMBON86_STP_HENRY[gas] / STP_MOLAR_VOLUME_CM3)

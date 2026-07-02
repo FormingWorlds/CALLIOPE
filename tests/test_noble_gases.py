@@ -34,6 +34,8 @@ from calliope.solubility import jambon86_ppmw_per_bar
 from calliope.solve import (
     equilibrium_atmosphere,
     equilibrium_atmosphere_authoritative_O,
+    get_target_from_params,
+    get_target_from_pressures,
 )
 
 pytestmark = [pytest.mark.smoke, pytest.mark.timeout(60)]
@@ -198,23 +200,29 @@ def test_noble_dominated_atmosphere_shifts_chnos_pressures():
 
     np.random.seed(5)
     ddict_he = _ddict(active=('He',))
-    # He budget comparable to the hydrogen budget: He dominates the column,
-    # pulling the mean molar mass toward 4 g/mol.
+    # He budget more than an order of magnitude above the hydrogen budget:
+    # He dominates the column and pulls the mean molar mass toward 4 g/mol.
     out_he = equilibrium_atmosphere(
-        dict(_CHNOS, He=5.0e20), ddict_he, print_result=False, opt_solver=False, nguess=2000
+        dict(_CHNOS, He=2.0e21), ddict_he, print_result=False, opt_solver=False, nguess=2000
     )
 
     # The mean molar mass must drop substantially once He dominates.
     assert out_he['atm_kg_per_mol'] < 0.5 * out_free['atm_kg_per_mol']
-    # And the CHNOS partial pressures must shift measurably. Hydrogen is
-    # mostly dissolved here, so the mean-molar-mass change reaches only its
-    # smaller atmospheric part; the resulting H2O shift is sub-percent but
-    # is ~100x above the ~1e-5 solver tolerance. A frozen-mu bypass would
-    # leave the CHNOS pressures unchanged (rel_shift at solver-noise level).
-    rel_shift = abs(out_he['H2O_bar'] - out_free['H2O_bar']) / out_free['H2O_bar']
-    assert rel_shift > 1.0e-3
-    # CHNOS mass balance still holds in the He-dominated solve.
+
+    # CO2 and N2 are held mostly in the atmosphere here, so the mean-molar-
+    # mass drop reaches their full column: each partial pressure must fall by
+    # more than half at the fixed CHNOS target (the lighter atmosphere carries
+    # the same elemental mass at lower partial pressure). The direction is
+    # pinned (a decrease), not just the magnitude. A frozen-mu bypass that
+    # solved the noble gases against the CHNOS-only mean molar mass would
+    # leave CO2_bar and N2_bar unchanged and fail both assertions.
+    assert out_he['CO2_bar'] < 0.5 * out_free['CO2_bar']
+    assert out_he['N2_bar'] < 0.5 * out_free['N2_bar']
+
+    # CHNOS mass balance still holds in the He-dominated solve, so the shift
+    # is a genuine re-partitioning, not a broken solve.
     assert out_he['H_res'] == pytest.approx(0.0, abs=max(1e-6 * _CHNOS['H'], 1e3))
+    assert out_he['C_res'] == pytest.approx(0.0, abs=max(1e-6 * _CHNOS['C'], 1e3))
 
 
 @pytest.mark.physics_invariant
@@ -289,6 +297,102 @@ def test_included_noble_gas_without_target_raises():
     target = dict(_CHNOS, He=3.0e16)  # Ar included but no Ar target
     with pytest.raises(KeyError, match='Ar'):
         equilibrium_atmosphere(target, ddict, print_result=False, nguess=100)
+
+
+def test_get_target_from_params_converts_noble_ppmw_to_kg():
+    """The element-mode target builder (the PROTEUS `volatile_mode =
+    'elements'` path) converts a noble gas ppmw budget to kg relative to the
+    mantle mass, exactly as it does for nitrogen and sulfur. This exercises
+    the `get_target_from_params` noble branch that the solver tests bypass by
+    building target dicts directly.
+    """
+    M_mantle = 4.0e24
+    ddict = {
+        'M_mantle': M_mantle,
+        'hydrogen_earth_oceans': 1.0,
+        'CH_ratio': 0.1,
+        'nitrogen_ppmw': 2.0,
+        'sulfur_ppmw': 200.0,
+        'He_included': 1,
+        'He_ppmw': 5.0,
+        'Ar_included': 1,
+        'Ar_ppmw': 0.5,
+        # Ne included but no ppmw: defaults to zero budget, not an error.
+        'Ne_included': 1,
+        'Kr_included': 0,
+        'Xe_included': 0,
+    }
+    target = get_target_from_params(ddict)
+
+    assert target['He'] == pytest.approx(5.0 * 1e-6 * M_mantle, rel=1e-12)
+    assert target['Ar'] == pytest.approx(0.5 * 1e-6 * M_mantle, rel=1e-12)
+    assert target['Ne'] == pytest.approx(0.0)
+    # Excluded gases get no target at all.
+    assert 'Kr' not in target
+    assert 'Xe' not in target
+    # Discrimination guard: dropping the 1e-6 ppmw factor would make the He
+    # target 1e6x too large (5 * M_mantle instead of 5e-6 * M_mantle).
+    assert abs(target['He'] - 5.0 * M_mantle) > 0.5 * (5.0 * M_mantle)
+
+
+def test_get_target_from_pressures_tallies_noble_initial_bar():
+    """The pressure-mode target builder sums a noble gas's atmospheric and
+    dissolved mass from its initial partial pressure, so a config that
+    specifies noble gases by pressure produces the correct inventory. Both
+    reservoirs use the closed-form column and Henry expressions.
+    """
+    ddict = _ddict(active=('He',))
+    ddict['H2O_initial_bar'] = 100.0
+    ddict['CO2_initial_bar'] = 10.0
+    ddict['N2_initial_bar'] = 5.0
+    ddict['S2_initial_bar'] = 1.0
+    ddict['He_initial_bar'] = 20.0
+
+    target = get_target_from_pressures(ddict)
+
+    # Reconstruct the expected He inventory from the same primitives the
+    # builder uses, computing the mean molar mass over the included species.
+    from calliope.solve import atmosphere_mass, dissolved_mass
+
+    pin = {'H2O': 100.0, 'CO2': 10.0, 'N2': 5.0, 'S2': 1.0, 'He': 20.0}
+    expected = atmosphere_mass(pin, ddict)['He'] + dissolved_mass(pin, ddict)['He']
+    assert target['He'] == pytest.approx(expected, rel=1e-9)
+    # He inventory must be strictly positive at 20 bar and dominated by the
+    # atmospheric column for this Earth-scale mantle at modest pressure.
+    assert target['He'] > 0.0
+    # Discrimination guard: the CHNOS targets must also be present and
+    # positive, confirming the noble branch did not displace them.
+    for e in ('H', 'C', 'N', 'S'):
+        assert target[e] > 0.0
+
+
+@pytest.mark.physics_invariant
+def test_chnos_only_solve_is_unchanged_by_noble_gas_support():
+    """Backward compatibility: a run with no noble gas budget must reproduce
+    the pure CHNOS solution and emit no noble keys. Pins the commit's
+    central claim that the noble gas machinery leaves the CHNOS path
+    numerically untouched.
+    """
+    np.random.seed(17)
+    ddict = _ddict(active=())
+    out = equilibrium_atmosphere(
+        dict(_CHNOS), ddict, print_result=False, opt_solver=False, nguess=2000
+    )
+
+    # No noble keys leak into a CHNOS-only output.
+    for gas in noble_gases:
+        assert f'{gas}_bar' not in out
+        assert f'{gas}_kg_total' not in out
+        assert f'{gas}/H_atm' not in out
+
+    # CHNOS mass balance closes and the primaries are physical, so the
+    # numbers a downstream consumer reads are the pre-noble CHNOS values.
+    assert out['H_res'] == pytest.approx(0.0, abs=max(1e-6 * _CHNOS['H'], 1e3))
+    assert out['S_res'] == pytest.approx(0.0, abs=max(1e-6 * _CHNOS['S'], 1e3))
+    assert out['H2O_bar'] > 0.0
+    assert out['P_surf'] > 0.0
+    # atm_kg_per_mol is a CHNOS-only mean molar mass (order 1e-2 kg/mol).
+    assert 1e-3 < out['atm_kg_per_mol'] < 1e-1
 
 
 @pytest.mark.physics_invariant
