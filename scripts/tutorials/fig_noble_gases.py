@@ -9,10 +9,11 @@ things the reader cannot see from the CHNOS-only tutorial figures:
   component, with the curves bending together as the gas comes to
   dominate the atmosphere and shift its mean molar mass.
 * panel (b): the split between atmosphere and melt is set by the gas's
-  mass-based solubility (ppmw of melt per bar), which is the STP-volume
-  Henry constant weighted by molar mass. Neon carries the largest such
-  constant and is the most retained in the melt, while xenon carries the
-  smallest and sits almost entirely in the atmosphere.
+  volume-based Henry constant (cm3 STP per gram per bar) and the
+  atmosphere's mean molar mass. The molar mass cancels out of the
+  mass-based ppmw-per-bar constant, so retention does not simply track
+  that constant; in this background neon is the most retained in the melt
+  and xenon the least, so xenon sits almost entirely in the atmosphere.
 
 The split is budget-independent because Henry's law is linear, so panel
 (b) is evaluated at a single representative budget.

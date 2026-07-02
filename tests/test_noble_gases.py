@@ -127,14 +127,18 @@ def test_dissolved_mass_follows_closed_form_henry_law():
 @pytest.mark.reference_pinned
 def test_partition_ratio_matches_henry_versus_hydrostatic_column():
     """Reference (analytical limit): the dissolved-to-atmospheric mass ratio
-    of a noble gas is the closed-form ratio of its Henry coefficient to its
+    of a noble gas equals the closed-form ratio of its Henry coefficient to its
     hydrostatic column coefficient,
 
         M_liquid / M_atm = (prefactor * const) / (1e5 * A / g * M / mu),
 
-    with `A = 4 pi R^2` and `mu` the mean molar mass. Both sides are computed
-    independently of each other, so agreement pins the whole partitioning
-    against first principles and the published solubility constant.
+    with `A = 4 pi R^2` and `mu` the mean molar mass. This pins the solver's
+    assembly of the dissolved and atmospheric masses against the analytic
+    partition relation, so a wrong column formula, a wrong prefactor, or a
+    per-gas solubility assigned to the wrong gas fails here. The absolute value
+    of the Henry constant cancels from the ratio and is pinned separately in
+    `test_solubility`; this test checks the structure of the partition, not the
+    constant's value.
     """
     np.random.seed(11)
     ddict = _ddict()
@@ -432,7 +436,7 @@ def test_chnos_only_solve_is_unchanged_by_noble_gas_support():
 
 @pytest.mark.physics_invariant
 def test_authoritative_o_mode_conserves_noble_mass_and_recovers_fo2():
-    """The authoritative-O solver (PROTEUS Path C) carries the noble gases
+    """The authoritative-oxygen solver carries the noble gases
     as extra unknowns after the O residual and must both close their mass
     budgets and recover the redox state, unchanged by their presence.
     """
