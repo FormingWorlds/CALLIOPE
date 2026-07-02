@@ -612,10 +612,11 @@ class TestSolubilityNobleGas:
 
     @pytest.mark.physics_invariant
     def test_henry_law_is_linear_in_pressure(self):
-        """Noble gas solubility is linear (exponent 1), which distinguishes
-        it from the square-root CHNOS laws. Doubling the pressure doubles
-        the dissolved concentration exactly; a sqrt law would scale by
-        `sqrt(2)`.
+        """Noble gas solubility is linear (exponent 1): doubling the partial
+        pressure doubles the dissolved concentration exactly, whereas a
+        square-root law such as the H2O or S2 parameterization would scale by
+        `sqrt(2)`. The linear form is pinned here so a stray exponent is
+        caught.
         """
         s = SolubilityNobleGas('Ar')
         low = s(10.0)

@@ -10,7 +10,7 @@ $$
 X_i^\mathrm{melt} = \alpha_i\, p_i,
 $$
 
-with the dissolved concentration $X_i^\mathrm{melt}$ in ppmw, the surface partial pressure $p_i$ in bar, and a single solubility constant $\alpha_i$. The linear (exponent one) form is the defining feature of Henry's law and distinguishes the noble gases from the square-root C-H-O-N-S laws.
+with the dissolved concentration $X_i^\mathrm{melt}$ in ppmw, the surface partial pressure $p_i$ in bar, and a single solubility constant $\alpha_i$. What sets a noble gas apart from the reactive volatiles is not the linear form itself (some C-H-O-N-S laws are also linear in their own partial pressure while others are square-root, exponential, or a mixture) but the absence of any chemistry: the solubility carries no dependence on composition, temperature, or oxygen fugacity, and the gas is coupled to no other species through a reaction.
 
 ## Solubility constants
 
@@ -40,7 +40,7 @@ $$
 m_i = p_i\,\frac{10^{5}}{g}\,4\pi R^{2}\,\frac{M_i}{\bar\mu},
 $$
 
-carries the mean molar mass $\bar\mu$ in its denominator, so a change in $\bar\mu$ changes the column mass of every species. A noble-gas-rich atmosphere lowers $\bar\mu$ and therefore alters the C-H-O-N-S partial pressures even though the noble gases never react with them. Each included noble gas is consequently carried as an additional unknown in the same mass-balance solve, with its own residual, rather than solved separately at fixed background.
+carries the mean molar mass $\bar\mu$ in its denominator, so a change in $\bar\mu$ changes the column mass of every species. A noble-gas-rich atmosphere changes $\bar\mu$ (helium and neon, lighter than water or carbon dioxide, lower it; krypton and xenon, heavier, raise it) and therefore alters the C-H-O-N-S partial pressures even though the noble gases never react with them. Each included noble gas is consequently carried as an additional unknown in the same mass-balance solve, with its own residual, rather than solved separately at fixed background.
 
 The noble gas partial pressure also enters the total pressure that the pressure-dependent C-H-O-N-S solubility laws read (the Dasgupta nitrogen law, the Ardia methane law, and the Armstrong carbon-monoxide law). In a noble-gas-rich atmosphere this pushes those laws to higher total pressures than the calibrations that produced them, which is a further reason the noble and reactive volatiles are coupled.
 
@@ -50,7 +50,7 @@ Noble gases are opt-in for each gas. A run with no noble gas budget is unchanged
 
 ## Validity envelope
 
-The Jambon et al. (1986) constants are a 1 bar, tholeiitic-basalt calibration, applied as a strictly linear Henry's law with no saturation term. At the high surface pressures of a genuinely noble-gas-rich atmosphere this is an extrapolation on two counts: the pressure lies far above the 1 bar calibration, and the linear form assumes the melt never approaches saturation. The solubility of a noble gas also varies with melt composition through its degree of polymerization; CALLIOPE uses the single tholeiite calibration for all compositions. Results in the high-pressure, noble-gas-dominated regime should be read with these limitations in mind.
+The Jambon et al. (1986) constants are a 1 bar, tholeiitic-basalt calibration measured between 1250 and 1600 C, applied as a strictly linear Henry's law with no saturation term. At the high surface pressures of a genuinely noble-gas-rich atmosphere this is an extrapolation on two counts: the pressure lies far above the 1 bar calibration, and the linear form assumes the melt never approaches saturation. The parameterization carries no temperature dependence, so applying it at magma-ocean surface temperatures above the 1600 C calibration ceiling is a further extrapolation. The solubility of a noble gas also varies with melt composition through its degree of polymerization; CALLIOPE uses the single tholeiite calibration for all compositions. Results in the high-pressure, high-temperature, noble-gas-dominated regime should be read with these limitations in mind.
 
 ## Where the code lives
 

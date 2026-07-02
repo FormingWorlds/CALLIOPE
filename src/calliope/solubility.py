@@ -250,10 +250,10 @@ class SolubilityNobleGas(Solubility):
     """Noble gas solubility by Henry's law, Jambon et al. (1986).
 
     Each noble gas dissolves in silicate melt in proportion to its partial
-    pressure, `ppmw = const * p`, with no melt-composition, temperature, or
-    redox dependence in this parameterization. The linear (exponent 1) form
-    is the defining property of Henry's law and distinguishes the noble
-    gases from the square-root CHNOS laws in this module.
+    pressure, `ppmw = const * p`. What sets it apart from the reactive CHNOS
+    volatiles is the absence of any chemistry: the law carries no
+    melt-composition, temperature, or redox dependence, and the gas couples
+    to no other species through a reaction.
 
     Parameters
     ----------

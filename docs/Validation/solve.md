@@ -53,6 +53,9 @@ several topical cross-cutting files for readability:
 - `tests/test_stoichiometry.py`: stoichiometric ratios across the
   published reactions.
 - `tests/test_targets.py`: target-element-budget computation.
+- `tests/test_noble_gases.py`: noble gas (He, Ne, Ar, Kr, Xe)
+  partitioning, mass closure, the mean-molar-mass coupling, and the
+  target builders.
 - `tests/test_invariants.py`: per-element / per-species closure
   invariants.
 - `tests/test_invariants_hypothesis.py`: property-based fuzz tests at
