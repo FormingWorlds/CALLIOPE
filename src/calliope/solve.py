@@ -8,7 +8,7 @@ import scipy.optimize as opt
 
 from .chemistry import ModifiedKeq
 from .constants import (
-    element_list,
+    element_list_chnos,
     molar_mass,
     noble_gases,
     ocean_moles,
@@ -338,7 +338,7 @@ def _atmosphere_mass(pin, fO2_shift, ddict):
         mass_atm_d['S'] += mass_atm_d['H2S'] / molar_mass['H2S']
     mass_atm_d['S'] *= molar_mass['S']
 
-    for e in element_list:
+    for e in element_list_chnos:
         mass_atm_d[e] = max(0.0, mass_atm_d[e])
 
     return mass_atm_d
@@ -437,7 +437,7 @@ def _dissolved_mass(pin, fO2_shift, ddict):
 
     mass_int_d['S'] = mass_int_d['S2']
 
-    for e in element_list:
+    for e in element_list_chnos:
         mass_int_d[e] = max(0.0, mass_int_d[e])
 
     return mass_int_d
@@ -989,7 +989,7 @@ def equilibrium_atmosphere(
     # output schema, so their partial pressures, reservoir masses, mole
     # counts, and atmospheric ratios are reported alongside the CHNOS fields.
     out_species = list(volatile_species) + list(active)
-    out_elements = list(element_list) + list(active)
+    out_elements = list(element_list_chnos) + list(active)
 
     # CALLIOPE has no solid-mantle reservoir; every `_kg_solid` field
     # is 0.0 and exists only for schema parity with the downstream
@@ -1568,7 +1568,7 @@ def equilibrium_atmosphere_authoritative_O(
     # (fO2_shift_derived, O_res). The PROTEUS-side wrapper consumes the same
     # fields regardless of which solver mode ran.
     out_species = list(volatile_species) + list(active)
-    out_elements = list(element_list) + list(active)
+    out_elements = list(element_list_chnos) + list(active)
 
     outdict = {'M_atm': 0.0, 'P_surf': 0.0}
     for s in out_species:

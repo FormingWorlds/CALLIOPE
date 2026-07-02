@@ -507,10 +507,10 @@ class TestSolubilityNobleGas:
 
         Each literal is `(k_STP / 2.24e4) * M[g/mol] * 1e6` evaluated by hand
         from the Jambon et al. (1986) constants and the molar masses:
-        He 0.100065, Ne 0.225220, Ar 0.105220, Kr 0.112229, Xe 0.099642.
+        He 0.100958, Ne 0.225220, Ar 0.105220, Kr 0.112229, Xe 0.099642.
         """
         expected = {
-            'He': 0.100065,
+            'He': 0.100958,
             'Ne': 0.225220,
             'Ar': 0.105220,
             'Kr': 0.112229,
@@ -561,18 +561,18 @@ class TestSolubilityNobleGas:
     @pytest.mark.reference_pinned
     def test_helium_constant_matches_jambon_1986(self):
         """Pin the He Henry constant against the Jambon et al. (1986)
-        tholeiitic-basalt value of 56e-5 cm3 STP/g/bar.
+        tholeiitic-basalt Table 5 value of 56.5e-5 cm3 STP/g/bar.
 
-        const = (56e-5 / 2.24e4) * 4.0026 * 1e6 ~ 0.100065 ppmw/bar.
+        const = (56.5e-5 / 2.24e4) * 4.0026 * 1e6 ~ 0.100958 ppmw/bar.
 
         Discrimination guards below rule out the plausible bug classes:
         wrong molar mass, wrong STP volume, wrong power, sign, and scale.
         """
         const = jambon86_ppmw_per_bar('He')
-        assert const == pytest.approx(0.100065, rel=1e-4)
+        assert const == pytest.approx(0.100958, rel=1e-4)
         # Wrong-molar-mass guard: using Ne's molar mass (20.1797) instead of
-        # He's (4.0026) would give ~0.5045, a factor of ~5 larger.
-        wrong_mass = (56e-5 / STP_MOLAR_VOLUME_CM3) * 20.1797 * 1.0e6
+        # He's (4.0026) would give ~0.5051, a factor of ~5 larger.
+        wrong_mass = (56.5e-5 / STP_MOLAR_VOLUME_CM3) * 20.1797 * 1.0e6
         assert abs(const - wrong_mass) > 0.1
         # Sign guard: solubility constants are strictly positive.
         assert const > 0
@@ -584,10 +584,13 @@ class TestSolubilityNobleGas:
     @pytest.mark.reference_pinned
     def test_noble_constants_cross_check_against_atmodeller(self):
         """Cross-implementation check: CALLIOPE and atmodeller derive the
-        Jambon et al. (1986) Henry constants from the same primitives, so
-        the two backends must agree to floating point. This is what makes
-        the coupled cross-backend comparison a true parity test rather than
-        two independent calibrations.
+        Jambon et al. (1986) Henry constants from the same paper. For Ne, Ar,
+        Kr and Xe both use the identical primitives, so the two backends must
+        agree to floating point, which is what makes the coupled cross-backend
+        comparison a true parity test rather than two independent
+        calibrations. For He they differ by under one percent because
+        atmodeller uses the abstract's rounded 56e-5 while CALLIOPE uses the
+        more precise Table 5 value of 56.5e-5.
         """
         pytest.importorskip('atmodeller')
         from atmodeller.solubility import get_solubility_models
@@ -602,7 +605,15 @@ class TestSolubilityNobleGas:
                 atm = float(model.concentration(1.0, temperature=1500.0))
             except TypeError:
                 atm = float(model.concentration(1.0))
-            assert cal == pytest.approx(atm, rel=1e-10), f'{gas}: {cal} vs {atm}'
+            if gas == 'He':
+                # Different source value (Table 5 vs abstract): agree to ~1%,
+                # but not to floating point.
+                assert cal == pytest.approx(atm, rel=1e-2)
+                assert cal != pytest.approx(atm, rel=1e-6), (
+                    'He is expected to differ from atmodeller at the 1e-3 level'
+                )
+            else:
+                assert cal == pytest.approx(atm, rel=1e-10), f'{gas}: {cal} vs {atm}'
 
         # Discrimination guard: the five constants are distinct, so a
         # transcription that reused He's value for every gas would fail the

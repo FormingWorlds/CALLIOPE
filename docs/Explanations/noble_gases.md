@@ -40,17 +40,21 @@ $$
 m_i = p_i\,\frac{10^{5}}{g}\,4\pi R^{2}\,\frac{M_i}{\bar\mu},
 $$
 
-carries the mean molar mass $\bar\mu$ in its denominator, so a change in $\bar\mu$ changes the column mass of every species. A noble-gas-rich atmosphere changes $\bar\mu$, and therefore the C-H-O-N-S partial pressures, even though the noble gases never react with the reactive volatiles. The sign of the change depends on how the noble gas molar mass compares with the background $\bar\mu$: helium, at 4 g/mol, always lowers it; krypton and xenon, at 84 and 131 g/mol, always raise it; neon and argon sit near the mean molar mass of a typical C-H-O-N-S atmosphere, so their effect depends on the background composition. Each included noble gas is consequently carried as an additional unknown in the same mass-balance solve, with its own residual, rather than solved separately at fixed background.
-
-The noble gas partial pressure also enters the total pressure that the pressure-dependent C-H-O-N-S solubility laws read (the Dasgupta nitrogen law, the Ardia methane law, and the Armstrong carbon-monoxide law). In a noble-gas-rich atmosphere this pushes those laws to higher total pressures than the calibrations that produced them, which is a further reason the noble and reactive volatiles are coupled.
+carries the mean molar mass $\bar\mu$ in its denominator, so a change in $\bar\mu$ changes the column mass of every species. A noble gas raises $\bar\mu$ where it is heavier than the background mean and lowers it where it is lighter, so the sign depends on the atmospheric composition: helium raises $\bar\mu$ in an H$_2$-dominated atmosphere but lowers it in a CO$_2$ or N$_2$ one, while xenon raises it in almost any composition. Each included noble gas is therefore carried as an additional unknown in the same mass-balance solve, with its own residual, rather than solved separately at fixed background.
 
 ## Specifying a noble gas budget
 
 Noble gases are opt-in for each gas. A run with no noble gas budget is unchanged. When a noble gas is included, its inventory is supplied in ppmw relative to the mantle mass, the same convention CALLIOPE uses for nitrogen and sulfur. Both the fixed-oxygen-fugacity solver and the authoritative-oxygen solver carry the noble gases.
 
+## How the five gases behave
+
+![Noble gas partial pressures and melt-atmosphere partitioning](../assets/figures/tutorials/noble_gases.png)
+
+Each of the five noble gases is run through `equilibrium_atmosphere` against a fixed Earth-like C-H-O-N-S background. Panel (a) sweeps the supplied budget and shows the surface partial pressure rising with it, close to linear where the noble gas is a trace component and bending as the gas comes to dominate the atmosphere and shift its mean molar mass. Panel (b) shows the split between atmosphere and melt at a representative budget. That split is set by the mass-based solubility, the STP-volume Henry constant weighted by molar mass, so neon carries the largest such constant and is the most retained in the melt while xenon carries the smallest and sits almost entirely in the atmosphere. The figure is produced by [`scripts/tutorials/fig_noble_gases.py`](https://github.com/FormingWorlds/CALLIOPE/blob/main/scripts/tutorials/fig_noble_gases.py) and can be re-run with `python -m scripts.tutorials.fig_noble_gases` from the repository root.
+
 ## Validity envelope
 
-The Jambon et al. (1986) constants are a 1 bar, tholeiitic-basalt calibration measured between 1250 and 1600 C, applied as a strictly linear Henry's law with no saturation term. At the high surface pressures of a genuinely noble-gas-rich atmosphere this is an extrapolation on two counts: the pressure lies far above the 1 bar calibration, and the linear form assumes the melt never approaches saturation. The parameterization carries no temperature dependence, so applying it at magma-ocean surface temperatures above the 1600 C calibration ceiling is a further extrapolation. The solubility of a noble gas also varies with melt composition through its degree of polymerization; CALLIOPE uses the single tholeiite calibration for all compositions. Results in the high-pressure, high-temperature, noble-gas-dominated regime should be read with these limitations in mind.
+The Jambon et al. (1986) constants are a 1 bar, tholeiitic-basalt calibration measured between 1250 and 1600 C, applied as a strictly linear Henry's law with no saturation term. At the high surface pressures of a genuinely noble-gas-rich atmosphere this is an extrapolation on two counts: the pressure lies far above the 1 bar calibration, and the linear form assumes the melt never approaches saturation. The parameterization carries no temperature dependence, so applying it at magma-ocean surface temperatures above the 1600 C calibration ceiling is a further extrapolation. CALLIOPE also applies the single tholeiite calibration to all melt compositions. Results in the high-pressure, high-temperature, noble-gas-dominated regime should be read with these limitations in mind.
 
 ## Where the code lives
 

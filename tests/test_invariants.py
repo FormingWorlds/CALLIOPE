@@ -48,7 +48,7 @@ import math
 import pytest
 
 from calliope.chemistry import ModifiedKeq
-from calliope.constants import element_list, volatile_species
+from calliope.constants import element_list_chnos, volatile_species
 from calliope.oxygen_fugacity import OxygenFugacity
 from calliope.solve import (
     equilibrium_atmosphere,
@@ -144,7 +144,7 @@ class TestMassConservationPerElement:
         (T, dIW) point in the magma-ocean window."""
         result = _solve_buffered(T=T, dIW=dIW)
         seen_split = False
-        for e in element_list:
+        for e in element_list_chnos:
             atm = result[f'{e}_kg_atm']
             liq = result[f'{e}_kg_liquid']
             tot = result[f'{e}_kg_total']
@@ -165,7 +165,7 @@ class TestMassConservationPerElement:
         # primary assertion already excludes the floor case where every
         # liq ~ 0.
         if seen_split:
-            for e in element_list:
+            for e in element_list_chnos:
                 atm = result[f'{e}_kg_atm']
                 liq = result[f'{e}_kg_liquid']
                 tot = result[f'{e}_kg_total']
@@ -186,7 +186,7 @@ class TestMassConservationPerElement:
             print_result=False,
             opt_solver=False,
         )
-        for e in element_list:
+        for e in element_list_chnos:
             assert result[f'{e}_kg_liquid'] == 0.0, (
                 f'M_mantle=0 should zero dissolved mass for {e}'
             )
