@@ -5,9 +5,33 @@ import logging
 
 import numpy as np
 
+from .constants import molar_mass, noble_gases
 from .oxygen_fugacity import OxygenFugacity
 
 log = logging.getLogger('fwl.' + __name__)
+
+# Jambon, Weill & Braun (1986), doi:10.1016/0016-7037(86)90193-6. Henry's-law
+# solubility constants for noble gases in tholeiitic basalt melt, in units of
+# cm3 STP per gram of melt per bar of partial pressure, measured between 1250
+# and 1600 C. These are the exact primitives atmodeller uses for its
+# `<gas>_basalt_jambon86` models, so the two backends produce identical Henry
+# constants for all five gases and agree to solver tolerance. Helium keeps the
+# abstract's 56e-5 to match atmodeller: the paper's Table 5 gives a marginally
+# more precise 56.5e-5, but exact cross-backend agreement is more useful here
+# than the sub-percent refinement, since the shared calibration is what makes
+# the coupled cross-backend comparison a true parity test.
+JAMBON86_STP_HENRY = {  # cm3 STP / g / bar
+    'He': 56e-5,
+    'Ne': 25e-5,
+    'Ar': 5.9e-5,
+    'Kr': 3.0e-5,
+    'Xe': 1.7e-5,
+}
+
+# Molar volume of an ideal gas at standard temperature and pressure
+# [cm3 / mol]. Converts the STP-volume Henry constants above into a molar
+# basis. The 2.24e4 literal matches atmodeller's conversion exactly.
+STP_MOLAR_VOLUME_CM3 = 2.24e4
 
 
 class Solubility:
@@ -189,3 +213,74 @@ class SolubilityCO(Solubility):
         """Armstrong 2015"""
         ppmw = 10 ** (-0.738 + 0.876 * np.log10(p) - 5.44e-5 * p_total)
         return ppmw
+
+
+def jambon86_ppmw_per_bar(gas: str) -> float:
+    """Henry's-law solubility constant for a noble gas [ppmw / bar].
+
+    Converts the Jambon et al. (1986) STP-volume Henry constant for `gas`
+    into parts-per-million by weight of dissolved gas per bar of partial
+    pressure, using the melt-independent chain
+
+        const [ppmw/bar] = (k_STP / V_STP) [mol/g/bar]
+                           * M [g/mol]
+                           * 1e6 [ppmw per mass fraction]
+
+    where `k_STP` is the tabulated constant in cm3 STP/g/bar, `V_STP` is the
+    molar volume of an ideal gas at STP, and `M` is the molar mass. The
+    result is the linear coefficient of the `ppmw = const * p` Henry law.
+
+    Parameters
+    ----------
+    gas : str
+        Noble gas symbol; one of `He`, `Ne`, `Ar`, `Kr`, `Xe`.
+
+    Returns
+    -------
+    float
+        Solubility constant in ppmw per bar.
+
+    Raises
+    ------
+    KeyError
+        If `gas` is not a Jambon et al. (1986) noble gas.
+    """
+    k_stp = JAMBON86_STP_HENRY[gas]
+    molar_mass_g = molar_mass[gas] * 1.0e3  # kg/mol -> g/mol
+    return (k_stp / STP_MOLAR_VOLUME_CM3) * molar_mass_g * 1.0e6
+
+
+class SolubilityNobleGas(Solubility):
+    """Noble gas solubility by Henry's law, Jambon et al. (1986).
+
+    Each noble gas dissolves in silicate melt in proportion to its partial
+    pressure, `ppmw = const * p`. What sets it apart from the reactive CHNOS
+    volatiles is the absence of any chemistry: the law carries no
+    melt-composition, temperature, or redox dependence, and the gas couples
+    to no other species through a reaction.
+
+    Parameters
+    ----------
+    gas : str
+        Noble gas symbol; one of `He`, `Ne`, `Ar`, `Kr`, `Xe`.
+
+    Notes
+    -----
+    The calibration is tholeiitic basalt at 1 bar and 1250-1600 C. Applying
+    it at the high surface pressures of a noble-gas-rich atmosphere is an
+    extrapolation of a 1-bar, linear Henry law with no saturation term.
+    """
+
+    def __init__(self, gas: str):
+        if gas not in noble_gases:
+            raise ValueError(
+                f"SolubilityNobleGas: '{gas}' is not a noble gas. "
+                f'Expected one of {noble_gases}.'
+            )
+        self.gas = gas
+        self.const = jambon86_ppmw_per_bar(gas)
+        super().__init__('jambon86')
+
+    def jambon86(self, p):
+        """Jambon et al. (1986) linear Henry's law: `ppmw = const * p`."""
+        return self.power_law(p, self.const, 1.0)

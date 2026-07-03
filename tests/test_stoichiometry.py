@@ -15,7 +15,7 @@ import numpy as np
 import pytest
 
 from calliope.chemistry import ModifiedKeq
-from calliope.constants import element_list, molar_mass, volatile_species
+from calliope.constants import element_list_chnos, molar_mass, volatile_species
 from calliope.oxygen_fugacity import OxygenFugacity
 from calliope.solubility import SolubilityCH4, SolubilityCO
 
@@ -223,7 +223,7 @@ class TestAtmosphericStoichiometry:
         pin = {'H2O': 100.0, 'CO2': 10.0, 'N2': 1.0, 'S2': 0.1}
         _, mass = self._get_elemental_masses(pin, ddict)
 
-        for e in element_list:
+        for e in element_list_chnos:
             assert mass[e] >= 0.0, f'{e} mass is negative: {mass[e]}'
             assert math.isfinite(mass[e]), f'{e} mass is not finite: {mass[e]}'
 
@@ -232,7 +232,7 @@ class TestAtmosphericStoichiometry:
         # tally that returned the same value for every element (e.g. a stub
         # that always returns 1.0) would pass the positivity check but fail
         # this one.
-        unique_values = {round(mass[e], 6) for e in element_list}
+        unique_values = {round(mass[e], 6) for e in element_list_chnos}
         assert len(unique_values) >= 3, (
             f'Elemental masses should differ across elements; got {mass}'
         )

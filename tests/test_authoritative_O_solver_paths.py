@@ -184,7 +184,7 @@ def test_equilibrium_atmosphere_forwards_p_guess_max_to_cold_start(monkeypatch):
 
     captured = {}
 
-    def spy(target_d, p_guess_max=calsolve.P_GUESS_MAX_BAR):
+    def spy(target_d, p_guess_max=calsolve.P_GUESS_MAX_BAR, n_extra=0):
         captured['p_guess_max'] = p_guess_max
         raise _Stop
 

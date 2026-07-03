@@ -8,8 +8,9 @@ import scipy.optimize as opt
 
 from .chemistry import ModifiedKeq
 from .constants import (
-    element_list,
+    element_list_chnos,
     molar_mass,
+    noble_gases,
     ocean_moles,
     volatile_species,
 )
@@ -20,10 +21,81 @@ from .solubility import (
     SolubilityCO2,
     SolubilityH2O,
     SolubilityN2,
+    SolubilityNobleGas,
     SolubilityS2,
 )
 
 log = logging.getLogger('fwl.' + __name__)
+
+# One Henry's-law solubility model per noble gas, built once at import. The
+# models are stateless (a single stored constant), so reuse is safe. Each
+# model caches its constant from JAMBON86_STP_HENRY and molar_mass at
+# construction, so a test that monkeypatches those dicts at runtime must
+# rebuild this mapping for the change to take effect.
+_NOBLE_SOLUBILITY = {gas: SolubilityNobleGas(gas) for gas in noble_gases}
+
+
+def _active_noble(ddict):
+    """Ordered tuple of noble gases included in this solve.
+
+    A noble gas becomes an extra primary unknown only when its inclusion
+    flag is set. Ordering follows `constants.noble_gases` (by atomic number)
+    so the position of each noble gas in the unknown and residual vectors is
+    deterministic across calls.
+    """
+    return tuple(gas for gas in noble_gases if is_included(gas, ddict))
+
+
+def _noble_henry_seed(core_out, active, target_d, ddict):
+    """Analytic starting guess for each active noble gas partial pressure [bar].
+
+    Given a converged CHNOS-only solution `core_out`, estimate the partial
+    pressure of each noble gas that reproduces its target mass, holding the
+    mean molar mass fixed at the CHNOS value. Because a noble gas is
+    partitioned by a single linear Henry's law, its target mass is
+
+        target = p * (k_atm + k_diss)
+
+    with `k_atm = 1e5 * 4 pi R^2 / g * M / mu` the atmospheric column
+    coefficient and `k_diss = prefactor * const` the dissolved coefficient,
+    so `p = target / (k_atm + k_diss)` inverts directly. This is exact in the
+    trace limit and a good warm start when the noble gas is abundant enough to
+    shift `mu`; the joint solve relaxes the residual mean-molar-mass coupling.
+
+    Parameters
+    ----------
+    core_out : dict
+        Output of the CHNOS-only solve; supplies `atm_kg_per_mol` (the mean
+        molar mass in kg/mol).
+    active : tuple of str
+        Ordered active noble gases.
+    target_d : dict
+        Target elemental masses [kg]; must contain each active noble gas.
+    ddict : dict
+        Coupler options; supplies `radius`, `gravity`, `M_mantle`,
+        `Phi_global`.
+
+    Returns
+    -------
+    dict
+        Mapping of each active noble gas to its seed partial pressure [bar].
+    """
+    mu = core_out.get('atm_kg_per_mol', 0.0)
+    # A negligible CHNOS atmosphere leaves mu near zero, which would blow up
+    # the atmospheric coefficient. Fall back to a nominal 20 g/mol so the
+    # seed stays finite; the joint solve corrects it.
+    if not (mu > 1.0e-3):
+        mu = 0.02
+    area = 4.0 * np.pi * ddict['radius'] ** 2.0
+    prefactor = 1.0e-6 * ddict['M_mantle'] * ddict.get('Phi_global', 0.0)
+    seeds = {}
+    for gas in active:
+        k_atm = 1.0e5 * area / ddict['gravity'] * molar_mass[gas] / mu
+        k_diss = prefactor * _NOBLE_SOLUBILITY[gas].const
+        denom = k_atm + k_diss
+        seeds[gas] = (target_d[gas] / denom) if denom > 0 else 0.0
+    return seeds
+
 
 # Equilibrium-chemistry mass-balance solver. Original formulation by
 # Bower et al. (2022): https://doi.org/10.3847/PSJ/ac5fb1
@@ -61,6 +133,13 @@ P_SURF_FLOOR_BAR = 1.0e-30
 
 
 def is_included(gas, ddict):
+    # Noble gases are opt-in: a caller that predates them never writes a
+    # `He_included` / ... flag, so a missing flag defaults to excluded.
+    # CHNOS species keep the strict lookup: a missing reaction-network
+    # inclusion flag is a malformed ddict and must fail loudly rather than
+    # silently drop the species from the solve.
+    if gas in noble_gases:
+        return bool(ddict.get(gas + '_included', 0) > 0)
     return bool(ddict[gas + '_included'] > 0)
 
 
@@ -123,6 +202,15 @@ def _get_partial_pressures(pin, fO2_shift, ddict):
         gamma = ModifiedKeq('janaf_H2S')
         gamma = gamma(ddict['T_magma'], fO2_shift)
         p_d['H2S'] = (gamma * pin['S2'] * p_d['H2'] ** 2) ** 0.5
+
+    # Noble gases are monatomic and inert: there is no equilibrium to
+    # evaluate, so each partial pressure passes straight through from the
+    # primary vector. An excluded noble gas keeps its zero initialisation and
+    # therefore contributes nothing to the total pressure or the mean molar
+    # mass, leaving the CHNOS solve bit-identical.
+    for gas in noble_gases:
+        if is_included(gas, ddict):
+            p_d[gas] = pin.get(gas, 0.0)
 
     # Silent clip: solver Monte-Carlo restarts can produce negative or
     # non-finite `pin`, which then propagates through the sqrt expressions;
@@ -250,7 +338,7 @@ def _atmosphere_mass(pin, fO2_shift, ddict):
         mass_atm_d['S'] += mass_atm_d['H2S'] / molar_mass['H2S']
     mass_atm_d['S'] *= molar_mass['S']
 
-    for e in element_list:
+    for e in element_list_chnos:
         mass_atm_d[e] = max(0.0, mass_atm_d[e])
 
     return mass_atm_d
@@ -317,6 +405,13 @@ def _dissolved_mass(pin, fO2_shift, ddict):
     ppmw_S2 = sol_S2(p_d['S2'], ddict['T_magma'], fO2_shift)
     mass_int_d['S2'] = prefactor * ppmw_S2
 
+    # Noble gases dissolve by Henry's law with no fO2 or total-pressure
+    # coupling. Only active noble gases have a partial pressure in p_d.
+    # Because a noble gas species and its element are the same entity, this
+    # single key doubles as the element dissolved mass.
+    for gas in _active_noble(ddict):
+        mass_int_d[gas] = prefactor * _NOBLE_SOLUBILITY[gas](p_d[gas])
+
     # No SolubilityH2S / NH3 / SO2 / O2 / H2 in CALLIOPE; these
     # species do not partition into the melt phase and contribute
     # zero to the dissolved-element tallies below.
@@ -342,7 +437,7 @@ def _dissolved_mass(pin, fO2_shift, ddict):
 
     mass_int_d['S'] = mass_int_d['S2']
 
-    for e in element_list:
+    for e in element_list_chnos:
         mass_int_d[e] = max(0.0, mass_int_d[e])
 
     return mass_int_d
@@ -359,15 +454,26 @@ def dissolved_mass(pin, ddict):
 
 
 def func(pin_arr, ddict, mass_target_d):
-    """Mass-balance residual [kg per element] for the four primary partial pressures [bar]."""
+    """Mass-balance residual [kg per element] for the primary partial pressures [bar].
 
+    The unknown vector is the four CHNOS primaries (H2O, CO2, N2, S2)
+    followed by one partial pressure per active noble gas, in the
+    `_active_noble` order. The residual carries one entry per element:
+    H, C, N, S, then each active noble gas (whose element and species are
+    the same entity).
+    """
+
+    active = _active_noble(ddict)
     pin_dict = {'H2O': pin_arr[0], 'CO2': pin_arr[1], 'N2': pin_arr[2], 'S2': pin_arr[3]}
+    for i, gas in enumerate(active):
+        pin_dict[gas] = pin_arr[4 + i]
 
     mass_atm_d = atmosphere_mass(pin_dict, ddict)
     mass_int_d = dissolved_mass(pin_dict, ddict)
 
-    res_l = [0.0] * 4
-    for i, vol in enumerate(['H', 'C', 'N', 'S']):
+    elems = ['H', 'C', 'N', 'S'] + list(active)
+    res_l = [0.0] * len(elems)
+    for i, vol in enumerate(elems):
         res_l[i] = mass_atm_d[vol] + mass_int_d[vol] - mass_target_d[vol]
 
     return res_l
@@ -381,43 +487,49 @@ def obj(pin_arr, ddict, mass_target_d):
 
 
 def func_authoritative_O(x_arr, ddict, mass_target_d):
-    """5-residual vector for the authoritative-O solver mode.
+    """Mass-balance residual vector for the authoritative-O solver mode.
 
-    Mass-balance residual [kg per element] over five unknowns:
-    ``[pH2O, pCO2, pN2, pS2, fO2_shift]``. The first four equations are
-    the usual H, C, N, S mass balances; the fifth is the O mass balance
-    that was implicit in the chemistry (because fO2 was an input) and is
-    now an explicit constraint (because fO2 is an unknown).
+    Mass-balance residual [kg per element] over the unknown vector
+    ``[pH2O, pCO2, pN2, pS2, fO2_shift, p_noble...]``, where the noble gas
+    partial pressures (one per active noble gas, in `_active_noble` order)
+    follow fO2_shift. The first four equations are the usual H, C, N, S mass
+    balances; the fifth is the O mass balance that was implicit in the
+    chemistry (because fO2 was an input) and is now an explicit constraint
+    (because fO2 is an unknown); each remaining equation closes one noble
+    gas.
 
     Parameters
     ----------
-    x_arr : array_like, length 5
-        ``[pH2O_bar, pCO2_bar, pN2_bar, pS2_bar, fO2_shift_IW]``. The
-        first four are partial pressures in bar; the fifth is the
+    x_arr : array_like, length ``5 + len(active_noble)``
+        ``[pH2O_bar, pCO2_bar, pN2_bar, pS2_bar, fO2_shift_IW, p_noble...]``.
+        The pressures are in bar; ``fO2_shift_IW`` at index 4 is the
         IW-buffer offset in log10 units (typical range -6 to +8).
     ddict : dict
         Coupler options dict. Reads everything except ``fO2_shift_IW``,
         which is taken from ``x_arr[4]`` to expose it as an unknown.
     mass_target_d : dict
-        Target elemental mass inventories [kg]. MUST include the keys
-        ``'H'``, ``'C'``, ``'N'``, ``'S'``, ``'O'`` (all five). Missing
-        ``'O'`` raises ``KeyError``.
+        Target elemental mass inventories [kg]. MUST include ``'H'``,
+        ``'C'``, ``'N'``, ``'S'``, ``'O'`` and every active noble gas.
 
     Returns
     -------
-    list of float, length 5
-        Residuals ``(atm_kg + dissolved_kg) - target_kg`` for H, C, N,
-        S, O in that order.
+    list of float, length ``5 + len(active_noble)``
+        Residuals ``(atm_kg + dissolved_kg) - target_kg`` for H, C, N, S, O
+        then each active noble gas in that order.
     """
 
+    active = _active_noble(ddict)
     pin_dict = {'H2O': x_arr[0], 'CO2': x_arr[1], 'N2': x_arr[2], 'S2': x_arr[3]}
     fO2_shift = x_arr[4]
+    for i, gas in enumerate(active):
+        pin_dict[gas] = x_arr[5 + i]
 
     mass_atm_d = _atmosphere_mass(pin_dict, fO2_shift, ddict)
     mass_int_d = _dissolved_mass(pin_dict, fO2_shift, ddict)
 
-    res_l = [0.0] * 5
-    for i, elem in enumerate(['H', 'C', 'N', 'S', 'O']):
+    elems = ['H', 'C', 'N', 'S', 'O'] + list(active)
+    res_l = [0.0] * len(elems)
+    for i, elem in enumerate(elems):
         res_l[i] = mass_atm_d[elem] + mass_int_d[elem] - mass_target_d[elem]
 
     return res_l
@@ -445,8 +557,8 @@ def _check_guess_ceiling(p_guess_max):
         )
 
 
-def get_initial_pressures(target_d, p_guess_max=P_GUESS_MAX_BAR):
-    """Cold-start guesses for the four primary partial pressures [bar].
+def get_initial_pressures(target_d, p_guess_max=P_GUESS_MAX_BAR, n_extra=0):
+    """Cold-start guesses for the primary partial pressures [bar].
 
     Log-uniform draw over [P_GUESS_MIN_BAR, ``p_guess_max``] bar, covering ~17
     orders of magnitude from trace-volatile undersaturation up to the default
@@ -463,6 +575,15 @@ def get_initial_pressures(target_d, p_guess_max=P_GUESS_MAX_BAR):
         solver can accept (that is the fixed ``P_CEILING_BAR`` box), so it does
         not raise the achievable surface pressure. Must be finite and
         >= ``P_GUESS_MIN_BAR``.
+    n_extra : int, default 0
+        Number of additional noble gas partial pressures to draw after the
+        four CHNOS primaries, appended in `_active_noble` order. Each uses
+        the same log-uniform draw.
+
+    Returns
+    -------
+    tuple of float
+        ``(pH2O, pCO2, pN2, pS2)`` followed by ``n_extra`` noble gas guesses.
     """
     _check_guess_ceiling(p_guess_max)
     hi = np.log10(p_guess_max)
@@ -471,22 +592,24 @@ def get_initial_pressures(target_d, p_guess_max=P_GUESS_MAX_BAR):
     pCO2 = 10 ** np.random.uniform(low=lo, high=hi)
     pN2 = 10 ** np.random.uniform(low=lo, high=hi)
     pS2 = 10 ** np.random.uniform(low=lo, high=hi)
+    extra = tuple(10 ** np.random.uniform(low=lo, high=hi) for _ in range(n_extra))
 
-    return pH2O, pCO2, pN2, pS2
+    return (pH2O, pCO2, pN2, pS2) + extra
 
 
 def get_initial_pressures_with_fO2(
-    target_d, fO2_hint, restart=False, rng=None, p_guess_max=P_GUESS_MAX_BAR
+    target_d, fO2_hint, restart=False, rng=None, p_guess_max=P_GUESS_MAX_BAR, n_extra=0
 ):
-    """Cold-start guesses for the five unknowns of the authoritative-O solver.
+    """Cold-start guesses for the unknowns of the authoritative-O solver.
 
-    Returns ``[pH2O, pCO2, pN2, pS2, fO2_shift]``. The four pressures use
-    the same log-uniform draw as ``get_initial_pressures`` over
-    ``[P_GUESS_MIN_BAR, p_guess_max]`` bar. The fifth element is ``fO2_hint``
-    on the first attempt; on solver restart (``restart=True``) it is redrawn
-    from a uniform distribution over ``[FO2_GUESS_MIN, FO2_GUESS_MAX]``,
-    which covers the reducing-mantle to highly-oxidized regimes likely to
-    be encountered.
+    Returns ``[pH2O, pCO2, pN2, pS2, fO2_shift, p_noble...]`` with one extra
+    log-uniform pressure guess per active noble gas (``n_extra`` of them)
+    after fO2_shift. The pressures use the same log-uniform draw as
+    ``get_initial_pressures`` over ``[P_GUESS_MIN_BAR, p_guess_max]`` bar.
+    The fO2_shift element is ``fO2_hint`` on the first attempt; on solver
+    restart (``restart=True``) it is redrawn from a uniform distribution over
+    ``[FO2_GUESS_MIN, FO2_GUESS_MAX]``, which covers the reducing-mantle to
+    highly-oxidized regimes likely to be encountered.
 
     Parameters
     ----------
@@ -513,8 +636,8 @@ def get_initial_pressures_with_fO2(
 
     Returns
     -------
-    tuple of 5 floats
-        ``(pH2O, pCO2, pN2, pS2, fO2_shift)``.
+    tuple of ``5 + n_extra`` floats
+        ``(pH2O, pCO2, pN2, pS2, fO2_shift, p_noble...)``.
     """
     if rng is None:
         rng = np.random
@@ -532,7 +655,12 @@ def get_initial_pressures_with_fO2(
     else:
         fO2 = float(fO2_hint)
 
-    return pH2O, pCO2, pN2, pS2, fO2
+    # Noble gas pressure guesses follow fO2 in the unknown vector, matching
+    # the `[pH2O, pCO2, pN2, pS2, fO2_shift, p_noble...]` order that
+    # func_authoritative_O unpacks.
+    extra = tuple(10 ** rng.uniform(low=lo, high=hi) for _ in range(n_extra))
+
+    return (pH2O, pCO2, pN2, pS2, fO2) + extra
 
 
 def get_target_from_params(ddict):
@@ -547,6 +675,14 @@ def get_target_from_params(ddict):
     N_kg = Nitrogen * 1.0e-6 * ddict['M_mantle']
     S_kg = Sulfur * 1.0e-6 * ddict['M_mantle']
     target_d = {'H': H_kg, 'C': C_kg, 'N': N_kg, 'S': S_kg}
+
+    # Noble gas budgets are supplied in ppmw relative to the mantle mass, the
+    # same convention as nitrogen and sulfur above. Only included noble gases
+    # get a target; the others never enter the solve.
+    for gas in noble_gases:
+        if is_included(gas, ddict):
+            target_d[gas] = ddict.get(gas + '_ppmw', 0.0) * 1.0e-6 * ddict['M_mantle']
+
     return target_d
 
 
@@ -558,6 +694,8 @@ def get_target_from_pressures(ddict):
     for vol in volatile_species:
         if is_included(vol, ddict):
             pin_dict[vol] = ddict[vol + '_initial_bar']
+    for gas in _active_noble(ddict):
+        pin_dict[gas] = ddict[gas + '_initial_bar']
 
     p_tot = np.sum(list(pin_dict.values()))
     if p_tot < 1.0e-3:
@@ -591,7 +729,7 @@ def get_target_from_pressures(ddict):
     mass_atm_d = atmosphere_mass(pin_dict, ddict)
     mass_int_d = dissolved_mass(pin_dict, ddict)
 
-    for vol in ['H', 'C', 'N', 'S']:
+    for vol in ['H', 'C', 'N', 'S'] + list(_active_noble(ddict)):
         if vol in target_d.keys():
             continue
         target_d[vol] = mass_atm_d[vol] + mass_int_d[vol]
@@ -662,14 +800,60 @@ def equilibrium_atmosphere(
         log.info('Solving for equilibrium partial pressures at surface')
     log.debug('    target masses: %s' % str(target_d))
 
+    # Active noble gases become extra primary unknowns appended after the
+    # four CHNOS primaries. Their target masses must be present so the
+    # residual can be formed; a missing key is caller error and fails loudly.
+    active = _active_noble(ddict)
+    missing_targets = [gas for gas in active if gas not in target_d]
+    if missing_targets:
+        raise KeyError(
+            f'target_d is missing noble gas targets {missing_targets}. '
+            f'Every included noble gas requires a target mass [kg]; got keys '
+            f'{sorted(target_d.keys())}.'
+        )
+    n_unknown = 4 + len(active)
+
     # Hard ub = P_CEILING_BAR is well above any realistic magma-ocean
     # surface pressure; it prevents trust-constr from exploring
     # non-physical regions during a poor cold start.
-    lb = [0.0] * 4
-    ub = [P_CEILING_BAR] * 4
+    lb = [0.0] * n_unknown
+    ub = [P_CEILING_BAR] * n_unknown
+
+    # Two-stage cold start when noble gases are active: solve the CHNOS core
+    # alone (four unknowns, robust) and warm-start the joint solve from it
+    # plus analytic Henry seeds for the noble pressures. A random draw across
+    # the full high-dimensional box rarely lands in the basin; the pre-solve
+    # avoids that. Any failure of the pre-solve falls back to the random draw.
+    if p_guess is None and active:
+        try:
+            ddict_core = {**ddict, **{gas + '_included': 0 for gas in active}}
+            target_core = {k: v for k, v in target_d.items() if k not in active}
+            core = equilibrium_atmosphere(
+                target_core,
+                ddict_core,
+                hide_warnings=hide_warnings,
+                rtol=rtol,
+                atol=atol,
+                xtol=xtol,
+                p_guess=None,
+                nsolve=nsolve,
+                nguess=nguess,
+                print_result=False,
+                opt_solver=opt_solver,
+                p_guess_max=p_guess_max,
+            )
+            p_guess = {s: core[s + '_bar'] for s in ('H2O', 'CO2', 'N2', 'S2')}
+            p_guess.update(_noble_henry_seed(core, active, target_d, ddict))
+        except RuntimeError:
+            log.warning(
+                'Noble gas cold start: the CHNOS core pre-solve did not '
+                'converge; falling back to a random high-dimensional draw, '
+                'which is less likely to converge.'
+            )
+            p_guess = None
 
     if p_guess is None:
-        x0 = get_initial_pressures(target_d, p_guess_max=p_guess_max)
+        x0 = get_initial_pressures(target_d, p_guess_max=p_guess_max, n_extra=len(active))
     else:
         # Validate up front so a missing key surfaces as a clear ValueError
         # rather than a bare KeyError from the tuple construction below.
@@ -678,14 +862,14 @@ def equilibrium_atmosphere(
         # the membership test below would raise an opaque TypeError.
         if not isinstance(p_guess, dict):
             raise TypeError(f'p_guess must be a dict or None, got {type(p_guess).__name__}.')
-        required = ('H2O', 'CO2', 'N2', 'S2')
+        required = ('H2O', 'CO2', 'N2', 'S2') + active
         missing = [k for k in required if k not in p_guess]
         if missing:
             raise ValueError(
                 f'p_guess is missing required keys: {missing}. '
                 f'Expected all of {list(required)}.'
             )
-        x0 = (p_guess['H2O'], p_guess['CO2'], p_guess['N2'], p_guess['S2'])
+        x0 = tuple(p_guess[k] for k in required)
 
         # Reject non-finite values up front. NaN > 1e-10 evaluates False,
         # which would silently collapse ub to 1.0 and propagate NaN through
@@ -696,12 +880,17 @@ def equilibrium_atmosphere(
 
         # Zero or near-zero guess collapses ub from 1e7 to 1.0 to keep
         # trust-constr from wandering inside a degenerate slot.
-        for i in range(4):
+        for i in range(n_unknown):
             ub[i] = ub[i] if (x0[i] > 1e-10) else 1.0
 
     bounds = opt.Bounds(lb=lb, ub=ub)
 
-    tolerance = np.amax(list(target_d.values())) * rtol + atol + TRUNC_MASS
+    # Scalar CHNOS acceptance gate, keyed to the largest CHNOS budget only.
+    # Noble gas budgets are deliberately excluded from this maximum: a large
+    # noble inventory would otherwise inflate the tolerance and loosen the
+    # closure demanded of the trace CHNOS elements. The noble gases are held
+    # to their own per-gas gate below.
+    tolerance = np.amax([target_d[e] for e in ('H', 'C', 'N', 'S')]) * rtol + atol + TRUNC_MASS
     log.debug('Required tolerance: %g' % tolerance)
 
     with warnings.catch_warnings():
@@ -735,17 +924,38 @@ def equilibrium_atmosphere(
             # tolerance: fsolve and trust-constr converge by their own
             # criteria, which are not the kg-mass-balance criterion.
             this_resid = func(sol, ddict, target_d)
-            loss = np.amax(np.abs(this_resid))
+            # The scalar gate is keyed to the CHNOS budgets, so it must judge
+            # only the CHNOS residuals (indices 0-3). Including the noble
+            # residuals here would gate an abundant noble gas against the
+            # CHNOS tolerance and spuriously reject an otherwise valid root;
+            # the noble gases are held to their own per-gas gate below.
+            chnos_resid = np.abs(np.asarray(this_resid[:4]))
+            loss = np.amax(chnos_resid)
             if loss > tolerance:
                 if success:
-                    log.debug('Solution rejected by residual')
-                    log.debug('    d(i=%d) = %.2e kg' % (np.argmax(this_resid), loss))
+                    log.debug('Solution rejected by CHNOS residual')
+                    log.debug('    d(i=%d) = %.2e kg' % (np.argmax(chnos_resid), loss))
                 success = False
+
+            # The scalar gate above keys its tolerance to the largest CHNOS
+            # budget, which is loose for a trace noble gas (its whole inventory
+            # can be orders of magnitude below the dominant element). Add a
+            # per-gas closure check for the noble residuals so a mass-unbalanced
+            # noble solution is not accepted, mirroring the per-element gate the
+            # authoritative-O path already uses.
+            if success and active:
+                noble_resid = np.abs(np.asarray(this_resid[4:]))
+                noble_tol = np.maximum(
+                    np.array([target_d[gas] for gas in active]) * rtol, TRUNC_MASS
+                )
+                if np.any(noble_resid > noble_tol):
+                    log.debug('Solution rejected by noble gas residual')
+                    success = False
 
             if success:
                 break
 
-            x0 = get_initial_pressures(target_d, p_guess_max=p_guess_max)
+            x0 = get_initial_pressures(target_d, p_guess_max=p_guess_max, n_extra=len(active))
 
             # Alternate fsolve <-> trust-constr on each restart so a
             # basin one solver cannot escape gets a chance from the
@@ -764,6 +974,8 @@ def equilibrium_atmosphere(
     log.debug('    Residuals: %s' % res_l)
 
     sol_dict = {'H2O': sol[0], 'CO2': sol[1], 'N2': sol[2], 'S2': sol[3]}
+    for i, gas in enumerate(active):
+        sol_dict[gas] = sol[4 + i]
     p_d = get_partial_pressures(sol_dict, ddict)
 
     # Pass the 4-key primary dict (sol_dict), not the expanded p_d:
@@ -773,11 +985,17 @@ def equilibrium_atmosphere(
     mass_atm_d = atmosphere_mass(sol_dict, ddict)
     mass_int_d = dissolved_mass(sol_dict, ddict)
 
+    # Active noble gases join the reaction-network species and elements in the
+    # output schema, so their partial pressures, reservoir masses, mole
+    # counts, and atmospheric ratios are reported alongside the CHNOS fields.
+    out_species = list(volatile_species) + list(active)
+    out_elements = list(element_list_chnos) + list(active)
+
     # CALLIOPE has no solid-mantle reservoir; every `_kg_solid` field
     # is 0.0 and exists only for schema parity with the downstream
     # PROTEUS hf_row which carries solid/melt/atmosphere splits.
     outdict = {'M_atm': 0.0, 'P_surf': 0.0}
-    for s in volatile_species:
+    for s in out_species:
         outdict[s + '_bar'] = 0.0
         outdict[s + '_kg_atm'] = 0.0
         outdict[s + '_kg_liquid'] = 0.0
@@ -789,7 +1007,7 @@ def equilibrium_atmosphere(
             outdict['P_surf'] += outdict[s + '_bar']
 
     P_surf = outdict['P_surf']
-    for s in volatile_species:
+    for s in out_species:
         outdict[s + '_vmr'] = (
             (outdict[s + '_bar'] / P_surf) if P_surf > P_SURF_FLOOR_BAR else 0.0
         )
@@ -800,7 +1018,7 @@ def equilibrium_atmosphere(
                 % (s, outdict[s + '_bar'], outdict[s + '_vmr'])
             )
 
-    all = [s for s in volatile_species]
+    all = list(out_species)
     all.extend(['H', 'C', 'N', 'S', 'O'])
     for s in all:
         tot_kg = 0.0
@@ -816,11 +1034,11 @@ def equilibrium_atmosphere(
 
         outdict[s + '_kg_total'] = tot_kg
 
-    for s in volatile_species:
+    for s in out_species:
         outdict['M_atm'] += outdict[s + '_kg_atm']
 
     outdict['atm_kg_per_mol'] = 0.0
-    for s in volatile_species:
+    for s in out_species:
         outdict[s + '_mol_atm'] = outdict[s + '_kg_atm'] / molar_mass[s]
         outdict[s + '_mol_solid'] = outdict[s + '_kg_solid'] / molar_mass[s]
         outdict[s + '_mol_liquid'] = outdict[s + '_kg_liquid'] / molar_mass[s]
@@ -830,8 +1048,8 @@ def equilibrium_atmosphere(
 
         outdict['atm_kg_per_mol'] += outdict[s + '_vmr'] * molar_mass[s]
 
-    for e1 in element_list:
-        for e2 in element_list:
+    for e1 in out_elements:
+        for e2 in out_elements:
             if e1 == e2:
                 continue
             em1 = outdict[e1 + '_kg_atm']
@@ -844,6 +1062,8 @@ def equilibrium_atmosphere(
     outdict['C_res'] = res_l[1]
     outdict['N_res'] = res_l[2]
     outdict['S_res'] = res_l[3]
+    for i, gas in enumerate(active):
+        outdict[gas + '_res'] = res_l[4 + i]
 
     return outdict
 
@@ -989,7 +1209,10 @@ def equilibrium_atmosphere_authoritative_O(
     True
     """
 
-    required_elements = ('H', 'C', 'N', 'S', 'O')
+    # Active noble gases are appended after the O residual, so the residual
+    # (and target) order is H, C, N, S, O, then each active noble gas.
+    active = _active_noble(ddict)
+    required_elements = ('H', 'C', 'N', 'S', 'O') + active
 
     # Contract check: every required element key must be present, finite,
     # and non-negative. A missing key raises KeyError (matching the legacy
@@ -1073,8 +1296,14 @@ def equilibrium_atmosphere_authoritative_O(
     # meaningful range is roughly [FO2_GUESS_MIN, FO2_GUESS_MAX] (mantle
     # reducing to highly oxidized); the wider hard box gives trust-constr room
     # to explore on poor cold starts without escaping to non-physical territory.
-    lb = [0.0, 0.0, 0.0, 0.0, FO2_HARD_MIN]
-    ub = [P_CEILING_BAR, P_CEILING_BAR, P_CEILING_BAR, P_CEILING_BAR, FO2_HARD_MAX]
+    # Unknown vector: [pH2O, pCO2, pN2, pS2, fO2_shift, p_noble...]. Pressures
+    # live at indices 0-3 and 5..5+len(active); fO2_shift sits at index 4 with
+    # its own wider log10 bounds.
+    noble_pressure_idx = list(range(5, 5 + len(active)))
+    lb = [0.0, 0.0, 0.0, 0.0, FO2_HARD_MIN] + [0.0] * len(active)
+    ub = [P_CEILING_BAR, P_CEILING_BAR, P_CEILING_BAR, P_CEILING_BAR, FO2_HARD_MAX] + [
+        P_CEILING_BAR
+    ] * len(active)
 
     # Physical pressure ceiling for the acceptance gate, captured before
     # the per-guess ub-collapse below mutates ub. The gate tests against
@@ -1083,14 +1312,51 @@ def equilibrium_atmosphere_authoritative_O(
     # collapsed 1.0 bar bound is not falsely rejected.
     p_ceiling = ub[0]
 
+    # Two-stage cold start when noble gases are active: solve the CHNOS + O +
+    # fO2 core alone (five unknowns, robust) and warm-start the joint solve
+    # from it plus analytic Henry seeds for the noble pressures. The random
+    # draw across the full box rarely converges once the noble dimensions and
+    # the differently-scaled fO2 dimension are added. Any failure of the
+    # pre-solve falls back to the random draw.
+    if p_guess is None and active:
+        try:
+            ddict_core = {**ddict, **{gas + '_included': 0 for gas in active}}
+            target_core = {k: v for k, v in target_d.items() if k not in active}
+            core = equilibrium_atmosphere_authoritative_O(
+                target_core,
+                ddict_core,
+                fO2_hint=fO2_hint,
+                hide_warnings=hide_warnings,
+                rtol=rtol,
+                atol=atol,
+                xtol=xtol,
+                p_guess=None,
+                nsolve=nsolve,
+                nguess=nguess,
+                print_result=False,
+                opt_solver=opt_solver,
+                random_seed=random_seed,
+                p_guess_max=p_guess_max,
+            )
+            p_guess = {s: core[s + '_bar'] for s in ('H2O', 'CO2', 'N2', 'S2')}
+            p_guess['fO2_shift_IW'] = core['fO2_shift_derived']
+            p_guess.update(_noble_henry_seed(core, active, target_d, ddict))
+        except RuntimeError:
+            log.warning(
+                'Noble gas cold start: the CHNOS core pre-solve did not '
+                'converge; falling back to a random high-dimensional draw, '
+                'which is less likely to converge.'
+            )
+            p_guess = None
+
     if p_guess is None:
         x0 = get_initial_pressures_with_fO2(
-            target_d, fO2_hint, rng=rng, p_guess_max=p_guess_max
+            target_d, fO2_hint, rng=rng, p_guess_max=p_guess_max, n_extra=len(active)
         )
     else:
         if not isinstance(p_guess, dict):
             raise TypeError(f'p_guess must be a dict or None, got {type(p_guess).__name__}.')
-        required = ('H2O', 'CO2', 'N2', 'S2')
+        required = ('H2O', 'CO2', 'N2', 'S2') + active
         missing = [k for k in required if k not in p_guess]
         if missing:
             raise ValueError(
@@ -1099,18 +1365,25 @@ def equilibrium_atmosphere_authoritative_O(
             )
         # fO2_shift_IW in p_guess overrides fO2_hint; absent means use fO2_hint.
         fO2_seed = p_guess.get('fO2_shift_IW', fO2_hint)
-        x0 = (p_guess['H2O'], p_guess['CO2'], p_guess['N2'], p_guess['S2'], fO2_seed)
+        x0 = (
+            p_guess['H2O'],
+            p_guess['CO2'],
+            p_guess['N2'],
+            p_guess['S2'],
+            fO2_seed,
+        ) + tuple(p_guess[gas] for gas in active)
 
         # Reject non-finite values.
-        for k, v in zip(required + ('fO2_shift_IW',), x0):
+        for k, v in zip(('H2O', 'CO2', 'N2', 'S2', 'fO2_shift_IW') + active, x0):
             if not np.isfinite(v):
                 raise ValueError(f'p_guess[{k!r}] must be a finite real number, got {v!r}.')
 
         # Match the legacy ub-collapse for tiny pressure guesses so
         # trust-constr does not wander in a degenerate slot. fO2 bound
-        # stays at the wide range.
+        # (index 4) stays at the wide range; the noble gas pressure slots
+        # collapse like the CHNOS pressures.
         ub_collapsed = list(ub)
-        for i in range(4):
+        for i in [0, 1, 2, 3] + noble_pressure_idx:
             ub_collapsed[i] = ub_collapsed[i] if (x0[i] > 1e-10) else 1.0
         ub = ub_collapsed
 
@@ -1218,7 +1491,12 @@ def equilibrium_atmosphere_authoritative_O(
             # trust-constr enforces `bounds`; fsolve does not, so the full
             # box is enforced here before the solution is accepted.
             if success:
-                sol_p = np.asarray(sol[:4], dtype=float)
+                # All partial pressures: the four CHNOS primaries plus the
+                # noble gas slots at indices 5+. fO2_shift (index 4) is
+                # bounds-checked separately with its own log10 range.
+                sol_p = np.asarray(
+                    [sol[i] for i in [0, 1, 2, 3] + noble_pressure_idx], dtype=float
+                )
                 if not (lb[4] <= sol[4] <= ub[4]):
                     log.debug(
                         'Solution rejected: derived fO2_shift=%.3f outside [%.1f, %.1f]',
@@ -1228,13 +1506,13 @@ def equilibrium_atmosphere_authoritative_O(
                     )
                     success = False
                 elif np.any(sol_p < -1.0e-6):
-                    log.debug('Solution rejected: negative partial pressure %s bar', sol[:4])
+                    log.debug('Solution rejected: negative partial pressure %s bar', sol_p)
                     success = False
                 elif np.any(sol_p > p_ceiling * (1.0 + 1.0e-6)):
                     log.debug(
                         'Solution rejected: partial pressure above %.1e bar ceiling: %s bar',
                         p_ceiling,
-                        sol[:4],
+                        sol_p,
                     )
                     success = False
 
@@ -1245,7 +1523,12 @@ def equilibrium_atmosphere_authoritative_O(
             # from Uniform(-6, +8) to give it a chance from a different
             # basin if the hint led to a non-converging region.
             x0 = get_initial_pressures_with_fO2(
-                target_d, fO2_hint, restart=True, rng=rng, p_guess_max=p_guess_max
+                target_d,
+                fO2_hint,
+                restart=True,
+                rng=rng,
+                p_guess_max=p_guess_max,
+                n_extra=len(active),
             )
 
             if opt_solver:
@@ -1271,18 +1554,24 @@ def equilibrium_atmosphere_authoritative_O(
     log.debug('    Derived fO2_shift: %.4f', sol[4])
 
     sol_dict = {'H2O': sol[0], 'CO2': sol[1], 'N2': sol[2], 'S2': sol[3]}
+    for i, gas in enumerate(active):
+        sol_dict[gas] = sol[5 + i]
     fO2_derived = sol[4]
     p_d = _get_partial_pressures(sol_dict, fO2_derived, ddict)
 
     mass_atm_d = _atmosphere_mass(sol_dict, fO2_derived, ddict)
     mass_int_d = _dissolved_mass(sol_dict, fO2_derived, ddict)
 
-    # Output dict structure matches equilibrium_atmosphere bit-for-bit
-    # plus the two new keys (fO2_shift_derived, O_res). The PROTEUS-side
-    # wrapper consumes the same fields regardless of which solver mode
-    # ran.
+    # Active noble gases join the reaction-network species and elements in the
+    # output schema. The output structure otherwise matches
+    # equilibrium_atmosphere plus the two authoritative-O keys
+    # (fO2_shift_derived, O_res). The PROTEUS-side wrapper consumes the same
+    # fields regardless of which solver mode ran.
+    out_species = list(volatile_species) + list(active)
+    out_elements = list(element_list_chnos) + list(active)
+
     outdict = {'M_atm': 0.0, 'P_surf': 0.0}
-    for s in volatile_species:
+    for s in out_species:
         outdict[s + '_bar'] = 0.0
         outdict[s + '_kg_atm'] = 0.0
         outdict[s + '_kg_liquid'] = 0.0
@@ -1294,7 +1583,7 @@ def equilibrium_atmosphere_authoritative_O(
             outdict['P_surf'] += outdict[s + '_bar']
 
     P_surf = outdict['P_surf']
-    for s in volatile_species:
+    for s in out_species:
         outdict[s + '_vmr'] = (
             (outdict[s + '_bar'] / P_surf) if P_surf > P_SURF_FLOOR_BAR else 0.0
         )
@@ -1307,7 +1596,7 @@ def equilibrium_atmosphere_authoritative_O(
                 outdict[s + '_vmr'],
             )
 
-    all_keys = [s for s in volatile_species]
+    all_keys = list(out_species)
     all_keys.extend(['H', 'C', 'N', 'S', 'O'])
     for s in all_keys:
         tot_kg = 0.0
@@ -1323,11 +1612,11 @@ def equilibrium_atmosphere_authoritative_O(
 
         outdict[s + '_kg_total'] = tot_kg
 
-    for s in volatile_species:
+    for s in out_species:
         outdict['M_atm'] += outdict[s + '_kg_atm']
 
     outdict['atm_kg_per_mol'] = 0.0
-    for s in volatile_species:
+    for s in out_species:
         outdict[s + '_mol_atm'] = outdict[s + '_kg_atm'] / molar_mass[s]
         outdict[s + '_mol_solid'] = outdict[s + '_kg_solid'] / molar_mass[s]
         outdict[s + '_mol_liquid'] = outdict[s + '_kg_liquid'] / molar_mass[s]
@@ -1337,8 +1626,8 @@ def equilibrium_atmosphere_authoritative_O(
 
         outdict['atm_kg_per_mol'] += outdict[s + '_vmr'] * molar_mass[s]
 
-    for e1 in element_list:
-        for e2 in element_list:
+    for e1 in out_elements:
+        for e2 in out_elements:
             if e1 == e2:
                 continue
             em1 = outdict[e1 + '_kg_atm']
@@ -1352,6 +1641,8 @@ def equilibrium_atmosphere_authoritative_O(
     outdict['N_res'] = res_l[2]
     outdict['S_res'] = res_l[3]
     outdict['O_res'] = res_l[4]
+    for i, gas in enumerate(active):
+        outdict[gas + '_res'] = res_l[5 + i]
     outdict['fO2_shift_derived'] = fO2_derived
 
     if print_result:

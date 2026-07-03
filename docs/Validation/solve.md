@@ -6,6 +6,7 @@ behaviour of `calliope.solve` against published or self-consistency sources.
 | Test id | Reference | Source page | Scope |
 |---|---|---|---|
 | `tests/test_solve.py::test_round_trip_self_consistency_at_earth_fiducial` | Cross-implementation cross-check: CALLIOPE forward `equilibrium_atmosphere` vs CALLIOPE inverse `equilibrium_atmosphere_authoritative_O` | `src/calliope/solve.py` (forward and authoritative-O entry points) | Pins the round-trip property at the Earth-fiducial input: forward solve at `fO2 = IW + 2` produces an O budget; the authoritative-O inverse from that budget recovers `fO2_shift_derived` within 0.05 dex. |
+| `tests/test_noble_gases.py::test_partition_ratio_matches_henry_versus_hydrostatic_column` | Analytical limit: closed-form Henry-versus-hydrostatic-column partition ratio | `src/calliope/solve.py` (noble gas unknowns and reservoir tallies) | Pins the dissolved-to-atmospheric mass ratio of He, Ar, and Xe after the joint solve against the independently computed ratio of the Henry coefficient to the hydrostatic column coefficient, anchoring the noble gas partitioning to first principles and the Jambon et al. (1986) constants. |
 
 ## Re-derivation note
 
@@ -52,6 +53,9 @@ several topical cross-cutting files for readability:
 - `tests/test_stoichiometry.py`: stoichiometric ratios across the
   published reactions.
 - `tests/test_targets.py`: target-element-budget computation.
+- `tests/test_noble_gases.py`: noble gas (He, Ne, Ar, Kr, Xe)
+  partitioning, mass closure, the mean-molar-mass coupling, and the
+  target builders.
 - `tests/test_invariants.py`: per-element / per-species closure
   invariants.
 - `tests/test_invariants_hypothesis.py`: property-based fuzz tests at

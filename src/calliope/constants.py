@@ -25,6 +25,10 @@ molar_mass = {
     'N': 0.014007,
     'S': 0.03206,
     'He': 0.0040026,
+    'Ne': 0.0201797,
+    'Ar': 0.039948,
+    'Kr': 0.083798,
+    'Xe': 0.131293,
     'H2O': 0.01801528,
     'CO2': 0.04401,
     'H2': 0.00201588,
@@ -38,9 +42,26 @@ molar_mass = {
     'NH3': 0.017031,
 }
 
-# Supported volatiles and elements
+# Noble gases. Each is monatomic and chemically inert: its gas species and
+# its element are the same entity, it takes no part in the CHNOS reaction
+# network, and it partitions between melt and atmosphere by Henry's law
+# alone. Ordered by atomic number so the active-species vector the solver
+# builds is deterministic. They are part of `element_list` (the full set of
+# supported elements) but not of `volatile_species` (the reaction network);
+# a noble gas with no budget is inactive and contributes nothing.
+noble_gases = ['He', 'Ne', 'Ar', 'Kr', 'Xe']
+
+# Supported reaction-network volatiles.
 volatile_species = ['H2O', 'CO2', 'O2', 'H2', 'CH4', 'CO', 'N2', 'S2', 'SO2', 'H2S', 'NH3']
-element_list = ['H', 'O', 'C', 'N', 'S']
+
+# The reacting elements of the CHNOS network. The solver's element-residual and
+# element-mass loops iterate this subset; the inert noble gases partition by
+# Henry's law and are handled on their own active-gas path.
+element_list_chnos = ['H', 'O', 'C', 'N', 'S']
+
+# All supported elements: the reacting CHNOS elements plus the inert noble
+# gases. This is the complete element registry.
+element_list = element_list_chnos + noble_gases
 
 # Plotting colours
 dict_colors = {
@@ -55,4 +76,9 @@ dict_colors = {
     'SO2': '#00008B',
     'NH3': '#675200',
     'H2S': '#aaff22',
+    'He': '#7f7f7f',
+    'Ne': '#e6550d',
+    'Ar': '#3182bd',
+    'Kr': '#31a354',
+    'Xe': '#756bb1',
 }

@@ -31,6 +31,7 @@ nav:
       - Model overview: Explanations/model.md
       - Equilibrium chemistry: Explanations/equilibrium_chemistry.md
       - Solubility laws: Explanations/solubility.md
+      - Noble gases: Explanations/noble_gases.md
       - Oxygen fugacity: Explanations/oxygen_fugacity.md
       - Mass balance & solver: Explanations/mass_balance.md
       - Authoritative-oxygen mode: Explanations/authoritative_oxygen.md
