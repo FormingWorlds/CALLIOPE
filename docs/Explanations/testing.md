@@ -3,7 +3,9 @@
 [![codecov](https://img.shields.io/codecov/c/github/FormingWorlds/CALLIOPE?label=coverage&logo=codecov&color=brightgreen)](https://app.codecov.io/gh/FormingWorlds/CALLIOPE)
 [![Unit Tests](https://img.shields.io/github/actions/workflow/status/FormingWorlds/CALLIOPE/tests.yaml?branch=main&label=Unit%20Tests&color=brightgreen)](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/tests.yaml)
 [![Integration Tests](https://img.shields.io/github/actions/workflow/status/FormingWorlds/CALLIOPE/nightly.yml?branch=main&label=Integration%20Tests&color=brightgreen)](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/nightly.yml)
-[![tests](https://img.shields.io/endpoint?url=https://proteus-framework.org/CALLIOPE/badges/tests-total.json)](https://proteus-framework.org/testing)
+[![tests](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/FormingWorlds/CALLIOPE/badges/tests-total.json)](https://proteus-framework.org/testing)
+[![unit tests](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/FormingWorlds/CALLIOPE/badges/tests-unit.json)](https://proteus-framework.org/testing)
+[![integration tests](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/FormingWorlds/CALLIOPE/badges/tests-integration.json)](https://proteus-framework.org/testing)
 
 Tests verify that the code does what was written; physical correctness is judged by data, not by tests.
 The suite catches regressions in equilibrium chemistry, solubility laws, oxygen-fugacity buffers, and the hybrid solver, but it cannot certify that those formulae match nature.
@@ -180,13 +182,13 @@ python tools/check_test_quality.py --physics-invariant-status
 ## Public-facing badges versus internal taxonomy
 
 Public-facing badges (README, project website) collapse `smoke + integration + slow` into a single `Integration Tests` category, because a four-way taxonomy is confusing to non-developer readers.
-The four-marker internal scheme remains for CI infrastructure granularity: the PR gate runs `(unit or smoke)`, the nightly runs everything, and the test-count badge fetches the JSON files written into the documentation site during the docs deploy.
+The four-marker internal scheme remains for CI infrastructure granularity: the PR gate runs `(unit or smoke)`, the nightly runs everything, and the test-count badge reads the JSON files published on the repository's `badges` branch.
 
 ## Badge system
 
-The documentation deploy (`.github/workflows/docs.yaml`) regenerates three JSON files, `tests-{total,unit,integration}.json`, from `pytest --collect-only` and writes them into the published site under `badges/`.
-Shields.io fetches them live from the site via the endpoint URL embedded in the test-count badge.
-The counts refresh on every documentation build, so they track the suite without running it.
+The `Refresh test count badges` workflow (`.github/workflows/publish-test-badges.yml`) regenerates three JSON files, `tests-{total,unit,integration}.json`, from `pytest --collect-only` and publishes them to the root of a dedicated `badges` branch.
+The `main` branch requires review for direct pushes, so the badge JSON lives on that separate branch, which shields.io reads by raw URL.
+The counts refresh whenever the test suite or source changes on `main`, so they track the suite without running it.
 
 ## Coverage gates
 
