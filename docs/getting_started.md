@@ -1,9 +1,3 @@
----
-title: CALLIOPE
-hide:
-  - navigation
----
-
 # Getting started
 
 !!! note "Usage within the PROTEUS framework"
