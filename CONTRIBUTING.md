@@ -68,4 +68,4 @@ The versioning scheme is [CalVer](https://calver.org/).
 
 2. Create a new [release](https://github.com/FormingWorlds/CALLIOPE/releases) on GitHub against that tag, e.g. `26.05.10`.
 
-3. The [upload to PyPI](https://pypi.org/project/fwl-calliope) is triggered automatically when the release is published, handled by [this workflow](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/publish.yaml). See [How-to: releasing](docs/How-to/releasing.md) for the full procedure.
+3. The [upload to PyPI](https://pypi.org/project/fwl-calliope) is triggered automatically when the release is published, handled by [this workflow](https://github.com/FormingWorlds/CALLIOPE/actions/workflows/publish.yaml). See [How-to: releasing](https://proteus-framework.org/CALLIOPE/How-to/releasing.html) for the full procedure.
