@@ -5,9 +5,13 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
+      # The vendored SIL Open Font License text is redistributed verbatim
+      # alongside the fonts, so the two rewriting hooks leave it alone.
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
+        exclude: ^docs/stylesheets/fonts/OFL\.txt$
       - id: end-of-file-fixer
+        exclude: ^docs/stylesheets/fonts/OFL\.txt$
       - id: check-case-conflict
       - id: check-docstring-first
       - id: check-builtin-literals
