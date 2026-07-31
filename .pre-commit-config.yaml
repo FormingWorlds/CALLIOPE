@@ -7,6 +7,7 @@ repos:
     hooks:
       # The vendored SIL Open Font License text is redistributed verbatim
       # alongside the fonts, so the two rewriting hooks leave it alone.
+      # A test asserts that every exclude in this file matches a tracked file.
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
         exclude: ^docs/stylesheets/fonts/OFL\.txt$
