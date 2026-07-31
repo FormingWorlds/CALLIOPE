@@ -51,6 +51,7 @@ develop = [
     "pytest >= 8.1",
     "pytest-cov",
     "pre-commit",
+    "pyyaml",
     "ruff",
 ]
 
