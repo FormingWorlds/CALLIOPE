@@ -18,7 +18,9 @@ The check also requires the config to declare at least one exclusion, so it
 cannot pass by having nothing left to inspect. Removing the last exclusion from
 the config means removing this file along with it.
 
-The sibling ecosystem repositories carry the same file; keep the copies in step.
+The CALLIOPE and MORS repositories keep this file identical, since both vendor
+the same font assets behind the same exclusions. A change to one belongs in the
+other.
 """
 
 from __future__ import annotations
@@ -134,6 +136,10 @@ def test_stale_exclude_is_reported():
                         'id': 'end-of-file-fixer',
                         'exclude': r'^docs/assets/fonts/OFL\.txt$',
                     },
+                    # Unanchored, so it matches only under `search`. Were the
+                    # check to anchor at position 0 the way `match` does, this
+                    # live exclusion would be reported as stale.
+                    {'id': 'check-yaml', 'exclude': r'fonts/OFL\.txt$'},
                     {'id': 'ruff', 'exclude': NULL_EXCLUDE},
                 ]
             }
@@ -149,3 +155,41 @@ def test_stale_exclude_is_reported():
     # A config-level exclusion is checked too, and goes stale the same way.
     config['exclude'] = r'^docs/assets/'
     assert ('<config>', r'^docs/assets/') in _stale_excludes(config, files)
+
+
+def test_tracked_files_stands_down_instead_of_raising(monkeypatch):
+    """`_tracked_files` answers None wherever git cannot supply a file list.
+
+    The check has to stand down when the tree cannot be enumerated, so both
+    routes to that state return None and the caller skips rather than
+    reporting every exclusion as stale. A path that is not valid UTF-8
+    survives the round trip as surrogates, so an undecodable name in the tree
+    leaves the rest of the check working instead of raising mid-call.
+    """
+    monkeypatch.setattr(shutil, 'which', lambda name: None)
+    assert _tracked_files() is None
+
+    monkeypatch.setattr(shutil, 'which', lambda name: '/usr/bin/git')
+
+    def _fail(*args, **kwargs):
+        raise subprocess.CalledProcessError(128, 'git')
+
+    monkeypatch.setattr(subprocess, 'run', _fail)
+    assert _tracked_files() is None
+
+    undecodable = b'docs/f\xffle.txt'.decode('utf-8', 'surrogateescape')
+    seen = {}
+
+    def _listing(*args, **kwargs):
+        seen.update(kwargs)
+        return subprocess.CompletedProcess(args, 0, f'README.md\0{undecodable}\0', '')
+
+    monkeypatch.setattr(subprocess, 'run', _listing)
+    assert _tracked_files() == ['README.md', undecodable]
+    # Decoding is pinned rather than taken from the locale. Left to the
+    # locale, a C-locale runner raises on the first non-ASCII path and the
+    # exception escapes the clause above, which only covers process failures.
+    assert (seen.get('encoding'), seen.get('errors')) == ('utf-8', 'surrogateescape')
+    # The trailing NUL must not become an empty path, which would match any
+    # unanchored exclusion and hide a stale one.
+    assert '' not in _tracked_files()
