@@ -67,7 +67,7 @@ class TestCO2AtomCounting:
             ddict[f'{sp}_included'] = 0
         ddict['CO2_included'] = 1
         # Set all pressures to zero, then CO2
-        p_d = {s: 0.0 for s in volatile_species}
+        p_d = dict.fromkeys(volatile_species, 0.0)
         p_d['CO2'] = p_CO2_bar
         mass_atm = _atmosphere_mass(p_d, 0.0, ddict)
         # Atomic-C contribution expected from stoichiometry: 12.011 / 44.01
@@ -87,7 +87,7 @@ class TestCO2AtomCounting:
         for sp in volatile_species:
             ddict[f'{sp}_included'] = 0
         ddict['CO2_included'] = 1
-        p_d = {s: 0.0 for s in volatile_species}
+        p_d = dict.fromkeys(volatile_species, 0.0)
         mass_atm = _atmosphere_mass(p_d, 0.0, ddict)
         assert mass_atm.get('C', 0.0) == pytest.approx(0.0, abs=1e-30)
 

@@ -157,7 +157,7 @@ def _get_partial_pressures(pin, fO2_shift, ddict):
     via equilibrium constants and the fO2 buffer.
     """
 
-    p_d = {s: 0.0 for s in volatile_species}
+    p_d = dict.fromkeys(volatile_species, 0.0)
 
     p_d['H2O'] = pin['H2O']
 
