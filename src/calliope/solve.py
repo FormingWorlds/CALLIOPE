@@ -588,12 +588,11 @@ def get_initial_pressures(target_d, p_guess_max=P_GUESS_MAX_BAR, n_extra=0):
     _check_guess_ceiling(p_guess_max)
     hi = np.log10(p_guess_max)
     lo = np.log10(P_GUESS_MIN_BAR)
-    # The global generator is the default stream: callers and tests seed it with np.random.seed.
-    pH2O = 10 ** np.random.uniform(low=lo, high=hi)  # noqa: NPY002
-    pCO2 = 10 ** np.random.uniform(low=lo, high=hi)  # noqa: NPY002
-    pN2 = 10 ** np.random.uniform(low=lo, high=hi)  # noqa: NPY002
-    pS2 = 10 ** np.random.uniform(low=lo, high=hi)  # noqa: NPY002
-    extra = tuple(10 ** np.random.uniform(low=lo, high=hi) for _ in range(n_extra))  # noqa: NPY002
+    pH2O = 10 ** np.random.uniform(low=lo, high=hi)
+    pCO2 = 10 ** np.random.uniform(low=lo, high=hi)
+    pN2 = 10 ** np.random.uniform(low=lo, high=hi)
+    pS2 = 10 ** np.random.uniform(low=lo, high=hi)
+    extra = tuple(10 ** np.random.uniform(low=lo, high=hi) for _ in range(n_extra))
 
     return (pH2O, pCO2, pN2, pS2) + extra
 

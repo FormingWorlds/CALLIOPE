@@ -114,7 +114,7 @@ def test_get_initial_pressures_with_fO2_default_rng():
     redraw only happens on restart), which discriminates this path from
     the restart path that draws fO2 from Uniform(-6, +8).
     """
-    np.random.seed(42)  # determinism for the global-state branch  # noqa: NPY002
+    np.random.seed(42)  # determinism for the global-state branch
     hint = 3.5
     x0 = get_initial_pressures_with_fO2(_target(), hint, restart=False, rng=None)
 

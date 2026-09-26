@@ -146,6 +146,13 @@ ignore = [
     "E501", # Line too long
 ]
 
+# The global np.random stream is the default source of the solver start points,
+# and these tests seed it with np.random.seed.
+[tool.ruff.lint.per-file-ignores]
+"src/calliope/solve.py" = ["NPY002"]
+"tests/test_authoritative_O_solver_paths.py" = ["NPY002"]
+"tests/test_noble_gases.py" = ["NPY002"]
+
 [tool.ruff.lint.isort]
 known-first-party=["calliope"]
 required-imports = ["from __future__ import annotations"]
