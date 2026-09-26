@@ -77,7 +77,7 @@ def test_every_noble_gas_conserves_mass():
     `_kg_total`. Runs all five simultaneously so an index or ordering bug in
     the residual vector would surface as a mismatched gas.
     """
-    np.random.seed(42)
+    np.random.seed(42)  # noqa: NPY002
     ddict = _ddict()
     target = dict(_CHNOS, **_NOBLE)
     out = equilibrium_atmosphere(
@@ -104,7 +104,7 @@ def test_dissolved_mass_follows_closed_form_henry_law():
     This pins the melt side of the partitioning against the published
     Jambon et al. (1986) constants independent of the solver internals.
     """
-    np.random.seed(7)
+    np.random.seed(7)  # noqa: NPY002
     ddict = _ddict()
     target = dict(_CHNOS, **_NOBLE)
     out = equilibrium_atmosphere(
@@ -140,7 +140,7 @@ def test_partition_ratio_matches_henry_versus_hydrostatic_column():
     `test_solubility`; this test checks the structure of the partition, not the
     constant's value.
     """
-    np.random.seed(11)
+    np.random.seed(11)  # noqa: NPY002
     ddict = _ddict()
     target = dict(_CHNOS, **_NOBLE)
     out = equilibrium_atmosphere(
@@ -174,7 +174,7 @@ def test_noble_partial_pressure_and_dissolved_increase_with_budget():
     ddict = _ddict(active=('He',))
     outs = []
     for he_budget in (1.0e15, 1.0e16, 1.0e17):
-        np.random.seed(3)
+        np.random.seed(3)  # noqa: NPY002
         target = dict(_CHNOS, He=he_budget)
         outs.append(
             equilibrium_atmosphere(
@@ -200,13 +200,13 @@ def test_noble_dominated_atmosphere_shifts_chnos_pressures():
     CHNOS mean molar mass would leave the CHNOS pressures untouched; this
     test fails in that case.
     """
-    np.random.seed(5)
+    np.random.seed(5)  # noqa: NPY002
     ddict_free = _ddict(active=())
     out_free = equilibrium_atmosphere(
         dict(_CHNOS), ddict_free, print_result=False, opt_solver=False, nguess=2000
     )
 
-    np.random.seed(5)
+    np.random.seed(5)  # noqa: NPY002
     ddict_he = _ddict(active=('He',))
     # He budget more than an order of magnitude above the hydrogen budget:
     # He dominates the column and pulls the mean molar mass toward 4 g/mol.
@@ -242,7 +242,7 @@ def test_noble_partitioning_independent_of_fo2():
     require the He partial pressure and dissolved mass to match.
     """
     target = dict(_CHNOS, He=3.0e16)
-    np.random.seed(9)
+    np.random.seed(9)  # noqa: NPY002
     out_red = equilibrium_atmosphere(
         target,
         _ddict(active=('He',), dIW=-4.0),
@@ -250,7 +250,7 @@ def test_noble_partitioning_independent_of_fo2():
         opt_solver=False,
         nguess=2000,
     )
-    np.random.seed(9)
+    np.random.seed(9)  # noqa: NPY002
     out_ox = equilibrium_atmosphere(
         target,
         _ddict(active=('He',), dIW=+4.0),
@@ -279,7 +279,7 @@ def test_excluded_noble_gas_is_absent_from_the_solve():
     dict. This is the backward-compatible gate that keeps a CHNOS-only or
     single-noble run from dragging in unused species.
     """
-    np.random.seed(1)
+    np.random.seed(1)  # noqa: NPY002
     ddict = _ddict(active=('He',))
     target = dict(_CHNOS, He=3.0e16)  # no Ne/Ar/Kr/Xe targets supplied
     out = equilibrium_atmosphere(
@@ -300,7 +300,7 @@ def test_included_noble_gas_without_target_raises():
     """Error contract: an included noble gas with no target mass is a
     misconfiguration and must fail loudly, not silently solve for zero.
     """
-    np.random.seed(1)
+    np.random.seed(1)  # noqa: NPY002
     ddict = _ddict(active=('He', 'Ar'))
     target = dict(_CHNOS, He=3.0e16)  # Ar included but no Ar target
     with pytest.raises(KeyError, match='Ar'):
@@ -405,7 +405,7 @@ def test_chnos_only_solve_is_unchanged_by_noble_gas_support():
     central claim that the noble gas machinery leaves the CHNOS path
     numerically untouched.
     """
-    np.random.seed(17)
+    np.random.seed(17)  # noqa: NPY002
     ddict = _ddict(active=())
     out = equilibrium_atmosphere(
         dict(_CHNOS), ddict, print_result=False, opt_solver=False, nguess=2000
@@ -443,7 +443,7 @@ def test_authoritative_o_mode_conserves_noble_mass_and_recovers_fo2():
     dIW = 4.0
     ddict = _ddict(dIW=dIW)
     target_chnos = dict(_CHNOS, **_NOBLE)
-    np.random.seed(2)
+    np.random.seed(2)  # noqa: NPY002
     legacy = equilibrium_atmosphere(target_chnos, ddict, print_result=False, nguess=1000)
     target = dict(target_chnos, O=legacy['O_kg_total'])
 
@@ -543,7 +543,7 @@ def test_two_stage_cold_start_falls_back_when_core_presolve_fails(monkeypatch, c
 
     ddict = _ddict(active=('He',))
     target = dict(_CHNOS, He=3.0e16)
-    np.random.seed(0)
+    np.random.seed(0)  # noqa: NPY002
     with caplog.at_level(logging.WARNING, logger='fwl.calliope.solve'):
         out = wrapper(target, ddict, print_result=False, opt_solver=False, nguess=4000)
 
@@ -614,7 +614,7 @@ def test_authoritative_o_two_stage_fallback_warns(monkeypatch, caplog):
     dIW = 4.0
     ddict = _ddict(dIW=dIW)
     target_chnos = dict(_CHNOS, **_NOBLE)
-    np.random.seed(2)
+    np.random.seed(2)  # noqa: NPY002
     legacy = equilibrium_atmosphere(target_chnos, ddict, print_result=False, nguess=1000)
     target = dict(target_chnos, O=legacy['O_kg_total'])
 
