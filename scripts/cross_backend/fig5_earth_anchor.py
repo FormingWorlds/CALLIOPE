@@ -44,15 +44,15 @@ def collect(T_magma: float = 2000.0) -> dict:
     log.info('CALLIOPE dIW (Fischer)  = %+.3f', cal_fis.fO2_shift_derived)
     log.info("CALLIOPE dIW (O'Neill)  = %+.3f", cal_one.fO2_shift_derived)
     log.info('atmodeller dIW          = %+.3f', atm.fO2_shift_derived)
-    return dict(
-        T_magma=T_magma,
-        cal_fischer_dIW=cal_fis.fO2_shift_derived,
-        cal_oneill_dIW=cal_one.fO2_shift_derived,
-        atm_dIW=atm.fO2_shift_derived,
-        cal_fischer_P_bar=cal_fis.total_P_bar,
-        cal_oneill_P_bar=cal_one.total_P_bar,
-        atm_P_bar=atm.total_P_bar,
-    )
+    return {
+        'T_magma': T_magma,
+        'cal_fischer_dIW': cal_fis.fO2_shift_derived,
+        'cal_oneill_dIW': cal_one.fO2_shift_derived,
+        'atm_dIW': atm.fO2_shift_derived,
+        'cal_fischer_P_bar': cal_fis.total_P_bar,
+        'cal_oneill_P_bar': cal_one.total_P_bar,
+        'atm_P_bar': atm.total_P_bar,
+    }
 
 
 def make_figure(data: dict | None = None) -> dict:

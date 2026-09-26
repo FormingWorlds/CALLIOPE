@@ -68,19 +68,19 @@ def collect(T_magma: float = 2000.0) -> dict:
     log.info('  atmodeller dIW (aligned) = %+.3f', atm_align.fO2_shift_derived)
     after_solubility = atm_align.fO2_shift_derived - cal_fis.fO2_shift_derived + buf_offset_fis
 
-    return dict(
-        T_magma=T_magma,
-        cal_fischer_dIW=cal_fis.fO2_shift_derived,
-        cal_oneill_dIW=cal_one.fO2_shift_derived,
-        atm_default_dIW=atm_def.fO2_shift_derived,
-        atm_aligned_dIW=atm_align.fO2_shift_derived,
-        raw_gap_fischer=raw_gap_fis,
-        raw_gap_oneill=raw_gap_one,
-        buffer_offset_fischer=buf_offset_fis,
-        buffer_offset_oneill=buf_offset_one,
-        after_buffer_fischer=after_buffer_fis,
-        after_solubility=after_solubility,
-    )
+    return {
+        'T_magma': T_magma,
+        'cal_fischer_dIW': cal_fis.fO2_shift_derived,
+        'cal_oneill_dIW': cal_one.fO2_shift_derived,
+        'atm_default_dIW': atm_def.fO2_shift_derived,
+        'atm_aligned_dIW': atm_align.fO2_shift_derived,
+        'raw_gap_fischer': raw_gap_fis,
+        'raw_gap_oneill': raw_gap_one,
+        'buffer_offset_fischer': buf_offset_fis,
+        'buffer_offset_oneill': buf_offset_one,
+        'after_buffer_fischer': after_buffer_fis,
+        'after_solubility': after_solubility,
+    }
 
 
 def make_figure(data: dict | None = None) -> dict:
@@ -117,7 +117,7 @@ def make_figure(data: dict | None = None) -> dict:
     # within +/-0.03 dex of the tolerance line get pushed higher so
     # their label clears the dashed line and the per-element-solver
     # annotation drawn just above it.
-    for bar, val in zip(bars, values):
+    for bar, val in zip(bars, values, strict=False):
         x = bar.get_x() + bar.get_width() / 2
         if abs(val - tol) <= 0.04:
             y = tol + 0.045

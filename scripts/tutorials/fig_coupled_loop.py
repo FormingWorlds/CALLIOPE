@@ -80,7 +80,7 @@ def _run(ddict_template: dict, schedule: list[tuple[float, float]], label: str) 
             P_total[i],
             wall[i],
         )
-    return dict(pressures=pressures, P_total=P_total, wall_s=wall)
+    return {'pressures': pressures, 'P_total': P_total, 'wall_s': wall}
 
 
 def _base_ddict() -> dict:
@@ -106,17 +106,17 @@ def collect() -> dict:
     log.info('Phase 2: crystallisation at T = %.0f K', T_FREEZE)
     phase2 = _run(ddict, phase2_schedule, 'cryst')
 
-    return dict(
-        T_cool=T_SEQUENCE.copy(),
-        pressures_cool=phase1['pressures'],
-        P_total_cool=phase1['P_total'],
-        wall_cool=phase1['wall_s'],
-        Phi_cryst=PHI_SEQUENCE.copy(),
-        T_cryst=T_FREEZE,
-        pressures_cryst=phase2['pressures'],
-        P_total_cryst=phase2['P_total'],
-        wall_cryst=phase2['wall_s'],
-    )
+    return {
+        'T_cool': T_SEQUENCE.copy(),
+        'pressures_cool': phase1['pressures'],
+        'P_total_cool': phase1['P_total'],
+        'wall_cool': phase1['wall_s'],
+        'Phi_cryst': PHI_SEQUENCE.copy(),
+        'T_cryst': T_FREEZE,
+        'pressures_cryst': phase2['pressures'],
+        'P_total_cryst': phase2['P_total'],
+        'wall_cryst': phase2['wall_s'],
+    }
 
 
 def make_figure(data: dict | None = None) -> dict:
@@ -222,7 +222,7 @@ def make_figure(data: dict | None = None) -> dict:
         family='monospace',
         va='bottom',
         ha='left',
-        bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='#cccccc'),
+        bbox={'boxstyle': 'round,pad=0.4', 'facecolor': 'white', 'edgecolor': '#cccccc'},
     )
 
     paths = save(fig, 'coupled_loop')

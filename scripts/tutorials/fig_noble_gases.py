@@ -107,10 +107,10 @@ def make_figure(data: dict | None = None) -> dict:
         w = csv.writer(fh)
         w.writerow(['gas', 'budget_ppmw', 'partial_pressure_bar'])
         for gas in noble_gases:
-            for ppmw, p in zip(BUDGETS_PPMW, pressures[gas]):
+            for ppmw, p in zip(BUDGETS_PPMW, pressures[gas], strict=False):
                 w.writerow([gas, ppmw, p])
         w.writerow([])
-        w.writerow(['gas', 'atmospheric_fraction_at_%g_ppmw' % SPLIT_PPMW])
+        w.writerow(['gas', f'atmospheric_fraction_at_{SPLIT_PPMW:g}_ppmw'])
         for gas in noble_gases:
             w.writerow([gas, atm_fraction[gas]])
     log.info('Wrote %s', csv_path)

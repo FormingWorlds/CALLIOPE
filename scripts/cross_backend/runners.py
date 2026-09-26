@@ -138,15 +138,15 @@ def run_calliope(
 
     ddict = _calliope_ddict(T_magma=T_magma, Phi_global=Phi_global, **planet_overrides)
     target_d = inventory.asdict()
-    inputs = dict(
-        inventory=inventory.name,
-        T_magma=T_magma,
-        Phi_global=Phi_global,
-        fO2_hint=fO2_hint,
-        seed=random_seed,
-        target_d=target_d,
-        buffer=buffer,
-    )
+    inputs = {
+        'inventory': inventory.name,
+        'T_magma': T_magma,
+        'Phi_global': Phi_global,
+        'fO2_hint': fO2_hint,
+        'seed': random_seed,
+        'target_d': target_d,
+        'buffer': buffer,
+    }
     try:
         with warnings.catch_warnings(), _with_calliope_buffer(buffer):
             warnings.simplefilter('ignore')
@@ -264,15 +264,15 @@ def run_atmodeller(
     p = dict(PLANETARY_DEFAULTS)
     p.update(planet_overrides)
 
-    inputs = dict(
-        inventory=inventory.name,
-        T_magma=T_magma,
-        Phi_global=Phi_global,
-        solubility_map=dict(sol_map),
-        eos_map=dict(eos_map),
-        include_condensates=include_condensates,
-        target_d=inventory.asdict(),
-    )
+    inputs = {
+        'inventory': inventory.name,
+        'T_magma': T_magma,
+        'Phi_global': Phi_global,
+        'solubility_map': dict(sol_map),
+        'eos_map': dict(eos_map),
+        'include_condensates': include_condensates,
+        'target_d': inventory.asdict(),
+    }
 
     try:
         # Only include species whose constituent elements all have

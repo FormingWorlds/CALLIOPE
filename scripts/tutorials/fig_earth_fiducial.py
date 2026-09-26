@@ -91,7 +91,7 @@ def collect() -> dict:
         recovered - DIW_ANCHOR,
     )
 
-    return dict(O_kg_total=O_kg, dIW_recovered=recovered, P_surf_bar=float(auth['P_surf']))
+    return {'O_kg_total': O_kg, 'dIW_recovered': recovered, 'P_surf_bar': float(auth['P_surf'])}
 
 
 def make_figure(data: dict | None = None) -> dict:
@@ -165,7 +165,7 @@ def make_figure(data: dict | None = None) -> dict:
         fontsize=9.0,
         va='bottom',
         ha='right',
-        bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='#cccccc'),
+        bbox={'boxstyle': 'round,pad=0.4', 'facecolor': 'white', 'edgecolor': '#cccccc'},
     )
 
     ax.legend(

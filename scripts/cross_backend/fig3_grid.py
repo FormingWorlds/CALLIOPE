@@ -92,14 +92,14 @@ def collect() -> dict:
         if r_atm.converged:
             dIW_atm[i] = r_atm.fO2_shift_derived
             P_atm[i] = r_atm.total_P_bar
-    return dict(
-        dIW_cal_fis=dIW_cal_fis,
-        dIW_cal_one=dIW_cal_one,
-        dIW_atm=dIW_atm,
-        P_cal_fis=P_cal_fis,
-        P_cal_one=P_cal_one,
-        P_atm=P_atm,
-    )
+    return {
+        'dIW_cal_fis': dIW_cal_fis,
+        'dIW_cal_one': dIW_cal_one,
+        'dIW_atm': dIW_atm,
+        'P_cal_fis': P_cal_fis,
+        'P_cal_one': P_cal_one,
+        'P_atm': P_atm,
+    }
 
 
 def make_figure(data: dict | None = None) -> dict:

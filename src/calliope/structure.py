@@ -54,12 +54,12 @@ def calculate_mantle_mass(
     core_rho = (3.0 * earth_fm * M_earth) / (
         4.0 * np.pi * (earth_fr * R_earth) ** 3.0
     )  # core density [kg m-3]
-    log.debug('Core density = %.2f kg m-3' % core_rho)
+    log.debug(f'Core density = {core_rho:.2f} kg m-3')
 
     # Calculate mantle mass by subtracting core from total
     core_mass = core_rho * 4.0 / 3.0 * np.pi * (radius * core_frac) ** 3.0
     mantle_mass = mass - core_mass
-    log.info('Total mantle mass = %.2e kg' % mantle_mass)
+    log.info(f'Total mantle mass = {mantle_mass:.2e} kg')
     if mantle_mass <= 0.0:
         raise Exception('Something has gone wrong (mantle mass is negative)')
 

@@ -85,7 +85,7 @@ def make_figure() -> dict:
     panel_label(ax_bot, '(b)')
 
     # Mark a few characteristic magma-ocean temperatures with vertical guides.
-    for T_mark, label in [(1500, '1500 K'), (2000, '2000 K'), (3000, '3000 K')]:
+    for T_mark in (1500, 2000, 3000):
         ax_bot.axvline(T_mark, color='k', alpha=0.1, linewidth=0.7)
         ax_top.axvline(T_mark, color='k', alpha=0.1, linewidth=0.7)
 

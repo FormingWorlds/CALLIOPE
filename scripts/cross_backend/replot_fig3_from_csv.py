@@ -51,14 +51,14 @@ def load_csv() -> dict:
             arr[i, j] = float(v) if v and v != 'nan' else np.nan
         conv[i, j] = not np.isnan(dIW_cal[i, j]) and not np.isnan(dIW_atm[i, j])
 
-    return dict(
-        dIW_cal=dIW_cal,
-        dIW_atm=dIW_atm,
-        conv_cal=~np.isnan(dIW_cal),
-        conv_atm=~np.isnan(dIW_atm),
-        P_cal=P_cal,
-        P_atm=P_atm,
-    )
+    return {
+        'dIW_cal': dIW_cal,
+        'dIW_atm': dIW_atm,
+        'conv_cal': ~np.isnan(dIW_cal),
+        'conv_atm': ~np.isnan(dIW_atm),
+        'P_cal': P_cal,
+        'P_atm': P_atm,
+    }
 
 
 def main() -> None:

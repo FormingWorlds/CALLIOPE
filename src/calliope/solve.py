@@ -699,7 +699,7 @@ def get_target_from_pressures(ddict):
 
     p_tot = np.sum(list(pin_dict.values()))
     if p_tot < 1.0e-3:
-        raise Exception('Initial surface pressure too low! (%.2e bar)' % p_tot)
+        raise Exception(f'Initial surface pressure too low! ({p_tot:.2e} bar)')
 
     # Per-element short-circuits: when no S-, C-, or N-bearing primary
     # is initially present, pin the corresponding target to zero
@@ -798,7 +798,7 @@ def equilibrium_atmosphere(
 
     if print_result:
         log.info('Solving for equilibrium partial pressures at surface')
-    log.debug('    target masses: %s' % str(target_d))
+    log.debug(f'    target masses: {str(target_d)}')
 
     # Active noble gases become extra primary unknowns appended after the
     # four CHNOS primaries. Their target masses must be present so the
@@ -874,7 +874,7 @@ def equilibrium_atmosphere(
         # Reject non-finite values up front. NaN > 1e-10 evaluates False,
         # which would silently collapse ub to 1.0 and propagate NaN through
         # the solver to produce garbage output with no error signal.
-        for k, v in zip(required, x0):
+        for k, v in zip(required, x0, strict=False):
             if not np.isfinite(v):
                 raise ValueError(f'p_guess[{k!r}] must be a finite real number, got {v!r}.')
 
@@ -891,7 +891,7 @@ def equilibrium_atmosphere(
     # closure demanded of the trace CHNOS elements. The noble gases are held
     # to their own per-gas gate below.
     tolerance = np.amax([target_d[e] for e in ('H', 'C', 'N', 'S')]) * rtol + atol + TRUNC_MASS
-    log.debug('Required tolerance: %g' % tolerance)
+    log.debug(f'Required tolerance: {tolerance:g}')
 
     with warnings.catch_warnings():
         # Solver Monte-Carlo restarts produce poor guesses that trip
@@ -934,7 +934,7 @@ def equilibrium_atmosphere(
             if loss > tolerance:
                 if success:
                     log.debug('Solution rejected by CHNOS residual')
-                    log.debug('    d(i=%d) = %.2e kg' % (np.argmax(chnos_resid), loss))
+                    log.debug(f'    d(i={int(np.argmax(chnos_resid))}) = {loss:.2e} kg')
                 success = False
 
             # The scalar gate above keys its tolerance to the largest CHNOS
@@ -965,13 +965,13 @@ def equilibrium_atmosphere(
 
     if not success:
         raise RuntimeError(
-            'Could not find solution for volatile abundances (max attempts, %d)' % nguess
+            f'Could not find solution for volatile abundances (max attempts, {int(nguess)})'
         )
 
-    log.debug('    Initial guess attempt number = %d' % count)
+    log.debug(f'    Initial guess attempt number = {count}')
 
     res_l = func(sol, ddict, target_d)
-    log.debug('    Residuals: %s' % res_l)
+    log.debug(f'    Residuals: {res_l}')
 
     sol_dict = {'H2O': sol[0], 'CO2': sol[1], 'N2': sol[2], 'S2': sol[3]}
     for i, gas in enumerate(active):
@@ -1014,8 +1014,7 @@ def equilibrium_atmosphere(
 
         if print_result:
             log.info(
-                '    %-6s : %-8.2f bar (%.2e VMR)'
-                % (s, outdict[s + '_bar'], outdict[s + '_vmr'])
+                f'    {s:<6} : {outdict[s + "_bar"]:<8.2f} bar ({outdict[s + "_vmr"]:.2e} VMR)'
             )
 
     all = list(out_species)
@@ -1056,7 +1055,7 @@ def equilibrium_atmosphere(
             em2 = outdict[e2 + '_kg_atm']
             if em2 == 0:
                 continue
-            outdict['%s/%s_atm' % (e1, e2)] = em1 / em2
+            outdict[f'{e1}/{e2}_atm'] = em1 / em2
 
     outdict['H_res'] = res_l[0]
     outdict['C_res'] = res_l[1]
@@ -1221,16 +1220,15 @@ def equilibrium_atmosphere_authoritative_O(
     missing = [e for e in required_elements if e not in target_d]
     if missing:
         raise KeyError(
-            'target_d is missing required element keys: %s. '
-            'Authoritative-O mode requires all of %s. Got keys: %s'
-            % (missing, list(required_elements), sorted(target_d.keys()))
+            f'target_d is missing required element keys: {missing}. '
+            f'Authoritative-O mode requires all of {list(required_elements)}. Got keys: {sorted(target_d.keys())}'
         )
     for e in required_elements:
         v = target_d[e]
         if not np.isfinite(v):
-            raise ValueError('target_d[%r] must be a finite real number [kg], got %r.' % (e, v))
+            raise ValueError(f'target_d[{e!r}] must be a finite real number [kg], got {v!r}.')
         if v < 0:
-            raise ValueError('target_d[%r] must be non-negative [kg], got %r.' % (e, v))
+            raise ValueError(f'target_d[{e!r}] must be non-negative [kg], got {v!r}.')
 
     # Validate fO2_hint and the planet/state parameters consumed from
     # ddict by the residual chain. The solver evaluates the residual at
@@ -1239,43 +1237,42 @@ def equilibrium_atmosphere_authoritative_O(
     # a ZeroDivisionError from deep inside the chemistry path.
     if not np.isfinite(fO2_hint):
         raise ValueError(
-            'fO2_hint must be a finite real number (log10 IW offset), got %r.' % fO2_hint
+            f'fO2_hint must be a finite real number (log10 IW offset), got {fO2_hint!r}.'
         )
     if not (FO2_HARD_MIN <= fO2_hint <= FO2_HARD_MAX):
         raise ValueError(
-            'fO2_hint=%.3f is outside the solver bounds [%+g, %+g]. '
-            'Pick a value in [%+g, %+g] for physically realistic mantle '
+            f'fO2_hint={fO2_hint:.3f} is outside the solver bounds [{FO2_HARD_MIN:+g}, {FO2_HARD_MAX:+g}]. '
+            f'Pick a value in [{FO2_GUESS_MIN:+g}, {FO2_GUESS_MAX:+g}] for physically realistic mantle '
             'redox states.'
-            % (fO2_hint, FO2_HARD_MIN, FO2_HARD_MAX, FO2_GUESS_MIN, FO2_GUESS_MAX)
         )
 
     for required_ddict_key in ('M_mantle', 'Phi_global', 'T_magma', 'gravity', 'radius'):
         if required_ddict_key not in ddict:
             raise KeyError(
-                'ddict is missing required key %r. Authoritative-O mode '
-                'requires M_mantle, Phi_global, T_magma, gravity, radius.' % required_ddict_key
+                f'ddict is missing required key {required_ddict_key!r}. Authoritative-O mode '
+                'requires M_mantle, Phi_global, T_magma, gravity, radius.'
             )
 
     M_mantle = ddict['M_mantle']
     if not (np.isfinite(M_mantle) and M_mantle > 0):
-        raise ValueError("ddict['M_mantle']=%r must be a positive finite mass [kg]." % M_mantle)
+        raise ValueError(f"ddict['M_mantle']={M_mantle!r} must be a positive finite mass [kg].")
 
     Phi_global = ddict['Phi_global']
     if not (np.isfinite(Phi_global) and 0.0 <= Phi_global <= 1.0):
         raise ValueError(
-            "ddict['Phi_global']=%r must lie in [0, 1] (melt mass fraction)." % Phi_global
+            f"ddict['Phi_global']={Phi_global!r} must lie in [0, 1] (melt mass fraction)."
         )
 
     T_magma = ddict['T_magma']
     if not (np.isfinite(T_magma) and T_magma > 0):
         raise ValueError(
-            "ddict['T_magma']=%r must be a positive finite temperature [K]." % T_magma
+            f"ddict['T_magma']={T_magma!r} must be a positive finite temperature [K]."
         )
 
     if nguess < 1:
-        raise ValueError('nguess must be >= 1, got %d.' % nguess)
+        raise ValueError(f'nguess must be >= 1, got {int(nguess)}.')
     if nsolve < 1:
-        raise ValueError('nsolve must be >= 1, got %d.' % nsolve)
+        raise ValueError(f'nsolve must be >= 1, got {int(nsolve)}.')
 
     # Seeded RNG for the Monte-Carlo restart draws. random_seed=None
     # falls back to the global np.random state to preserve historical
@@ -1374,7 +1371,7 @@ def equilibrium_atmosphere_authoritative_O(
         ) + tuple(p_guess[gas] for gas in active)
 
         # Reject non-finite values.
-        for k, v in zip(('H2O', 'CO2', 'N2', 'S2', 'fO2_shift_IW') + active, x0):
+        for k, v in zip(('H2O', 'CO2', 'N2', 'S2', 'fO2_shift_IW') + active, x0, strict=False):
             if not np.isfinite(v):
                 raise ValueError(f'p_guess[{k!r}] must be a finite real number, got {v!r}.')
 
@@ -1537,14 +1534,13 @@ def equilibrium_atmosphere_authoritative_O(
     if not success:
         raise RuntimeError(
             'Could not find solution for volatile abundances + fO2 under '
-            'authoritative-O mode (max attempts: %d). '
-            'Final attempt: pH2O=%.3e bar, pCO2=%.3e bar, pN2=%.3e bar, '
-            'pS2=%.3e bar, fO2_shift=%.3f. '
+            f'authoritative-O mode (max attempts: {int(nguess)}). '
+            f'Final attempt: pH2O={sol[0]:.3e} bar, pCO2={sol[1]:.3e} bar, pN2={sol[2]:.3e} bar, '
+            f'pS2={sol[3]:.3e} bar, fO2_shift={sol[4]:.3f}. '
             'Either the target O budget is outside the physically '
             'reachable range at this (H, C, N, S, T_magma), or the '
             'chemistry has a non-monotonic region the solver could not '
             'escape. Consider adjusting fO2_hint or the target masses.'
-            % (nguess, sol[0], sol[1], sol[2], sol[3], sol[4])
         )
 
     log.debug('    Initial guess attempt number = %d', count)
@@ -1634,7 +1630,7 @@ def equilibrium_atmosphere_authoritative_O(
             em2 = outdict[e2 + '_kg_atm']
             if em2 == 0:
                 continue
-            outdict['%s/%s_atm' % (e1, e2)] = em1 / em2
+            outdict[f'{e1}/{e2}_atm'] = em1 / em2
 
     outdict['H_res'] = res_l[0]
     outdict['C_res'] = res_l[1]

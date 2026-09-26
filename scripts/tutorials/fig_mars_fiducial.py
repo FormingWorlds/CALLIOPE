@@ -187,7 +187,7 @@ def make_figure(data: dict | None = None) -> dict:
         family='monospace',
         va='bottom',
         ha='right',
-        bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='#cccccc'),
+        bbox={'boxstyle': 'round,pad=0.4', 'facecolor': 'white', 'edgecolor': '#cccccc'},
     )
 
     paths = save(fig, 'mars_fiducial')

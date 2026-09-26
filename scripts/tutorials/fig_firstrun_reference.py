@@ -110,7 +110,7 @@ def make_figure(data: dict | None = None) -> dict:
     # Numeric label to the right of each bar. Use a × 10^n form so
     # tiny values (CH4 ~ 6e-9 bar) and large values (CO ~ 5 bar)
     # share one consistent notation across the figure.
-    for yi, p in zip(y_pos, pressures):
+    for yi, p in zip(y_pos, pressures, strict=False):
         if p <= 0 or not np.isfinite(p):
             label = 'below floor'
         else:
@@ -140,7 +140,7 @@ def make_figure(data: dict | None = None) -> dict:
         fontsize=9.0,
         va='bottom',
         ha='right',
-        bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='#cccccc'),
+        bbox={'boxstyle': 'round,pad=0.4', 'facecolor': 'white', 'edgecolor': '#cccccc'},
     )
 
     paths = save(fig, 'firstrun_reference')

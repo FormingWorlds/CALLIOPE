@@ -111,7 +111,7 @@ def collect() -> dict:
             recovered[i],
             recovered[i] - diw,
         )
-    return dict(dIW_input=DIW_GRID.copy(), dIW_recovered=recovered, O_kg_total=O_total)
+    return {'dIW_input': DIW_GRID.copy(), 'dIW_recovered': recovered, 'O_kg_total': O_total}
 
 
 def make_figure(data: dict | None = None) -> dict:
@@ -123,7 +123,7 @@ def make_figure(data: dict | None = None) -> dict:
         w = csv.writer(fh)
         w.writerow(['dIW_input', 'dIW_recovered', 'residual_dex', 'O_kg_total'])
         for d_in, d_rec, o_kg in zip(
-            data['dIW_input'], data['dIW_recovered'], data['O_kg_total']
+            data['dIW_input'], data['dIW_recovered'], data['O_kg_total'], strict=False
         ):
             w.writerow([d_in, d_rec, d_rec - d_in, o_kg])
     log.info('Wrote %s', csv_path)
@@ -162,7 +162,7 @@ def make_figure(data: dict | None = None) -> dict:
         fontsize=9.5,
         va='top',
         ha='left',
-        bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='#cccccc'),
+        bbox={'boxstyle': 'round,pad=0.4', 'facecolor': 'white', 'edgecolor': '#cccccc'},
     )
 
     ax.set_xlabel(r'input $\Delta\mathrm{IW}$ (buffered mode) [dex]')
