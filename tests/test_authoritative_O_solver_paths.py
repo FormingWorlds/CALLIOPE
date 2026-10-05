@@ -442,15 +442,20 @@ def test_root_with_out_of_box_fo2_is_rejected(monkeypatch, caplog):
     assert not (-12.0 <= sol[4] <= 12.0)
 
 
-def test_root_with_negative_pressure_is_rejected(monkeypatch, caplog):
-    """A converged root with a negative partial pressure is rejected.
+def test_root_with_a_mass_carrying_negative_pressure_is_rejected(monkeypatch, caplog):
+    """A converged root whose negative partial pressure carries mass is rejected.
 
-    fsolve can return a slightly negative pressure on a degenerate slot;
-    the box gate rejects it rather than passing a non-physical state into
-    the chemistry. With one restart the loop then raises RuntimeError.
+    The stub residual closes at the raw root but leaves the whole H budget
+    open once pH2O is clipped at zero, as for the low-H root with negative
+    water. With one restart the loop then raises RuntimeError.
     """
     sol = [-1.0, 5.0, 1.0, 0.5, 2.0]  # H2O = -1 bar, in-box fO2
     _stub_solver(monkeypatch, sol, residual=np.zeros(5))
+    monkeypatch.setattr(
+        calsolve,
+        'func_authoritative_O',
+        lambda x, *a: np.array([0.0 if x[0] < 0.0 else _target()['H'], 0.0, 0.0, 0.0, 0.0]),
+    )
 
     caplog.set_level(logging.DEBUG, logger=_SOLVE_LOGGER)
     with pytest.raises(RuntimeError, match='Could not find solution'):
@@ -458,10 +463,25 @@ def test_root_with_negative_pressure_is_rejected(monkeypatch, caplog):
             _target(), _ddict(), fO2_hint=2.0, opt_solver=False, nguess=1, print_result=False
         )
 
-    assert 'negative partial pressure' in caplog.text
+    assert 'negative partial pressure carries mass' in caplog.text
     # Discrimination guard: the fO2 is in-box, so ONLY the negative-pressure
     # branch (not the out-of-box branch) can have rejected this root.
     assert -12.0 <= sol[4] <= 12.0 and min(sol[:4]) < 0.0
+
+
+def test_root_with_an_inert_negative_pressure_is_accepted(monkeypatch):
+    """A negative partial pressure that leaves the residual closed when
+    clipped at zero (the primary of an absent element) is accepted on the
+    first attempt, and its species is reported as zero."""
+    sol = [1.0, 5.0, -3.0, 0.5, 2.0]  # N2 = -3 bar, inert
+    _stub_solver(monkeypatch, sol, residual=np.zeros(5))
+
+    r = equilibrium_atmosphere_authoritative_O(
+        _target(), _ddict(), fO2_hint=2.0, opt_solver=False, nguess=1, print_result=False
+    )
+    assert r['N2_bar'] == pytest.approx(0.0, abs=1e-30)
+    assert r['H2O_bar'] == pytest.approx(1.0, rel=1e-12)
+    assert r['fO2_shift_derived'] == pytest.approx(2.0, rel=1e-12)
 
 
 def test_root_above_pressure_ceiling_is_rejected(monkeypatch, caplog):

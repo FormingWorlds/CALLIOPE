@@ -36,12 +36,16 @@ from __future__ import annotations
 
 import logging
 
+import numpy as np
 import pytest
 
+import calliope.solve as solve_mod
 from calliope.constants import volatile_species
 from calliope.solve import (
+    _clipped_residual,
     equilibrium_atmosphere,
     equilibrium_atmosphere_authoritative_O,
+    func,
 )
 
 logging.getLogger('calliope').setLevel(logging.WARNING)
@@ -193,3 +197,123 @@ def test_equilibrium_atmosphere_returns_positive_O_kg_total(dIW):
     # range; the upper bound catches a unit-conversion bug, the lower
     # bound catches a clip-to-near-zero regression.
     assert 1e16 < O_kg < 1e23
+
+
+# Low-H, C-rich inventory [kg]: besides the physical root the CHNOS residual
+# has a root with pH2O near -1.7e4 bar that closes H through CH4 and H2S.
+_LOW_H = {'H': 1.0e19, 'C': 5.0e19, 'N': 1.0e17, 'S': 1.0e18}
+_NO_N = {'H': 1.0e20, 'C': 5.0e19, 'N': 0.0, 'S': 1.0e18}
+_COLD = dict(
+    xtol=1e-6,
+    rtol=1e-4,
+    atol=1e16,
+    nguess=1000,
+    nsolve=3000,
+    print_result=False,
+    opt_solver=False,
+)
+
+
+def _spy_roots(monkeypatch):
+    """Record every root fsolve returns, in call order."""
+    roots, real = [], solve_mod.opt.fsolve
+
+    def spy(*args, **kwargs):
+        out = real(*args, **kwargs)
+        roots.append(np.array(out[0]))
+        return out
+
+    monkeypatch.setattr(solve_mod.opt, 'fsolve', spy)
+    return roots
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.parametrize('seed', [0, 3, 42])
+def test_low_h_cold_start_rejects_the_negative_water_root(seed):
+    """A low-H, C-rich cold start at IW+2 and 1500 K returns the physical root.
+
+    Seeds 0, 3 and 42 start in the basin of the root with negative pH2O,
+    which closes the mass balance at 18.58 bar with no H2O or H2 in the
+    atmosphere. The physical root has positive pH2O and 24.82 bar.
+    """
+    np.random.seed(seed)
+    r = equilibrium_atmosphere(
+        dict(_LOW_H), _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **_COLD
+    )
+    assert r['H2O_bar'] > 0.0
+    assert r['H2_bar'] > 0.0
+    assert r['P_surf'] == pytest.approx(24.8219, rel=1e-4)
+    # Discrimination guard: the negative-water root is 25 % lower.
+    assert r['P_surf'] != pytest.approx(18.58, rel=0.05)
+    assert r['H_kg_total'] == pytest.approx(_LOW_H['H'], rel=1e-3)
+
+
+@pytest.mark.physics_invariant
+def test_absent_element_root_keeps_its_inert_negative_primary(monkeypatch):
+    """With no N, fsolve leaves pN2 negative along a flat residual direction.
+
+    Every N species is clipped to zero, so the root still closes the mass
+    balance and is accepted on the first attempt that reaches it.
+    """
+    roots = _spy_roots(monkeypatch)
+    np.random.seed(0)
+    r = equilibrium_atmosphere(
+        dict(_NO_N), _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **_COLD
+    )
+    assert roots[-1][2] < -1.0
+    assert r['N2_bar'] == pytest.approx(0.0, abs=1e-30)
+    assert r['NH3_bar'] == pytest.approx(0.0, abs=1e-30)
+    assert r['H2O_bar'] == pytest.approx(0.178874, rel=1e-4)
+
+
+@pytest.mark.physics_invariant
+def test_clipped_residual_separates_spurious_from_inert_negatives():
+    """Clipping the negative pH2O of the spurious low-H root leaves the whole
+    H budget unbalanced; clipping an inert negative pN2 changes nothing."""
+    ddict = _earth_ddict(T=1500.0, dIW=2.0)
+    gate = max(_LOW_H.values()) * 1e-4 + 1e16
+    spurious = np.array([-1.71654296e4, 4.83498935, 1.65009532e-2, 4.00585671e-11])
+    assert np.amax(np.abs(func(spurious, ddict, _LOW_H))) < gate
+    clipped = _clipped_residual(func, spurious, slice(None), ddict, _LOW_H)
+    assert clipped[0] == pytest.approx(_LOW_H['H'], rel=1e-6)
+
+    inert = np.array([1.78873537e-1, 1.73590643e1, -9.42134083e2, 1.49050217e-9])
+    raw = np.abs(np.asarray(func(inert, ddict, _NO_N)))
+    np.testing.assert_allclose(
+        _clipped_residual(func, inert, slice(None), ddict, _NO_N), raw, rtol=1e-12
+    )
+    assert _clipped_residual(func, np.abs(inert), slice(None), ddict, _NO_N) is None
+
+
+def _authoritative_o(target, seed):
+    """Authoritative-O solve at IW+2, 1500 K, with the O budget of a seeded buffered solve."""
+    ddict = _earth_ddict(T=1500.0, dIW=2.0)
+    np.random.seed(1)
+    ref = equilibrium_atmosphere(dict(target), ddict, p_guess=None, **_COLD)
+    tgt = dict(target, O=ref['O_kg_total'])
+    return equilibrium_atmosphere_authoritative_O(
+        tgt, ddict, fO2_hint=2.0, random_seed=seed, **_COLD
+    ), tgt
+
+
+@pytest.mark.physics_invariant
+def test_authoritative_o_accepts_an_inert_negative_primary(monkeypatch):
+    """The authoritative-O path accepts a root whose pN2 is negative when N is
+    absent, instead of restarting until fsolve lands on pN2 near zero, and
+    recovers the buffered fO2 and the O budget."""
+    roots = _spy_roots(monkeypatch)
+    r, tgt = _authoritative_o(_NO_N, seed=42)
+    assert roots[-1][2] < -1.0e-6
+    assert r['fO2_shift_derived'] == pytest.approx(2.0, abs=1e-4)
+    assert r['O_kg_total'] == pytest.approx(tgt['O'], rel=1e-6)
+    assert r['N2_bar'] == pytest.approx(0.0, abs=1e-30)
+
+
+@pytest.mark.physics_invariant
+def test_authoritative_o_low_h_returns_the_physical_root():
+    """The low-H inventory on the authoritative-O path returns positive pH2O
+    and the surface pressure of the physical buffered root."""
+    r, tgt = _authoritative_o(_LOW_H, seed=42)
+    assert r['H2O_bar'] > 0.0
+    assert r['P_surf'] == pytest.approx(24.8219, rel=1e-4)
+    assert r['fO2_shift_derived'] == pytest.approx(2.0, abs=1e-4)

@@ -453,6 +453,38 @@ def dissolved_mass(pin, ddict):
     return _dissolved_mass(pin, ddict['fO2_shift_IW'], ddict)
 
 
+def _clipped_residual(residual, sol, p_idx, ddict, mass_target_d):
+    """Absolute mass residual of a root with its negative partial pressures set to 0.
+
+    A negative primary of an element with no inventory is inert: the
+    species it would form are clipped to 0 anyway, so the residual does
+    not change. A negative pH2O is not inert, because CH4 and H2S use
+    pH2**2 and close the H budget on the wrong sign. Comparing this
+    residual with the mass gate separates the two.
+
+    Parameters
+    ----------
+    residual : callable
+        ``func`` or ``func_authoritative_O``.
+    sol : array_like
+        Solver root.
+    p_idx : slice or list of int
+        Indices of ``sol`` that are partial pressures [bar].
+    ddict, mass_target_d : dict
+        As for ``residual``.
+
+    Returns
+    -------
+    numpy.ndarray or None
+        Absolute residuals [kg], or None when no partial pressure is negative.
+    """
+    x = np.array(sol, dtype=float)
+    if not np.any(x[p_idx] < 0.0):
+        return None
+    x[p_idx] = np.maximum(x[p_idx], 0.0)
+    return np.abs(np.asarray(residual(x, ddict, mass_target_d)))
+
+
 def func(pin_arr, ddict, mass_target_d):
     """Mass-balance residual [kg per element] for the primary partial pressures [bar].
 
@@ -950,6 +982,13 @@ def equilibrium_atmosphere(
                 )
                 if np.any(noble_resid > noble_tol):
                     log.debug('Solution rejected by noble gas residual')
+                    success = False
+
+            # A negative primary must still close the CHNOS gate when clipped at 0.
+            if success:
+                clipped = _clipped_residual(func, sol, slice(None), ddict, target_d)
+                if clipped is not None and np.amax(clipped[:4]) > tolerance:
+                    log.debug('Solution rejected: a negative primary carries mass, %s bar', sol)
                     success = False
 
             if success:
@@ -1482,21 +1521,15 @@ def equilibrium_atmosphere_authoritative_O(
                     )
                     success = False
 
-            # Reject a converged-but-non-physical root. The production
-            # path runs only the unbounded fsolve (opt_solver=False), so a
-            # root can satisfy mass balance yet sit outside the physical
-            # box: a derived fO2_shift beyond [-12, +12] (the target O is
-            # unreachable at this H/C/N/S/T_magma), a negative partial
-            # pressure, or a partial pressure above the 1e7 bar ceiling.
-            # trust-constr enforces `bounds`; fsolve does not, so the full
-            # box is enforced here before the solution is accepted.
+            # fsolve (the production path) ignores `bounds`: reject a root with fO2_shift
+            # outside [-12, +12], a negative partial pressure that carries mass, or a
+            # partial pressure above the ceiling.
             if success:
                 # All partial pressures: the four CHNOS primaries plus the
                 # noble gas slots at indices 5+. fO2_shift (index 4) is
                 # bounds-checked separately with its own log10 range.
-                sol_p = np.asarray(
-                    [sol[i] for i in [0, 1, 2, 3] + noble_pressure_idx], dtype=float
-                )
+                p_idx = [0, 1, 2, 3] + noble_pressure_idx
+                sol_p = np.asarray(sol, dtype=float)[p_idx]
                 if not (lb[4] <= sol[4] <= ub[4]):
                     log.debug(
                         'Solution rejected: derived fO2_shift=%.3f outside [%.1f, %.1f]',
@@ -1505,8 +1538,15 @@ def equilibrium_atmosphere_authoritative_O(
                         ub[4],
                     )
                     success = False
-                elif np.any(sol_p < -1.0e-6):
-                    log.debug('Solution rejected: negative partial pressure %s bar', sol_p)
+                elif (
+                    clipped := _clipped_residual(
+                        func_authoritative_O, sol, p_idx, ddict, target_d
+                    )
+                ) is not None and np.any(clipped > elem_tolerance):
+                    log.debug(
+                        'Solution rejected: a negative partial pressure carries mass, %s bar',
+                        sol_p,
+                    )
                     success = False
                 elif np.any(sol_p > p_ceiling * (1.0 + 1.0e-6)):
                     log.debug(

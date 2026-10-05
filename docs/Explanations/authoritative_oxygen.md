@@ -75,7 +75,7 @@ The five-dimensional problem has a larger initial-guess space than the four-dime
 
 ### Bounds
 
-The trust-region solver uses bounds $[0, 10^7]$ bar on each pressure (same as the buffered mode) and $[-12, +12]$ on $\Delta\mathrm{IW}$. The pressure bounds are physical; the fO2 bounds are wider than the $[-6, +8]$ redraw window so the solver has slack to escape a poor cold start without immediately hitting the constraint, but tight enough to reject runaway trajectories into thermodynamically meaningless regions.
+The trust-region solver uses bounds $[0, 10^7]$ bar on each pressure (same as the buffered mode) and $[-12, +12]$ on $\Delta\mathrm{IW}$. The pressure bounds are physical; the fO2 bounds are wider than the $[-6, +8]$ redraw window so the solver has slack to escape a poor cold start without immediately hitting the constraint, but tight enough to reject runaway trajectories into thermodynamically meaningless regions. `fsolve` ignores these bounds, so after each solve CALLIOPE rejects a root with $\Delta\mathrm{IW}$ outside $[-12, +12]$, a pressure above the ceiling, or a negative pressure that still carries mass when clipped at zero (the sign check of the buffered mode, applied to the per-element gate).
 
 ### Reproducibility
 
