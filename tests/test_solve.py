@@ -212,22 +212,18 @@ _COLD = dict(
 )
 
 
-def _elem_tol(target):
-    """Per-element tolerance [kg] a root with a negative primary must meet, for ``_COLD``."""
-    return {e: max(m * _COLD['rtol'], solve_mod.TRUNC_MASS) for e, m in target.items()}
-
-
 def _spy_roots(monkeypatch):
-    """Record every root fsolve returns, in call order."""
-    roots, real = [], solve_mod.opt.fsolve
+    """Record every root fsolve returns, in call order, and whether it converged."""
+    roots, converged, real = [], [], solve_mod.opt.fsolve
 
     def spy(*args, **kwargs):
         out = real(*args, **kwargs)
         roots.append(np.array(out[0]))
+        converged.append(out[2] == 1)
         return out
 
     monkeypatch.setattr(solve_mod.opt, 'fsolve', spy)
-    return roots
+    return roots, converged
 
 
 @pytest.mark.physics_invariant
@@ -239,12 +235,12 @@ def test_low_h_cold_start_rejects_the_negative_water_root(monkeypatch, seed):
     balance at 18.58 bar with no H2O or H2 in the atmosphere. It is rejected,
     and the solver goes on to the physical root at 24.82 bar.
     """
-    roots = _spy_roots(monkeypatch)
+    roots, converged = _spy_roots(monkeypatch)
     np.random.seed(seed)
     r = equilibrium_atmosphere(
         dict(_LOW_H), _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **_COLD
     )
-    assert any(root[0] < -1.0e3 for root in roots[:-1])
+    assert any(ok and root[0] < -1.0e3 for root, ok in zip(roots[:-1], converged[:-1]))
     assert roots[-1][0] > 0.0
     assert r['H2O_bar'] > 0.0
     assert r['P_surf'] == pytest.approx(24.8219, rel=1e-4)
@@ -258,14 +254,13 @@ def test_absent_element_root_keeps_its_inert_negative_primary(monkeypatch):
     Every N species is clipped to zero, so the root still closes the mass
     balance and is accepted.
     """
-    roots = _spy_roots(monkeypatch)
+    roots, converged = _spy_roots(monkeypatch)
     np.random.seed(0)
     r = equilibrium_atmosphere(
         dict(_NO_N), _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **_COLD
     )
     assert roots[-1][2] < 0.0
-    assert r['N2_bar'] == pytest.approx(0.0, abs=1e-30)
-    assert r['NH3_bar'] == pytest.approx(0.0, abs=1e-30)
+    np.testing.assert_array_equal([r['N2_bar'], r['NH3_bar']], 0.0)
     assert r['H2O_bar'] == pytest.approx(0.178874, rel=1e-4)
 
 
@@ -280,25 +275,25 @@ def test_absent_element_root_keeps_its_inert_negative_primary(monkeypatch):
     ],
     ids=['no_H_no_N-0', 'no_H_no_N-2', 'trace_H-0', 'trace_H-1'],
 )
-def test_sub_gate_hydrogen_reports_no_phantom_species(target, seed):
+def test_sub_gate_hydrogen_reports_no_phantom_species(monkeypatch, target, seed):
     """An H budget below the scalar mass gate (1.5e16 kg here) yields a state
     free of H-bearing species from a negative pH2O, C and S close on their own
     tolerance rather than on the scalar gate, and H stays at its budget.
 
-    These seeds reach a root with negative pH2O; unclipped, its pH2**2 forms
-    1e-4 to 1e-2 bar of CH4 and H2S and removes about 1 % of the S budget
-    when they are dropped without re-solving.
+    These seeds reach a converged root with negative pH2O, whose pH2**2 forms
+    CH4 and H2S.
     """
+    roots, converged = _spy_roots(monkeypatch)
     np.random.seed(seed)
     r = equilibrium_atmosphere(
         dict(target), _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **_COLD
     )
+    assert any(ok and root[0] < 0.0 for root, ok in zip(roots, converged))
     assert r['CH4_bar'] < 1.0e-20
     assert r['H2S_bar'] < 1.0e-12
     assert r['NH3_bar'] < 1.0e-12
-    tol = _elem_tol(target)
     for e in 'CS':
-        assert abs(r[e + '_res']) <= tol[e], e
+        assert abs(r[e + '_res']) <= max(target[e] * _COLD['rtol'], solve_mod.TRUNC_MASS), e
     assert r['H_kg_total'] == pytest.approx(target['H'], rel=1e-3, abs=solve_mod.TRUNC_MASS)
 
 
@@ -321,7 +316,7 @@ def test_unjudgeable_clipped_root_is_rejected(monkeypatch):
             p_guess=None,
             **{**_COLD, 'nguess': 1},
         )
-    assert seen[-1][0] == pytest.approx(0.0, abs=0.0)
+    np.testing.assert_array_equal(seen[-1][0], 0.0)
     assert seen[-1][1] == pytest.approx(5.0, rel=1e-12)
 
 
@@ -346,8 +341,111 @@ def test_clipped_root_must_close_each_noble_gas(monkeypatch):
             p_guess={'H2O': 1.0, 'CO2': 5.0, 'N2': 1.0, 'S2': 0.5, 'He': 2.0},
             **{**_COLD, 'nguess': 1},
         )
-    assert seen[-1][2] == pytest.approx(0.0, abs=0.0)
+    np.testing.assert_array_equal(seen[-1][2], 0.0)
     assert seen[-1][4] == pytest.approx(2.0, rel=1e-12)
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.parametrize(
+    ('seed', 'p_surf'),
+    [(0, 24.910292949351646), (1, 24.91031882820358), (2, 24.910318448637597)],
+)
+def test_trace_sulfur_with_absent_nitrogen_solves_as_before(monkeypatch, seed, p_surf):
+    """An S budget below the scalar mass gate with no N leaves pN2 and pS2
+    negative at the accepted root, both inert. The clip moves no mass there,
+    so the solve returns the root it returns without the sign check (pinned
+    P_surf) rather than holding trace S to a closure it never reaches."""
+    roots, _ = _spy_roots(monkeypatch)
+    np.random.seed(seed)
+    target = {'H': 1.0e20, 'C': 5.0e19, 'N': 0.0, 'S': 1.0e14}
+    r = equilibrium_atmosphere(target, _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **_COLD)
+    assert roots[-1][3] < 0.0
+    assert r['P_surf'] == pytest.approx(p_surf, rel=1e-12)
+    np.testing.assert_array_equal([r['N2_bar'], r['S2_bar']], 0.0)
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.parametrize(
+    ('seed', 'p_surf', 'h2o'),
+    [(0, 9.284216977332548, 0.40219572788976693), (7, 9.284231983250477, 0.40219618681983893)],
+)
+def test_all_positive_root_is_unchanged(monkeypatch, seed, p_surf, h2o):
+    """At the Earth fiducial every accepted root has positive primaries, so
+    the sign check does not run and the result is the root fsolve returned
+    (pinned values)."""
+    roots, _ = _spy_roots(monkeypatch)
+    np.random.seed(seed)
+    r = equilibrium_atmosphere(_earth_target_HCNS(), _earth_ddict(), p_guess=None, **_COLD)
+    assert np.all(roots[-1] > 0.0)
+    assert r['P_surf'] == pytest.approx(p_surf, rel=1e-12)
+    assert r['H2O_bar'] == pytest.approx(h2o, rel=1e-12)
+
+
+def _stub_buffered(monkeypatch, raw, residual):
+    """Make fsolve return ``raw`` and replace the residual function by ``residual``."""
+    seen = []
+
+    def _residual(x, *args):
+        seen.append(np.array(x))
+        return residual(x)
+
+    monkeypatch.setattr(solve_mod.opt, 'fsolve', lambda *a, **k: (np.array(raw), {}, 1, 'stub'))
+    monkeypatch.setattr(solve_mod, 'func', _residual)
+    return seen
+
+
+@pytest.mark.parametrize('n2', [1.0e-30, -1.0e-30])
+def test_verdict_does_not_depend_on_an_inert_sign(monkeypatch, n2):
+    """A root whose N residual (5e15 kg) passes the scalar gate (1.5e16 kg) but
+    not the N tolerance (1e13 kg) is accepted whatever the sign of an inert
+    pN2, because clipping that pN2 changes no residual."""
+    seen = _stub_buffered(monkeypatch, [1.0, 5.0, n2, 0.5], lambda x: [0.0, 0.0, 5.0e15, 0.0])
+    r = equilibrium_atmosphere(
+        dict(_LOW_H), _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **{**_COLD, 'nguess': 1}
+    )
+    assert r['H2O_bar'] == pytest.approx(1.0, rel=1e-12)
+    assert r['N2_bar'] == pytest.approx(max(n2, 0.0), abs=1e-40)
+    # The clipped state is evaluated only for the negative sign.
+    assert len(seen) == (3 if n2 < 0.0 else 2)
+
+
+@pytest.mark.parametrize(('factor', 'accepted'), [(0.5, True), (2.0, False)])
+def test_clip_may_worsen_an_element_by_its_tolerance_only(monkeypatch, factor, accepted):
+    """A clip that worsens the N residual by half the N tolerance
+    (rtol * 1e17 kg) is accepted; by twice the tolerance it is rejected."""
+    worse = factor * _LOW_H['N'] * _COLD['rtol']
+    _stub_buffered(
+        monkeypatch,
+        [-1.0, 5.0, 1.0, 0.5],
+        lambda x: [0.0, 0.0, 0.0 if x[0] < 0.0 else worse, 0.0],
+    )
+    args = (dict(_LOW_H), _earth_ddict(T=1500.0, dIW=2.0))
+    kw = dict(p_guess=None, **{**_COLD, 'nguess': 1})
+    if accepted:
+        r = equilibrium_atmosphere(*args, **kw)
+        np.testing.assert_array_equal([r['H2O_bar'], r['H2_bar']], 0.0)
+        assert r['CO2_bar'] == pytest.approx(5.0, rel=1e-12)
+    else:
+        with pytest.raises(RuntimeError, match='Could not find solution'):
+            equilibrium_atmosphere(*args, **kw)
+        assert worse > _LOW_H['N'] * _COLD['rtol']
+
+
+def test_clip_that_closes_an_element_is_accepted(monkeypatch):
+    """A clip that brings an element closer to its budget is accepted, as for
+    a dry inventory where the negative pH2O's phantom CH4 and H2S are dropped:
+    the raw N residual (2x its tolerance, inside the scalar gate) falls to 0."""
+    tol_n = _LOW_H['N'] * _COLD['rtol']
+    seen = _stub_buffered(
+        monkeypatch,
+        [-1.0, 5.0, 1.0, 0.5],
+        lambda x: [0.0, 0.0, 2.0 * tol_n if x[0] < 0.0 else 0.0, 0.0],
+    )
+    r = equilibrium_atmosphere(
+        dict(_LOW_H), _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **{**_COLD, 'nguess': 1}
+    )
+    np.testing.assert_array_equal([r['H2O_bar'], seen[-1][0]], 0.0)
+    assert r['CO2_bar'] == pytest.approx(5.0, rel=1e-12)
 
 
 def _authoritative_o(target, seed, dIW=2.0):
@@ -369,12 +467,12 @@ def test_authoritative_o_accepts_an_inert_negative_primary(monkeypatch, dIW, see
     recovers the buffered fO2 and the O budget. The fO2 offset is not a
     pressure and is never clipped, so the reducing case keeps it at -2.
     """
-    roots = _spy_roots(monkeypatch)
+    roots, converged = _spy_roots(monkeypatch)
     r, tgt = _authoritative_o(_NO_N, seed=seed, dIW=dIW)
     assert roots[-1][2] < -1.0e-6
     assert r['fO2_shift_derived'] == pytest.approx(dIW, abs=1e-4)
     assert r['O_kg_total'] == pytest.approx(tgt['O'], rel=1e-6)
-    assert r['N2_bar'] == pytest.approx(0.0, abs=1e-30)
+    np.testing.assert_array_equal(r['N2_bar'], 0.0)
 
 
 @pytest.mark.physics_invariant
