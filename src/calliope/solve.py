@@ -891,9 +891,8 @@ def equilibrium_atmosphere(
     # closure demanded of the trace CHNOS elements. The noble gases are held
     # to their own per-gas gate below.
     tolerance = np.amax([target_d[e] for e in ('H', 'C', 'N', 'S')]) * rtol + atol + TRUNC_MASS
-    elem_tol = np.maximum(
-        np.array([target_d[e] for e in ('H', 'C', 'N', 'S') + active]) * rtol, TRUNC_MASS
-    )
+    elements = ('H', 'C', 'N', 'S') + active
+    elem_tol = np.maximum(np.array([target_d[e] for e in elements]) * rtol, TRUNC_MASS)
     log.debug('Required tolerance: %g' % tolerance)
 
     with warnings.catch_warnings():
@@ -985,12 +984,11 @@ def equilibrium_atmosphere(
     # Out of attempts: fall back to the last clipped root that passes the mass gates.
     if not success and fallback is not None:
         sol, worse = fallback
-        names = ('H', 'C', 'N', 'S') + active
         log.warning(
             'No root closes every element once clipped at 0; returning the last clipped root '
             'that passes the mass gate, with residuals worse than tolerance for %s',
             ', '.join(
-                f'{names[i]} by {worse[i]:.3g} kg' for i in np.flatnonzero(worse > elem_tol)
+                f'{elements[i]} by {worse[i]:.3g} kg' for i in np.flatnonzero(worse > elem_tol)
             ),
         )
         success = True

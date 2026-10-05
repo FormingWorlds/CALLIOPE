@@ -256,7 +256,6 @@ def test_low_h_cold_start_rejects_the_negative_water_root(monkeypatch, caplog, s
     and the solver goes on to the physical root at 24.82 bar.
     """
     roots, converged = _spy_roots(monkeypatch)
-    caplog.set_level(logging.WARNING, logger='fwl.calliope.solve')
     np.random.seed(seed)
     r = equilibrium_atmosphere(
         dict(_LOW_H), _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **_COLD
@@ -342,7 +341,6 @@ def test_clipped_root_must_close_each_noble_gas(monkeypatch, caplog):
         [1.0, 5.0, -3.0, 0.5, 2.0],  # N2 = -3 bar, He = 2 bar
         lambda x: [0.0] * 5 if x[2] < 0.0 else [0.0, 0.0, 0.0, 0.0, 1.0e18],
     )
-    caplog.set_level(logging.WARNING, logger='fwl.calliope.solve')
     with pytest.raises(RuntimeError, match='Could not find solution'):
         equilibrium_atmosphere(
             dict(_LOW_H, He=1.0e17),
@@ -366,7 +364,6 @@ def test_trace_sulfur_with_absent_nitrogen_solves_as_before(monkeypatch, caplog,
     so the solve returns the root it returns without the sign check (P_surf
     pinned to rel 1e-5, the solver's xtol noise) rather than raising."""
     roots, _ = _spy_roots(monkeypatch)
-    caplog.set_level(logging.WARNING, logger='fwl.calliope.solve')
     np.random.seed(seed)
     target = {'H': 1.0e20, 'C': 5.0e19, 'N': 0.0, 'S': 1.0e14}
     r = equilibrium_atmosphere(target, _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **_COLD)
@@ -419,7 +416,6 @@ def test_clip_may_worsen_an_element_by_its_tolerance_only(
         [-1.0, 5.0, 1.0, 0.5],
         lambda x: [0.0, 0.0, 0.0 if x[0] < 0.0 else worse, 0.0],
     )
-    caplog.set_level(logging.WARNING, logger='fwl.calliope.solve')
     r = _one_attempt()
     np.testing.assert_array_equal([r['H2O_bar'], r['H2_bar']], 0.0)
     assert r['CO2_bar'] == pytest.approx(5.0, rel=1e-12)
@@ -446,7 +442,6 @@ def test_root_that_never_passed_the_mass_gate_still_raises(monkeypatch, caplog):
     root with a negative primary that fails that gate leaves no fallback, and
     the solver raises after its last attempt."""
     _stub_buffered(monkeypatch, [-1.0, 5.0, 1.0, 0.5], lambda x: [1.0e20, 0.0, 0.0, 0.0])
-    caplog.set_level(logging.WARNING, logger='fwl.calliope.solve')
     with pytest.raises(RuntimeError, match='Could not find solution'):
         _one_attempt()
     assert 'returning the last clipped root' not in caplog.text
@@ -459,7 +454,6 @@ def test_fallback_never_returns_a_state_outside_the_mass_gate(caplog, nguess):
     root only. Clipped, that root loses its H and most of its C and S, so it
     fails the scalar gate and is no fallback: the solve raises or finds the
     physical root, never the 6.9 bar state."""
-    caplog.set_level(logging.WARNING, logger='fwl.calliope.solve')
     outcomes = []
     for seed in (3, 6, 7):
         np.random.seed(seed)
@@ -475,6 +469,22 @@ def test_fallback_never_returns_a_state_outside_the_mass_gate(caplog, nguess):
             outcomes.append(None)
     assert all(p is None or p == pytest.approx(24.8219, rel=1e-4) for p in outcomes)
     assert 'returning the last clipped root' not in caplog.text
+
+
+def test_fallback_is_the_last_gate_passing_root(monkeypatch, caplog):
+    """With two attempts that both end on a clipped root inside the mass gate
+    but beyond the sign check, the solver returns the second one."""
+    roots = iter([np.array([-1.0, 5.0, 1.0, 0.5]), np.array([-1.0, 7.0, 1.0, 0.5])])
+    monkeypatch.setattr(solve_mod.opt, 'fsolve', lambda *a, **k: (next(roots), {}, 1, 'stub'))
+    worse = 2.0 * _LOW_H['N'] * _COLD['rtol']
+    monkeypatch.setattr(
+        solve_mod, 'func', lambda x, *a: [0.0, 0.0, 0.0 if x[0] < 0.0 else worse, 0.0]
+    )
+    r = equilibrium_atmosphere(
+        dict(_LOW_H), _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **{**_COLD, 'nguess': 2}
+    )
+    assert 'tolerance for N by' in caplog.text
+    assert r['CO2_bar'] == pytest.approx(7.0, rel=1e-12)
 
 
 _LIBRARY = dict(xtol=1e-8, rtol=1e-5, atol=1e10, nguess=50, nsolve=3000, print_result=False)
@@ -495,7 +505,6 @@ def test_trace_hydrogen_falls_back_to_the_clipped_root(caplog, target, seed):
     negative pH2O carries the H in CH4 and H2S. Every such root is rejected,
     so the solve returns the last one clipped, with a warning naming H,
     instead of raising, and reports no H-bearing species."""
-    caplog.set_level(logging.WARNING, logger='fwl.calliope.solve')
     np.random.seed(seed)
     r = equilibrium_atmosphere(
         dict(target),
