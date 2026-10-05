@@ -358,11 +358,11 @@ def test_clipped_root_must_close_each_noble_gas(monkeypatch, caplog):
     ('seed', 'p_surf'),
     [(0, 24.910292949351646), (1, 24.91031882820358), (2, 24.910318448637597)],
 )
-def test_trace_sulfur_with_absent_nitrogen_solves_as_before(monkeypatch, caplog, seed, p_surf):
+def test_trace_sulfur_with_absent_nitrogen_keeps_its_root(monkeypatch, caplog, seed, p_surf):
     """An S budget below the scalar mass gate with no N leaves pN2 and pS2
-    negative at the accepted root, both inert. The clip moves no mass there,
-    so the solve returns the root it returns without the sign check (P_surf
-    pinned to rel 1e-5, the solver's xtol noise) rather than raising."""
+    negative at the accepted root, both inert. The clip moves no mass, so the
+    accepted root is fsolve's own (P_surf pinned to rel 1e-5, the solver's
+    xtol noise) and no fallback is taken."""
     roots, _ = _spy_roots(monkeypatch)
     np.random.seed(seed)
     target = {'H': 1.0e20, 'C': 5.0e19, 'N': 0.0, 'S': 1.0e14}
@@ -386,19 +386,23 @@ def test_all_positive_root_is_unchanged(monkeypatch, seed, p_surf, h2o):
     np.random.seed(seed)
     r = equilibrium_atmosphere(_earth_target_HCNS(), _earth_ddict(), p_guess=None, **_COLD)
     assert np.all(roots[-1] > 0.0)
+    np.testing.assert_array_equal(
+        [r[s + '_bar'] for s in ('H2O', 'CO2', 'N2', 'S2')], roots[-1]
+    )
     assert r['P_surf'] == pytest.approx(p_surf, rel=1e-5)
     assert r['H2O_bar'] == pytest.approx(h2o, rel=1e-5)
 
 
 @pytest.mark.parametrize('n2', [1.0e-30, -1.0e-30])
-def test_verdict_does_not_depend_on_an_inert_sign(monkeypatch, n2):
+def test_verdict_does_not_depend_on_an_inert_sign(monkeypatch, caplog, n2):
     """A root whose N residual (5e15 kg) passes the scalar gate (1.5e16 kg) but
     not the N tolerance (1e13 kg) is accepted whatever the sign of an inert
     pN2, because clipping that pN2 changes no residual."""
     seen = _stub_buffered(monkeypatch, [1.0, 5.0, n2, 0.5], lambda x: [0.0, 0.0, 5.0e15, 0.0])
     r = _one_attempt()
     assert r['H2O_bar'] == pytest.approx(1.0, rel=1e-12)
-    assert r['N2_bar'] == pytest.approx(max(n2, 0.0), abs=1e-40)
+    np.testing.assert_array_equal(r['N2_bar'], max(n2, 0.0))
+    assert 'returning the last clipped root' not in caplog.text
     # The clipped state is evaluated only for the negative sign.
     assert len(seen) == (3 if n2 < 0.0 else 2)
 
@@ -419,10 +423,10 @@ def test_clip_may_worsen_an_element_by_its_tolerance_only(
     r = _one_attempt()
     np.testing.assert_array_equal([r['H2O_bar'], r['H2_bar']], 0.0)
     assert r['CO2_bar'] == pytest.approx(5.0, rel=1e-12)
-    assert ('tolerance for N by' in caplog.text) == (not accepted)
+    assert ('tolerance for N (' in caplog.text) == (not accepted)
 
 
-def test_clip_that_closes_an_element_is_accepted(monkeypatch):
+def test_clip_that_closes_an_element_is_accepted(monkeypatch, caplog):
     """A clip that brings an element closer to its budget is accepted, as for
     a dry inventory where the negative pH2O's phantom CH4 and H2S are dropped:
     the raw N residual (2x its tolerance, inside the scalar gate) falls to 0."""
@@ -434,6 +438,7 @@ def test_clip_that_closes_an_element_is_accepted(monkeypatch):
     )
     r = _one_attempt()
     np.testing.assert_array_equal([r['H2O_bar'], seen[-1][0]], 0.0)
+    assert 'returning the last clipped root' not in caplog.text
     assert r['CO2_bar'] == pytest.approx(5.0, rel=1e-12)
 
 
@@ -471,20 +476,76 @@ def test_fallback_never_returns_a_state_outside_the_mass_gate(caplog, nguess):
     assert 'returning the last clipped root' not in caplog.text
 
 
-def test_fallback_is_the_last_gate_passing_root(monkeypatch, caplog):
-    """With two attempts that both end on a clipped root inside the mass gate
-    but beyond the sign check, the solver returns the second one."""
+@pytest.mark.parametrize(('second_in_gate', 'co2'), [(True, 7.0), (False, 5.0)])
+def test_fallback_is_the_last_gate_passing_root(monkeypatch, caplog, second_in_gate, co2):
+    """Of two attempts rejected by the sign check, the solver falls back to the
+    later one whose clipped state passes the mass gate: the second if it does,
+    else the first."""
     roots = iter([np.array([-1.0, 5.0, 1.0, 0.5]), np.array([-1.0, 7.0, 1.0, 0.5])])
     monkeypatch.setattr(solve_mod.opt, 'fsolve', lambda *a, **k: (next(roots), {}, 1, 'stub'))
     worse = 2.0 * _LOW_H['N'] * _COLD['rtol']
-    monkeypatch.setattr(
-        solve_mod, 'func', lambda x, *a: [0.0, 0.0, 0.0 if x[0] < 0.0 else worse, 0.0]
-    )
+    beyond = 1.0e17 if not second_in_gate else worse
+
+    def _residual(x, *a):
+        if x[0] < 0.0:
+            return [0.0, 0.0, 0.0, 0.0]
+        return [0.0, 0.0, worse if x[1] < 6.0 else beyond, 0.0]
+
+    monkeypatch.setattr(solve_mod, 'func', _residual)
     r = equilibrium_atmosphere(
         dict(_LOW_H), _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **{**_COLD, 'nguess': 2}
     )
-    assert 'tolerance for N by' in caplog.text
-    assert r['CO2_bar'] == pytest.approx(7.0, rel=1e-12)
+    assert 'after 2 attempts' in caplog.text
+    assert r['CO2_bar'] == pytest.approx(co2, rel=1e-12)
+
+
+def test_clipped_state_outside_the_mass_gate_is_no_fallback(monkeypatch, caplog):
+    """A raw root inside the scalar gate whose clipped state falls outside it
+    (2e16 kg against 1.5e16 kg) is rejected and kept as no fallback, so the
+    single attempt ends in RuntimeError without the fallback warning."""
+    _stub_buffered(
+        monkeypatch,
+        [-1.0, 5.0, 1.0, 0.5],
+        lambda x: [0.0 if x[0] < 0.0 else 2.0e16, 0.0, 0.0, 0.0],
+    )
+    with pytest.raises(RuntimeError, match='Could not find solution'):
+        _one_attempt()
+    assert 'returning the last clipped root' not in caplog.text
+    assert 2.0e16 > max(_LOW_H.values()) * _COLD['rtol'] + _COLD['atol']
+
+
+def test_accepted_clipped_state_must_pass_the_mass_gate(monkeypatch):
+    """A clip that worsens N by less than its tolerance (1e12 kg against 1e13 kg)
+    but moves the clipped state just outside the scalar gate (1.5e16 kg) is not
+    accepted: the clipped state passes the same gate as any accepted root."""
+    gate = max(_LOW_H.values()) * _COLD['rtol'] + _COLD['atol'] + solve_mod.TRUNC_MASS
+    raw_n, clip_n = gate - 5.0e11, gate + 5.0e11
+    _stub_buffered(
+        monkeypatch,
+        [-1.0, 5.0, 1.0, 0.5],
+        lambda x: [0.0, 0.0, raw_n if x[0] < 0.0 else clip_n, 0.0],
+    )
+    with pytest.raises(RuntimeError, match='Could not find solution'):
+        _one_attempt()
+    assert clip_n - raw_n < _LOW_H['N'] * _COLD['rtol']
+
+
+def test_sub_gate_budget_worsened_by_the_clip_is_accepted_at_once(monkeypatch, caplog):
+    """When only an element whose budget lies below the scalar gate is worsened
+    beyond its tolerance, and the clipped state passes the gate, the root is
+    accepted on that attempt: no fallback, no warning."""
+    target = dict(_LOW_H, H=1.0e15)
+    _stub_buffered(
+        monkeypatch,
+        [-1.0, 5.0, 1.0, 0.5],
+        lambda x: [0.0 if x[0] < 0.0 else 1.0e15, 0.0, 0.0, 0.0],
+    )
+    r = equilibrium_atmosphere(
+        target, _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **{**_COLD, 'nguess': 1}
+    )
+    np.testing.assert_array_equal([r['H2O_bar'], r['H2_bar'], r['CH4_bar']], 0.0)
+    assert 'returning the last clipped root' not in caplog.text
+    assert 1.0e15 < max(target.values()) * _COLD['rtol'] + _COLD['atol']
 
 
 _LIBRARY = dict(xtol=1e-8, rtol=1e-5, atol=1e10, nguess=50, nsolve=3000, print_result=False)
@@ -513,7 +574,7 @@ def test_trace_hydrogen_falls_back_to_the_clipped_root(caplog, target, seed):
         opt_solver=False,
         **_LIBRARY,
     )
-    assert 'tolerance for H by' in caplog.text
+    assert 'tolerance for H (' in caplog.text
     np.testing.assert_array_equal(
         [r[s + '_bar'] for s in ('H2O', 'H2', 'CH4', 'H2S', 'NH3')], 0.0
     )

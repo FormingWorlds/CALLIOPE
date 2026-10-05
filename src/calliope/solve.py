@@ -892,7 +892,8 @@ def equilibrium_atmosphere(
     # to their own per-gas gate below.
     tolerance = np.amax([target_d[e] for e in ('H', 'C', 'N', 'S')]) * rtol + atol + TRUNC_MASS
     elements = ('H', 'C', 'N', 'S') + active
-    elem_tol = np.maximum(np.array([target_d[e] for e in elements]) * rtol, TRUNC_MASS)
+    budget = np.array([target_d[e] for e in elements])
+    elem_tol = np.maximum(budget * rtol, TRUNC_MASS)
     log.debug('Required tolerance: %g' % tolerance)
 
     with warnings.catch_warnings():
@@ -953,22 +954,25 @@ def equilibrium_atmosphere(
                     success = False
 
             # Species form from pH2 before any clip, so a negative pH2O still forms CH4 and
-            # H2S. Reject a root whose clip at 0 worsens an element by more than its own
-            # tolerance (an inert negative moves nothing), and report it clipped.
-            if success and np.any(np.asarray(sol) < 0.0):
+            # H2S. Judge and report a root with a negative primary in its clipped form; see
+            # docs/Explanations/mass_balance.md (sign check) for the acceptance rule.
+            if success and np.any(sol < 0.0):
                 clipped = np.maximum(sol, 0.0)
-                worse = np.abs(func(clipped, ddict, target_d)) - np.abs(this_resid)
-                if np.all(worse <= elem_tol):
+                clipped_resid = np.abs(func(clipped, ddict, target_d))
+                worse = clipped_resid - np.abs(this_resid)
+                in_gate = np.amax(clipped_resid[:4]) <= tolerance and np.all(
+                    clipped_resid[4:] <= elem_tol[4:]
+                )
+                over = worse > elem_tol
+                if in_gate and np.all(budget[over] < tolerance):
+                    if np.any(over):
+                        log.debug('Clipped root accepted: only sub-gate budgets worsened')
                     sol = clipped
                 else:
                     log.debug('Solution rejected: a negative primary carries mass, %s bar', sol)
                     success = False
-                    # A fallback must pass the scalar and noble gates in its clipped form.
-                    clipped_resid = worse + np.abs(this_resid)
-                    if np.amax(clipped_resid[:4]) <= tolerance and np.all(
-                        clipped_resid[4:] <= elem_tol[4:]
-                    ):
-                        fallback = (clipped, worse)
+                    if in_gate:
+                        fallback = (clipped, clipped_resid)
 
             if success:
                 break
@@ -983,12 +987,15 @@ def equilibrium_atmosphere(
 
     # Out of attempts: fall back to the last clipped root that passes the mass gates.
     if not success and fallback is not None:
-        sol, worse = fallback
+        sol, clipped_resid = fallback
         log.warning(
-            'No root closes every element once clipped at 0; returning the last clipped root '
-            'that passes the mass gate, with residuals worse than tolerance for %s',
+            'No root closes every element once clipped at 0 after %d attempts; returning '
+            'the last clipped root that passes the mass gate, with |residual| over '
+            'tolerance for %s',
+            count + 1,
             ', '.join(
-                f'{elements[i]} by {worse[i]:.3g} kg' for i in np.flatnonzero(worse > elem_tol)
+                f'{elements[i]} ({clipped_resid[i]:.3g} kg, tolerance {elem_tol[i]:.3g} kg)'
+                for i in np.flatnonzero(clipped_resid > elem_tol)
             ),
         )
         success = True
