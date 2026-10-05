@@ -104,6 +104,9 @@ def _noble_henry_seed(core_out, active, target_d, ddict):
 # not rejected for sub-10-kg mass-balance noise.
 TRUNC_MASS = 1e1
 
+# Elements whose emptied budget has been warned about in this process.
+_EMPTIED_WARNED = set()
+
 # Solver bounds, in one place so the cold-start guess range, the trust-constr
 # box, and the fO2-hint validation cannot drift apart.
 #
@@ -1005,16 +1008,23 @@ def equilibrium_atmosphere(
     log.debug('    Initial guess attempt number = %d' % count)
 
     res_l = func(sol, ddict, target_d)
-    # A returned state that empties a nonzero budget (a trace budget below the gate) is
-    # reported, unless the fallback warning has already named it.
+    # A returned state that empties a nonzero budget is warned once per process and element;
+    # repeats go to debug, and a fallback is covered by its own warning.
     budgets = np.array([target_d[e] for e in elements])
-    emptied = (budgets > 0.0) & (np.abs(np.asarray(res_l)) >= (1.0 - rtol) * budgets)
-    if np.any(emptied) and not fell_back:
-        log.warning(
+    emptied = [
+        elements[i]
+        for i in np.flatnonzero(
+            (budgets > 0.0) & (np.asarray(res_l) <= -(1.0 - rtol) * budgets)
+        )
+    ]
+    if emptied and not fell_back:
+        new = [e for e in emptied if e not in _EMPTIED_WARNED]
+        _EMPTIED_WARNED.update(new)
+        (log.warning if new else log.debug)(
             'The returned state leaves these budgets empty: %s',
             ', '.join(
-                f'{elements[i]} (residual {res_l[i]:.3g} kg, budget {budgets[i]:.3g} kg)'
-                for i in np.flatnonzero(emptied)
+                f'{e} (residual {res_l[elements.index(e)]:.3g} kg, budget {target_d[e]:.3g} kg)'
+                for e in emptied
             ),
         )
     log.debug('    Residuals: %s' % res_l)

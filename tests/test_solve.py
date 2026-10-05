@@ -212,6 +212,12 @@ _COLD = dict(
 )
 
 
+@pytest.fixture(autouse=True)
+def _fresh_empty_budget_warnings(monkeypatch):
+    """Each test sees the empty-budget warning as if in a new process."""
+    monkeypatch.setattr(solve_mod, '_EMPTIED_WARNED', set())
+
+
 def _spy_roots(monkeypatch):
     """Record every root fsolve returns, in call order, and whether it converged."""
     roots, converged, real = [], [], solve_mod.opt.fsolve
@@ -358,19 +364,25 @@ def test_clipped_root_must_close_each_noble_gas(monkeypatch, caplog):
     ('seed', 'p_surf'),
     [(0, 24.910292949351646), (1, 24.91031882820358), (2, 24.910318448637597)],
 )
-def test_trace_sulfur_with_absent_nitrogen_keeps_its_root(monkeypatch, caplog, seed, p_surf):
+def test_trace_sulfur_with_absent_nitrogen_is_lost_with_a_warning(
+    monkeypatch, caplog, seed, p_surf
+):
     """An S budget below the scalar mass gate with no N leaves pN2 and pS2
     negative at the accepted root, both inert. The clip moves no mass, so the
-    accepted root is fsolve's own (P_surf pinned to rel 1e-5, the solver's
-    xtol noise) and no fallback is taken."""
+    accepted root is fsolve's own clipped (P_surf to rel 1e-5, the xtol noise);
+    the S budget is lost within the gate and the warning names S."""
     roots, _ = _spy_roots(monkeypatch)
     np.random.seed(seed)
     target = {'H': 1.0e20, 'C': 5.0e19, 'N': 0.0, 'S': 1.0e14}
     r = equilibrium_atmosphere(target, _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **_COLD)
     assert roots[-1][3] < 0.0
     assert 'returning the last clipped root' not in caplog.text
+    np.testing.assert_array_equal(
+        [r[s + '_bar'] for s in ('H2O', 'CO2', 'N2', 'S2')], np.maximum(roots[-1], 0.0)
+    )
     assert r['P_surf'] == pytest.approx(p_surf, rel=1e-5)
-    np.testing.assert_array_equal([r['N2_bar'], r['S2_bar']], 0.0)
+    assert r['S_kg_total'] == 0.0
+    assert 'leaves these budgets empty: S (residual -1e+14 kg, budget 1e+14 kg)' in caplog.text
 
 
 @pytest.mark.physics_invariant
@@ -443,17 +455,6 @@ def test_clip_that_closes_an_element_is_accepted(monkeypatch, caplog):
     assert r['CO2_bar'] == pytest.approx(5.0, rel=1e-12)
 
 
-def test_root_that_never_passed_the_mass_gate_still_raises(monkeypatch, caplog):
-    """The fallback only returns a root that passed the scalar mass gate: a
-    root with a negative primary that fails that gate leaves no fallback, and
-    the solver raises after its last attempt."""
-    _stub_buffered(monkeypatch, [-1.0, 5.0, 1.0, 0.5], lambda x: [1.0e20, 0.0, 0.0, 0.0])
-    with pytest.raises(RuntimeError, match='Could not find solution'):
-        _one_attempt()
-    assert 'returning the last clipped root' not in caplog.text
-    assert 1.0e20 > max(_LOW_H.values()) * _COLD['rtol'] + _COLD['atol']
-
-
 @pytest.mark.parametrize('nguess', [2, 5])
 def test_fallback_never_returns_a_state_outside_the_mass_gate(caplog, nguess):
     """With few attempts the low-H cold start can end on the negative-water
@@ -502,8 +503,8 @@ def test_fallback_is_the_last_gate_passing_root(monkeypatch, caplog, second_in_g
 
 def test_clipped_state_outside_the_mass_gate_is_no_fallback(monkeypatch, caplog):
     """A raw root inside the scalar gate whose clipped state falls outside it
-    (2e16 kg against 1.5e16 kg) is rejected and kept as no fallback, so the
-    single attempt ends in RuntimeError without the fallback warning."""
+    (2e16 kg against 1.5e16 kg) is rejected and kept as no fallback: with no
+    root that passed the gate, the solve raises without the fallback warning."""
     _stub_buffered(
         monkeypatch,
         [-1.0, 5.0, 1.0, 0.5],
@@ -569,8 +570,8 @@ def test_sub_gate_budget_worsened_by_the_clip_is_rejected(monkeypatch, caplog):
     assert 1.0e15 < max(target.values()) * _COLD['rtol'] + _COLD['atol']
 
 
-def test_trace_hydrogen_at_library_defaults_warns_that_h_is_empty(caplog):
-    """With the library tolerances and nguess, a trace H budget (1e12 kg) ends on
+def test_trace_hydrogen_without_opt_solver_warns_that_h_is_empty(caplog):
+    """With the library tolerances and nguess and fsolve only, a trace H budget (1e12 kg) ends on
     a root that has already lost its H, which the clip leaves unchanged; the
     result is returned with a warning naming H, its residual and its budget."""
     np.random.seed(1)
@@ -588,6 +589,64 @@ def test_trace_hydrogen_at_library_defaults_warns_that_h_is_empty(caplog):
     )
     assert 'leaves these budgets empty: H (residual -1e+12 kg, budget 1e+12 kg)' in caplog.text
     assert r['H_kg_total'] == pytest.approx(0.0, abs=1.0e12 * 1e-5)
+
+
+_SUB_GATE_N = dict(_LOW_H, N=1.0e15)
+
+
+def _empty_budget_solve(monkeypatch, residual, target=_SUB_GATE_N):
+    """One-attempt solve of an all-positive stub root with the given residual."""
+    _stub_buffered(monkeypatch, [1.0, 5.0, 1.0, 0.5], lambda x: residual)
+    return equilibrium_atmosphere(
+        dict(target), _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **{**_COLD, 'nguess': 1}
+    )
+
+
+@pytest.mark.parametrize(
+    ('n_res', 'warned'),
+    [(-1.0e15, True), (-0.5e15, False), (1.0e15, False)],
+    ids=['emptied', 'half_lost', 'overfilled'],
+)
+def test_empty_budget_warning_needs_the_whole_budget_lost(monkeypatch, caplog, n_res, warned):
+    """An accepted state whose N residual is minus the N budget (1e15 kg, inside
+    the scalar gate) warns; losing half of it or overfilling it does not."""
+    _empty_budget_solve(monkeypatch, [0.0, 0.0, n_res, 0.0])
+    assert ('leaves these budgets empty: N (residual' in caplog.text) == warned
+
+
+def test_zero_budget_is_never_empty(monkeypatch, caplog):
+    """An element with no budget and no residual is not reported as emptied."""
+    _empty_budget_solve(monkeypatch, [0.0, 0.0, 0.0, 0.0], target=dict(_LOW_H, N=0.0))
+    assert 'leaves these budgets empty' not in caplog.text
+
+
+def test_empty_budget_warns_once_per_element(monkeypatch, caplog):
+    """A second solve that empties the same budget logs at debug, not warning."""
+    caplog.set_level(logging.DEBUG, logger='fwl.calliope.solve')
+    for _ in range(2):
+        _empty_budget_solve(monkeypatch, [0.0, 0.0, -1.0e15, 0.0])
+    levels = [
+        r.levelno for r in caplog.records if 'leaves these budgets empty' in r.getMessage()
+    ]
+    assert levels == [logging.WARNING, logging.DEBUG]
+
+
+def test_fallback_that_empties_a_budget_warns_once(monkeypatch, caplog):
+    """A fallback state that empties a budget gives the fallback warning only."""
+    _stub_buffered(
+        monkeypatch,
+        [-1.0, 5.0, 1.0, 0.5],
+        lambda x: [0.0, 0.0, -1.0e15 if x[0] >= 0.0 else 0.0, 0.0],
+    )
+    equilibrium_atmosphere(
+        dict(_SUB_GATE_N),
+        _earth_ddict(T=1500.0, dIW=2.0),
+        p_guess=None,
+        **{**_COLD, 'nguess': 1},
+    )
+    warned = [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert len(warned) == 1
+    assert 'tolerance for N (1e+15 kg' in warned[0].getMessage()
 
 
 _LIBRARY = dict(xtol=1e-8, rtol=1e-5, atol=1e10, nguess=50, nsolve=3000, print_result=False)
