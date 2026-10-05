@@ -453,36 +453,17 @@ def dissolved_mass(pin, ddict):
     return _dissolved_mass(pin, ddict['fO2_shift_IW'], ddict)
 
 
-def _clipped_residual(residual, sol, p_idx, ddict, mass_target_d):
-    """Absolute mass residual of a root with its negative partial pressures set to 0.
+def _clip_pressures(sol, p_idx):
+    """Copy of a solver root with its partial pressures ``sol[p_idx]`` clipped at 0 [bar].
 
-    A negative primary of an element with no inventory is inert: the
-    species it would form are clipped to 0 anyway, so the residual does
-    not change. A negative pH2O is not inert, because CH4 and H2S use
-    pH2**2 and close the H budget on the wrong sign. Comparing this
-    residual with the mass gate separates the two.
-
-    Parameters
-    ----------
-    residual : callable
-        ``func`` or ``func_authoritative_O``.
-    sol : array_like
-        Solver root.
-    p_idx : slice or list of int
-        Indices of ``sol`` that are partial pressures [bar].
-    ddict, mass_target_d : dict
-        As for ``residual``.
-
-    Returns
-    -------
-    numpy.ndarray or None
-        Absolute residuals [kg], or None when no partial pressure is negative.
+    ``_get_partial_pressures`` forms CH4 and H2S from pH2**2 (and NH3 from
+    pN2 * pH2**3) before it clips any species, so a negative pH2O still forms
+    them; a negative pCO2, pN2 or pS2 alone forms nothing. The solvers judge
+    and report a root with a negative pressure in this clipped form.
     """
     x = np.array(sol, dtype=float)
-    if not np.any(x[p_idx] < 0.0):
-        return None
     x[p_idx] = np.maximum(x[p_idx], 0.0)
-    return np.abs(np.asarray(residual(x, ddict, mass_target_d)))
+    return x
 
 
 def func(pin_arr, ddict, mass_target_d):
@@ -984,11 +965,11 @@ def equilibrium_atmosphere(
                     log.debug('Solution rejected by noble gas residual')
                     success = False
 
-            # A negative primary must still close the CHNOS gate when clipped at 0.
-            if success:
-                clipped = _clipped_residual(func, sol, slice(None), ddict, target_d)
-                if clipped is not None and np.amax(clipped[:4]) > tolerance:
-                    log.debug('Solution rejected: a negative primary carries mass, %s bar', sol)
+            # A root with a negative primary is judged and reported clipped at 0.
+            if success and np.any(np.asarray(sol) < 0.0):
+                sol = _clip_pressures(sol, slice(None))
+                if not np.all(np.abs(np.asarray(func(sol, ddict, target_d)[:4])) <= tolerance):
+                    log.debug('Solution rejected: a negative primary carries mass')
                     success = False
 
             if success:
@@ -1538,20 +1519,24 @@ def equilibrium_atmosphere_authoritative_O(
                         ub[4],
                     )
                     success = False
-                elif (
-                    clipped := _clipped_residual(
-                        func_authoritative_O, sol, p_idx, ddict, target_d
-                    )
-                ) is not None and np.any(clipped > elem_tolerance):
-                    log.debug(
-                        'Solution rejected: a negative partial pressure carries mass, %s bar',
-                        sol_p,
-                    )
-                    success = False
                 elif np.any(sol_p > p_ceiling * (1.0 + 1.0e-6)):
                     log.debug(
                         'Solution rejected: partial pressure above %.1e bar ceiling: %s bar',
                         p_ceiling,
+                        sol_p,
+                    )
+                    success = False
+
+            if success and np.any(sol_p < 0.0):
+                sol = _clip_pressures(sol, p_idx)
+                try:
+                    resid = np.abs(np.asarray(func_authoritative_O(sol, ddict, target_d)))
+                    carried = not np.all(resid <= elem_tolerance)
+                except (ZeroDivisionError, FloatingPointError, ValueError):
+                    carried = True
+                if carried:
+                    log.debug(
+                        'Solution rejected: a negative partial pressure carries mass, %s bar',
                         sol_p,
                     )
                     success = False

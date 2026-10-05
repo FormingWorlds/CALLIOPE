@@ -484,6 +484,30 @@ def test_root_with_an_inert_negative_pressure_is_accepted(monkeypatch):
     assert r['fO2_shift_derived'] == pytest.approx(2.0, rel=1e-12)
 
 
+@pytest.mark.parametrize('failure', ['nan', 'raise'])
+def test_root_whose_clipped_residual_cannot_be_judged_is_rejected(monkeypatch, caplog, failure):
+    """A negative-pressure root whose clipped residual is NaN, or raises, is
+    rejected as a failed attempt rather than accepted or crashing the loop."""
+    sol = [1.0, 5.0, -3.0, 0.5, 2.0]  # N2 = -3 bar
+    _stub_solver(monkeypatch, sol, residual=np.zeros(5))
+
+    def _residual(x, *args):
+        if x[2] < 0.0:
+            return np.zeros(5)
+        if failure == 'raise':
+            raise FloatingPointError('log10 of a zero pressure')
+        return np.full(5, np.nan)
+
+    monkeypatch.setattr(calsolve, 'func_authoritative_O', _residual)
+    caplog.set_level(logging.DEBUG, logger=_SOLVE_LOGGER)
+    with pytest.raises(RuntimeError, match='Could not find solution'):
+        equilibrium_atmosphere_authoritative_O(
+            _target(), _ddict(), fO2_hint=2.0, opt_solver=False, nguess=1, print_result=False
+        )
+    assert 'negative partial pressure carries mass' in caplog.text
+    assert min(sol[:4]) < 0.0
+
+
 def test_root_above_pressure_ceiling_is_rejected(monkeypatch, caplog):
     """A converged root with a partial pressure above the 1e7 bar ceiling
     is rejected, because unbounded fsolve does not enforce the upper box.
