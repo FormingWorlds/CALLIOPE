@@ -562,10 +562,11 @@ _LIBRARY = dict(xtol=1e-8, rtol=1e-5, atol=1e10, nguess=50, nsolve=3000, print_r
     ids=['H1e12_N0', 'H1e12_N1e14', 'H1e13_N0'],
 )
 def test_trace_hydrogen_falls_back_to_the_clipped_root(caplog, target, seed):
-    """At library tolerances a trace H budget is closed only by roots whose
-    negative pH2O carries the H in CH4 and H2S. Every such root is rejected,
-    so the solve returns the last one clipped, with a warning naming H,
-    instead of raising, and reports no H-bearing species."""
+    """At library tolerances with few attempts, a trace H budget is closed only
+    by roots whose negative pH2O carries the H in CH4 and H2S. Clipped, such a
+    root also loses the S of its phantom H2S beyond the S tolerance, and S lies
+    above the mass gate, so it is rejected; the solve returns the last one
+    clipped, with a warning listing H and S, and no H-bearing species."""
     np.random.seed(seed)
     r = equilibrium_atmosphere(
         dict(target),
@@ -575,6 +576,7 @@ def test_trace_hydrogen_falls_back_to_the_clipped_root(caplog, target, seed):
         **_LIBRARY,
     )
     assert 'tolerance for H (' in caplog.text
+    assert ', S (' in caplog.text
     np.testing.assert_array_equal(
         [r[s + '_bar'] for s in ('H2O', 'H2', 'CH4', 'H2S', 'NH3')], 0.0
     )
