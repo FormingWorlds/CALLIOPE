@@ -42,7 +42,7 @@ jobs:
 
       - name: Run unit + smoke + integration + slow tests with coverage
         run: |
-          pytest -m "(unit or smoke or integration or slow) and not skip" \
+          pytest -m "(unit or smoke or integration or slow) and not skip" --durations=0 \
             --cov=calliope \
             --cov-report=term-missing \
             --cov-report=xml \
