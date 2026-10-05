@@ -7,9 +7,11 @@ it applies three guards that the happy-path smoke tests never trip:
 - a per-element residual gate (a converged-looking root whose mass
   residual exceeds tolerance is rejected),
 - a physical-box gate (a root with a derived fO2_shift outside
-  [-12, +12], a negative partial pressure, or a partial pressure above
-  the 1e7 bar ceiling is rejected, because the production unbounded
-  fsolve does not enforce ``bounds``),
+  [-12, +12] or a partial pressure above the 1e7 bar ceiling is rejected,
+  because the production unbounded fsolve does not enforce ``bounds``),
+- a sign check (a root with a negative partial pressure is judged and
+  reported with its pressures clipped at 0, and rejected when that state
+  fails the per-element gate),
 - an exception firewall (a solver call or residual evaluation that
   raises is treated as a failed attempt, not a crash).
 
@@ -576,6 +578,21 @@ def test_clipped_root_closes_on_the_per_element_tolerance(monkeypatch, factor, a
         with pytest.raises(RuntimeError, match='Could not find solution'):
             equilibrium_atmosphere_authoritative_O(_target(), _ddict(), **kw)
         assert n_res > _target()['N'] * 1.0e-4
+
+
+def test_tiny_negative_pressure_is_still_clipped(monkeypatch):
+    """A root with pH2O of only -1e-9 bar is reported clipped too: no H2S or
+    CH4 from the negative pH2, however small."""
+    _stub_solver(monkeypatch, [-1.0e-9, 5.0, 1.0, 0.5, 2.0], residual=np.zeros(5))
+    r = equilibrium_atmosphere_authoritative_O(
+        _target(), _ddict(), fO2_hint=2.0, opt_solver=False, nguess=1, print_result=False
+    )
+    np.testing.assert_array_equal([r['H2S_bar'], r['CH4_bar'], r['H2O_bar']], 0.0)
+    # Discrimination guard: the raw root forms H2S from pH2**2.
+    raw = calsolve._get_partial_pressures(
+        {'H2O': -1.0e-9, 'CO2': 5.0, 'N2': 1.0, 'S2': 0.5}, 2.0, _ddict()
+    )
+    assert raw['H2S'] > 0.0
 
 
 def test_root_above_pressure_ceiling_is_rejected(monkeypatch, caplog):
