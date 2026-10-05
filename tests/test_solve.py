@@ -594,9 +594,12 @@ def test_trace_hydrogen_without_opt_solver_warns_that_h_is_empty(caplog):
 _SUB_GATE_N = dict(_LOW_H, N=1.0e15)
 
 
+_PRIMARIES, _STUB_ROOT = ('H2O', 'CO2', 'N2', 'S2'), [1.0, 5.0, 1.0, 0.5]
+
+
 def _empty_budget_solve(monkeypatch, residual, target=_SUB_GATE_N):
     """One-attempt solve of an all-positive stub root with the given residual."""
-    _stub_buffered(monkeypatch, [1.0, 5.0, 1.0, 0.5], lambda x: residual)
+    _stub_buffered(monkeypatch, _STUB_ROOT, lambda x: residual)
     return equilibrium_atmosphere(
         dict(target), _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **{**_COLD, 'nguess': 1}
     )
@@ -610,14 +613,16 @@ def _empty_budget_solve(monkeypatch, residual, target=_SUB_GATE_N):
 def test_empty_budget_warning_needs_the_whole_budget_lost(monkeypatch, caplog, n_res, warned):
     """An accepted state whose N residual is minus the N budget (1e15 kg, inside
     the scalar gate) warns; losing half of it or overfilling it does not."""
-    _empty_budget_solve(monkeypatch, [0.0, 0.0, n_res, 0.0])
+    r = _empty_budget_solve(monkeypatch, [0.0, 0.0, n_res, 0.0])
     assert ('leaves these budgets empty: N (residual' in caplog.text) == warned
+    np.testing.assert_array_equal([r[g + '_bar'] for g in _PRIMARIES], _STUB_ROOT)
 
 
 def test_zero_budget_is_never_empty(monkeypatch, caplog):
     """An element with no budget and no residual is not reported as emptied."""
-    _empty_budget_solve(monkeypatch, [0.0, 0.0, 0.0, 0.0], target=dict(_LOW_H, N=0.0))
+    r = _empty_budget_solve(monkeypatch, [0.0, 0.0, 0.0, 0.0], target=dict(_LOW_H, N=0.0))
     assert 'leaves these budgets empty' not in caplog.text
+    np.testing.assert_array_equal([r[g + '_bar'] for g in _PRIMARIES], _STUB_ROOT)
 
 
 def test_empty_budget_warns_once_per_element(monkeypatch, caplog):
@@ -625,10 +630,9 @@ def test_empty_budget_warns_once_per_element(monkeypatch, caplog):
     caplog.set_level(logging.DEBUG, logger='fwl.calliope.solve')
     for _ in range(2):
         _empty_budget_solve(monkeypatch, [0.0, 0.0, -1.0e15, 0.0])
-    levels = [
-        r.levelno for r in caplog.records if 'leaves these budgets empty' in r.getMessage()
-    ]
-    assert levels == [logging.WARNING, logging.DEBUG]
+    records = [r for r in caplog.records if 'leaves these budgets empty' in r.getMessage()]
+    assert [r.levelno for r in records] == [logging.WARNING, logging.DEBUG]
+    assert all('N (residual -1e+15 kg, budget 1e+15 kg)' in r.getMessage() for r in records)
 
 
 def test_fallback_that_empties_a_budget_warns_once(monkeypatch, caplog):
