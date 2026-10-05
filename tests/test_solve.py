@@ -530,6 +530,26 @@ def test_accepted_clipped_state_must_pass_the_mass_gate(monkeypatch):
     assert clip_n - raw_n < _LOW_H['N'] * _COLD['rtol']
 
 
+def test_accepted_clipped_state_must_pass_the_noble_gate(monkeypatch, caplog):
+    """A clip that worsens He by less than its tolerance (7e12 kg against 1e13 kg)
+    but leaves the clipped He residual above that tolerance is not accepted,
+    and the clipped state is no fallback either."""
+    _stub_buffered(
+        monkeypatch,
+        [-1.0, 5.0, 1.0, 0.5, 2.0],
+        lambda x: [0.0, 0.0, 0.0, 0.0, 6.0e12 if x[0] < 0.0 else 1.3e13],
+    )
+    with pytest.raises(RuntimeError, match='Could not find solution'):
+        equilibrium_atmosphere(
+            dict(_LOW_H, He=1.0e17),
+            dict(_earth_ddict(T=1500.0, dIW=2.0), He_included=1),
+            p_guess={'H2O': 1.0, 'CO2': 5.0, 'N2': 1.0, 'S2': 0.5, 'He': 2.0},
+            **{**_COLD, 'nguess': 1},
+        )
+    assert 'returning the last clipped root' not in caplog.text
+    assert 1.3e13 - 6.0e12 < 1.0e17 * _COLD['rtol']
+
+
 def test_sub_gate_budget_worsened_by_the_clip_is_rejected(monkeypatch, caplog):
     """A clip that worsens an element beyond its tolerance is rejected even when
     that element's budget lies below the scalar gate; with no attempt left the
@@ -563,10 +583,10 @@ _LIBRARY = dict(xtol=1e-8, rtol=1e-5, atol=1e10, nguess=50, nsolve=3000, print_r
 )
 def test_trace_hydrogen_falls_back_to_the_clipped_root(caplog, target, seed):
     """At library tolerances with few attempts, a trace H budget is closed only
-    by roots whose negative pH2O carries the H in CH4 and H2S. Clipped, such a
-    root also loses the S of its phantom H2S beyond the S tolerance, and S lies
-    above the mass gate, so it is rejected; the solve returns the last one
-    clipped, with a warning listing H and S, and no H-bearing species."""
+    by roots whose negative pH2O carries the H in CH4 and H2S. Clipping such a
+    root empties the H budget, far beyond the H tolerance, so it is rejected
+    (the phantom H2S also takes S beyond its tolerance); the solve returns the
+    last one clipped, with a warning listing H and S, and no H-bearing species."""
     np.random.seed(seed)
     r = equilibrium_atmosphere(
         dict(target),

@@ -958,11 +958,10 @@ def equilibrium_atmosphere(
             if success and np.any(sol < 0.0):
                 clipped = np.maximum(sol, 0.0)
                 clipped_resid = np.abs(func(clipped, ddict, target_d))
-                worse = clipped_resid - np.abs(this_resid)
                 in_gate = np.amax(clipped_resid[:4]) <= tolerance and np.all(
                     clipped_resid[4:] <= elem_tol[4:]
                 )
-                if in_gate and np.all(worse <= elem_tol):
+                if in_gate and np.all(clipped_resid - np.abs(this_resid) <= elem_tol):
                     sol = clipped
                 else:
                     log.debug('Solution rejected: a negative primary carries mass, %s bar', sol)
