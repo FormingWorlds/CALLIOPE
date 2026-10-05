@@ -964,7 +964,11 @@ def equilibrium_atmosphere(
                 else:
                     log.debug('Solution rejected: a negative primary carries mass, %s bar', sol)
                     success = False
-                    if np.all(np.isfinite(worse)):
+                    # A fallback must pass the scalar and noble gates in its clipped form.
+                    clipped_resid = worse + np.abs(this_resid)
+                    if np.amax(clipped_resid[:4]) <= tolerance and np.all(
+                        clipped_resid[4:] <= elem_tol[4:]
+                    ):
                         fallback = (clipped, worse)
 
             if success:
@@ -978,17 +982,16 @@ def equilibrium_atmosphere(
             if opt_solver:
                 solver = 1 - solver
 
-    # Out of attempts: fall back to the last root that passed the scalar gate, clipped.
+    # Out of attempts: fall back to the last clipped root that passes the mass gates.
     if not success and fallback is not None:
         sol, worse = fallback
-        worst = int(np.argmax(worse / elem_tol))
+        names = ('H', 'C', 'N', 'S') + active
         log.warning(
-            'No root closes every element once clipped at 0; returning the last root that '
-            'passed the mass gate, clipped, with the %s residual worse by %.3g kg '
-            '(%.3g times its tolerance)',
-            (('H', 'C', 'N', 'S') + active)[worst],
-            worse[worst],
-            worse[worst] / elem_tol[worst],
+            'No root closes every element once clipped at 0; returning the last clipped root '
+            'that passes the mass gate, with residuals worse than tolerance for %s',
+            ', '.join(
+                f'{names[i]} by {worse[i]:.3g} kg' for i in np.flatnonzero(worse > elem_tol)
+            ),
         )
         success = True
 

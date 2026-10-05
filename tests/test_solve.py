@@ -261,7 +261,7 @@ def test_low_h_cold_start_rejects_the_negative_water_root(monkeypatch, caplog, s
     r = equilibrium_atmosphere(
         dict(_LOW_H), _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **_COLD
     )
-    assert 'returning the last root' not in caplog.text
+    assert 'returning the last clipped root' not in caplog.text
     assert any(ok and root[0] < -1.0e3 for root, ok in zip(roots[:-1], converged[:-1]))
     assert roots[-1][0] > 0.0
     assert r['H2O_bar'] > 0.0
@@ -335,22 +335,23 @@ def test_unjudgeable_clipped_root_is_rejected(monkeypatch):
 
 def test_clipped_root_must_close_each_noble_gas(monkeypatch, caplog):
     """The check of a root with a negative primary covers the active noble
-    gases: a clip that worsens He beyond its tolerance is rejected, and with
-    no attempt left the clipped root comes back with a warning naming He."""
+    gases: a clip that worsens He beyond its tolerance is rejected, and since
+    the clipped state also fails the He gate it is no fallback either."""
     seen = _stub_buffered(
         monkeypatch,
         [1.0, 5.0, -3.0, 0.5, 2.0],  # N2 = -3 bar, He = 2 bar
         lambda x: [0.0] * 5 if x[2] < 0.0 else [0.0, 0.0, 0.0, 0.0, 1.0e18],
     )
     caplog.set_level(logging.WARNING, logger='fwl.calliope.solve')
-    r = equilibrium_atmosphere(
-        dict(_LOW_H, He=1.0e17),
-        dict(_earth_ddict(T=1500.0, dIW=2.0), He_included=1),
-        p_guess={'H2O': 1.0, 'CO2': 5.0, 'N2': 1.0, 'S2': 0.5, 'He': 2.0},
-        **{**_COLD, 'nguess': 1},
-    )
-    assert 'the He residual worse by 1e+18 kg' in caplog.text
-    np.testing.assert_array_equal([seen[-1][2], r['N2_bar']], 0.0)
+    with pytest.raises(RuntimeError, match='Could not find solution'):
+        equilibrium_atmosphere(
+            dict(_LOW_H, He=1.0e17),
+            dict(_earth_ddict(T=1500.0, dIW=2.0), He_included=1),
+            p_guess={'H2O': 1.0, 'CO2': 5.0, 'N2': 1.0, 'S2': 0.5, 'He': 2.0},
+            **{**_COLD, 'nguess': 1},
+        )
+    assert 'returning the last clipped root' not in caplog.text
+    np.testing.assert_array_equal(seen[-1][2], 0.0)
     assert seen[-1][4] == pytest.approx(2.0, rel=1e-12)
 
 
@@ -370,7 +371,7 @@ def test_trace_sulfur_with_absent_nitrogen_solves_as_before(monkeypatch, caplog,
     target = {'H': 1.0e20, 'C': 5.0e19, 'N': 0.0, 'S': 1.0e14}
     r = equilibrium_atmosphere(target, _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **_COLD)
     assert roots[-1][3] < 0.0
-    assert 'returning the last root' not in caplog.text
+    assert 'returning the last clipped root' not in caplog.text
     assert r['P_surf'] == pytest.approx(p_surf, rel=1e-5)
     np.testing.assert_array_equal([r['N2_bar'], r['S2_bar']], 0.0)
 
@@ -422,7 +423,7 @@ def test_clip_may_worsen_an_element_by_its_tolerance_only(
     r = _one_attempt()
     np.testing.assert_array_equal([r['H2O_bar'], r['H2_bar']], 0.0)
     assert r['CO2_bar'] == pytest.approx(5.0, rel=1e-12)
-    assert ('the N residual worse by' in caplog.text) == (not accepted)
+    assert ('tolerance for N by' in caplog.text) == (not accepted)
 
 
 def test_clip_that_closes_an_element_is_accepted(monkeypatch):
@@ -448,8 +449,32 @@ def test_root_that_never_passed_the_mass_gate_still_raises(monkeypatch, caplog):
     caplog.set_level(logging.WARNING, logger='fwl.calliope.solve')
     with pytest.raises(RuntimeError, match='Could not find solution'):
         _one_attempt()
-    assert 'returning the last root' not in caplog.text
+    assert 'returning the last clipped root' not in caplog.text
     assert 1.0e20 > max(_LOW_H.values()) * _COLD['rtol'] + _COLD['atol']
+
+
+@pytest.mark.parametrize('nguess', [2, 5])
+def test_fallback_never_returns_a_state_outside_the_mass_gate(caplog, nguess):
+    """With few attempts the low-H cold start can end on the negative-water
+    root only. Clipped, that root loses its H and most of its C and S, so it
+    fails the scalar gate and is no fallback: the solve raises or finds the
+    physical root, never the 6.9 bar state."""
+    caplog.set_level(logging.WARNING, logger='fwl.calliope.solve')
+    outcomes = []
+    for seed in (3, 6, 7):
+        np.random.seed(seed)
+        try:
+            r = equilibrium_atmosphere(
+                dict(_LOW_H),
+                _earth_ddict(T=1500.0, dIW=2.0),
+                p_guess=None,
+                **{**_COLD, 'nguess': nguess},
+            )
+            outcomes.append(r['P_surf'])
+        except RuntimeError:
+            outcomes.append(None)
+    assert all(p is None or p == pytest.approx(24.8219, rel=1e-4) for p in outcomes)
+    assert 'returning the last clipped root' not in caplog.text
 
 
 _LIBRARY = dict(xtol=1e-8, rtol=1e-5, atol=1e10, nguess=50, nsolve=3000, print_result=False)
@@ -479,11 +504,14 @@ def test_trace_hydrogen_falls_back_to_the_clipped_root(caplog, target, seed):
         opt_solver=False,
         **_LIBRARY,
     )
-    assert 'the H residual worse by' in caplog.text
+    assert 'tolerance for H by' in caplog.text
     np.testing.assert_array_equal(
         [r[s + '_bar'] for s in ('H2O', 'H2', 'CH4', 'H2S', 'NH3')], 0.0
     )
     assert r['P_surf'] == pytest.approx(24.801, rel=1e-4)
+    # The returned clipped state still passes the scalar mass gate.
+    gate = max(target.values()) * _LIBRARY['rtol'] + _LIBRARY['atol'] + solve_mod.TRUNC_MASS
+    assert max(abs(r[e + '_res']) for e in 'HCNS') <= gate
 
 
 def _authoritative_o(target, seed, dIW=2.0):
