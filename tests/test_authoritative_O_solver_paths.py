@@ -485,13 +485,15 @@ def test_root_with_an_inert_negative_pressure_is_accepted(monkeypatch):
 
 
 @pytest.mark.parametrize('failure', ['nan', 'raise'])
-def test_root_whose_clipped_residual_cannot_be_judged_is_rejected(monkeypatch, caplog, failure):
+def test_root_whose_clipped_residual_cannot_be_judged_is_rejected(monkeypatch, failure):
     """A negative-pressure root whose clipped residual is NaN, or raises, is
     rejected as a failed attempt rather than accepted or crashing the loop."""
     sol = [1.0, 5.0, -3.0, 0.5, 2.0]  # N2 = -3 bar
     _stub_solver(monkeypatch, sol, residual=np.zeros(5))
+    seen = []
 
     def _residual(x, *args):
+        seen.append(np.array(x))
         if x[2] < 0.0:
             return np.zeros(5)
         if failure == 'raise':
@@ -499,13 +501,31 @@ def test_root_whose_clipped_residual_cannot_be_judged_is_rejected(monkeypatch, c
         return np.full(5, np.nan)
 
     monkeypatch.setattr(calsolve, 'func_authoritative_O', _residual)
-    caplog.set_level(logging.DEBUG, logger=_SOLVE_LOGGER)
-    with pytest.raises(RuntimeError, match='Could not find solution'):
+    with pytest.raises(RuntimeError, match=r'pN2=-3\.000e\+00 bar'):
         equilibrium_atmosphere_authoritative_O(
             _target(), _ddict(), fO2_hint=2.0, opt_solver=False, nguess=1, print_result=False
         )
-    assert 'negative partial pressure carries mass' in caplog.text
-    assert min(sol[:4]) < 0.0
+    # The clipped state was judged, with fO2_shift left as it was.
+    assert seen[-1][2] == pytest.approx(0.0, abs=0.0)
+    assert seen[-1][4] == pytest.approx(2.0, rel=1e-12)
+
+
+def test_accepted_root_is_reported_with_its_pressures_clipped(monkeypatch):
+    """A root with a negative pH2O that closes the gate both raw and clipped is
+    reported in its clipped form: no CH4 or H2S from the negative pH2."""
+    sol = [-1.0, 5.0, 1.0, 0.5, 2.0]  # H2O = -1 bar
+    _stub_solver(monkeypatch, sol, residual=np.zeros(5))
+
+    r = equilibrium_atmosphere_authoritative_O(
+        _target(), _ddict(), fO2_hint=2.0, opt_solver=False, nguess=1, print_result=False
+    )
+    assert r['H2S_bar'] == pytest.approx(0.0, abs=1e-30)
+    assert r['CH4_bar'] == pytest.approx(0.0, abs=1e-30)
+    # Discrimination guard: the raw root forms H2S from pH2**2.
+    raw = calsolve._get_partial_pressures(
+        {'H2O': -1.0, 'CO2': 5.0, 'N2': 1.0, 'S2': 0.5}, 2.0, _ddict()
+    )
+    assert raw['H2S_bar' if 'H2S_bar' in raw else 'H2S'] > 1.0e-6
 
 
 def test_root_above_pressure_ceiling_is_rejected(monkeypatch, caplog):

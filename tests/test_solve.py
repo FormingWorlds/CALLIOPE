@@ -212,9 +212,9 @@ _COLD = dict(
 )
 
 
-def _gate(target):
-    """CHNOS acceptance bound [kg] of equilibrium_atmosphere for ``_COLD``."""
-    return max(target.values()) * _COLD['rtol'] + _COLD['atol'] + solve_mod.TRUNC_MASS
+def _elem_tol(target):
+    """Per-element tolerance [kg] a root with a negative primary must meet, for ``_COLD``."""
+    return {e: max(m * _COLD['rtol'], solve_mod.TRUNC_MASS) for e, m in target.items()}
 
 
 def _spy_roots(monkeypatch):
@@ -271,34 +271,87 @@ def test_absent_element_root_keeps_its_inert_negative_primary(monkeypatch):
 
 @pytest.mark.physics_invariant
 @pytest.mark.parametrize(
-    'target',
+    ('target', 'seed'),
     [
-        {'H': 0.0, 'C': 5.0e19, 'N': 0.0, 'S': 1.0e18},
-        {'H': 1.0e15, 'C': 5.0e19, 'N': 1.0e17, 'S': 1.0e18},
+        ({'H': 0.0, 'C': 5.0e19, 'N': 0.0, 'S': 1.0e18}, 0),
+        ({'H': 0.0, 'C': 5.0e19, 'N': 0.0, 'S': 1.0e18}, 2),
+        ({'H': 1.0e15, 'C': 5.0e19, 'N': 1.0e17, 'S': 1.0e18}, 0),
+        ({'H': 1.0e15, 'C': 5.0e19, 'N': 1.0e17, 'S': 1.0e18}, 1),
     ],
-    ids=['no_H_no_N', 'trace_H'],
+    ids=['no_H_no_N-0', 'no_H_no_N-2', 'trace_H-0', 'trace_H-1'],
 )
-@pytest.mark.parametrize('seed', [0, 1])
-def test_negative_water_root_reports_no_phantom_species(target, seed):
-    """An H budget below the mass gate can leave pH2O negative at an accepted
-    root. The result reports that root with its primaries clipped at zero:
-    no CH4, H2S or NH3 without H in the atmosphere, and residuals that close
-    the gate the root was accepted on.
+def test_sub_gate_hydrogen_reports_no_phantom_species(target, seed):
+    """An H budget below the scalar mass gate (1.5e16 kg here) yields a state
+    free of H-bearing species from a negative pH2O, C and S close on their own
+    tolerance rather than on the scalar gate, and H stays at its budget.
+
+    These seeds reach a root with negative pH2O; unclipped, its pH2**2 forms
+    1e-4 to 1e-2 bar of CH4 and H2S and removes about 1 % of the S budget
+    when they are dropped without re-solving.
     """
     np.random.seed(seed)
     r = equilibrium_atmosphere(
         dict(target), _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **_COLD
     )
-    # The physical CH4 at these inventories is below 1e-28 bar; unclipped it was 1e-4 to 1e-2 bar.
     assert r['CH4_bar'] < 1.0e-20
     assert r['H2S_bar'] < 1.0e-12
     assert r['NH3_bar'] < 1.0e-12
-    assert abs(r['H_kg_total'] - target['H']) <= _gate(target)
-    assert max(abs(r[e + '_res']) for e in 'HCNS') <= _gate(target)
+    tol = _elem_tol(target)
+    for e in 'CS':
+        assert abs(r[e + '_res']) <= tol[e], e
+    assert r['H_kg_total'] == pytest.approx(target['H'], rel=1e-3, abs=solve_mod.TRUNC_MASS)
+
+
+def test_unjudgeable_clipped_root_is_rejected(monkeypatch):
+    """A root with a negative primary whose clipped residual is NaN is a
+    failed attempt: with one attempt the solver raises."""
+    raw = np.array([-1.0, 5.0, 1.0, 0.5])
+    seen = []
+
+    def _residual(x, *args):
+        seen.append(np.array(x))
+        return [0.0] * 4 if x[0] < 0.0 else [float('nan')] * 4
+
+    monkeypatch.setattr(solve_mod.opt, 'fsolve', lambda *a, **k: (raw, {}, 1, 'stub'))
+    monkeypatch.setattr(solve_mod, 'func', _residual)
+    with pytest.raises(RuntimeError, match='Could not find solution'):
+        equilibrium_atmosphere(
+            dict(_LOW_H),
+            _earth_ddict(T=1500.0, dIW=2.0),
+            p_guess=None,
+            **{**_COLD, 'nguess': 1},
+        )
+    assert seen[-1][0] == pytest.approx(0.0, abs=0.0)
+    assert seen[-1][1] == pytest.approx(5.0, rel=1e-12)
+
+
+def test_clipped_root_must_close_each_noble_gas(monkeypatch):
+    """The per-element check of a root with a negative primary covers the active
+    noble gases: a clipped state that closes CHNOS but not He is rejected."""
+    raw = np.array([1.0, 5.0, -3.0, 0.5, 2.0])  # N2 = -3 bar, He = 2 bar
+    seen = []
+
+    def _residual(x, *args):
+        seen.append(np.array(x))
+        return [0.0] * 5 if x[2] < 0.0 else [0.0, 0.0, 0.0, 0.0, 1.0e18]
+
+    monkeypatch.setattr(solve_mod.opt, 'fsolve', lambda *a, **k: (raw, {}, 1, 'stub'))
+    monkeypatch.setattr(solve_mod, 'func', _residual)
+    ddict = dict(_earth_ddict(T=1500.0, dIW=2.0), He_included=1)
+    target = dict(_LOW_H, He=1.0e17)
+    with pytest.raises(RuntimeError, match='Could not find solution'):
+        equilibrium_atmosphere(
+            target,
+            ddict,
+            p_guess={'H2O': 1.0, 'CO2': 5.0, 'N2': 1.0, 'S2': 0.5, 'He': 2.0},
+            **{**_COLD, 'nguess': 1},
+        )
+    assert seen[-1][2] == pytest.approx(0.0, abs=0.0)
+    assert seen[-1][4] == pytest.approx(2.0, rel=1e-12)
 
 
 def _authoritative_o(target, seed, dIW=2.0):
-    """Authoritative-O solve at 1500 K, with the O budget of a seeded buffered solve at ``dIW``."""
+    """Authoritative-O solve at 1500 K with the O budget of a seeded buffered solve."""
     ddict = _earth_ddict(T=1500.0, dIW=dIW)
     np.random.seed(1)
     ref = equilibrium_atmosphere(dict(target), ddict, p_guess=None, **_COLD)

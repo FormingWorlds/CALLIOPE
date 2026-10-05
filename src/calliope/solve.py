@@ -453,19 +453,6 @@ def dissolved_mass(pin, ddict):
     return _dissolved_mass(pin, ddict['fO2_shift_IW'], ddict)
 
 
-def _clip_pressures(sol, p_idx):
-    """Copy of a solver root with its partial pressures ``sol[p_idx]`` clipped at 0 [bar].
-
-    ``_get_partial_pressures`` forms CH4 and H2S from pH2**2 (and NH3 from
-    pN2 * pH2**3) before it clips any species, so a negative pH2O still forms
-    them; a negative pCO2, pN2 or pS2 alone forms nothing. The solvers judge
-    and report a root with a negative pressure in this clipped form.
-    """
-    x = np.array(sol, dtype=float)
-    x[p_idx] = np.maximum(x[p_idx], 0.0)
-    return x
-
-
 def func(pin_arr, ddict, mass_target_d):
     """Mass-balance residual [kg per element] for the primary partial pressures [bar].
 
@@ -965,11 +952,19 @@ def equilibrium_atmosphere(
                     log.debug('Solution rejected by noble gas residual')
                     success = False
 
-            # A root with a negative primary is judged and reported clipped at 0.
+            # Species form from pH2 before any clip, so a negative pH2O still forms CH4 and
+            # H2S. A root with a negative primary must close every element on its own
+            # tolerance with the primaries clipped at 0, and is reported clipped.
             if success and np.any(np.asarray(sol) < 0.0):
-                sol = _clip_pressures(sol, slice(None))
-                if not np.all(np.abs(np.asarray(func(sol, ddict, target_d)[:4])) <= tolerance):
-                    log.debug('Solution rejected: a negative primary carries mass')
+                clipped = np.maximum(sol, 0.0)
+                elem_tol = np.maximum(
+                    np.array([target_d[e] for e in ('H', 'C', 'N', 'S') + active]) * rtol,
+                    TRUNC_MASS,
+                )
+                if np.all(np.abs(func(clipped, ddict, target_d)) <= elem_tol):
+                    sol = clipped
+                else:
+                    log.debug('Solution rejected: a negative primary carries mass, %s bar', sol)
                     success = False
 
             if success:
@@ -1527,19 +1522,22 @@ def equilibrium_atmosphere_authoritative_O(
                     )
                     success = False
 
+            # The sign check of equilibrium_atmosphere, on this path's per-element gate.
             if success and np.any(sol_p < 0.0):
-                sol = _clip_pressures(sol, p_idx)
+                clipped = np.array(sol, dtype=float)
+                clipped[p_idx] = np.maximum(sol_p, 0.0)
                 try:
-                    resid = np.abs(np.asarray(func_authoritative_O(sol, ddict, target_d)))
-                    carried = not np.all(resid <= elem_tolerance)
+                    resid = np.abs(func_authoritative_O(clipped, ddict, target_d))
+                    success = bool(np.all(resid <= elem_tolerance))
                 except (ZeroDivisionError, FloatingPointError, ValueError):
-                    carried = True
-                if carried:
+                    success = False
+                if success:
+                    sol = clipped
+                else:
                     log.debug(
                         'Solution rejected: a negative partial pressure carries mass, %s bar',
                         sol_p,
                     )
-                    success = False
 
             if success:
                 break
