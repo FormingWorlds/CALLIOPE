@@ -50,6 +50,7 @@ develop = [
     "pip-tools",
     "pytest >= 8.1",
     "pytest-cov",
+    "pytest-timeout",
     "pre-commit",
     "pyyaml",
     "ruff",
@@ -112,6 +113,7 @@ fail_under = 90.0
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+required_plugins = ["pytest-timeout"]
 markers = [
     "unit: fast in-process unit tests (mocked physics, < 100 ms each)",
     "smoke: real-binary tests on minimal configurations (< 30 s each)",
