@@ -38,7 +38,7 @@ from calliope.solubility import SolubilityN2, SolubilityS2  # noqa: E402
 settings.register_profile('calliope_deterministic', derandomize=True)
 settings.load_profile('calliope_deterministic')
 
-pytestmark = [pytest.mark.slow, pytest.mark.timeout(60)]
+pytestmark = [pytest.mark.slow, pytest.mark.timeout(3600)]
 
 
 # Physical bounds for the fuzzing strategies. These cover the

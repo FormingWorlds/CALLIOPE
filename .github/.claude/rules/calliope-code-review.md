@@ -114,7 +114,7 @@ Physical constants (`R_gas`, `M_earth`, `R_earth`, `N_avogadro`, `M_O`, `M_H`) a
 
 ## Test marker discipline
 
-Every test file must begin with a module-level `pytestmark = [pytest.mark.<tier>, pytest.mark.timeout(<budget>)]` (unit/30 s, smoke/60 s, integration/300 s, slow/3600 s). Per-function markers are additive but do not replace the module-level marker; CI runs `pytest -m "(unit or smoke) and not skip"` and any file missing the tier marker ships untested.
+Every test file must begin with a module-level `pytestmark = [pytest.mark.<tier>, pytest.mark.timeout(<budget>)]` (unit/30 s, smoke/60 s, integration/300 s, slow/3600 s, or four times the slowest CI duration rounded up to a full minute when that test takes 7.5 s or more). Per-function markers are additive but do not replace the module-level marker; CI runs `pytest -m "(unit or smoke) and not skip"` and any file missing the tier marker ships untested.
 
 ## Test quality (cross-reference)
 

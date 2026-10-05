@@ -205,7 +205,7 @@ Tier markers, with their CI surface and per-test wall-time budgets:
 pytestmark = [pytest.mark.<tier>, pytest.mark.timeout(<budget>)]
 ```
 
-with timeouts: 30 s for unit, 60 s for smoke, 300 s for integration, 3600 s for slow. Per-function markers are additive but do not replace the module-level marker. CI runs `pytest -m "(unit or smoke) and not skip"`; tests without a tier marker are invisible to CI. The `pytest-timeout` ceiling is a defensive net against future regressions that introduce a hang.
+with timeouts: 30 s for unit, 60 s for smoke, 300 s for integration, 3600 s for slow, or four times the slowest CI duration rounded up to a full minute when that test takes 7.5 s or more. Per-function markers are additive but do not replace the module-level marker. CI runs `pytest -m "(unit or smoke) and not skip"`; tests without a tier marker are invisible to CI. The `pytest-timeout` ceiling is a defensive net against future regressions that introduce a hang.
 
 ### Physics validity
 

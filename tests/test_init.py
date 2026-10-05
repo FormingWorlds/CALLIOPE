@@ -4,7 +4,7 @@ import pytest
 
 from calliope import __version__
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 
 
 def test_version():

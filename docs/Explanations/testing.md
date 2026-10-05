@@ -59,6 +59,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 | `integration` | 300 s |
 | `slow` | 3600 s |
 
+A module whose slowest test takes 7.5 s or more in CI (the four PR jobs and the nightly) uses four times that duration, rounded up to a full minute, in place of the tier value; the solver tests vary several fold between runs. pytest-timeout is a required plugin, so a run without it stops.
+
 The timeout is a defensive ceiling, not a target.
 A unit test that takes 25 s of wall time has either picked the wrong tier or has a leak somewhere; the ceiling catches future regressions that introduce a hang.
 Per-function markers (for example `@pytest.mark.skip` on one stale parametrisation) are additive and do not replace the module-level marker.
