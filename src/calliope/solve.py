@@ -981,7 +981,8 @@ def equilibrium_atmosphere(
                 solver = 1 - solver
 
     # Out of attempts: fall back to the last clipped root that passes the mass gates.
-    if not success and fallback is not None:
+    fell_back = not success and fallback is not None
+    if fell_back:
         sol, clipped_resid = fallback
         log.warning(
             'No root closes every element once clipped at 0 after %d attempts; returning '
@@ -989,7 +990,8 @@ def equilibrium_atmosphere(
             'tolerance for %s',
             count + 1,
             ', '.join(
-                f'{elements[i]} ({clipped_resid[i]:.3g} kg, tolerance {elem_tol[i]:.3g} kg)'
+                f'{elements[i]} ({clipped_resid[i]:.3g} kg, tolerance {elem_tol[i]:.3g} kg, '
+                f'budget {target_d[elements[i]]:.3g} kg)'
                 for i in np.flatnonzero(clipped_resid > elem_tol)
             ),
         )
@@ -1003,6 +1005,18 @@ def equilibrium_atmosphere(
     log.debug('    Initial guess attempt number = %d' % count)
 
     res_l = func(sol, ddict, target_d)
+    # A returned state that empties a nonzero budget (a trace budget below the gate) is
+    # reported, unless the fallback warning has already named it.
+    budgets = np.array([target_d[e] for e in elements])
+    emptied = (budgets > 0.0) & (np.abs(np.asarray(res_l)) >= (1.0 - rtol) * budgets)
+    if np.any(emptied) and not fell_back:
+        log.warning(
+            'The returned state leaves these budgets empty: %s',
+            ', '.join(
+                f'{elements[i]} (residual {res_l[i]:.3g} kg, budget {budgets[i]:.3g} kg)'
+                for i in np.flatnonzero(emptied)
+            ),
+        )
     log.debug('    Residuals: %s' % res_l)
 
     sol_dict = {'H2O': sol[0], 'CO2': sol[1], 'N2': sol[2], 'S2': sol[3]}

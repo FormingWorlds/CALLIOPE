@@ -378,7 +378,7 @@ def test_trace_sulfur_with_absent_nitrogen_keeps_its_root(monkeypatch, caplog, s
     ('seed', 'p_surf', 'h2o'),
     [(0, 9.284216977332548, 0.40219572788976693), (7, 9.284231983250477, 0.40219618681983893)],
 )
-def test_all_positive_root_is_unchanged(monkeypatch, seed, p_surf, h2o):
+def test_all_positive_root_is_unchanged(monkeypatch, caplog, seed, p_surf, h2o):
     """At the Earth fiducial every accepted root has positive primaries, so
     the clip changes nothing and the result is the root fsolve returned. The
     pins hold to rel 1e-5, the solver's xtol noise across platforms."""
@@ -391,6 +391,7 @@ def test_all_positive_root_is_unchanged(monkeypatch, seed, p_surf, h2o):
     )
     assert r['P_surf'] == pytest.approx(p_surf, rel=1e-5)
     assert r['H2O_bar'] == pytest.approx(h2o, rel=1e-5)
+    assert 'leaves these budgets empty' not in caplog.text
 
 
 @pytest.mark.parametrize('n2', [1.0e-30, -1.0e-30])
@@ -566,6 +567,27 @@ def test_sub_gate_budget_worsened_by_the_clip_is_rejected(monkeypatch, caplog):
     np.testing.assert_array_equal([r['H2O_bar'], r['H2_bar'], r['CH4_bar']], 0.0)
     assert 'tolerance for H (1e+15 kg' in caplog.text
     assert 1.0e15 < max(target.values()) * _COLD['rtol'] + _COLD['atol']
+
+
+def test_trace_hydrogen_at_library_defaults_warns_that_h_is_empty(caplog):
+    """With the library tolerances and nguess, a trace H budget (1e12 kg) ends on
+    a root that has already lost its H, which the clip leaves unchanged; the
+    result is returned with a warning naming H, its residual and its budget."""
+    np.random.seed(1)
+    r = equilibrium_atmosphere(
+        {'H': 1.0e12, 'C': 5.0e19, 'N': 0.0, 'S': 1.0e18},
+        _earth_ddict(T=1500.0, dIW=2.0),
+        p_guess=None,
+        xtol=1e-8,
+        rtol=1e-5,
+        atol=1e10,
+        nguess=7500,
+        nsolve=1500,
+        print_result=False,
+        opt_solver=False,
+    )
+    assert 'leaves these budgets empty: H (residual -1e+12 kg, budget 1e+12 kg)' in caplog.text
+    assert r['H_kg_total'] == pytest.approx(0.0, abs=1.0e12 * 1e-5)
 
 
 _LIBRARY = dict(xtol=1e-8, rtol=1e-5, atol=1e10, nguess=50, nsolve=3000, print_result=False)
