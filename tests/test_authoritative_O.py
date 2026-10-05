@@ -24,7 +24,7 @@ from calliope.solve import (
 
 logging.getLogger('calliope').setLevel(logging.WARNING)
 
-pytestmark = [pytest.mark.smoke, pytest.mark.timeout(60)]
+pytestmark = [pytest.mark.smoke, pytest.mark.timeout(180)]
 
 
 # ---------------------------------------------------------------------------

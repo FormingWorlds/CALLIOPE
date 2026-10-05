@@ -20,7 +20,7 @@ import pytest
 
 from calliope.constants import volatile_species
 
-pytestmark = [pytest.mark.integration, pytest.mark.timeout(300)]
+pytestmark = [pytest.mark.integration, pytest.mark.timeout(120)]
 
 
 class TestEquilibriumAtmosphereIntegration:
