@@ -150,6 +150,6 @@ jobs:
         run: |
           FAST_FAIL_UNDER=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['tool']['calliope']['coverage_fast']['fail_under'])")
           echo "Fast gate fail_under: ${FAST_FAIL_UNDER}%"
-          pytest -m "(unit or smoke) and not skip" \
+          pytest -m "(unit or smoke) and not skip" -p no:timeout --durations=0 \
             --cov=calliope \
             --cov-fail-under=${FAST_FAIL_UNDER}

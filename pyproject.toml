@@ -50,6 +50,7 @@ develop = [
     "pip-tools",
     "pytest >= 8.1",
     "pytest-cov",
+    "pytest-timeout",
     "pre-commit",
     "pyyaml",
     "ruff",
