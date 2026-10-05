@@ -530,10 +530,10 @@ def test_accepted_clipped_state_must_pass_the_mass_gate(monkeypatch):
     assert clip_n - raw_n < _LOW_H['N'] * _COLD['rtol']
 
 
-def test_sub_gate_budget_worsened_by_the_clip_is_accepted_at_once(monkeypatch, caplog):
-    """When only an element whose budget lies below the scalar gate is worsened
-    beyond its tolerance, and the clipped state passes the gate, the root is
-    accepted on that attempt: no fallback, no warning."""
+def test_sub_gate_budget_worsened_by_the_clip_is_rejected(monkeypatch, caplog):
+    """A clip that worsens an element beyond its tolerance is rejected even when
+    that element's budget lies below the scalar gate; with no attempt left the
+    clipped root, which passes the gate, returns through the warned fallback."""
     target = dict(_LOW_H, H=1.0e15)
     _stub_buffered(
         monkeypatch,
@@ -544,7 +544,7 @@ def test_sub_gate_budget_worsened_by_the_clip_is_accepted_at_once(monkeypatch, c
         target, _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **{**_COLD, 'nguess': 1}
     )
     np.testing.assert_array_equal([r['H2O_bar'], r['H2_bar'], r['CH4_bar']], 0.0)
-    assert 'returning the last clipped root' not in caplog.text
+    assert 'tolerance for H (1e+15 kg' in caplog.text
     assert 1.0e15 < max(target.values()) * _COLD['rtol'] + _COLD['atol']
 
 

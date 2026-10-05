@@ -892,8 +892,7 @@ def equilibrium_atmosphere(
     # to their own per-gas gate below.
     tolerance = np.amax([target_d[e] for e in ('H', 'C', 'N', 'S')]) * rtol + atol + TRUNC_MASS
     elements = ('H', 'C', 'N', 'S') + active
-    budget = np.array([target_d[e] for e in elements])
-    elem_tol = np.maximum(budget * rtol, TRUNC_MASS)
+    elem_tol = np.maximum(np.array([target_d[e] for e in elements]) * rtol, TRUNC_MASS)
     log.debug('Required tolerance: %g' % tolerance)
 
     with warnings.catch_warnings():
@@ -963,10 +962,7 @@ def equilibrium_atmosphere(
                 in_gate = np.amax(clipped_resid[:4]) <= tolerance and np.all(
                     clipped_resid[4:] <= elem_tol[4:]
                 )
-                over = worse > elem_tol
-                if in_gate and np.all(budget[over] < tolerance):
-                    if np.any(over):
-                        log.debug('Clipped root accepted: only sub-gate budgets worsened')
+                if in_gate and np.all(worse <= elem_tol):
                     sol = clipped
                 else:
                     log.debug('Solution rejected: a negative primary carries mass, %s bar', sol)
