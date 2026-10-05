@@ -905,6 +905,7 @@ def equilibrium_atmosphere(
             warnings.filterwarnings('ignore', category=UserWarning)
 
         solver: int = 0
+        fallback = None
         for count in range(nguess):
             if solver == 0:
                 sol, _, ier, _ = opt.fsolve(
@@ -963,6 +964,8 @@ def equilibrium_atmosphere(
                 else:
                     log.debug('Solution rejected: a negative primary carries mass, %s bar', sol)
                     success = False
+                    if np.all(np.isfinite(worse)):
+                        fallback = (clipped, worse)
 
             if success:
                 break
@@ -974,6 +977,20 @@ def equilibrium_atmosphere(
             # other. Disable via opt_solver=False to pin to fsolve.
             if opt_solver:
                 solver = 1 - solver
+
+    # Out of attempts: fall back to the last root that passed the scalar gate, clipped.
+    if not success and fallback is not None:
+        sol, worse = fallback
+        worst = int(np.argmax(worse / elem_tol))
+        log.warning(
+            'No root closes every element once clipped at 0; returning the last root that '
+            'passed the mass gate, clipped, with the %s residual worse by %.3g kg '
+            '(%.3g times its tolerance)',
+            (('H', 'C', 'N', 'S') + active)[worst],
+            worse[worst],
+            worse[worst] / elem_tol[worst],
+        )
+        success = True
 
     if not success:
         raise RuntimeError(
