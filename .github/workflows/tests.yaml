@@ -152,4 +152,4 @@ jobs:
           echo "Fast gate fail_under: ${FAST_FAIL_UNDER}%"
           pytest -m "(unit or smoke) and not skip" \
             --cov=calliope \
-            --cov-fail-under=${FAST_FAIL_UNDER}
+            --cov-fail-under=${FAST_FAIL_UNDER} --durations=0 -vv

@@ -46,7 +46,7 @@ jobs:
             --cov=calliope \
             --cov-report=term-missing \
             --cov-report=xml \
-            --cov-fail-under=90
+            --cov-fail-under=90 --durations=0 -vv
 
       - name: Upload coverage to Codecov
         if: ${{ !cancelled() }}
