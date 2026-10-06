@@ -11,7 +11,7 @@ from calliope.constants import (
     volatile_species,
 )
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 
 # Per-source tests live in their 1:1-mirrored files:
 #   chemistry.py        -> tests/test_chemistry.py

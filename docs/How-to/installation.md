@@ -20,7 +20,7 @@ cd CALLIOPE
 pip install -e .
 ```
 
-To also install the optional development tooling (pytest, pytest-cov, ruff, pre-commit, coverage, pip-tools):
+To also install the optional development tooling (pytest, pytest-cov, pytest-timeout, ruff, pre-commit, coverage, pip-tools):
 
 ```console
 pip install -e .[develop]

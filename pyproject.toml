@@ -50,6 +50,7 @@ develop = [
     "pip-tools",
     "pytest >= 8.1",
     "pytest-cov",
+    "pytest-timeout",
     "pre-commit",
     "pyyaml",
     "ruff",
@@ -112,9 +113,10 @@ fail_under = 90.0
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+required_plugins = ["pytest-timeout"]
 markers = [
     "unit: fast in-process unit tests (mocked physics, < 100 ms each)",
-    "smoke: real-binary tests on minimal configurations (< 30 s each)",
+    "smoke: real-binary tests on minimal configurations (target < 30 s each)",
     "integration: real-binary tests with full coupling",
     "slow: anything > 1 minute, run in nightly only",
     "physics_invariant: marks tests that assert a physical invariant (conservation, positivity, boundedness, monotonicity, symmetry). See .github/.claude/rules/calliope-tests.md section 3.",

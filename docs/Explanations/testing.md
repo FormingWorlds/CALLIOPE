@@ -29,7 +29,7 @@ Layers 2 and 3 are advisory: the linter reports gaps but does not fail the build
 
 ## The four-marker tier scheme
 
-Every test in the suite carries exactly one tier marker, applied either at module level (`pytestmark = pytest.mark.X`) or per class (`@pytest.mark.X`).
+Every test in the suite carries exactly one tier marker, applied either at module level (`pytestmark = [pytest.mark.X, pytest.mark.timeout(<budget>)]`) or per class (`@pytest.mark.X`).
 
 | Marker | What it tests | Per-test budget | CI surface |
 |---|---|---|---|
@@ -58,6 +58,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 | `smoke` | 60 s |
 | `integration` | 300 s |
 | `slow` | 3600 s |
+
+A module whose slowest test takes 7.5 s or more in CI (the four PR jobs and the nightly) uses four times that duration, rounded up to a full minute, in place of the tier value; the solver tests vary several fold between runs. pytest-timeout is a required plugin, so a run without it stops. A collection hook in `tests/conftest.py` stops the run when the timeout mark that applies to a test has no positive budget.
 
 The timeout is a defensive ceiling, not a target.
 A unit test that takes 25 s of wall time has either picked the wrong tier or has a leak somewhere; the ceiling catches future regressions that introduce a hang.

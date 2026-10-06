@@ -228,6 +228,8 @@ with budgets:
 - `integration` -> `timeout(300)`.
 - `slow` -> `timeout(3600)`.
 
+A module whose slowest test takes 7.5 s or more in CI (the four PR jobs and the nightly) uses four times that duration, rounded up to a full minute, in place of the tier value; the solver tests vary several fold between runs. pytest-timeout is a required plugin, so a run without it stops. A collection hook in `tests/conftest.py` stops the run when the timeout mark that applies to a test has no positive budget.
+
 PR CI runs `pytest -m "(unit or smoke) and not skip"`. Tests without the tier marker are invisible to CI and shipped untested. The lint script blocks any file missing the module-level `pytestmark`.
 
 ### Per-function markers
@@ -236,7 +238,7 @@ Per-function `@pytest.mark.<tier>` markers are **additive**, not a replacement f
 
 ### Timeout is a safety net, not a target
 
-The `timeout` ceiling exists so a future regression that introduces a hang (real solver call, infinite loop, network retry) surfaces as a specific-test failure rather than a generic job timeout. Current test wall times are 100x below the ceiling; if you find yourself needing the full 30 s for a unit test, something has gone wrong and you should reduce scope or move the test to a slower tier.
+The `timeout` ceiling exists so a future regression that introduces a hang (real solver call, infinite loop, network retry) surfaces as a specific-test failure rather than a generic job timeout. Most unit tests run 100x below the ceiling; if you find yourself needing the full 30 s for a unit test, something has gone wrong and you should reduce scope or move the test to a slower tier.
 
 ---
 

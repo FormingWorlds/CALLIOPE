@@ -23,7 +23,7 @@ from calliope.solve import (
     get_partial_pressures,
 )
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 
 
 def _make_ddict(

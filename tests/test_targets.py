@@ -19,7 +19,7 @@ from calliope.solve import (
     get_target_from_pressures,
 )
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 
 
 def _base_ddict(
