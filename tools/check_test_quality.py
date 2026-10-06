@@ -4,7 +4,8 @@
 Enforces the rules in `.github/.claude/rules/calliope-tests.md` (sections 1 + 7):
 
 - Every test file must declare a module-level ``pytestmark`` containing a tier
-  marker (``unit`` / ``smoke`` / ``integration`` / ``slow``).
+  marker (``unit`` / ``smoke`` / ``integration`` / ``slow``) and a
+  ``pytest.mark.timeout(<budget>)``.
 - Test functions must contain at least 2 assertion statements OR a discriminating
   property-based assertion. Single-assert tests are a known weak pattern.
 - Forbidden weak assertions when they stand alone as the sole meaningful
@@ -198,8 +199,8 @@ def _has_float_eq(node: ast.AST) -> bool:
     return False
 
 
-def _module_pytestmark_tier(tree: ast.Module) -> str | None:
-    """Return the tier marker declared in a module-level ``pytestmark``, or None."""
+def _module_pytestmark_nodes(tree: ast.Module) -> list[ast.AST]:
+    """Return the mark nodes of the module-level ``pytestmark``, or an empty list."""
     for stmt in tree.body:
         if not isinstance(stmt, ast.Assign):
             continue
@@ -208,12 +209,18 @@ def _module_pytestmark_tier(tree: ast.Module) -> str | None:
         if stmt.targets[0].id != 'pytestmark':
             continue
         marks = stmt.value
-        nodes = marks.elts if isinstance(marks, (ast.List, ast.Tuple)) else [marks]
-        for n in nodes:
-            tier = _tier_of_mark_node(n)
-            if tier is not None:
-                return tier
-    return None
+        return marks.elts if isinstance(marks, (ast.List, ast.Tuple)) else [marks]
+    return []
+
+
+def _is_timeout_call(n: ast.AST) -> bool:
+    """True for a ``pytest.mark.timeout(...)`` call node."""
+    f = n.func if isinstance(n, ast.Call) else None
+    return (
+        isinstance(f, ast.Attribute)
+        and f.attr == 'timeout'
+        and ast.unparse(f.value) == 'pytest.mark'
+    )
 
 
 def _tier_of_mark_node(n: ast.AST) -> str | None:
@@ -401,9 +408,12 @@ def check_file(path: Path) -> Violations:
         v.add('parse_error', f'{rel}: {e}')
         return v
 
-    module_tier = _module_pytestmark_tier(tree)
+    marks = _module_pytestmark_nodes(tree)
+    module_tier = next((t for n in marks if (t := _tier_of_mark_node(n))), None)
     if module_tier is None:
         v.add('missing_module_pytestmark', rel)
+    if not any(_is_timeout_call(n) for n in marks):
+        v.add('missing_module_timeout', rel)
 
     for dep in _missing_importorskip(tree):
         v.add('missing_importorskip', f'{rel}: {dep}')
