@@ -230,7 +230,7 @@ with budgets:
 
 A module whose slowest test takes 7.5 s or more in CI (the four PR jobs and the nightly) uses four times that duration, rounded up to a full minute, in place of the tier value; the solver tests vary several fold between runs. pytest-timeout is a required plugin, so a run without it stops.
 
-PR CI runs `pytest -m "(unit or smoke) and not skip"`. Tests without the tier marker are invisible to CI and shipped untested. The lint script blocks any file missing the module-level `pytestmark`.
+PR CI runs `pytest -m "(unit or smoke) and not skip"`. Tests without the tier marker are invisible to CI and shipped untested. The lint script blocks any file whose module-level `pytestmark` lacks a tier marker or a timeout.
 
 ### Per-function markers
 
