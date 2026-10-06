@@ -262,7 +262,7 @@ bash tools/validate_test_structure.sh
 
 ## Test-quality lint
 
-`tools/check_test_quality.py` is an AST linter that walks `tests/test_*.py` and enforces seven rules (single-assert, weak-assertion, missing docstring, float-eq-literal, missing module-level pytestmark, no assertions, missing importorskip).
+`tools/check_test_quality.py` is an AST linter that walks `tests/test_*.py` and enforces eight rules (single-assert, weak-assertion, missing docstring, float-eq-literal, missing module-level pytestmark, missing module-level timeout, no assertions, missing importorskip).
 It runs in two modes:
 
 ```console

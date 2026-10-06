@@ -237,6 +237,7 @@ Every new test function MUST include:
 - Single-assert test functions.
 - Standalone weak assertions (`assert result is not None`, `assert result > 0`, `assert len(result) > 0`, `assert isinstance(result, dict)`) as the only meaningful check.
 - Tests with no function-level docstring.
+- Test files whose module-level `pytestmark` lacks a tier marker or a positive timeout.
 - Tests using `==` adjacent to float literals.
 - Tests asserting on a fixture's implicit default.
 

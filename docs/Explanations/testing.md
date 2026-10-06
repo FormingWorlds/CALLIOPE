@@ -21,7 +21,7 @@ Five layers enforce test rigor across the suite:
 1. A four-marker tier scheme (`unit`, `smoke`, `integration`, `slow`) selects what runs in the PR gate versus the nightly.
 2. Two validation markers (`physics_invariant`, `reference_pinned`) tag tests that carry physical meaning beyond pure code coverage.
 3. A 1:1 mirroring rule pairs every physics source with a same-named test file.
-4. An AST linter (`tools/check_test_quality.py`) rejects seven weak-test patterns on every PR.
+4. An AST linter (`tools/check_test_quality.py`) rejects eight weak-test patterns on every PR.
 5. A coverage ratchet capped at 90 % keeps the gate moving upward over time.
 
 Layers 1, 4, and 5 are blocking on PRs.
@@ -29,7 +29,7 @@ Layers 2 and 3 are advisory: the linter reports gaps but does not fail the build
 
 ## The four-marker tier scheme
 
-Every test in the suite carries exactly one tier marker, applied either at module level (`pytestmark = pytest.mark.X`) or per class (`@pytest.mark.X`).
+Every test in the suite carries exactly one tier marker, applied either at module level (`pytestmark = [pytest.mark.X, pytest.mark.timeout(<budget>)]`) or per class (`@pytest.mark.X`).
 
 | Marker | What it tests | Per-test budget | CI surface |
 |---|---|---|---|
@@ -126,11 +126,12 @@ When a new physics source is added, its 1:1 test file is created at the same tim
 
 ## AST test-quality linter
 
-`tools/check_test_quality.py` walks `tests/test_*.py` as an AST and enforces seven rules:
+`tools/check_test_quality.py` walks `tests/test_*.py` as an AST and enforces eight rules:
 
 | Rule | What it flags |
 |---|---|
 | `missing_module_pytestmark` | Test file with no module-level `pytestmark` (a tier marker is required). |
+| `missing_module_timeout` | Module-level `pytestmark` without `pytest.mark.timeout(<budget>)` and a positive budget. |
 | `missing_docstring` | Test function with no docstring. |
 | `single_assert` | Function with exactly one assertion (anti-happy-path: a single assert is rarely enough to discriminate the correct formula from plausible wrong ones). |
 | `no_assertions` | Function with zero assertions (only valid for tests that exercise an exception path with `pytest.raises`). |
