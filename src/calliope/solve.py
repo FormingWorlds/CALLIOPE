@@ -104,6 +104,9 @@ def _noble_henry_seed(core_out, active, target_d, ddict):
 # not rejected for sub-10-kg mass-balance noise.
 TRUNC_MASS = 1e1
 
+# Elements whose emptied budget has been warned about in this process.
+_EMPTIED_WARNED = set()
+
 # Solver bounds, in one place so the cold-start guess range, the trust-constr
 # box, and the fO2-hint validation cannot drift apart.
 #
@@ -891,6 +894,8 @@ def equilibrium_atmosphere(
     # closure demanded of the trace CHNOS elements. The noble gases are held
     # to their own per-gas gate below.
     tolerance = np.amax([target_d[e] for e in ('H', 'C', 'N', 'S')]) * rtol + atol + TRUNC_MASS
+    elements = ('H', 'C', 'N', 'S') + active
+    elem_tol = np.maximum(np.array([target_d[e] for e in elements]) * rtol, TRUNC_MASS)
     log.debug('Required tolerance: %g' % tolerance)
 
     with warnings.catch_warnings():
@@ -902,6 +907,7 @@ def equilibrium_atmosphere(
             warnings.filterwarnings('ignore', category=UserWarning)
 
         solver: int = 0
+        fallback = None
         for count in range(nguess):
             if solver == 0:
                 sol, _, ier, _ = opt.fsolve(
@@ -945,12 +951,26 @@ def equilibrium_atmosphere(
             # authoritative-O path already uses.
             if success and active:
                 noble_resid = np.abs(np.asarray(this_resid[4:]))
-                noble_tol = np.maximum(
-                    np.array([target_d[gas] for gas in active]) * rtol, TRUNC_MASS
-                )
-                if np.any(noble_resid > noble_tol):
+                if np.any(noble_resid > elem_tol[4:]):
                     log.debug('Solution rejected by noble gas residual')
                     success = False
+
+            # Species form from pH2 before any clip, so a negative pH2O still forms CH4 and
+            # H2S. Judge and report a root with a negative primary in its clipped form; see
+            # docs/Explanations/mass_balance.md (sign check) for the acceptance rule.
+            if success and np.any(sol < 0.0):
+                clipped = np.maximum(sol, 0.0)
+                clipped_resid = np.abs(func(clipped, ddict, target_d))
+                in_gate = np.amax(clipped_resid[:4]) <= tolerance and np.all(
+                    clipped_resid[4:] <= elem_tol[4:]
+                )
+                if in_gate and np.all(clipped_resid - np.abs(this_resid) <= elem_tol):
+                    sol = clipped
+                else:
+                    log.debug('Solution rejected: a negative primary carries mass, %s bar', sol)
+                    success = False
+                    if in_gate:
+                        fallback = (clipped, clipped_resid)
 
             if success:
                 break
@@ -963,6 +983,23 @@ def equilibrium_atmosphere(
             if opt_solver:
                 solver = 1 - solver
 
+    # Out of attempts: fall back to the last clipped root that passes the mass gates.
+    fell_back = not success and fallback is not None
+    if fell_back:
+        sol, clipped_resid = fallback
+        log.warning(
+            'No root closes every element once clipped at 0 after %d attempts; returning '
+            'the last clipped root that passes the mass gate, with |residual| over '
+            'tolerance for %s',
+            count + 1,
+            ', '.join(
+                f'{elements[i]} ({clipped_resid[i]:.3g} kg, tolerance {elem_tol[i]:.3g} kg, '
+                f'budget {target_d[elements[i]]:.3g} kg)'
+                for i in np.flatnonzero(clipped_resid > elem_tol)
+            ),
+        )
+        success = True
+
     if not success:
         raise RuntimeError(
             'Could not find solution for volatile abundances (max attempts, %d)' % nguess
@@ -971,6 +1008,25 @@ def equilibrium_atmosphere(
     log.debug('    Initial guess attempt number = %d' % count)
 
     res_l = func(sol, ddict, target_d)
+    # A returned state that empties a nonzero budget is warned once per process and element;
+    # repeats go to debug, and a fallback is covered by its own warning.
+    budgets = np.array([target_d[e] for e in elements])
+    emptied = [
+        elements[i]
+        for i in np.flatnonzero(
+            (budgets > 0.0) & (np.asarray(res_l) <= -(1.0 - rtol) * budgets)
+        )
+    ]
+    if emptied and not fell_back:
+        new = [e for e in emptied if e not in _EMPTIED_WARNED]
+        _EMPTIED_WARNED.update(new)
+        (log.warning if new else log.debug)(
+            'The returned state leaves these budgets empty: %s',
+            ', '.join(
+                f'{e} (residual {res_l[elements.index(e)]:.3g} kg, budget {target_d[e]:.3g} kg)'
+                for e in emptied
+            ),
+        )
     log.debug('    Residuals: %s' % res_l)
 
     sol_dict = {'H2O': sol[0], 'CO2': sol[1], 'N2': sol[2], 'S2': sol[3]}
@@ -1482,21 +1538,15 @@ def equilibrium_atmosphere_authoritative_O(
                     )
                     success = False
 
-            # Reject a converged-but-non-physical root. The production
-            # path runs only the unbounded fsolve (opt_solver=False), so a
-            # root can satisfy mass balance yet sit outside the physical
-            # box: a derived fO2_shift beyond [-12, +12] (the target O is
-            # unreachable at this H/C/N/S/T_magma), a negative partial
-            # pressure, or a partial pressure above the 1e7 bar ceiling.
-            # trust-constr enforces `bounds`; fsolve does not, so the full
-            # box is enforced here before the solution is accepted.
+            # fsolve (the production path) ignores `bounds`: reject a root with fO2_shift
+            # outside [-12, +12], a negative partial pressure that carries mass, or a
+            # partial pressure above the ceiling.
             if success:
                 # All partial pressures: the four CHNOS primaries plus the
                 # noble gas slots at indices 5+. fO2_shift (index 4) is
                 # bounds-checked separately with its own log10 range.
-                sol_p = np.asarray(
-                    [sol[i] for i in [0, 1, 2, 3] + noble_pressure_idx], dtype=float
-                )
+                p_idx = [0, 1, 2, 3] + noble_pressure_idx
+                sol_p = np.asarray(sol, dtype=float)[p_idx]
                 if not (lb[4] <= sol[4] <= ub[4]):
                     log.debug(
                         'Solution rejected: derived fO2_shift=%.3f outside [%.1f, %.1f]',
@@ -1505,9 +1555,6 @@ def equilibrium_atmosphere_authoritative_O(
                         ub[4],
                     )
                     success = False
-                elif np.any(sol_p < -1.0e-6):
-                    log.debug('Solution rejected: negative partial pressure %s bar', sol_p)
-                    success = False
                 elif np.any(sol_p > p_ceiling * (1.0 + 1.0e-6)):
                     log.debug(
                         'Solution rejected: partial pressure above %.1e bar ceiling: %s bar',
@@ -1515,6 +1562,21 @@ def equilibrium_atmosphere_authoritative_O(
                         sol_p,
                     )
                     success = False
+                elif np.any(sol_p < 0.0):
+                    clipped = np.array(sol, dtype=float)
+                    clipped[p_idx] = np.maximum(sol_p, 0.0)
+                    try:
+                        resid = np.abs(func_authoritative_O(clipped, ddict, target_d))
+                        success = bool(np.all(resid <= elem_tolerance))
+                    except (ZeroDivisionError, FloatingPointError, ValueError):
+                        success = False
+                    if success:
+                        sol = clipped
+                    else:
+                        log.debug(
+                            'Solution rejected: negative pressure carries mass, %s bar',
+                            sol_p,
+                        )
 
             if success:
                 break
