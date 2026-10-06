@@ -205,7 +205,7 @@ Tier markers, with their CI surface and per-test wall-time budgets:
 pytestmark = [pytest.mark.<tier>, pytest.mark.timeout(<budget>)]
 ```
 
-with timeouts: 30 s for unit, 60 s for smoke, 300 s for integration, 3600 s for slow, or four times the slowest CI duration rounded up to a full minute when that test takes 7.5 s or more. Per-function markers are additive but do not replace the module-level marker. CI runs `pytest -m "(unit or smoke) and not skip"`; tests without a tier marker are invisible to CI. The `pytest-timeout` ceiling is a defensive net against future regressions that introduce a hang.
+with timeouts: 30 s for unit, 60 s for smoke, 300 s for integration, 3600 s for slow, or four times the slowest CI duration rounded up to a full minute when that test takes 7.5 s or more. Per-function markers are additive but do not replace the module-level marker. CI runs `pytest -m "(unit or smoke) and not skip"`; tests without a tier marker are invisible to CI. The `pytest-timeout` ceiling is a defensive net against future regressions that introduce a hang. A collection hook in `tests/conftest.py` stops the run when the timeout mark that applies to a test has no positive budget.
 
 ### Physics validity
 
@@ -237,7 +237,6 @@ Every new test function MUST include:
 - Single-assert test functions.
 - Standalone weak assertions (`assert result is not None`, `assert result > 0`, `assert len(result) > 0`, `assert isinstance(result, dict)`) as the only meaningful check.
 - Tests with no function-level docstring.
-- Test files whose module-level `pytestmark` lacks a tier marker or a positive timeout.
 - Tests using `==` adjacent to float literals.
 - Tests asserting on a fixture's implicit default.
 

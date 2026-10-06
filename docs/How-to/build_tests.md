@@ -67,7 +67,7 @@ The timeouts per tier:
 | `integration` | 300 s |
 | `slow` | 3600 s |
 
-A module whose slowest test takes 7.5 s or more in CI (the four PR jobs and the nightly) uses four times that duration, rounded up to a full minute, in place of the tier value; the solver tests vary several fold between runs. pytest-timeout is a required plugin, so a run without it stops.
+A module whose slowest test takes 7.5 s or more in CI (the four PR jobs and the nightly) uses four times that duration, rounded up to a full minute, in place of the tier value; the solver tests vary several fold between runs. pytest-timeout is a required plugin, so a run without it stops. A collection hook in `tests/conftest.py` stops the run when the timeout mark that applies to a test has no positive budget.
 
 Per-function markers (`@pytest.mark.skip` on a stale parametrisation, for example) are additive and do not replace the module-level marker.
 
@@ -262,7 +262,7 @@ bash tools/validate_test_structure.sh
 
 ## Test-quality lint
 
-`tools/check_test_quality.py` is an AST linter that walks `tests/test_*.py` and enforces eight rules (single-assert, weak-assertion, missing docstring, float-eq-literal, missing module-level pytestmark, missing module-level timeout, no assertions, missing importorskip).
+`tools/check_test_quality.py` is an AST linter that walks `tests/test_*.py` and enforces seven rules (single-assert, weak-assertion, missing docstring, float-eq-literal, missing module-level pytestmark, no assertions, missing importorskip).
 It runs in two modes:
 
 ```console

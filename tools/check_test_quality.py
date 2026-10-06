@@ -4,8 +4,7 @@
 Enforces the rules in `.github/.claude/rules/calliope-tests.md` (sections 1 + 7):
 
 - Every test file must declare a module-level ``pytestmark`` containing a tier
-  marker (``unit`` / ``smoke`` / ``integration`` / ``slow``) and a
-  ``pytest.mark.timeout(<budget>)`` with a positive budget.
+  marker (``unit`` / ``smoke`` / ``integration`` / ``slow``).
 - Test functions must contain at least 2 assertion statements OR a discriminating
   property-based assertion. Single-assert tests are a known weak pattern.
 - Forbidden weak assertions when they stand alone as the sole meaningful
@@ -199,29 +198,22 @@ def _has_float_eq(node: ast.AST) -> bool:
     return False
 
 
-def _module_pytestmark_nodes(tree: ast.Module) -> list[ast.AST]:
-    """Return the mark nodes of the last module-level ``pytestmark`` assignment, or []."""
-    nodes: list[ast.AST] = []
+def _module_pytestmark_tier(tree: ast.Module) -> str | None:
+    """Return the tier marker declared in a module-level ``pytestmark``, or None."""
     for stmt in tree.body:
-        if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1:
-            target = stmt.targets[0]
-        elif isinstance(stmt, ast.AnnAssign) and stmt.value is not None:
-            target = stmt.target
-        else:
+        if not isinstance(stmt, ast.Assign):
             continue
-        if isinstance(target, ast.Name) and target.id == 'pytestmark':
-            marks = stmt.value
-            nodes = marks.elts if isinstance(marks, (ast.List, ast.Tuple)) else [marks]
-    return nodes
-
-
-def _is_positive_timeout(n: ast.AST) -> bool:
-    """True for ``pytest.mark.timeout(<budget>)`` with a positive numeric budget."""
-    if not (isinstance(n, ast.Call) and ast.unparse(n.func) == 'pytest.mark.timeout'):
-        return False
-    kw = [k.value for k in n.keywords if k.arg == 'timeout']
-    arg = n.args[0] if n.args else (kw[0] if kw else None)
-    return isinstance(arg, ast.Constant) and type(arg.value) in (int, float) and arg.value > 0
+        if not (len(stmt.targets) == 1 and isinstance(stmt.targets[0], ast.Name)):
+            continue
+        if stmt.targets[0].id != 'pytestmark':
+            continue
+        marks = stmt.value
+        nodes = marks.elts if isinstance(marks, (ast.List, ast.Tuple)) else [marks]
+        for n in nodes:
+            tier = _tier_of_mark_node(n)
+            if tier is not None:
+                return tier
+    return None
 
 
 def _tier_of_mark_node(n: ast.AST) -> str | None:
@@ -409,11 +401,9 @@ def check_file(path: Path) -> Violations:
         v.add('parse_error', f'{rel}: {e}')
         return v
 
-    marks = _module_pytestmark_nodes(tree)
-    if not any(_tier_of_mark_node(n) for n in marks):
+    module_tier = _module_pytestmark_tier(tree)
+    if module_tier is None:
         v.add('missing_module_pytestmark', rel)
-    if not any(_is_positive_timeout(n) for n in marks):
-        v.add('missing_module_timeout', rel)
 
     for dep in _missing_importorskip(tree):
         v.add('missing_importorskip', f'{rel}: {dep}')
