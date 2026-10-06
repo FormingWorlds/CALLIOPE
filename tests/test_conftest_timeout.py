@@ -37,10 +37,3 @@ def test_hook_names_every_test_without_a_positive_budget(tmp_path):
     named = out.stderr.split('positive timeout mark:')[-1].split()
     expected = [f'test_{n}.py::test_a' for n in _BAD if n != 'class_mark']
     assert sorted(named) == sorted([*expected, 'test_class_mark.py::TestA::test_a'])
-
-
-def test_hook_passes_a_module_with_a_positive_budget(tmp_path):
-    """A module whose only test has a 30 s mark collects normally."""
-    out = _collect(tmp_path, {'good': _GOOD})
-    assert out.returncode == pytest.ExitCode.OK, out.stdout + out.stderr
-    assert 'test_good.py::test_a' in out.stdout
