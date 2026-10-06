@@ -9,20 +9,18 @@ import pytest
 
 
 def _positive_budget(mark) -> bool:
-    """True when a timeout mark carries exactly one finite positive budget."""
+    """True when a timeout mark carries exactly one finite positive numeric budget."""
     if mark is None:
         return False
-    budgets = list(mark.args[:1]) + (
-        [mark.kwargs['timeout']] if 'timeout' in mark.kwargs else []
-    )
-    return len(budgets) == 1 and type(budgets[0]) in (int, float) and 0 < budgets[0] < math.inf
+    budgets = [*mark.args[:1], *(v for k, v in mark.kwargs.items() if k == 'timeout')]
+    b = budgets[0] if len(budgets) == 1 else None
+    return isinstance(b, (int, float)) and not isinstance(b, bool) and 0 < b < math.inf
 
 
-def pytest_collection_modifyitems(config, items):
-    """Stop the run when a test has no positive time limit.
+def pytest_collection_modifyitems(items):
+    """Stop the run when a test, selected or not, has no positive time limit.
 
-    Reads ``item.get_closest_marker('timeout')``, the mark pytest-timeout applies, and takes
-    its budget from the first positional argument or the ``timeout`` keyword.
+    Reads the closest ``timeout`` mark, which is the mark pytest-timeout applies.
     """
     bad = [i.nodeid for i in items if not _positive_budget(i.get_closest_marker('timeout'))]
     if bad:

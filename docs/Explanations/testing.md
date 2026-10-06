@@ -29,7 +29,7 @@ Layers 2 and 3 are advisory: the linter reports gaps but does not fail the build
 
 ## The four-marker tier scheme
 
-Every test in the suite carries exactly one tier marker, applied either at module level (`pytestmark = pytest.mark.X`) or per class (`@pytest.mark.X`).
+Every test in the suite carries exactly one tier marker, applied either at module level (`pytestmark = [pytest.mark.X, pytest.mark.timeout(<budget>)]`) or per class (`@pytest.mark.X`).
 
 | Marker | What it tests | Per-test budget | CI surface |
 |---|---|---|---|
