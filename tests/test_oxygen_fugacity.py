@@ -1,6 +1,6 @@
 """Tests for `src/calliope/oxygen_fugacity.py`.
 
-Exercises the `OxygenFugacity` IW-buffer dispatcher and its two
+Exercises the `OxygenFugacity` IW-buffer dispatcher and its three
 underlying fits:
 
 - Reference pin: Fischer et al. (2011) IW value at T = 2000 K against
@@ -10,19 +10,27 @@ underlying fits:
   buffer; a default change in `oxygen_fugacity.py` would otherwise
   silently shift every PROTEUS-side number pinned to the previous
   default.
+- Reference pin: Hirschmann (2021) IW at 1 bar and T = 1473 K against
+  the IW value plotted in their Fig. 5, with guards against both the
+  Fischer and O'Neill buffers.
+- Analytical limit: the Hirschmann (2021) low-pressure slope matches
+  `2 dV / (R T ln 10)` from the Fe and FeO molar volumes.
+- Continuity: the fcc/bcc and hcp branches of Hirschmann (2021) meet at
+  the fcc-hcp iron boundary within the published fit mismatch.
 - Monotonicity: `log10(fO2)` is monotonic in T along each buffer
-  over the 1500-3000 K range.
+  over the 1500-3000 K range, and in P along the Hirschmann buffer.
 - Symmetry: `fO2_shift` is strictly additive: `of(T, dIW) = of(T, 0) + dIW`.
 - Boundedness: `log10(fO2)` is finite for any valid (T > 0, dIW finite).
 - Error contract: T <= 0 raises `ValueError` mentioning the divergence
-  in the underlying formulae; unknown buffer names raise
-  `AttributeError` at construction.
+  in the underlying formulae; negative pressure raises `ValueError`;
+  unknown buffer names raise `AttributeError` at construction.
 """
 
 from __future__ import annotations
 
 import math
 
+import numpy as np
 import pytest
 
 from calliope.oxygen_fugacity import OxygenFugacity
@@ -97,7 +105,7 @@ def test_oxygen_fugacity_shift_is_strictly_additive():
     regression that multiplies instead of adds, or that applies the
     shift twice, would break this identity.
     """
-    for buffer_name in ('fischer', 'oneill'):
+    for buffer_name in ('fischer', 'oneill', 'hirschmann'):
         of = OxygenFugacity(buffer_name)
         base = of(1800.0, fO2_shift=0.0)
         plus_half = of(1800.0, fO2_shift=0.5)
@@ -112,7 +120,7 @@ def test_oxygen_fugacity_shift_is_strictly_additive():
 
 @pytest.mark.physics_invariant
 def test_oxygen_fugacity_monotonic_in_T():
-    """Both buffers produce `log10(fO2)` strictly increasing with T over 1500-3000 K.
+    """All buffers produce `log10(fO2)` strictly increasing with T over 1500-3000 K.
 
     A hot magma ocean is more reducing on an absolute scale than a cool
     one at the IW buffer, but the IW buffer itself is defined by the
@@ -122,7 +130,7 @@ def test_oxygen_fugacity_monotonic_in_T():
     ocean (~3000 K), giving a delta large enough to resolve a regression
     that flipped the sign of the slope.
     """
-    for buffer_name in ('fischer', 'oneill'):
+    for buffer_name in ('fischer', 'oneill', 'hirschmann'):
         of = OxygenFugacity(buffer_name)
         low = of(1500.0)
         mid = of(2250.0)
@@ -144,7 +152,7 @@ def test_oxygen_fugacity_finite_over_realistic_temperature_range():
     regression that introduces a `log(negative)` or `0/0` along an
     unexpected code path.
     """
-    for buffer_name in ('fischer', 'oneill'):
+    for buffer_name in ('fischer', 'oneill', 'hirschmann'):
         of = OxygenFugacity(buffer_name)
         for T in (800.0, 1500.0, 2500.0, 3500.0, 5000.0):
             for dIW in (-3.0, 0.0, 1.5):
@@ -161,14 +169,14 @@ def test_oxygen_fugacity_finite_over_realistic_temperature_range():
 
 @pytest.mark.parametrize('bad_T', [0.0, -1.0, -300.0])
 def test_oxygen_fugacity_nonpositive_T_raises(bad_T):
-    """`T <= 0` raises `ValueError` for both buffers.
+    """`T <= 0` raises `ValueError` for every buffer.
 
     Without the guard, T = 0 silently propagates `nan` through every
     downstream equilibrium constant via the `1/T` and `T * log(T)` terms.
     The error message must name the temperature so users debugging an IC
     file can find the offending input.
     """
-    for buffer_name in ('fischer', 'oneill'):
+    for buffer_name in ('fischer', 'oneill', 'hirschmann'):
         of = OxygenFugacity(buffer_name)
         with pytest.raises(ValueError, match='Temperature must be positive'):
             of(bad_T)
@@ -183,7 +191,7 @@ def test_oxygen_fugacity_unknown_buffer_name_raises():
     chemistry step runs.
     """
     with pytest.raises(AttributeError):
-        OxygenFugacity('hirschmann')  # not implemented in CALLIOPE
+        OxygenFugacity('frost1991')  # not implemented in CALLIOPE
     with pytest.raises(AttributeError):
         OxygenFugacity('typo_fisher')
 
@@ -216,3 +224,101 @@ def test_default_fo2_model_is_shared_by_oxygen_fugacity_and_chemistry():
     assert default_val == pytest.approx(fischer_val, rel=1e-6)
     oneill_val = OxygenFugacity('oneill')(T)
     assert abs(default_val - oneill_val) > 0.1  # buffers differ; default is Fischer
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.reference_pinned
+def test_oxygen_fugacity_hirschmann_value_at_1473K_matches_published_figure():
+    """Hirschmann (2021) IW at 1 bar and T = 1473 K matches their Fig. 5.
+
+    Fig. 5 of Hirschmann (2021, GCA 313, 74) plots the 1473 K IW value of
+    O'Neill & Pownceby (1993) at log10 fO2 ~ -11.94 (read off the figure,
+    so the tolerance is 0.05 dex), and their Fig. 4 shows the Table 1 fit
+    sits within ~0.02 dex of that calibration at this T. The coded fit
+    gives -11.957. Fischer (-12.19) and O'Neill & Eggins (-11.70) both
+    land more than 0.2 dex away, so a silent dispatch to either fails.
+    """
+    of = OxygenFugacity('hirschmann')
+    val = of(1473.0)
+    assert val == pytest.approx(-11.94, abs=0.05)
+    # Wrong-buffer guards.
+    assert abs(val - OxygenFugacity('fischer')(1473.0)) > 0.2
+    assert abs(val - OxygenFugacity('oneill')(1473.0)) > 0.2
+    # The dispatcher evaluates the 1 bar reference, not some other pressure:
+    # 1 kbar already moves the buffer by ~0.04 dex at this T.
+    assert val == pytest.approx(of.hirschmann(1473.0, P_bar=1.0), abs=1e-12)
+    assert abs(val - of.hirschmann(1473.0, P_bar=1.0e3)) > 0.03
+    # Scale guard against a dropped log10 or a T-unit slip.
+    assert -14 < val < -10
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.reference_pinned
+def test_oxygen_fugacity_hirschmann_low_pressure_slope_matches_volume_change():
+    """Low-pressure slope of the Hirschmann (2021) IW buffer follows dV.
+
+    For Fe + 1/2 O2 = FeO, d(log10 fO2)/dP = 2 dV / (R T ln 10), with
+    dV = V(FeO) - V(Fe). V(FeO) = 12.256 cm3/mol is the stoichiometric
+    intercept in Hirschmann (2021) Appendix A; V(Fe) = 55.845 / 7.874
+    cm3/mol from the density of alpha iron. Room-temperature volumes
+    ignore thermal expansion and stoichiometry change, so the fit slope
+    over 0-1 GPa is expected within 15%, not exactly (it runs 7-10% high).
+    A bar/GPa slip in the pressure conversion changes the slope by 1e4.
+    """
+    of = OxygenFugacity('hirschmann')
+    dV = (12.256 - 55.845 / 7.874) * 1e-6  # m3/mol
+    R = 8.314462618
+    for T in (1200.0, 2000.0, 3000.0):
+        slope = of.hirschmann(T, P_bar=1.0e4) - of.hirschmann(T, P_bar=1.0)  # dex/GPa
+        expected = 2 * dV * 1e9 / (R * T * math.log(10))
+        assert slope == pytest.approx(expected, rel=0.15)
+        # Sign guard: compressing the assemblage favours the denser Fe
+        # side, so the buffer must move to higher fO2.
+        assert slope > 0
+
+
+@pytest.mark.physics_invariant
+def test_oxygen_fugacity_hirschmann_branches_continuous_at_fcc_hcp_boundary():
+    """The fcc/bcc and hcp fits agree at the fcc-hcp iron boundary.
+
+    Hirschmann (2021) fit the two iron polymorph fields separately, with a
+    reported maximum mismatch against the thermodynamic model of
+    0.028 dex. Both branches fit the same underlying model, so the jump at
+    the Eq. 18 boundary must stay within twice that mismatch. A sign error
+    in any Table 1 coefficient produces a jump of order 1 dex or more.
+    """
+    of = OxygenFugacity('hirschmann')
+    for T in (1000.0, 1500.0, 2000.0, 2500.0, 3000.0):
+        P_gpa = -18.64 + 0.04359 * T - 5.069e-6 * T**2
+        # The boundary lies inside the 0-100 GPa calibration window.
+        assert 0 < P_gpa < 100
+        below = of.hirschmann(T, P_bar=P_gpa * 1e4 * (1 - 1e-6))
+        above = of.hirschmann(T, P_bar=P_gpa * 1e4 * (1 + 1e-6))
+        assert abs(above - below) < 0.056
+        assert math.isfinite(below) and math.isfinite(above)
+
+
+@pytest.mark.physics_invariant
+def test_oxygen_fugacity_hirschmann_monotonic_in_pressure_and_vectorised():
+    """Hirschmann (2021) IW rises strictly with P at fixed T, across the
+    fcc-hcp switch, and the array path matches the scalar path.
+
+    The 1 bar to 100 GPa sweep at 2000 K crosses the fcc-hcp boundary
+    (~48 GPa), so a branch-selection bug that picked the wrong polymorph
+    on one side would show up as a non-monotonic step or as an array /
+    scalar mismatch.
+    """
+    of = OxygenFugacity('hirschmann')
+    P_bar = np.array([1.0, 1e3, 1e4, 1e5, 4.8e5, 4.9e5, 7e5, 1e6])
+    vals = of.hirschmann(2000.0, P_bar=P_bar)
+    assert vals.shape == P_bar.shape
+    assert np.all(np.diff(vals) > 0)
+    # Scalar and array evaluations agree element by element.
+    scalars = [of.hirschmann(2000.0, P_bar=p) for p in P_bar]
+    np.testing.assert_allclose(vals, scalars, rtol=0, atol=1e-12)
+    # Edge case: zero pressure is allowed (the P**0.5 term is defined).
+    assert math.isfinite(of.hirschmann(2000.0, P_bar=0.0))
+    # Error contract: negative pressure has no physical meaning and would
+    # give nan through the P**0.5 term.
+    with pytest.raises(ValueError, match='Pressure must be non-negative'):
+        of.hirschmann(2000.0, P_bar=-1.0)

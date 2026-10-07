@@ -16,7 +16,7 @@ $$
 \mathrm{Fe} + \tfrac{1}{2}\,\mathrm{O_2} \rightleftharpoons \mathrm{FeO},
 $$
 
-which fixes a single curve $\log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T)$ in $T$-$f_{\mathrm{O}_2}$ space. CALLIOPE supports two parameterisations of this curve.
+which fixes a single curve $\log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T)$ in $T$-$f_{\mathrm{O}_2}$ space. CALLIOPE supports three parameterisations of this curve.
 
 ### Fischer et al. (2011), `fischer` (default) [^cite-fischer2011]
 
@@ -27,6 +27,19 @@ $$
 $$
 
 Implemented as `OxygenFugacity.fischer(T)`.
+
+### Hirschmann (2021), `hirschmann` [^cite-hirschmann2021]
+
+An empirical fit to a thermodynamic model of iron coexisting with wüstite of equilibrium stoichiometry $\mathrm{Fe}_{1-y}\mathrm{O}$, valid from 1000 to 3000 K and from 1 bar to 100 GPa. Hirschmann (2021) [^cite-hirschmann2021] shows that the JANAF properties of stoichiometric FeO, which underlie the Fischer et al. (2011) high-pressure buffer, are too reducing by 0.2 to 1.1 log units at 100 kPa. The fit (their Table 1) is
+
+$$
+\log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T, P) = a + b\,T + c\,T \ln T + \frac{d}{T},
+\qquad m = m_0 + m_1 P + m_2 P^2 + m_3 P^3 + m_4 P^{1/2},
+$$
+
+for each parameter $m \in \{a, b, c, d\}$, with $P$ in GPa. Separate coefficient sets apply in the fcc/bcc and hcp iron fields, divided by $P_\mathrm{GPa} = -18.64 + 0.04359\,T - 5.069 \times 10^{-6}\,T^2$ (their Eq. 18).
+
+Implemented as `OxygenFugacity.hirschmann(T, P_bar=1.0)`. The `OxygenFugacity('hirschmann')` dispatcher evaluates the buffer at the 1 bar reference, like the other two buffers, so that $\Delta\mathrm{IW}$ keeps the same meaning. To get the buffer at a given pressure, call the method directly with `P_bar`. Below 1000 K the fit is an extrapolation that the paper advises against. Above 30 to 50 GPa, the effects of FeO metallisation and low-spin Fe$^{2+}$ are not included, so the buffer there should be treated as a metastable reference.
 
 ### O'Neill & Eggins (2002), `oneill` (legacy) [^cite-oneilleggins2002]
 
@@ -110,6 +123,7 @@ CALLIOPE's PROTEUS-side default is `fO2_shift_IW = 4.0`, consistent with a near-
  [^cite-fischer2011]: R. A. Fischer, A. J. Campbell, G. A. Shofner, O. T. Lord, P. Dera, V. B. Prakapenka, *[Equation of state and phase diagram of FeO](https://doi.org/10.1016/j.epsl.2011.02.025)*, Earth and Planetary Science Letters, 304, 496–502, 2011. [SciX](https://scixplorer.org/abs/2011E%26PSL.304..496F/abstract).
  [^cite-frostmccammon2008]: D. J. Frost, C. A. McCammon, *[The redox state of Earth's mantle](https://doi.org/10.1146/annurev.earth.36.031207.124322)*, Annual Review of Earth and Planetary Sciences, 36, 389–420, 2008. [SciX](https://scixplorer.org/abs/2008AREPS..36..389F/abstract).
  [^cite-gaillard2022]: F. Gaillard, F. Bernadou, M. Roskosz, M. A. Bouhifd, Y. Marrocchi, G. Iacono-Marziano, M. Moreira, B. Scaillet, G. Rogerie, *[Redox controls during magma ocean degassing](https://doi.org/10.1016/j.epsl.2021.117255)*, Earth and Planetary Science Letters, 577, 117255, 2022. [SciX](https://scixplorer.org/abs/2022E%26PSL.57717255G/abstract).
+ [^cite-hirschmann2021]: M. M. Hirschmann, *[Iron-wüstite revisited: A revised calibration accounting for variable stoichiometry and the effects of pressure](https://doi.org/10.1016/j.gca.2021.08.039)*, Geochimica et Cosmochimica Acta, 313, 74–84, 2021.
  [^cite-nicholls2024]: H. Nicholls, T. Lichtenberg, D. J. Bower, R. Pierrehumbert, *[Magma ocean evolution at arbitrary redox state](https://doi.org/10.1029/2024JE008576)*, Journal of Geophysical Research: Planets, 129, e2024JE008576, 2024. [SciX](https://scixplorer.org/abs/2024JGRE..12908576N/abstract).
  [^cite-nicholls2026]: H. Nicholls, T. Lichtenberg, R. D. Chatterjee, C. M. Guimond, E. Postolec, R. T. Pierrehumbert, *[Volatile-rich evolution of molten super-Earth L 98-59 d](https://doi.org/10.1038/s41550-026-02815-8)*, Nature Astronomy, 2026. [SciX](https://scixplorer.org/abs/2026NatAs.tmp...61N/abstract). [arXiv](https://arxiv.org/abs/2507.02656).
  [^cite-oneilleggins2002]: H. St. C. O'Neill, S. M. Eggins, *[The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts](https://doi.org/10.1016/S0009-2541(01)00414-4)*, Chemical Geology, 186, 151–181, 2002. [SciX](https://scixplorer.org/abs/2002ChGeo.186..151O/abstract).
