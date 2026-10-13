@@ -19,7 +19,7 @@ This page summarises the model assumptions, the variables it solves for, and how
     | $\tfrac{1}{2}\,\mathrm{S_2} + \mathrm{H_2} \rightleftharpoons \mathrm{H_2S}$ | JANAF, doubled form (`janaf_H2S`) |
     | $\tfrac{1}{2}\,\mathrm{N_2} + \tfrac{3}{2}\,\mathrm{H_2} \rightleftharpoons \mathrm{NH_3}$ | JANAF, doubled form (`janaf_NH3`) |
 
-- **One oxygen-fugacity buffer**: Fischer et al. (2011) [^cite-fischer2011] iron-wüstite (default; close to atmodeller's Hirschmann composite across the magma-ocean range), or the legacy O'Neill & Eggins (2002) [^cite-oneilleggins2002] IW. The shift $\Delta\mathrm{IW}$ sets $\log_{10} f_{\mathrm{O}_2}$ relative to the buffer; under the buffered mode it is a user-prescribed input, under the authoritative-O mode it is a solver unknown.
+- **One oxygen-fugacity buffer**: Hirschmann (2021) [^cite-hirschmann2021] iron-wüstite (default; matches atmodeller's buffer above 1000 K), Fischer et al. (2011) [^cite-fischer2011], or the legacy O'Neill & Eggins (2002) [^cite-oneilleggins2002] IW. The shift $\Delta\mathrm{IW}$ sets $\log_{10} f_{\mathrm{O}_2}$ relative to the buffer; under the buffered mode it is a user-prescribed input, under the authoritative-O mode it is a solver unknown.
 - **One solubility law per species** with multiple alternative compositions (peridotite, basalt, lunar glass, anorthite-diopside) selectable via constructor argument.
 
 ## What is *not* in the model
@@ -51,7 +51,7 @@ The four pieces of physics decompose cleanly:
 | Speciation tree (primary $\to$ secondary) | [Equilibrium chemistry](equilibrium_chemistry.md) | `chemistry.ModifiedKeq`, `solve.get_partial_pressures` |
 | Atmospheric column mass | [Mass balance & solver](mass_balance.md) | `solve.atmosphere_mass` |
 | Dissolved mass via Henry / power-law / multi-arg solubility | [Solubility laws](solubility.md) | `solubility.SolubilityH2O`, ..., `solve.dissolved_mass` |
-| Fischer IW buffer (default), O'Neill IW buffer (legacy) | [Oxygen fugacity](oxygen_fugacity.md) | `oxygen_fugacity.OxygenFugacity` |
+| Hirschmann IW buffer (default), Fischer IW buffer, O'Neill IW buffer (legacy) | [Oxygen fugacity](oxygen_fugacity.md) | `oxygen_fugacity.OxygenFugacity` |
 
 ## Lineage
 
@@ -80,6 +80,7 @@ CALLIOPE is calibrated for surface temperatures of roughly $1000 \le T_\mathrm{m
  [^cite-elkinstanton2008]: L. T. Elkins-Tanton, *[Linked magma ocean solidification and atmospheric growth for Earth and Mars](https://doi.org/10.1016/j.epsl.2008.03.062)*, Earth and Planetary Science Letters, 271, 181–191, 2008. [SciX](https://scixplorer.org/abs/2008E%26PSL.271..181E/abstract).
  [^cite-fischer2011]: R. A. Fischer, A. J. Campbell, G. A. Shofner, O. T. Lord, P. Dera, V. B. Prakapenka, *[Equation of state and phase diagram of FeO](https://doi.org/10.1016/j.epsl.2011.02.025)*, Earth and Planetary Science Letters, 304, 496–502, 2011. [SciX](https://scixplorer.org/abs/2011E%26PSL.304..496F/abstract).
  [^cite-gaillard2022]: F. Gaillard, F. Bernadou, M. Roskosz, M. A. Bouhifd, Y. Marrocchi, G. Iacono-Marziano, M. Moreira, B. Scaillet, G. Rogerie, *[Redox controls during magma ocean degassing](https://doi.org/10.1016/j.epsl.2021.117255)*, Earth and Planetary Science Letters, 577, 117255, 2022. [SciX](https://scixplorer.org/abs/2022E%26PSL.57717255G/abstract).
+ [^cite-hirschmann2021]: M. M. Hirschmann, *[Iron-wüstite revisited: A revised calibration accounting for variable stoichiometry and the effects of pressure](https://doi.org/10.1016/j.gca.2021.08.039)*, Geochimica et Cosmochimica Acta, 313, 74–84, 2021.
  [^cite-lebrun2013]: T. Lebrun, H. Massol, E. Chassefière, A. Davaille, E. Marcq, P. Sarda, F. Leblanc, G. Brandeis, *[Thermal evolution of an early magma ocean in interaction with the atmosphere](https://doi.org/10.1002/jgre.20068)*, Journal of Geophysical Research: Planets, 118, 1155–1176, 2013. [SciX](https://scixplorer.org/abs/2013JGRE..118.1155L/abstract).
  [^cite-libourel2003]: G. Libourel, B. Marty, F. Humbert, *[Nitrogen solubility in basaltic melt. Part I. Effect of oxygen fugacity](https://doi.org/10.1016/S0016-7037(03)00259-X)*, Geochimica et Cosmochimica Acta, 67(21), 4123–4135, 2003. [SciX](https://scixplorer.org/abs/2003GeCoA..67.4123L/abstract).
  [^cite-nicholls2024]: H. Nicholls, T. Lichtenberg, D. J. Bower, R. Pierrehumbert, *[Magma ocean evolution at arbitrary redox state](https://doi.org/10.1029/2024JE008576)*, Journal of Geophysical Research: Planets, 129, e2024JE008576, 2024. [SciX](https://scixplorer.org/abs/2024JGRE..12908576N/abstract).

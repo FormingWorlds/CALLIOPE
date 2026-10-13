@@ -9,10 +9,13 @@ log = logging.getLogger('fwl.' + __name__)
 
 # Single source of truth for the default fO2 buffer. ``OxygenFugacity`` and
 # ``chemistry.ModifiedKeq`` both default to this name so the two cannot drift
-# out of step. Fischer is the more recent IW parameterisation and tracks the
-# atmodeller Hirschmann composite to within ~0.2 dex across magma-ocean
-# temperatures (see docs/Explanations/cross_backend_comparison.md).
-DEFAULT_FO2_MODEL = 'fischer'
+# out of step. Hirschmann (2021) accounts for non-stoichiometric wustite and
+# is the IW buffer used by atmodeller, so the default matches that backend
+# (see docs/Explanations/cross_backend_comparison.md).
+DEFAULT_FO2_MODEL = 'hirschmann'
+
+# Names accepted for the IW buffer, one per OxygenFugacity model method.
+FO2_MODELS = ('hirschmann', 'fischer', 'oneill')
 
 # Hirschmann (2021, GCA 313, 74) Table 1. Each parameter is
 # m = m0 + m1*P + m2*P**2 + m3*P**3 + m4*P**0.5 with P in GPa, and
@@ -31,6 +34,12 @@ _H21_HCP = (
 )
 # fcc-hcp iron boundary, Hirschmann (2021) Eq. 18: P_GPa = x0 + x1*T + x2*T**2
 _H21_FCC_HCP = (-18.64, 0.04359, -5.069e-06)
+# Temperatures at which Eq. 18 is evaluated are held to [1000 K, vertex].
+# Outside, the parabola falls below 1 bar (under ~451 K and above ~8148 K)
+# and would put the 1 bar buffer on the hcp branch, ~42 dex off at 8150 K.
+# 1000 K is the calibration floor; the vertex (~4300 K, 75 GPa) is where
+# the parabola stops rising, so the boundary is unchanged in between.
+_H21_FCC_HCP_T_RANGE = (1000.0, -_H21_FCC_HCP[1] / (2.0 * _H21_FCC_HCP[2]))
 _BAR_TO_GPA = 1e-4
 
 
@@ -73,7 +82,9 @@ class OxygenFugacity:
         reference as the other buffers, so ``fO2_shift`` keeps its
         meaning. Call this method directly with ``P_bar`` for the
         buffer at pressure. The fcc/bcc branch applies below the
-        fcc-hcp iron boundary (Eq. 18), the hcp branch above it.
+        fcc-hcp iron boundary (Eq. 18), the hcp branch above it. The
+        boundary is evaluated at T held to 1000 K - 4300 K, so it never
+        drops to 1 bar; outside that range it stays at its end value.
         """
         T = np.asarray(T, dtype=float)
         P = np.asarray(P_bar, dtype=float) * _BAR_TO_GPA
@@ -87,5 +98,6 @@ class OxygenFugacity:
             return a + b * T + c * T * np.log(T) + d / T
 
         x0, x1, x2 = _H21_FCC_HCP
-        hcp = P > x0 + x1 * T + x2 * T**2
+        T_b = np.clip(T, *_H21_FCC_HCP_T_RANGE)
+        hcp = P > x0 + x1 * T_b + x2 * T_b**2
         return np.where(hcp, evaluate(_H21_HCP), evaluate(_H21_FCC_BCC))[()]

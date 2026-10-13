@@ -23,6 +23,7 @@ For the PROTEUS-side TOML schema (`[outgas]` and `[outgas.calliope]`), which is 
 | `T_magma` | float | K | Magma ocean temperature at the surface. Used in equilibrium constants and solubility laws. |
 | `Phi_global` | float | dimensionless | Global melt fraction of the mantle, $0 \le \Phi \le 1$. Set to $0$ to disable solubility (no melt to dissolve into). |
 | `fO2_shift_IW` | float | $\log_{10}$ units | Oxygen fugacity expressed as $\Delta\mathrm{IW} = \log_{10} f_{\mathrm{O}_2} - \log_{10} f_{\mathrm{O}_2}^{\mathrm{IW}}(T)$. Negative is reducing; positive is oxidising. |
+| `fO2_model` | str | n/a | Optional. IW buffer that `fO2_shift_IW` is referenced to: `'hirschmann'` (default), `'fischer'` or `'oneill'`. Applies to the whole solve (O$_2$ pressure, equilibrium constants, S$_2$ solubility). The `fO2_model=` argument of `equilibrium_atmosphere` and `equilibrium_atmosphere_authoritative_O` sets the same thing; giving both with different values raises `ValueError`. |
 
 ### Per-species inclusion flags
 

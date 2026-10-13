@@ -203,27 +203,31 @@ def test_default_fo2_model_is_shared_by_oxygen_fugacity_and_chemistry():
     applied to one but not the other.
 
     The behavioural check pins that the shared default actually dispatches to
-    the Fischer buffer: the bare-default OxygenFugacity matches the closed-form
-    Fischer value at 2500 K, and a regression that flipped the default to
-    O'Neill would land ~0.3 dex away, outside the tolerance."""
+    the Hirschmann (2021) buffer: the bare-default OxygenFugacity matches the
+    Hirschmann value at 1473 K, and a regression that flipped the default to
+    Fischer or O'Neill would land more than 0.2 dex away, outside the
+    tolerance. 1473 K is chosen because Hirschmann and Fischer nearly cross
+    near 2500 K, where they could not be told apart."""
     from calliope.chemistry import ModifiedKeq
     from calliope.oxygen_fugacity import DEFAULT_FO2_MODEL, OxygenFugacity
 
-    assert DEFAULT_FO2_MODEL == 'fischer'
+    assert DEFAULT_FO2_MODEL == 'hirschmann'
 
     # Both classes carry the same default in their signature: changing one
     # without the other is the trap this guards against.
     assert OxygenFugacity.__init__.__defaults__ == (DEFAULT_FO2_MODEL,)
     assert ModifiedKeq.__init__.__defaults__ == (DEFAULT_FO2_MODEL,)
 
-    # The bare default dispatches to Fischer (not O'Neill): pin the value and
-    # guard against the wrong-buffer regression.
-    T = 2500.0
+    # The bare default dispatches to Hirschmann at the 1 bar reference: pin
+    # the value and guard against both wrong-buffer regressions.
+    T = 1473.0
     default_val = OxygenFugacity()(T)
+    assert default_val == pytest.approx(-11.957, abs=2e-3)
+    assert default_val == pytest.approx(OxygenFugacity('hirschmann').hirschmann(T), abs=1e-12)
     fischer_val = 6.94059 - 28.1808e3 / T
-    assert default_val == pytest.approx(fischer_val, rel=1e-6)
+    assert abs(default_val - fischer_val) > 0.2  # default is not Fischer
     oneill_val = OxygenFugacity('oneill')(T)
-    assert abs(default_val - oneill_val) > 0.1  # buffers differ; default is Fischer
+    assert abs(default_val - oneill_val) > 0.2  # default is not O'Neill
 
 
 @pytest.mark.physics_invariant
@@ -322,3 +326,47 @@ def test_oxygen_fugacity_hirschmann_monotonic_in_pressure_and_vectorised():
     # give nan through the P**0.5 term.
     with pytest.raises(ValueError, match='Pressure must be non-negative'):
         of.hirschmann(2000.0, P_bar=-1.0)
+
+
+@pytest.mark.physics_invariant
+def test_oxygen_fugacity_hirschmann_hcp_field_and_boundary_placement():
+    """Hirschmann (2021) at 2000 K, where Eq. 18 puts the fcc-hcp boundary at
+    48.26 GPa. Deep in the hcp field, at 90 GPa, the buffer is the hcp row of
+    Table 1 (13.897), 0.66 dex above the fcc/bcc row (13.234), so a fit that
+    never selects hcp fails. Each side of the boundary is pinned about 6.5 GPa
+    away: 55 GPa is hcp (6.654, fcc 6.561) and 42 GPa is fcc/bcc (3.732, hcp
+    3.676), so a boundary moved by 10 GPa either way puts one of them on the
+    wrong branch. The pins are hand evaluations of the Table 1 rows, not
+    values read from the paper.
+    """
+    of = OxygenFugacity('hirschmann')
+    deep = of.hirschmann(2000.0, P_bar=90.0e4)
+    assert deep == pytest.approx(13.897, abs=1e-3)
+    assert abs(deep - 13.234) > 0.6  # fcc/bcc row at the same point
+
+    above = of.hirschmann(2000.0, P_bar=55.0e4)
+    below = of.hirschmann(2000.0, P_bar=42.0e4)
+    assert above == pytest.approx(6.654, abs=1e-3)
+    assert abs(above - 6.561) > 0.08  # fcc/bcc row
+    assert below == pytest.approx(3.732, abs=1e-3)
+    assert abs(below - 3.676) > 0.05  # hcp row
+    # Boundedness: the buffer rises with pressure through the transition.
+    assert below < above < deep
+
+
+@pytest.mark.physics_invariant
+def test_oxygen_fugacity_hirschmann_1bar_stays_on_fcc_branch_outside_boundary_fit():
+    """The Eq. 18 parabola drops below 1 bar under ~451 K and above ~8148 K.
+    With the boundary held at its 1000 K and vertex (~4300 K) values there,
+    the 1 bar buffer stays on the fcc/bcc row: -85.418 at 300 K (hcp row
+    -85.200) and 2.317 at 8150 K (hcp row -40.125, a 42 dex fall). Across
+    8148 K the 1 bar buffer is continuous and keeps rising with T.
+    """
+    of = OxygenFugacity('hirschmann')
+    assert of(300.0) == pytest.approx(-85.418, abs=1e-3)
+    assert abs(of(300.0) - (-85.200)) > 0.2  # hcp row
+    assert of(8150.0) == pytest.approx(2.317, abs=1e-3)
+    assert abs(of(8140.0) - of(8150.0)) < 0.01
+    assert of(8000.0) < of(8150.0) < of(9000.0)
+    with pytest.raises(ValueError, match='Temperature must be positive'):
+        of(0.0)

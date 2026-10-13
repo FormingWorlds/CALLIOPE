@@ -18,17 +18,7 @@ $$
 
 which fixes a single curve $\log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T)$ in $T$-$f_{\mathrm{O}_2}$ space. CALLIOPE supports three parameterisations of this curve.
 
-### Fischer et al. (2011), `fischer` (default) [^cite-fischer2011]
-
-A simpler two-parameter fit of the 1-bar IW buffer. The fit reproduces the 1-bar curve in Fischer et al. (2011) [^cite-fischer2011] Fig. 6, which itself derives from Chase (1998) [^cite-chase1998] NIST-JANAF tabulation. Fischer's own high-pressure measurements ($\le$200 GPa) extend the buffer to deep-mantle conditions but are not used by CALLIOPE.
-
-$$
-\log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T) = 6.94059 - \frac{28180.8}{T}.
-$$
-
-Implemented as `OxygenFugacity.fischer(T)`.
-
-### Hirschmann (2021), `hirschmann` [^cite-hirschmann2021]
+### Hirschmann (2021), `hirschmann` (default) [^cite-hirschmann2021]
 
 An empirical fit to a thermodynamic model of iron coexisting with wüstite of equilibrium stoichiometry $\mathrm{Fe}_{1-y}\mathrm{O}$, valid from 1000 to 3000 K and from 1 bar to 100 GPa. Hirschmann (2021) [^cite-hirschmann2021] shows that the JANAF properties of stoichiometric FeO, which underlie the Fischer et al. (2011) high-pressure buffer, are too reducing by 0.2 to 1.1 log units at 100 kPa. The fit (their Table 1) is
 
@@ -37,9 +27,19 @@ $$
 \qquad m = m_0 + m_1 P + m_2 P^2 + m_3 P^3 + m_4 P^{1/2},
 $$
 
-for each parameter $m \in \{a, b, c, d\}$, with $P$ in GPa. Separate coefficient sets apply in the fcc/bcc and hcp iron fields, divided by $P_\mathrm{GPa} = -18.64 + 0.04359\,T - 5.069 \times 10^{-6}\,T^2$ (their Eq. 18).
+for each parameter $m \in \{a, b, c, d\}$, with $P$ in GPa. Separate coefficient sets apply in the fcc/bcc and hcp iron fields, divided by $P_\mathrm{GPa} = -18.64 + 0.04359\,T - 5.069 \times 10^{-6}\,T^2$ (their Eq. 18). CALLIOPE evaluates this boundary at $T$ held to 1000-4300 K: the parabola falls below 1 bar under about 451 K and above about 8148 K, which would otherwise put the 1 bar buffer on the hcp branch. The boundary is unchanged between the calibration floor (1000 K) and the parabola's vertex (4300 K, 75 GPa).
 
-Implemented as `OxygenFugacity.hirschmann(T, P_bar=1.0)`. The `OxygenFugacity('hirschmann')` dispatcher evaluates the buffer at the 1 bar reference, like the other two buffers, so that $\Delta\mathrm{IW}$ keeps the same meaning. To get the buffer at a given pressure, call the method directly with `P_bar`. Below 1000 K the fit is an extrapolation that the paper advises against. Above 30 to 50 GPa, the effects of FeO metallisation and low-spin Fe$^{2+}$ are not included, so the buffer there should be treated as a metastable reference.
+Implemented as `OxygenFugacity.hirschmann(T, P_bar=1.0)`. The `OxygenFugacity('hirschmann')` dispatcher evaluates the buffer at the 1 bar reference, like the other two buffers, so that $\Delta\mathrm{IW}$ keeps the same meaning. To get the buffer at a given pressure, call the method directly with `P_bar`. Below 1000 K and above 3000 K the fit is an extrapolation that the paper advises against; magma-ocean runs hotter than 3000 K use the default buffer outside its calibrated range. Above 30 to 50 GPa, the effects of FeO metallisation and low-spin Fe$^{2+}$ are not included, so the buffer there should be treated as a metastable reference.
+
+### Fischer et al. (2011), `fischer` [^cite-fischer2011]
+
+A simpler two-parameter fit of the 1-bar IW buffer. The fit reproduces the 1-bar curve in Fischer et al. (2011) [^cite-fischer2011] Fig. 6, which itself derives from Chase (1998) [^cite-chase1998] NIST-JANAF tabulation. Fischer's own high-pressure measurements ($\le$200 GPa) extend the buffer to deep-mantle conditions but are not used by CALLIOPE.
+
+$$
+\log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T) = 6.94059 - \frac{28180.8}{T}.
+$$
+
+Implemented as `OxygenFugacity.fischer(T)`.
 
 ### O'Neill & Eggins (2002), `oneill` (legacy) [^cite-oneilleggins2002]
 
@@ -52,7 +52,17 @@ $$
 with $R = 8.31441$ J K$^{-1}$ mol$^{-1}$. Bower et al. (2022) [^cite-bower2022] adopted this as the "IW buffer to which $f_{\mathrm{O}_2}$ is referenced". CALLIOPE retains it under the model name `oneill` (function `OxygenFugacity.oneill(T)` in `oxygen_fugacity.py`); keep it as the choice when you need to reproduce results from the older literature line.
 
 !!! note "Choice of buffer"
-    The two parameterisations cross near $T \approx 1800$ K and diverge in opposite directions on either side: at $T = 1500$ K Fischer is about $0.4$ dex *more reducing* than O'Neill; at $T = 3000$ K Fischer is about $1.1$ dex *more oxidising*. The crossover means the difference is small (under $0.05$ dex) near 1800 K but grows to several tenths of a dex by 2400 K and reaches roughly $1$ dex at 3000 K. The choice matters at the few-tenths-of-a-dex level for inferred partial pressures across most of the magma-ocean range. CALLIOPE now defaults to Fischer 2011 because it sits within $\sim$0.2 dex of the Hirschmann composite used by atmodeller across the whole magma-ocean range and so produces cross-backend $\Delta\mathrm{IW}$ values that agree to a few tenths of a dex rather than up to $\sim 1$ dex with the older default. The legacy O'Neill choice remains available for reproducibility of pre-existing results; see [Backend comparison](cross_backend_comparison.md) for the quantitative comparison.
+    CALLIOPE defaults to Hirschmann (2021) because it accounts for the variable stoichiometry of wüstite, which the JANAF-based stoichiometric-FeO fits do not, and because it is the calibration that atmodeller's Hirschmann composite uses above 1000 K. At 1 bar the three buffers differ as follows: Hirschmann is $0.23$ dex more oxidising than Fischer at $T = 1500$ K, $0.10$ dex at 2000 K, within $0.01$ dex near 2500 K, and $0.11$ dex more reducing at 3000 K. Against O'Neill, Hirschmann is $0.22$ dex more reducing at 1500 K, $0.35$ dex more oxidising at 2000 K, and $0.95$ dex more oxidising at 3000 K. The choice therefore matters at the few-tenths-of-a-dex level for inferred partial pressures across most of the magma-ocean range. Fischer 2011 was the default before Hirschmann, and O'Neill before that; both remain available as `OxygenFugacity('fischer')` and `OxygenFugacity('oneill')` to reproduce earlier results. See [Backend comparison](cross_backend_comparison.md) for the cross-backend comparison.
+
+## Selecting the buffer
+
+Both solver entry points take the buffer as an argument:
+
+```python
+out = equilibrium_atmosphere(target, ddict, fO2_model='fischer')
+```
+
+The same choice can be made with the `ddict['fO2_model']` key, which is also what the lower-level helpers (`get_partial_pressures`, `atmosphere_mass`, `dissolved_mass`) read. The buffer applies to the whole solve: the O$_2$ partial pressure, every modified equilibrium constant and the S$_2$ solubility all use it, so a solve never mixes two buffers. Without either, the solve uses the default `DEFAULT_FO2_MODEL = 'hirschmann'`. An unknown name, or an argument that contradicts `ddict['fO2_model']`, raises `ValueError`.
 
 ## How $\Delta\mathrm{IW}$ enters the chemistry
 
@@ -63,9 +73,10 @@ The shift $\Delta\mathrm{IW}$ feeds the equilibrium chemistry through four chann
 In `solve.get_partial_pressures`:
 
 ```python
-fO2_model = OxygenFugacity()
-p_d['O2'] = 10.0 ** fO2_model(ddict['T_magma'], fO2_shift)
+p_d['O2'] = 10.0 ** OxygenFugacity(buffer)(ddict['T_magma'], fO2_shift)
 ```
+
+where `buffer` is the IW buffer of the solve (see [Selecting the buffer](#selecting-the-buffer)).
 
 This is what makes O$_2$ a *derived*, not a solved, quantity. The mantle redox state pins $p_\mathrm{O_2}$ at the surface, and through the speciation tree it pins the equilibrium between every oxidised/reduced couple.
 
@@ -81,7 +92,7 @@ For the H$_2$O-H$_2$ couple ($n_\mathrm{O_2} = +0.5$), reducing conditions ($f_{
 
 ### 3. The S$_2$ Gaillard solubility
 
-The Gaillard et al. (2022) [^cite-gaillard2022] sulfide solubility carries an explicit $\ln f_{\mathrm{O}_2}$ term, so $\Delta\mathrm{IW}$ enters the dissolved-S inventory directly. The implementation in `solubility.SolubilityS2.gaillard` calls back into `OxygenFugacity()` to compute the absolute $f_{\mathrm{O}_2}$.
+The Gaillard et al. (2022) [^cite-gaillard2022] sulfide solubility carries an explicit $\ln f_{\mathrm{O}_2}$ term, so $\Delta\mathrm{IW}$ enters the dissolved-S inventory directly. The implementation in `solubility.SolubilityS2.gaillard` calls back into `OxygenFugacity` with the buffer of the solve to compute the absolute $f_{\mathrm{O}_2}$.
 
 ### 4. The N$_2$ Dasgupta solubility
 

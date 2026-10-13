@@ -369,8 +369,8 @@ class TestFO2Reconstruction:
         assert recovered == pytest.approx(result['fO2_shift_derived'], rel=1e-6, abs=1e-6)
 
         # Discrimination guard: using the wrong IW buffer (O'Neill instead
-        # of the default Fischer 2011) would shift the recovered value by
-        # 0.016 dex at 1800 K and 0.26 dex at 2200 K. Both are well outside
+        # of the default Hirschmann 2021) would shift the recovered value by
+        # 0.16 dex at 1800 K and 0.52 dex at 2200 K. Both are well outside
         # the rel=1e-6 tolerance.
         oneill_log10 = OxygenFugacity('oneill')(T, 0.0)
         recovered_wrong_buffer = math.log10(p_O2) - oneill_log10

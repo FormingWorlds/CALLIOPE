@@ -203,7 +203,7 @@ monkeypatch.setattr('os.environ', {'CALLIOPE_BUFFER': 'oneill'})   # too late
 monkeypatch.setattr('calliope.oxygen_fugacity.DEFAULT_BUFFER', 'oneill', raising=False)
 ```
 
-A related pattern is the `_with_calliope_buffer` context manager in `scripts/cross_backend/runners.py`: it mutates `OxygenFugacity.__init__.__defaults__` and restores on exit. The pattern is **single-threaded only**; never apply it inside library code (it has process-wide visibility and races under pytest-xdist).
+To run a solve on a non-default IW buffer, pass `fO2_model=` to `equilibrium_atmosphere` / `equilibrium_atmosphere_authoritative_O` (or set `ddict['fO2_model']`). Do not patch `OxygenFugacity.__init__.__defaults__`: the solver passes the buffer explicitly to every `OxygenFugacity`, `ModifiedKeq` and `SolubilityS2` it builds, so a patched default never reaches a solve, and the patch has process-wide visibility that races under pytest-xdist.
 
 When in doubt, do both the env-var monkeypatch and the constant monkeypatch. The lint script does NOT currently flag this pattern (it would require source-side analysis to know which constants are env-derived); this is a discipline rule enforced via the >50 LOC review trigger and the recurring-trap table in Section 16.
 

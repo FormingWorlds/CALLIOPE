@@ -35,7 +35,7 @@ src/calliope/
 
 ### Oxygen fugacity
 
-- [`calliope.oxygen_fugacity`](calliope.oxygen_fugacity.md) - `OxygenFugacity` class with two model methods (`oneill` default, `fischer`). Returns $\log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T) + \Delta\mathrm{IW}$.
+- [`calliope.oxygen_fugacity`](calliope.oxygen_fugacity.md) - `OxygenFugacity` class with three model methods (`hirschmann` default, `fischer`, `oneill`). Returns $\log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T) + \Delta\mathrm{IW}$.
 
 ### Structure
 

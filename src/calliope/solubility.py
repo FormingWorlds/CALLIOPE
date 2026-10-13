@@ -6,7 +6,7 @@ import logging
 import numpy as np
 
 from .constants import molar_mass, noble_gases
-from .oxygen_fugacity import OxygenFugacity
+from .oxygen_fugacity import DEFAULT_FO2_MODEL, OxygenFugacity
 
 log = logging.getLogger('fwl.' + __name__)
 
@@ -92,10 +92,13 @@ class SolubilityS2(Solubility):
         The default value matches the Earth-mantle reference adopted in
         prior CALLIOPE releases; override for non-Earth bulk
         compositions.
+    fO2_model : str, default ``DEFAULT_FO2_MODEL``
+        IW buffer that converts ``fO2_shift`` into the absolute fO2 of the
+        Gaillard law. Must match the buffer of the rest of the solve.
     """
 
-    def __init__(self, composition='gaillard', x_FeO=10.0):
-        self.fO2_model = OxygenFugacity()
+    def __init__(self, composition='gaillard', x_FeO=10.0, fO2_model=DEFAULT_FO2_MODEL):
+        self.fO2_model = OxygenFugacity(fO2_model)
         self.x_FeO = x_FeO
         super().__init__(composition)
 

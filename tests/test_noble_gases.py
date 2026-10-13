@@ -426,11 +426,13 @@ def test_chnos_only_solve_is_unchanged_by_noble_gas_support():
     # that perturbed the CHNOS path while still closing mass balance (for
     # example by letting an inactive noble gas leak into the mean molar mass)
     # would move these numbers and fail here. Captured from the CHNOS-only
-    # solver at seed 17.
+    # solver at seed 17. Only S2 depends on the IW buffer here (through the
+    # S2 solubility law; H2, CO and CH4 are excluded): pinned with the
+    # Hirschmann (2021) default, the former Fischer 2011 value was 1.425e-7.
     assert out['H2O_bar'] == pytest.approx(4.0844429849e-01, rel=1e-6)
     assert out['CO2_bar'] == pytest.approx(5.1936704868e01, rel=1e-6)
     assert out['N2_bar'] == pytest.approx(5.6066338860e-01, rel=1e-6)
-    assert out['S2_bar'] == pytest.approx(1.4249796437e-07, rel=1e-5)
+    assert out['S2_bar'] == pytest.approx(1.9848810623e-07, rel=1e-5)
     assert out['atm_kg_per_mol'] == pytest.approx(4.3639799394e-02, rel=1e-6)
 
 
