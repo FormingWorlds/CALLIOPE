@@ -384,26 +384,33 @@ def _one_attempt():
 
 
 @pytest.mark.physics_invariant
-@pytest.mark.parametrize('seed', [4, 6, 7])
-def test_low_h_cold_start_rejects_the_negative_water_root(monkeypatch, caplog, seed):
+def test_low_h_cold_start_rejects_the_negative_water_root(monkeypatch, caplog):
     """A low-H, C-rich cold start at IW+2 and 1500 K returns the physical root.
 
-    With the Hirschmann (2021) IW buffer, seeds 4, 6 and 7 reach the root with
-    negative pH2O, which closes the mass balance with no H2O or H2 in the
-    atmosphere. It is rejected, and the solver goes on to the physical root at
-    25.05 bar (24.82 bar with the former Fischer 2011 default).
+    Some cold starts reach the root with negative pH2O, which closes the mass
+    balance with no H2O or H2 in the atmosphere. It is rejected, and the solver
+    goes on to the physical root at 25.05 bar with the Hirschmann (2021) IW
+    buffer (24.82 bar with the former Fischer 2011 default). Which seeds reach
+    the negative root depends on the platform's floating point (seed 6 does on
+    macOS arm64, not on Linux x86_64), so every seed must return the physical
+    root and at least one of them must have rejected the negative one.
     """
     roots, converged = _spy_roots(monkeypatch)
-    np.random.seed(seed)
-    r = equilibrium_atmosphere(
-        dict(_LOW_H), _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **_COLD
-    )
+    rejected = 0
+    for seed in (4, 6, 7):
+        roots.clear()
+        converged.clear()
+        np.random.seed(seed)
+        r = equilibrium_atmosphere(
+            dict(_LOW_H), _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **_COLD
+        )
+        rejected += any(ok and root[0] < -1.0e3 for root, ok in zip(roots[:-1], converged[:-1]))
+        assert roots[-1][0] > 0.0, seed
+        assert r['H2O_bar'] > 0.0, seed
+        assert r['P_surf'] == pytest.approx(25.0485, rel=1e-4), seed
+        assert r['H_kg_total'] == pytest.approx(_LOW_H['H'], rel=1e-3), seed
     assert 'returning the last clipped root' not in caplog.text
-    assert any(ok and root[0] < -1.0e3 for root, ok in zip(roots[:-1], converged[:-1]))
-    assert roots[-1][0] > 0.0
-    assert r['H2O_bar'] > 0.0
-    assert r['P_surf'] == pytest.approx(25.0485, rel=1e-4)
-    assert r['H_kg_total'] == pytest.approx(_LOW_H['H'], rel=1e-3)
+    assert rejected >= 1
 
 
 @pytest.mark.physics_invariant
@@ -433,11 +440,12 @@ def test_absent_element_root_is_accepted_and_reported_clipped(monkeypatch):
             {'H': 1.0e15, 'C': 5.0e19, 'N': 1.0e17, 'S': 1.0e18},
             0,
             marks=pytest.mark.xfail(
-                strict=True,
+                strict=False,
                 reason=(
-                    'With the Hirschmann IW buffer this seed converges to a root with '
-                    'pH2O near -9e-10 bar; clipping it empties the 1e15 kg H budget, '
-                    'which the scalar mass gate (1.5e16 kg) does not catch.'
+                    'With the Hirschmann IW buffer this seed converges on macOS arm64 to '
+                    'a root with pH2O near -9e-10 bar; clipping it empties the 1e15 kg H '
+                    'budget, which the scalar mass gate (1.5e16 kg) does not catch. On '
+                    'Linux x86_64 the same seed reaches a root that keeps H and passes.'
                 ),
             ),
         ),
