@@ -14,7 +14,7 @@ from .constants import (
     ocean_moles,
     volatile_species,
 )
-from .oxygen_fugacity import OxygenFugacity
+from .oxygen_fugacity import DEFAULT_FO2_MODEL, FO2_MODELS, OxygenFugacity
 from .solubility import (
     SolubilityCH4,
     SolubilityCO,
@@ -146,6 +146,37 @@ def is_included(gas, ddict):
     return bool(ddict[gas + '_included'] > 0)
 
 
+def _fO2_model(ddict):
+    """IW buffer name for a solve: ``ddict['fO2_model']``, else the default."""
+    return ddict.get('fO2_model', DEFAULT_FO2_MODEL)
+
+
+def _with_fO2_model(ddict, fO2_model):
+    """Copy of ``ddict`` carrying the IW buffer of one solve as ``'fO2_model'``.
+
+    Every place that turns ``fO2_shift`` into an absolute fO2 (the O2
+    partial pressure, the modified equilibrium constants, the S2
+    solubility) reads the buffer from this key, so one solve uses one
+    buffer. ``fO2_model=None`` keeps the buffer already in ``ddict``, or
+    the default. A ``fO2_model`` that contradicts ``ddict['fO2_model']``
+    raises ``ValueError`` rather than picking one silently, as does an
+    unknown buffer name. The caller's ``ddict`` is not modified.
+    """
+    in_ddict = ddict.get('fO2_model')
+    if fO2_model is None:
+        fO2_model = DEFAULT_FO2_MODEL if in_ddict is None else in_ddict
+    elif in_ddict is not None and in_ddict != fO2_model:
+        raise ValueError(
+            f'fO2_model={fO2_model!r} contradicts ddict["fO2_model"]={in_ddict!r}; '
+            'set the IW buffer in one place.'
+        )
+    if fO2_model not in FO2_MODELS:
+        raise ValueError(
+            f'Unknown IW buffer fO2_model={fO2_model!r}; expected one of {FO2_MODELS}.'
+        )
+    return {**ddict, 'fO2_model': fO2_model}
+
+
 def _get_partial_pressures(pin, fO2_shift, ddict):
     """Partial pressures [bar] of all 11 species from the 4 primaries.
 
@@ -157,52 +188,53 @@ def _get_partial_pressures(pin, fO2_shift, ddict):
     than a config input.
 
     `pin` provides H2O, CO2, N2, S2; the other 7 species are derived
-    via equilibrium constants and the fO2 buffer.
+    via equilibrium constants and the fO2 buffer ``ddict['fO2_model']``
+    (default ``DEFAULT_FO2_MODEL``).
     """
 
     p_d = {s: 0.0 for s in volatile_species}
+    buffer = _fO2_model(ddict)
 
     p_d['H2O'] = pin['H2O']
 
     if is_included('H2', ddict):
-        gamma = ModifiedKeq('janaf_H2')
+        gamma = ModifiedKeq('janaf_H2', buffer)
         gamma = gamma(ddict['T_magma'], fO2_shift)
         p_d['H2'] = gamma * pin['H2O']
 
     p_d['CO2'] = pin['CO2']
 
     if is_included('CO', ddict):
-        gamma = ModifiedKeq('janaf_CO')
+        gamma = ModifiedKeq('janaf_CO', buffer)
         gamma = gamma(ddict['T_magma'], fO2_shift)
         p_d['CO'] = gamma * pin['CO2']
 
     if is_included('H2', ddict) and is_included('CH4', ddict):
-        gamma = ModifiedKeq('schaefer_CH4')
+        gamma = ModifiedKeq('schaefer_CH4', buffer)
         gamma = gamma(ddict['T_magma'], fO2_shift)
         p_d['CH4'] = gamma * pin['CO2'] * p_d['H2'] ** 2.0
 
     p_d['N2'] = pin['N2']
 
     if is_included('NH3', ddict):
-        gamma = ModifiedKeq('janaf_NH3')
+        gamma = ModifiedKeq('janaf_NH3', buffer)
         gamma = gamma(ddict['T_magma'], fO2_shift)
         p_d['NH3'] = (gamma * pin['N2'] * p_d['H2'] ** 3) ** 0.5
 
     # O2 is set unconditionally from the fO2 buffer regardless of the
     # `O2_included` flag, because every sulfur and carbon equilibrium
     # below reads p_O2 (SO2 reaction, CO2-CO couple, CH4 couple).
-    fO2_model = OxygenFugacity()
-    p_d['O2'] = 10.0 ** fO2_model(ddict['T_magma'], fO2_shift)
+    p_d['O2'] = 10.0 ** OxygenFugacity(buffer)(ddict['T_magma'], fO2_shift)
 
     p_d['S2'] = pin['S2']
 
     if is_included('SO2', ddict):
-        gamma = ModifiedKeq('janaf_SO2')
+        gamma = ModifiedKeq('janaf_SO2', buffer)
         gamma = gamma(ddict['T_magma'], fO2_shift)
         p_d['SO2'] = (gamma * pin['S2'] * p_d['O2'] ** 2) ** 0.5
 
     if is_included('H2S', ddict) and is_included('H2', ddict):
-        gamma = ModifiedKeq('janaf_H2S')
+        gamma = ModifiedKeq('janaf_H2S', buffer)
         gamma = gamma(ddict['T_magma'], fO2_shift)
         p_d['H2S'] = (gamma * pin['S2'] * p_d['H2'] ** 2) ** 0.5
 
@@ -404,7 +436,7 @@ def _dissolved_mass(pin, fO2_shift, ddict):
     ppmw_N2 = sol_N2(p_d['N2'], ptot, ddict['T_magma'], fO2_shift)
     mass_int_d['N2'] = prefactor * ppmw_N2
 
-    sol_S2 = SolubilityS2()
+    sol_S2 = SolubilityS2(fO2_model=_fO2_model(ddict))
     ppmw_S2 = sol_S2(p_d['S2'], ddict['T_magma'], fO2_shift)
     mass_int_d['S2'] = prefactor * ppmw_S2
 
@@ -753,6 +785,7 @@ def equilibrium_atmosphere(
     print_result=True,
     opt_solver=True,
     p_guess_max=P_GUESS_MAX_BAR,
+    fO2_model=None,
 ):
     """Solve for surface partial pressures assuming melt-vapour equilibrium.
 
@@ -790,6 +823,13 @@ def equilibrium_atmosphere(
         box; it does not raise the maximum pressure the solver can accept, so a
         surface pressure above the box stays out of reach. Must be finite and
         >= ``P_GUESS_MIN_BAR``.
+    fO2_model : str or None, default None
+        IW buffer the shift is referenced to: one of ``FO2_MODELS``
+        ('hirschmann', 'fischer', 'oneill'). Applies to the whole solve: the
+        O2 partial pressure, the modified equilibrium constants and the S2
+        solubility. ``None`` uses ``ddict['fO2_model']`` if present, else
+        ``DEFAULT_FO2_MODEL``. A value that contradicts ``ddict['fO2_model']``,
+        or an unknown name, raises ValueError.
 
     Returns
     -------
@@ -798,6 +838,8 @@ def equilibrium_atmosphere(
         reservoir masses [kg], elemental totals, residuals, and atmospheric
         diagnostics (P_surf, M_atm, atm_kg_per_mol, ratios).
     """
+
+    ddict = _with_fO2_model(ddict, fO2_model)
 
     if print_result:
         log.info('Solving for equilibrium partial pressures at surface')
@@ -1139,6 +1181,7 @@ def equilibrium_atmosphere_authoritative_O(
     opt_solver=True,
     random_seed=None,
     p_guess_max=P_GUESS_MAX_BAR,
+    fO2_model=None,
 ):
     """Solve for partial pressures AND fO2 given total elemental masses including O.
 
@@ -1209,6 +1252,13 @@ def equilibrium_atmosphere_authoritative_O(
         box; it does not raise the maximum pressure the solver can accept, so a
         surface pressure above the box stays out of reach. Must be finite and
         >= ``P_GUESS_MIN_BAR``.
+    fO2_model : str or None, default None
+        IW buffer that ``fO2_shift_derived`` is referenced to: one of ``FO2_MODELS``
+        ('hirschmann', 'fischer', 'oneill'). Applies to the whole solve: the
+        O2 partial pressure, the modified equilibrium constants and the S2
+        solubility. ``None`` uses ``ddict['fO2_model']`` if present, else
+        ``DEFAULT_FO2_MODEL``. A value that contradicts ``ddict['fO2_model']``,
+        or an unknown name, raises ValueError.
 
     Returns
     -------
@@ -1287,6 +1337,8 @@ def equilibrium_atmosphere_authoritative_O(
             raise ValueError('target_d[%r] must be a finite real number [kg], got %r.' % (e, v))
         if v < 0:
             raise ValueError('target_d[%r] must be non-negative [kg], got %r.' % (e, v))
+
+    ddict = _with_fO2_model(ddict, fO2_model)
 
     # Validate fO2_hint and the planet/state parameters consumed from
     # ddict by the residual chain. The solver evaluates the residual at
