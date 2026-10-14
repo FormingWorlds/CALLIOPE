@@ -44,9 +44,8 @@ P = 1 bar (1e-4 GPa). At T = 1473 K:
 log10(fO2) = -11.957   (Fischer: -12.191, O'Neill & Eggins: -11.699)
 ```
 
-The minus signs in Table 1 do not survive text extraction from the
-published PDF, so the signs were taken from the rendered table. They are
-checked independently by the continuity of the fcc/bcc and hcp branches
+The Table 1 coefficients are checked independently by the continuity of
+the fcc/bcc and hcp branches
 at the Eq. 18 boundary: the jump stays below 0.019 dex from 1000 to
 3000 K, against a published maximum fit mismatch of 0.028 dex.
 
