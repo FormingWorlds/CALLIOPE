@@ -55,7 +55,6 @@ class ModifiedKeq:
         return (9440.174611 / T - 5.16908096, 0)
 
     def janaf_NH3(self, T):
-        # JANAF log10Keq for N2 + 3 H2 = 2 NH3 (doubled form)
-        # Coefficients = 2x the formation constant
-        # See notebook in `tools/`
-        return (5328.031246 / T - 11.98476092, 0)
+        # JANAF log10Keq for N2 + 3 H2 = 2 NH3 (doubled form), fit over 700-5000 K
+        # Per mole: log Kf(NH3); see `tools/fit_NH3.ipynb`
+        return (5648.850436 / T - 12.15151238, 0)

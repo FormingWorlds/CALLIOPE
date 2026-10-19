@@ -379,7 +379,7 @@ class TestEquilibriumChemistry:
         # between 1500 K and 3000 K should be several-fold. A near-unity
         # ratio would mean the temperature dependence of the equilibrium
         # constant is being missed. Empirical ratio at these (p_N2, p_H2)
-        # is ~7.7 with the janaf_NH3 fit.
+        # is ~8.7 with the janaf_NH3 fit.
         ratio = p_low / p_high
         assert ratio > 3.0, (
             f'p_NH3(1500K)/p_NH3(3000K) = {ratio:.2f}; expected several-fold '

@@ -6,7 +6,7 @@ two reaction families:
 - JANAF tables: `janaf_H2`, `janaf_CO`, `janaf_SO2`, `janaf_H2S`,
   `janaf_NH3`. Coefficients are fits to the NIST JANAF Thermochemical
   Tables over 1500-3000 K (`janaf_H2`, `janaf_CO`) or 700-5000 K
-  (`janaf_H2S`, checked against every JANAF row in that range).
+  (`janaf_H2S`, `janaf_NH3`, checked against every JANAF row in that range).
 - Schaefer & Fegley series: `schaefer_H`, `schaefer_C`, `schaefer_CH4`.
 
 Reference pin: `janaf_H2` Geq at T = 2000 K under the legacy O'Neill
