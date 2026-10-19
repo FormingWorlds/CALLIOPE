@@ -329,16 +329,15 @@ class TestEquilibriumChemistry:
             f'NH3 at {T}K: code={p_code:.6e}, expected={p_expected:.6e}'
         )
 
-        # Discrimination guard: the wrong stoichiometry that swaps the H2
-        # and N2 exponents (1.5 vs 0.5) would give Kf * p_N2^1.5 * p_H2^0.5,
-        # a different power-law in p_N2/p_H2. At p_N2 = p_H2 = 1.0 the two
-        # forms coincide; sample a non-symmetric point to discriminate.
-        p_N2_test, p_H2_test = 0.5, 2.0
-        p_code_asym = (Geq * p_N2_test * p_H2_test**3) ** 0.5
-        p_correct_asym = Kf * p_N2_test**0.5 * p_H2_test**1.5
-        p_wrong_swapped = Kf * p_N2_test**1.5 * p_H2_test**0.5
-        assert p_code_asym == pytest.approx(p_correct_asym, rel=0.06)
-        assert abs(p_code_asym - p_wrong_swapped) > 0.1 * p_correct_asym
+        # Exponents in solve.get_partial_pressures at p_N2 << p_H2, where swapping
+        # the N2 and H2 exponents changes p_NH3 by the factor p_N2 / p_H2.
+        from calliope.solve import get_partial_pressures
+
+        pin = {'H2O': 1.0, 'CO2': 1e-30, 'N2': 0.01, 'S2': 1e-30}
+        p_d = get_partial_pressures(pin, _make_ddict(T=T, fO2_shift=0.0))
+        k = 10.0 ** (0.5 * mk.janaf_NH3(T)[0])
+        assert p_d['NH3'] == pytest.approx(k * p_d['N2'] ** 0.5 * p_d['H2'] ** 1.5, rel=1e-9)
+        assert abs(p_d['NH3'] - k * p_d['N2'] ** 1.5 * p_d['H2'] ** 0.5) > 0.5 * p_d['NH3']
 
     def test_SO2_increases_with_fO2(self):
         """More oxidizing conditions should produce more SO2."""

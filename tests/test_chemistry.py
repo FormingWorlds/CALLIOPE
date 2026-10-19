@@ -162,12 +162,13 @@ def test_modified_keq_unknown_model_raises():
         ModifiedKeq('janaf_O3')  # not an implemented reaction
 
 
-# JANAF fit range: the default PROTEUS outgassing floor (700 K) to above the 99.9th
-# percentile of T_magma in coupled runs. Tolerance = max fit residual plus margin [dex].
+# JANAF fit range from the default PROTEUS outgassing floor (700 K) to 5000 K.
+# Tolerance = max fit residual plus margin [dex].
 JANAF_FIT_RANGE_K = (700.0, 5000.0)
 JANAF_FIT_TOL_DEX = {'H2S': 0.025, 'NH3': 0.04}
-# Wrong-formula guard: fits over 200-4000 K (doubled form), for H2S with S2 coefficient 1.
-WRONG_FORMULA_FIT = {'H2S': (13462.03094, 7.24546062), 'NH3': (5328.031246, 11.98476092)}
+# Discriminating fits (doubled form): a/T - b fits of fG over 200-4000 K, for H2S
+# with the S2 coefficient 1 instead of 1/2.
+DISCRIMINATING_FIT = {'H2S': (13462.03094, 7.24546062), 'NH3': (5328.031246, 11.98476092)}
 
 
 def _per_mole_log_k(product, T):
@@ -196,15 +197,13 @@ def test_janaf_constant_matches_janaf_rows_over_fit_range(janaf_log_k, product):
     T, janaf = _rows_in_fit_range(janaf_log_k, product)
     assert T[0] == pytest.approx(JANAF_FIT_RANGE_K[0])
     assert T[-1] == pytest.approx(JANAF_FIT_RANGE_K[1])
-    resid = _per_mole_log_k(product, T) - janaf
-    assert np.max(np.abs(resid)) < JANAF_FIT_TOL_DEX[product]
-    # Discrimination: the wrong-formula fits miss the rows by far more.
-    a, b = WRONG_FORMULA_FIT[product]
+    fit = _per_mole_log_k(product, T)
+    assert np.max(np.abs(fit - janaf)) < JANAF_FIT_TOL_DEX[product]
+    # Discrimination: the discriminating fits miss the rows by far more.
+    a, b = DISCRIMINATING_FIT[product]
     assert np.max(np.abs(0.5 * (a / T - b) - janaf)) > 3 * JANAF_FIT_TOL_DEX[product]
     # Sign: the formation reactions are exothermic, so log K falls with T.
-    assert np.all(np.diff(_per_mole_log_k(product, T)) < 0)
-    # Scale: per-mole log10 K stays within a few dex (ln instead of log10 is x2.3).
-    assert np.all(np.abs(_per_mole_log_k(product, T)) < 10)
+    assert np.all(np.diff(fit) < 0)
 
 
 @pytest.mark.reference_pinned
