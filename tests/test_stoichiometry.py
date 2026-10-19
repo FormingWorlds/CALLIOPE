@@ -284,7 +284,8 @@ class TestEquilibriumChemistry:
 
     @pytest.mark.parametrize('T', [1500.0, 2000.0, 2500.0, 3000.0])
     def test_H2S_equilibrium(self, T, janaf_log_k):
-        """p_H2S from code matches K_f * p_S2^0.5 * p_H2 with K_f from the JANAF row at T."""
+        """p_H2S matches K_f * p_S2^0.5 * p_H2 with K_f from the JANAF row at T, and
+        get_partial_pressures applies these exponents."""
         p_S2 = 0.01
         p_H2 = 0.1
 
@@ -309,9 +310,20 @@ class TestEquilibriumChemistry:
         p_wrong_stoich = Kf * p_S2 * p_H2
         assert abs(p_code - p_wrong_stoich) > 0.5 * p_expected
 
+        # Exponents in solve.get_partial_pressures at p_S2 << p_H2, where swapping
+        # the S2 and H2 exponents changes p_H2S by the factor (p_S2 / p_H2)^0.5.
+        from calliope.solve import get_partial_pressures
+
+        pin = {'H2O': 1.0, 'CO2': 1e-30, 'N2': 1e-30, 'S2': 1e-4}
+        p_d = get_partial_pressures(pin, _make_ddict(T=T, fO2_shift=0.0))
+        k = Geq**0.5
+        assert p_d['H2S'] == pytest.approx(k * p_d['S2'] ** 0.5 * p_d['H2'], rel=1e-9)
+        assert abs(p_d['H2S'] - k * p_d['S2'] * p_d['H2'] ** 0.5) > 0.5 * p_d['H2S']
+
     @pytest.mark.parametrize('T', [1500.0, 2000.0, 2500.0, 3000.0])
     def test_NH3_equilibrium(self, T, janaf_log_k):
-        """p_NH3 from code matches K_f * p_N2^0.5 * p_H2^1.5 with K_f from the JANAF row at T."""
+        """p_NH3 matches K_f * p_N2^0.5 * p_H2^1.5 with K_f from the JANAF row at T, and
+        get_partial_pressures applies these exponents."""
         p_N2 = 1.0
         p_H2 = 1.0
 
@@ -335,7 +347,7 @@ class TestEquilibriumChemistry:
 
         pin = {'H2O': 1.0, 'CO2': 1e-30, 'N2': 0.01, 'S2': 1e-30}
         p_d = get_partial_pressures(pin, _make_ddict(T=T, fO2_shift=0.0))
-        k = 10.0 ** (0.5 * mk.janaf_NH3(T)[0])
+        k = Geq**0.5
         assert p_d['NH3'] == pytest.approx(k * p_d['N2'] ** 0.5 * p_d['H2'] ** 1.5, rel=1e-9)
         assert abs(p_d['NH3'] - k * p_d['N2'] ** 1.5 * p_d['H2'] ** 0.5) > 0.5 * p_d['NH3']
 
