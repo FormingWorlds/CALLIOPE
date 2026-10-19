@@ -31,7 +31,7 @@ logging.getLogger('fwl.calliope').setLevel(logging.WARNING)
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.physics_invariant,
-    pytest.mark.timeout(120),
+    pytest.mark.timeout(300),
 ]
 
 SPECIES_STOICH: dict[str, dict[str, int]] = {
@@ -344,27 +344,48 @@ def test_element_balance_across_75_case_grid():
                 f'{case_id} {el}: |recovered - target| = {abs_err!r} > tol {tol_kg!r}'
             )
 
-        # Verify multi-seed stability across 5 seeds on the zero-N/S tutorial_earth budget case.
-        if case_id == 'budget_tutorial_earth_T2000_IW+2':
+        # Verify multi-seed stability across 5 seeds on 2-element, 4-element, and 5-element cases.
+        if case_id in (
+            'budget_tutorial_earth_T2000_IW+2',
+            'budget_cmb_singleimpact_T2000_IW+1',
+            'authO_default_T2000',
+        ):
             for seed in (0, 1, 2, 3, 42):
                 np.random.seed(seed)
-                out_s = equilibrium_atmosphere(
-                    target,
-                    ddict,
-                    rtol=RTOL_DERIVED,
-                    atol=ATOL_KG,
-                    xtol=1.0e-8,
-                    print_result=False,
-                    opt_solver=False,
-                )
+                if case['mode'] == 'authoritative_O':
+                    out_s = equilibrium_atmosphere_authoritative_O(
+                        target,
+                        ddict,
+                        fO2_hint=case['fO2_shift_IW'],
+                        rtol=RTOL_DERIVED,
+                        atol=ATOL_KG,
+                        xtol=1.0e-8,
+                        random_seed=seed,
+                        print_result=False,
+                        opt_solver=False,
+                    )
+                else:
+                    out_s = equilibrium_atmosphere(
+                        target,
+                        ddict,
+                        rtol=RTOL_DERIVED,
+                        atol=ATOL_KG,
+                        xtol=1.0e-8,
+                        print_result=False,
+                        opt_solver=False,
+                    )
                 rec_s = _reconstruct_from_species(
                     out_s,
                     r_int=case['R_int'],
                     g_surf=case['gravity'],
-                    elements=('H', 'C', 'N', 'S'),
+                    elements=checked_elements,
                 )
-                tol_s = hcns_max * RTOL_DERIVED + ATOL_KG + float(TRUNC_MASS)
-                for el in ('H', 'C', 'N', 'S'):
+                for el in checked_elements:
+                    tol_s = (
+                        max(RTOL_DERIVED * float(target[el]), float(TRUNC_MASS))
+                        if case['mode'] == 'authoritative_O'
+                        else hcns_max * RTOL_DERIVED + ATOL_KG + float(TRUNC_MASS)
+                    )
                     err_s = abs(rec_s[el]['total_kg'] - float(target[el]))
                     assert err_s <= tol_s, f'{case_id} seed={seed} {el}: {err_s!r} > {tol_s!r}'
 
