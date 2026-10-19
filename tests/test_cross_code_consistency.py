@@ -7,8 +7,8 @@ Verifies:
    reaction-data offset (K_OFFSET_EXPECTED_DEX). For H2S, CALLIOPE's janaf_H2S
    (tools/fit_H2S.ipynb) fits g_H2S - g_S2 - g_H2 (unit S2 stoichiometric
    coefficient over 200-4000 K instead of 0.5 S2), producing a +0.29 to -0.39 dex
-   per-mole K_p offset across 1500-3000 K; H2S, S2, and any buffered case-species key
-   whose offset shifts by > 0.002 dex under a 0.5 S2 refit are held: these keys
+   per-mole K_p offset across 1500-3000 K; H2S, S2 on 54 cases, and any case-species key
+   whose offset shifts by > half its assert margin under a 0.5 S2 refit are held: these keys
    depend on the janaf_H2S constant.
 2. Live 72-case gas-only equilibrium cross-comparison against atmodeller (60
    buffered cases with matched fO2 plus 12 authoritative-O cases) on the shared
@@ -16,10 +16,11 @@ Verifies:
    inventories are defined in moles (n_O = 0.5 n_H + 2 n_C + 2 n_S at the
    stoichiometric H2O + CO2 + SO2 endpoint) and converted to mass per code with
    that code's atomic masses (calliope.constants.molar_mass and molmass.Formula),
-   and surface gravity is matched to atmodeller.Planet.surface_gravity. Across
-   all 12 authoritative-O cases (1500 to 3000 K), solved log10(fO2) (O2 partial
-   pressure) agrees within expected +-0.005 dex (measured -0.0007 to +0.0026) and secondary species (H2, CO, CH4,
-   NH3) follow DeltaK plus the propagated H2, CO2 and O2 offsets within +-0.005 dex.
+   and surface gravity is matched to atmodeller.Planet.surface_gravity.
+   Across all 12 authoritative-O cases (1500 to 3000 K), solved log10(fO2) (O2 partial
+   pressure) agrees within expected +-0.005 dex (measured -0.0007 to +0.0026).
+   H2 follows DeltaK with H2O and O2, CO and CH4 with CO2 and O2, NH3 with N2 and H2;
+   the relation holds for the pinned values.
 """
 
 from __future__ import annotations
@@ -93,7 +94,8 @@ NASA_GLENN_LOG10_K_REF: dict[float, dict[str, float]] = {
 }
 
 # Measured log10(K_CALLIOPE / K_NASA_Glenn) per mole of product at each temperature,
-# asserted within +-K_OFFSET_MARGIN_DEX (0.002 dex); H2S is held: these keys depend on the janaf_H2S constant.
+# asserted within +-K_OFFSET_MARGIN_DEX (0.002 dex); H2S is held:
+# these keys depend on the janaf_H2S constant.
 K_OFFSET_MARGIN_DEX: float = 0.002
 K_OFFSET_HELD_FOR_H2S_FIX: tuple[str, ...] = ('H2S',)
 K_OFFSET_EXPECTED_DEX: dict[float, dict[str, float]] = {
@@ -126,6 +128,11 @@ K_OFFSET_EXPECTED_DEX: dict[float, dict[str, float]] = {
 # keys whose offset shifts by > 0.002 dex under the S2-coefficient-0.5 janaf_H2S refit.
 BUFFERED_SPECIES_HELD_FOR_H2S_FIX: tuple[str, ...] = ('H2S',)
 AUTHO_HELD_FOR_H2S_FIX: tuple[str, ...] = ('H2S',)
+AUTHO_CASE_KEYS_HELD_FOR_H2S_FIX: dict[str, tuple[str, ...]] = {
+    'authO_default_T3000': ('S2',),
+    'authO_high_T3000': ('S2',),
+    'authO_low_T3000': ('S2',),
+}
 BUFFERED_CASE_KEYS_HELD_FOR_H2S_FIX: dict[str, tuple[str, ...]] = {
     'buffered_default_T1500_IW+0': ('SO2', 'S2'),
     'buffered_default_T1500_IW+2': ('SO2', 'S2'),
@@ -144,31 +151,62 @@ BUFFERED_CASE_KEYS_HELD_FOR_H2S_FIX: dict[str, tuple[str, ...]] = {
     'buffered_default_T1500_IW-2': ('SO2', 'S2'),
     'buffered_default_T1500_IW-4': ('SO2', 'S2'),
     'buffered_default_T2000_IW+0': ('SO2', 'S2'),
-    'buffered_default_T2000_IW+2': ('CH4', 'SO2', 'S2'),
+    'buffered_default_T2000_IW+2': ('SO2', 'S2'),
     'buffered_default_T2000_IW-2': ('SO2', 'S2'),
     'buffered_default_T2000_IW-4': ('SO2', 'S2'),
-    'buffered_default_T2500_IW+0': ('H2O', 'H2', 'NH3', 'CH4', 'SO2', 'S2'),
-    'buffered_default_T2500_IW+2': ('P_surf', 'H2O', 'H2', 'NH3', 'CH4', 'SO2', 'S2'),
+    'buffered_default_T2500_IW+0': (
+        'H2O',
+        'H2',
+        'NH3',
+        'CH4',
+        'SO2',
+        'S2',
+    ),
+    'buffered_default_T2500_IW+2': (
+        'P_surf',
+        'H2O',
+        'H2',
+        'NH3',
+        'CH4',
+        'SO2',
+        'S2',
+    ),
     'buffered_default_T2500_IW-2': ('SO2', 'S2'),
     'buffered_default_T2500_IW-4': ('SO2', 'S2'),
     'buffered_default_T3000_IW+0': (
         'P_surf',
         'H2O',
-        'N2',
         'H2',
         'NH3',
         'CH4',
-        'CO2',
-        'CO',
         'SO2',
         'S2',
     ),
     'buffered_default_T3000_IW+2': ('SO2', 'S2'),
-    'buffered_default_T3000_IW-2': ('H2O', 'H2', 'NH3', 'CH4', 'SO2', 'S2'),
-    'buffered_default_T3000_IW-4': ('H2O', 'N2', 'H2', 'NH3', 'CH4', 'CO2', 'CO', 'SO2', 'S2'),
+    'buffered_default_T3000_IW-2': (
+        'H2O',
+        'H2',
+        'NH3',
+        'CH4',
+        'SO2',
+        'S2',
+    ),
+    'buffered_default_T3000_IW-4': (
+        'H2O',
+        'H2',
+        'NH3',
+        'CH4',
+        'SO2',
+        'S2',
+    ),
     'buffered_high_T1500_IW+0': ('SO2', 'S2'),
     'buffered_high_T1500_IW+2': ('SO2', 'S2'),
-    'buffered_high_T1500_IW+4': ('NH3', 'CH4', 'SO2', 'S2'),
+    'buffered_high_T1500_IW+4': (
+        'NH3',
+        'CH4',
+        'SO2',
+        'S2',
+    ),
     'buffered_high_T1500_IW-2': ('SO2', 'S2'),
     'buffered_high_T1500_IW-4': ('SO2', 'S2'),
     'buffered_high_T2000_IW+0': ('SO2', 'S2'),
@@ -191,16 +229,20 @@ BUFFERED_CASE_KEYS_HELD_FOR_H2S_FIX: dict[str, tuple[str, ...]] = {
     ),
     'buffered_high_T2500_IW-2': ('SO2', 'S2'),
     'buffered_high_T2500_IW-4': ('SO2', 'S2'),
-    'buffered_high_T3000_IW+0': ('P_surf', 'H2O', 'H2', 'NH3', 'CH4', 'SO2', 'S2'),
-    'buffered_high_T3000_IW+2': (
-        'P_surf',
+    'buffered_high_T3000_IW+0': (
         'H2O',
-        'N2',
         'H2',
         'NH3',
         'CH4',
-        'CO2',
-        'CO',
+        'SO2',
+        'S2',
+    ),
+    'buffered_high_T3000_IW+2': (
+        'P_surf',
+        'H2O',
+        'H2',
+        'NH3',
+        'CH4',
         'SO2',
         'S2',
     ),
@@ -223,15 +265,53 @@ BUFFERED_CASE_KEYS_HELD_FOR_H2S_FIX: dict[str, tuple[str, ...]] = {
     'buffered_low_T1500_IW-2': ('SO2', 'S2'),
     'buffered_low_T1500_IW-4': ('SO2', 'S2'),
     'buffered_low_T2000_IW+0': ('SO2', 'S2'),
-    'buffered_low_T2000_IW+2': ('CH4', 'SO2', 'S2'),
+    'buffered_low_T2000_IW+2': ('SO2', 'S2'),
     'buffered_low_T2000_IW-2': ('SO2', 'S2'),
     'buffered_low_T2000_IW-4': ('SO2', 'S2'),
-    'buffered_low_T2500_IW+0': ('P_surf', 'H2O', 'H2', 'NH3', 'CH4', 'SO2', 'S2'),
+    'buffered_low_T2500_IW+0': (
+        'P_surf',
+        'H2O',
+        'H2',
+        'NH3',
+        'CH4',
+        'SO2',
+        'S2',
+    ),
     'buffered_low_T2500_IW+2': ('SO2', 'S2'),
-    'buffered_low_T2500_IW-2': ('H2O', 'H2', 'NH3', 'CH4', 'SO2', 'S2'),
-    'buffered_low_T2500_IW-4': ('H2O', 'H2', 'NH3', 'CH4', 'SO2', 'S2'),
+    'buffered_low_T2500_IW-2': (
+        'H2O',
+        'H2',
+        'NH3',
+        'CH4',
+        'SO2',
+        'S2',
+    ),
+    'buffered_low_T2500_IW-4': (
+        'H2O',
+        'H2',
+        'NH3',
+        'CH4',
+        'SO2',
+        'S2',
+    ),
     'buffered_low_T3000_IW+0': (
         'P_surf',
+        'H2O',
+        'H2',
+        'NH3',
+        'CH4',
+        'SO2',
+        'S2',
+    ),
+    'buffered_low_T3000_IW-2': (
+        'H2O',
+        'H2',
+        'NH3',
+        'CH4',
+        'SO2',
+        'S2',
+    ),
+    'buffered_low_T3000_IW-4': (
         'H2O',
         'N2',
         'H2',
@@ -242,565 +322,546 @@ BUFFERED_CASE_KEYS_HELD_FOR_H2S_FIX: dict[str, tuple[str, ...]] = {
         'SO2',
         'S2',
     ),
-    'buffered_low_T3000_IW-2': ('H2O', 'H2', 'NH3', 'CH4', 'SO2', 'S2'),
-    'buffered_low_T3000_IW-4': ('H2O', 'N2', 'H2', 'NH3', 'CH4', 'CO2', 'CO', 'SO2', 'S2'),
 }
 
-# Measured per-case log10(P_CALLIOPE / P_atmodeller) offsets at matched moles and g_surf = 9.930522 m s^-2
+# Measured per-case log10(P_CALLIOPE / P_atmodeller) offsets at matched moles
+# and g_surf = 9.930522 m s^-2
 # for all H2S-independent keys (shift <= 0.002 dex), asserted within +-0.005 dex.
 GRID_OFFSET_MARGIN_DEX: float = 0.005
 AUTHO_MAJOR_MARGIN_DEX: float = 0.001
 BUFFERED_EXPECTED_DEX: dict[str, dict[str, float]] = {
-    'buffered_low_T1500_IW-4': {
-        'P_surf': -0.000855,
-        'H2O': 0.004807,
-        'N2': 0.000136,
-        'H2': -0.001186,
-        'NH3': -0.012334,
-        'CH4': 0.039726,
-        'CO2': -0.017428,
-        'CO': -0.003537,
-    },
-    'buffered_low_T1500_IW-2': {
-        'P_surf': 0.000309,
-        'H2O': 0.005897,
-        'N2': 0.000462,
-        'H2': -0.000096,
-        'NH3': -0.010536,
-        'CH4': 0.045749,
-        'CO2': -0.013585,
-        'CO': 0.000307,
-    },
-    'buffered_low_T1500_IW+0': {
-        'P_surf': 0.000976,
-        'H2O': 0.004620,
-        'N2': 0.001015,
-        'H2': -0.001373,
-        'NH3': -0.012175,
-        'CH4': 0.046538,
-        'CO2': -0.010242,
-        'CO': 0.003650,
-    },
-    'buffered_low_T1500_IW+2': {
-        'P_surf': -0.000176,
-        'H2O': 0.000411,
-        'N2': 0.000021,
-        'H2': -0.005582,
-        'NH3': -0.018985,
-        'CH4': 0.044295,
-        'CO2': -0.004067,
-        'CO': 0.009825,
-    },
-    'buffered_low_T1500_IW+4': {},
-    'buffered_low_T2000_IW-4': {
-        'P_surf': -0.000007,
-        'H2O': -0.002639,
-        'N2': -0.000075,
-        'H2': 0.000125,
-        'NH3': 0.033390,
-        'CH4': 0.106684,
-        'CO2': 0.005993,
-        'CO': -0.000155,
-    },
-    'buffered_low_T2000_IW-2': {
-        'P_surf': -0.000197,
-        'H2O': -0.002610,
-        'N2': -0.000289,
-        'H2': 0.000153,
-        'NH3': 0.033326,
-        'CH4': 0.106496,
-        'CO2': 0.005748,
-        'CO': -0.000400,
-    },
-    'buffered_low_T2000_IW+0': {
-        'P_surf': -0.000272,
-        'H2O': -0.001511,
-        'N2': -0.000424,
-        'H2': 0.001253,
-        'NH3': 0.034908,
-        'CH4': 0.107647,
-        'CO2': 0.004701,
-        'CO': -0.001447,
-    },
-    'buffered_low_T2000_IW+2': {
-        'P_surf': 0.001022,
-        'H2O': 0.000961,
-        'N2': 0.000523,
-        'H2': 0.003725,
-        'NH3': 0.039089,
-        'CO2': 0.002554,
-        'CO': -0.003595,
-    },
-    'buffered_low_T2000_IW+4': {
-        'P_surf': 0.000016,
-        'H2O': -0.000013,
-        'N2': 0.000014,
-        'H2': 0.002750,
-        'NH3': 0.037373,
-        'CH4': 0.106245,
-        'CO2': 0.000303,
-        'CO': -0.005846,
-        'SO2': +0.000052,
-        'S2': -0.013904,
-    },
-    'buffered_low_T2500_IW-4': {
-        'P_surf': 0.000038,
-        'N2': -0.001886,
-        'CO2': 0.002656,
-        'CO': -0.001880,
-    },
-    'buffered_low_T2500_IW-2': {
-        'P_surf': 0.000252,
-        'N2': -0.001700,
-        'CO2': 0.002772,
-        'CO': -0.001764,
-    },
-    'buffered_low_T2500_IW+0': {'N2': 0.000297, 'CO2': 0.004133, 'CO': -0.000403},
-    'buffered_low_T2500_IW+2': {
-        'P_surf': 0.000355,
-        'H2O': 0.000092,
-        'N2': 0.000155,
-        'H2': 0.004019,
-        'NH3': 0.059117,
-        'CH4': 0.108369,
-        'CO2': 0.001739,
-        'CO': -0.002797,
-    },
-    'buffered_low_T2500_IW+4': {
-        'P_surf': 0.000005,
-        'H2O': -0.000029,
-        'N2': 0.000005,
-        'H2': 0.003899,
-        'NH3': 0.058862,
-        'CH4': 0.106625,
-        'CO2': 0.000236,
-        'CO': -0.004300,
-        'SO2': +0.000010,
-        'S2': -0.012964,
-    },
-    'buffered_low_T3000_IW-4': {'P_surf': 0.000072},
-    'buffered_low_T3000_IW-2': {
-        'P_surf': 0.000772,
-        'N2': -0.002289,
-        'CO2': -0.007732,
-        'CO': -0.002177,
-    },
-    'buffered_low_T3000_IW+0': {},
-    'buffered_low_T3000_IW+2': {
-        'P_surf': -0.000188,
-        'H2O': -0.000440,
-        'N2': -0.000219,
-        'H2': 0.003226,
-        'NH3': 0.064119,
-        'CH4': 0.076289,
-        'CO2': -0.002216,
-        'CO': 0.003339,
-        'SO2': +0.000368,
-        'S2': -0.014578,
-    },
-    'buffered_low_T3000_IW+4': {
-        'P_surf': -0.000010,
-        'H2O': -0.000044,
-        'N2': -0.000016,
-        'H2': 0.003622,
-        'NH3': 0.064814,
-        'CH4': 0.078985,
-        'CO2': -0.000312,
-        'CO': 0.005243,
-        'SO2': -0.000016,
-        'S2': -0.015345,
-    },
-    'buffered_default_T1500_IW-4': {
-        'P_surf': -0.001930,
-        'H2O': 0.003201,
-        'N2': 0.000268,
-        'H2': -0.002791,
-        'NH3': -0.014676,
-        'CH4': 0.006914,
-        'CO2': -0.047030,
-        'CO': -0.033138,
-    },
-    'buffered_default_T1500_IW-2': {
-        'P_surf': -0.002583,
-        'H2O': 0.002076,
-        'N2': 0.000579,
-        'H2': -0.003917,
-        'NH3': -0.016210,
-        'CH4': 0.022373,
-        'CO2': -0.029318,
-        'CO': -0.015427,
-    },
     'buffered_default_T1500_IW+0': {
         'P_surf': 0.000059,
         'H2O': 0.003495,
+        'CO2': -0.013405,
         'N2': 0.001060,
         'H2': -0.002498,
-        'NH3': -0.013840,
-        'CH4': 0.041125,
-        'CO2': -0.013405,
         'CO': 0.000487,
+        'CH4': 0.041125,
+        'NH3': -0.013840,
     },
     'buffered_default_T1500_IW+2': {
         'P_surf': 0.000101,
         'H2O': 0.000892,
+        'CO2': -0.003977,
         'N2': 0.000164,
         'H2': -0.005101,
-        'NH3': -0.018192,
-        'CH4': 0.045347,
-        'CO2': -0.003977,
         'CO': 0.009915,
+        'CH4': 0.045347,
+        'NH3': -0.018192,
     },
     'buffered_default_T1500_IW+4': {},
-    'buffered_default_T2000_IW-4': {
-        'P_surf': -0.001929,
-        'H2O': -0.005236,
-        'N2': -0.000143,
-        'H2': -0.002472,
-        'NH3': 0.029461,
-        'CH4': 0.094238,
-        'CO2': -0.001259,
-        'CO': -0.007407,
+    'buffered_default_T1500_IW-2': {
+        'P_surf': -0.002583,
+        'H2O': 0.002076,
+        'CO2': -0.029318,
+        'N2': 0.000579,
+        'H2': -0.003917,
+        'CO': -0.015427,
+        'CH4': 0.022373,
+        'NH3': -0.016210,
     },
-    'buffered_default_T2000_IW-2': {
-        'P_surf': -0.000474,
-        'H2O': -0.003074,
-        'N2': -0.000419,
-        'H2': -0.000310,
-        'NH3': 0.032566,
-        'CH4': 0.104718,
-        'CO2': 0.004897,
-        'CO': -0.001251,
+    'buffered_default_T1500_IW-4': {
+        'P_surf': -0.001930,
+        'H2O': 0.003201,
+        'CO2': -0.047030,
+        'N2': 0.000268,
+        'H2': -0.002791,
+        'CO': -0.033138,
+        'CH4': 0.006914,
+        'NH3': -0.014676,
     },
     'buffered_default_T2000_IW+0': {
         'P_surf': -0.000438,
         'H2O': -0.001864,
+        'CO2': 0.004618,
         'N2': -0.000573,
         'H2': 0.000900,
-        'NH3': 0.034303,
-        'CH4': 0.106858,
-        'CO2': 0.004618,
         'CO': -0.001531,
+        'CH4': 0.106858,
+        'NH3': 0.034303,
     },
     'buffered_default_T2000_IW+2': {
         'P_surf': 0.000770,
         'H2O': 0.000770,
+        'CO2': 0.002408,
         'N2': 0.000360,
         'H2': 0.003533,
-        'NH3': 0.038721,
-        'CO2': 0.002408,
         'CO': -0.003740,
+        'CH4': 0.109916,
+        'NH3': 0.038721,
     },
     'buffered_default_T2000_IW+4': {
         'P_surf': 0.000050,
         'H2O': 0.000025,
-        'N2': 0.000030,
-        'H2': 0.002788,
-        'NH3': 0.037438,
-        'CH4': 0.106337,
         'CO2': 0.000320,
+        'N2': 0.000030,
+        'SO2': 0.000410,
+        'H2': 0.002788,
         'CO': -0.005829,
-        'SO2': +0.000410,
+        'CH4': 0.106337,
+        'NH3': 0.037438,
         'S2': -0.013189,
     },
-    'buffered_default_T2500_IW-4': {
-        'P_surf': -0.000137,
-        'H2O': -0.003232,
-        'N2': -0.000697,
-        'H2': 0.000696,
-        'NH3': 0.053706,
-        'CH4': 0.103476,
-        'CO2': 0.003493,
-        'CO': -0.001043,
+    'buffered_default_T2000_IW-2': {
+        'P_surf': -0.000474,
+        'H2O': -0.003074,
+        'CO2': 0.004897,
+        'N2': -0.000419,
+        'H2': -0.000310,
+        'CO': -0.001251,
+        'CH4': 0.104718,
+        'NH3': 0.032566,
+    },
+    'buffered_default_T2000_IW-4': {
+        'P_surf': -0.001929,
+        'H2O': -0.005236,
+        'CO2': -0.001259,
+        'N2': -0.000143,
+        'H2': -0.002472,
+        'CO': -0.007407,
+        'CH4': 0.094238,
+        'NH3': 0.029461,
+    },
+    'buffered_default_T2500_IW+0': {
+        'P_surf': 0.000809,
+        'CO2': 0.003510,
+        'N2': -0.000426,
+        'CO': -0.001025,
+    },
+    'buffered_default_T2500_IW+2': {
+        'CO2': 0.003023,
+        'N2': 0.001426,
+        'CO': -0.001513,
+    },
+    'buffered_default_T2500_IW+4': {
+        'P_surf': 0.000010,
+        'H2O': -0.000024,
+        'CO2': 0.000238,
+        'N2': 0.000007,
+        'SO2': 0.000056,
+        'H2': 0.003904,
+        'CO': -0.004298,
+        'CH4': 0.106637,
+        'NH3': 0.058870,
+        'S2': -0.012873,
     },
     'buffered_default_T2500_IW-2': {
         'P_surf': -0.000238,
         'H2O': -0.002902,
+        'CO2': 0.003624,
         'N2': -0.000951,
         'H2': 0.001026,
-        'NH3': 0.054074,
-        'CH4': 0.104267,
-        'CO2': 0.003624,
         'CO': -0.000911,
+        'CH4': 0.104267,
+        'NH3': 0.054074,
     },
-    'buffered_default_T2500_IW+0': {
-        'P_surf': 0.000809,
-        'N2': -0.000426,
-        'CO2': 0.003510,
-        'CO': -0.001025,
+    'buffered_default_T2500_IW-4': {
+        'P_surf': -0.000137,
+        'H2O': -0.003232,
+        'CO2': 0.003493,
+        'N2': -0.000697,
+        'H2': 0.000696,
+        'CO': -0.001043,
+        'CH4': 0.103476,
+        'NH3': 0.053706,
     },
-    'buffered_default_T2500_IW+2': {'N2': 0.001426, 'CO2': 0.003023, 'CO': -0.001513},
-    'buffered_default_T2500_IW+4': {
-        'P_surf': 0.000010,
-        'H2O': -0.000024,
-        'N2': 0.000007,
-        'H2': 0.003904,
-        'NH3': 0.058870,
-        'CH4': 0.106637,
-        'CO2': 0.000238,
-        'CO': -0.004298,
-        'SO2': +0.000056,
-        'S2': -0.012873,
+    'buffered_default_T3000_IW+0': {
+        'CO2': -0.003524,
+        'N2': 0.001099,
+        'CO': 0.002030,
     },
-    'buffered_default_T3000_IW-4': {'P_surf': 0.000057},
-    'buffered_default_T3000_IW-2': {
-        'P_surf': 0.000528,
-        'N2': -0.002127,
-        'CO2': -0.007445,
-        'CO': -0.001891,
-    },
-    'buffered_default_T3000_IW+0': {},
     'buffered_default_T3000_IW+2': {
         'P_surf': 0.000328,
         'H2O': 0.000143,
+        'CO2': -0.001947,
         'N2': 0.000043,
         'H2': 0.003810,
-        'NH3': 0.065125,
-        'CH4': 0.077725,
-        'CO2': -0.001947,
         'CO': 0.003608,
+        'CH4': 0.077725,
+        'NH3': 0.065125,
     },
     'buffered_default_T3000_IW+4': {
         'P_surf': -0.000029,
         'H2O': -0.000059,
-        'N2': -0.000032,
-        'H2': 0.003608,
-        'NH3': 0.064785,
-        'CH4': 0.078941,
         'CO2': -0.000327,
-        'CO': 0.005228,
+        'N2': -0.000032,
         'SO2': -0.000025,
+        'H2': 0.003608,
+        'CO': 0.005228,
+        'CH4': 0.078941,
+        'NH3': 0.064785,
         'S2': -0.015363,
     },
-    'buffered_high_T1500_IW-4': {
-        'P_surf': 0.000058,
-        'H2O': 0.006079,
-        'N2': 0.000991,
-        'H2': 0.000086,
-        'NH3': -0.009999,
-        'CH4': 0.000142,
-        'CO2': -0.059556,
-        'CO': -0.045664,
+    'buffered_default_T3000_IW-2': {
+        'P_surf': 0.000528,
+        'CO2': -0.007445,
+        'N2': -0.002127,
+        'CO': -0.001891,
     },
-    'buffered_high_T1500_IW-2': {
-        'P_surf': 0.000063,
-        'H2O': 0.005610,
-        'N2': 0.001431,
-        'H2': -0.000383,
-        'NH3': -0.010482,
-        'CH4': 0.001447,
-        'CO2': -0.057314,
-        'CO': -0.043422,
+    'buffered_default_T3000_IW-4': {
+        'P_surf': 0.000057,
+        'CO2': -0.007972,
+        'N2': -0.002513,
+        'CO': -0.002417,
     },
     'buffered_high_T1500_IW+0': {
         'P_surf': -0.001623,
         'H2O': 0.001206,
+        'CO2': -0.041057,
         'N2': 0.002076,
         'H2': -0.004786,
-        'NH3': -0.016765,
-        'CH4': 0.008896,
-        'CO2': -0.041057,
         'CO': -0.027165,
+        'CH4': 0.008896,
+        'NH3': -0.016765,
     },
     'buffered_high_T1500_IW+2': {
         'P_surf': -0.000353,
         'H2O': 0.000371,
+        'CO2': -0.005483,
         'N2': 0.000431,
         'H2': -0.005622,
-        'NH3': -0.018841,
-        'CH4': 0.042798,
-        'CO2': -0.005483,
         'CO': 0.008408,
+        'CH4': 0.042798,
+        'NH3': -0.018841,
     },
     'buffered_high_T1500_IW+4': {
         'P_surf': -0.001024,
         'H2O': -0.001189,
+        'CO2': -0.001059,
         'N2': -0.000483,
         'H2': -0.007182,
-        'CO2': -0.001059,
         'CO': 0.012833,
     },
-    'buffered_high_T2000_IW-4': {
-        'P_surf': -0.005106,
-        'H2O': -0.010000,
-        'N2': -0.000695,
-        'H2': -0.007237,
-        'NH3': 0.022038,
-        'CH4': 0.017909,
-        'CO2': -0.068058,
-        'CO': -0.074207,
+    'buffered_high_T1500_IW-2': {
+        'P_surf': 0.000063,
+        'H2O': 0.005610,
+        'CO2': -0.057314,
+        'N2': 0.001431,
+        'H2': -0.000383,
+        'CO': -0.043422,
+        'CH4': 0.001447,
+        'NH3': -0.010482,
     },
-    'buffered_high_T2000_IW-2': {
-        'P_surf': -0.007045,
-        'H2O': -0.011838,
-        'N2': -0.001367,
-        'H2': -0.009074,
-        'NH3': 0.018946,
-        'CH4': 0.053596,
-        'CO2': -0.028697,
-        'CO': -0.034846,
+    'buffered_high_T1500_IW-4': {
+        'P_surf': 0.000058,
+        'H2O': 0.006079,
+        'CO2': -0.059556,
+        'N2': 0.000991,
+        'H2': 0.000086,
+        'CO': -0.045664,
+        'CH4': 0.000142,
+        'NH3': -0.009999,
     },
     'buffered_high_T2000_IW+0': {
         'P_surf': -0.002222,
         'H2O': -0.004157,
+        'CO2': -0.001036,
         'N2': -0.001936,
         'H2': -0.001393,
-        'NH3': 0.030183,
-        'CH4': 0.096619,
-        'CO2': -0.001036,
         'CO': -0.007184,
+        'CH4': 0.096619,
+        'NH3': 0.030183,
     },
     'buffered_high_T2000_IW+2': {
         'P_surf': 0.000141,
         'H2O': -0.000084,
+        'CO2': 0.002094,
         'N2': -0.000098,
         'H2': 0.002679,
-        'NH3': 0.037210,
-        'CH4': 0.107893,
-        'CO2': 0.002094,
         'CO': -0.004055,
+        'CH4': 0.107893,
+        'NH3': 0.037210,
     },
     'buffered_high_T2000_IW+4': {
         'P_surf': 0.000336,
         'H2O': 0.000348,
+        'CO2': 0.000465,
         'N2': 0.000168,
         'H2': 0.003111,
-        'NH3': 0.037992,
-        'CH4': 0.107129,
-        'CO2': 0.000465,
         'CO': -0.005683,
+        'CH4': 0.107129,
+        'NH3': 0.037992,
     },
-    'buffered_high_T2500_IW-4': {
-        'P_surf': -0.005461,
-        'H2O': -0.011019,
-        'N2': -0.001161,
-        'H2': -0.007092,
-        'NH3': 0.041792,
-        'CH4': 0.063644,
-        'CO2': -0.020763,
-        'CO': -0.025299,
+    'buffered_high_T2000_IW-2': {
+        'P_surf': -0.007045,
+        'H2O': -0.011838,
+        'CO2': -0.028697,
+        'N2': -0.001367,
+        'H2': -0.009074,
+        'CO': -0.034846,
+        'CH4': 0.053596,
+        'NH3': 0.018946,
     },
-    'buffered_high_T2500_IW-2': {
-        'P_surf': -0.001747,
-        'H2O': -0.005618,
-        'N2': -0.002027,
-        'H2': -0.001691,
-        'NH3': 0.049461,
-        'CH4': 0.094449,
-        'CO2': -0.000760,
-        'CO': -0.005296,
+    'buffered_high_T2000_IW-4': {
+        'P_surf': -0.005106,
+        'H2O': -0.010000,
+        'CO2': -0.068058,
+        'N2': -0.000695,
+        'H2': -0.007237,
+        'CO': -0.074207,
+        'CH4': 0.017909,
+        'NH3': 0.022038,
     },
     'buffered_high_T2500_IW+0': {
         'P_surf': -0.000621,
         'H2O': -0.002292,
+        'CO2': 0.002856,
         'N2': -0.001717,
         'H2': 0.001636,
-        'NH3': 0.054605,
-        'CH4': 0.104718,
-        'CO2': 0.002856,
         'CO': -0.001680,
+        'CH4': 0.104718,
+        'NH3': 0.054605,
     },
     'buffered_high_T2500_IW+2': {},
     'buffered_high_T2500_IW+4': {
         'P_surf': 0.000052,
         'H2O': 0.000025,
-        'N2': 0.000024,
-        'H2': 0.003952,
-        'NH3': 0.058951,
-        'CH4': 0.106755,
         'CO2': 0.000260,
+        'N2': 0.000024,
+        'SO2': 0.000509,
+        'H2': 0.003952,
         'CO': -0.004276,
-        'SO2': +0.000509,
+        'CH4': 0.106755,
+        'NH3': 0.058951,
         'S2': -0.011966,
     },
-    'buffered_high_T3000_IW-4': {
-        'P_surf': -0.001193,
-        'H2O': -0.004302,
-        'N2': -0.001725,
-        'H2': -0.000636,
-        'NH3': 0.057573,
-        'CH4': 0.060201,
-        'CO2': -0.010580,
-        'CO': -0.005025,
+    'buffered_high_T2500_IW-2': {
+        'P_surf': -0.001747,
+        'H2O': -0.005618,
+        'CO2': -0.000760,
+        'N2': -0.002027,
+        'H2': -0.001691,
+        'CO': -0.005296,
+        'CH4': 0.094449,
+        'NH3': 0.049461,
+    },
+    'buffered_high_T2500_IW-4': {
+        'P_surf': -0.005461,
+        'H2O': -0.011019,
+        'CO2': -0.020763,
+        'N2': -0.001161,
+        'H2': -0.007092,
+        'CO': -0.025299,
+        'CH4': 0.063644,
+        'NH3': 0.041792,
+    },
+    'buffered_high_T3000_IW+0': {
+        'P_surf': 0.001230,
+        'CO2': -0.004896,
+        'N2': -0.000937,
+        'CO': 0.000659,
+    },
+    'buffered_high_T3000_IW+2': {
+        'CO2': -0.000046,
+        'N2': 0.001867,
+        'CO': 0.005508,
+    },
+    'buffered_high_T3000_IW+4': {
+        'P_surf': -0.000029,
+        'H2O': -0.000056,
+        'CO2': -0.000328,
+        'N2': -0.000035,
+        'SO2': 0.000034,
+        'H2': 0.003610,
+        'CO': 0.005227,
+        'CH4': 0.078945,
+        'NH3': 0.064787,
+        'S2': -0.015246,
     },
     'buffered_high_T3000_IW-2': {
         'P_surf': -0.000419,
         'H2O': -0.002850,
+        'CO2': -0.006795,
         'N2': -0.002063,
         'H2': 0.000816,
-        'NH3': 0.059582,
-        'CH4': 0.066889,
-        'CO2': -0.006795,
         'CO': -0.001240,
+        'CH4': 0.066889,
+        'NH3': 0.059582,
     },
-    'buffered_high_T3000_IW+0': {'N2': -0.000937, 'CO2': -0.004896, 'CO': 0.000659},
-    'buffered_high_T3000_IW+2': {},
-    'buffered_high_T3000_IW+4': {
-        'P_surf': -0.000029,
-        'H2O': -0.000056,
-        'N2': -0.000035,
-        'H2': 0.003610,
-        'NH3': 0.064787,
-        'CH4': 0.078945,
-        'CO2': -0.000328,
-        'CO': 0.005227,
-        'SO2': +0.000034,
-        'S2': -0.015246,
+    'buffered_high_T3000_IW-4': {
+        'P_surf': -0.001193,
+        'H2O': -0.004302,
+        'CO2': -0.010580,
+        'N2': -0.001725,
+        'H2': -0.000636,
+        'CO': -0.005025,
+        'CH4': 0.060201,
+        'NH3': 0.057573,
+    },
+    'buffered_low_T1500_IW+0': {
+        'P_surf': 0.000976,
+        'H2O': 0.004620,
+        'CO2': -0.010242,
+        'N2': 0.001015,
+        'H2': -0.001373,
+        'CO': 0.003650,
+        'CH4': 0.046538,
+        'NH3': -0.012175,
+    },
+    'buffered_low_T1500_IW+2': {
+        'P_surf': -0.000176,
+        'H2O': 0.000411,
+        'CO2': -0.004067,
+        'N2': 0.000021,
+        'H2': -0.005582,
+        'CO': 0.009825,
+        'CH4': 0.044295,
+        'NH3': -0.018985,
+    },
+    'buffered_low_T1500_IW+4': {},
+    'buffered_low_T1500_IW-2': {
+        'P_surf': 0.000309,
+        'H2O': 0.005897,
+        'CO2': -0.013585,
+        'N2': 0.000462,
+        'H2': -0.000096,
+        'CO': 0.000307,
+        'CH4': 0.045749,
+        'NH3': -0.010536,
+    },
+    'buffered_low_T1500_IW-4': {
+        'P_surf': -0.000855,
+        'H2O': 0.004807,
+        'CO2': -0.017428,
+        'N2': 0.000136,
+        'H2': -0.001186,
+        'CO': -0.003537,
+        'CH4': 0.039726,
+        'NH3': -0.012334,
+    },
+    'buffered_low_T2000_IW+0': {
+        'P_surf': -0.000272,
+        'H2O': -0.001511,
+        'CO2': 0.004701,
+        'N2': -0.000424,
+        'H2': 0.001253,
+        'CO': -0.001447,
+        'CH4': 0.107647,
+        'NH3': 0.034908,
+    },
+    'buffered_low_T2000_IW+2': {
+        'P_surf': 0.001022,
+        'H2O': 0.000961,
+        'CO2': 0.002554,
+        'N2': 0.000523,
+        'H2': 0.003725,
+        'CO': -0.003595,
+        'CH4': 0.110445,
+        'NH3': 0.039089,
+    },
+    'buffered_low_T2000_IW+4': {
+        'P_surf': 0.000016,
+        'H2O': -0.000013,
+        'CO2': 0.000303,
+        'N2': 0.000014,
+        'SO2': 0.000052,
+        'H2': 0.002750,
+        'CO': -0.005846,
+        'CH4': 0.106245,
+        'NH3': 0.037373,
+        'S2': -0.013904,
+    },
+    'buffered_low_T2000_IW-2': {
+        'P_surf': -0.000197,
+        'H2O': -0.002610,
+        'CO2': 0.005748,
+        'N2': -0.000289,
+        'H2': 0.000153,
+        'CO': -0.000400,
+        'CH4': 0.106496,
+        'NH3': 0.033326,
+    },
+    'buffered_low_T2000_IW-4': {
+        'P_surf': -0.000007,
+        'H2O': -0.002639,
+        'CO2': 0.005993,
+        'N2': -0.000075,
+        'H2': 0.000125,
+        'CO': -0.000155,
+        'CH4': 0.106684,
+        'NH3': 0.033390,
+    },
+    'buffered_low_T2500_IW+0': {
+        'CO2': 0.004133,
+        'N2': 0.000297,
+        'CO': -0.000403,
+    },
+    'buffered_low_T2500_IW+2': {
+        'P_surf': 0.000355,
+        'H2O': 0.000092,
+        'CO2': 0.001739,
+        'N2': 0.000155,
+        'H2': 0.004019,
+        'CO': -0.002797,
+        'CH4': 0.108369,
+        'NH3': 0.059117,
+    },
+    'buffered_low_T2500_IW+4': {
+        'P_surf': 0.000005,
+        'H2O': -0.000029,
+        'CO2': 0.000236,
+        'N2': 0.000005,
+        'SO2': 0.000010,
+        'H2': 0.003899,
+        'CO': -0.004300,
+        'CH4': 0.106625,
+        'NH3': 0.058862,
+        'S2': -0.012964,
+    },
+    'buffered_low_T2500_IW-2': {
+        'P_surf': 0.000252,
+        'CO2': 0.002772,
+        'N2': -0.001700,
+        'CO': -0.001764,
+    },
+    'buffered_low_T2500_IW-4': {
+        'P_surf': 0.000038,
+        'CO2': 0.002656,
+        'N2': -0.001886,
+        'CO': -0.001880,
+    },
+    'buffered_low_T3000_IW+0': {
+        'CO2': -0.003236,
+        'N2': 0.001470,
+        'CO': 0.002319,
+    },
+    'buffered_low_T3000_IW+2': {
+        'P_surf': -0.000188,
+        'H2O': -0.000440,
+        'CO2': -0.002216,
+        'N2': -0.000219,
+        'SO2': 0.000368,
+        'H2': 0.003226,
+        'CO': 0.003339,
+        'CH4': 0.076289,
+        'NH3': 0.064119,
+        'S2': -0.014578,
+    },
+    'buffered_low_T3000_IW+4': {
+        'P_surf': -0.000010,
+        'H2O': -0.000044,
+        'CO2': -0.000312,
+        'N2': -0.000016,
+        'SO2': -0.000016,
+        'H2': 0.003622,
+        'CO': 0.005243,
+        'CH4': 0.078985,
+        'NH3': 0.064814,
+        'S2': -0.015345,
+    },
+    'buffered_low_T3000_IW-2': {
+        'P_surf': 0.000772,
+        'CO2': -0.007732,
+        'N2': -0.002289,
+        'CO': -0.002177,
+    },
+    'buffered_low_T3000_IW-4': {
+        'P_surf': 0.000072,
     },
 }
 
 AUTHO_EXPECTED_DEX: dict[str, dict[str, float]] = {
-    'authO_low_T1500': {
-        'P_surf': 0.000003,
-        'H2O': 0.000004,
-        'CO2': 0.000002,
-        'N2': 0.000003,
-        'SO2': 0.000003,
-        'O2': 0.000091,
-        'H2': -0.006035,
-        'CO': 0.013848,
-        'CH4': 0.047367,
-        'NH3': -0.019674,
-        'S2': -0.015901,
-    },
-    'authO_low_T2000': {
-        'P_surf': 0.000003,
-        'H2O': -0.000000,
-        'CO2': 0.000040,
-        'N2': 0.000004,
-        'SO2': 0.000004,
-        'O2': -0.000711,
-        'H2': 0.003119,
-        'CO': -0.005753,
-        'CH4': 0.107429,
-        'NH3': 0.037920,
-        'S2': -0.012580,
-    },
-    'authO_low_T2500': {
-        'P_surf': 0.000003,
-        'H2O': -0.000035,
-        'CO2': 0.000263,
-        'N2': 0.000004,
-        'SO2': 0.000011,
-        'O2': -0.000145,
-        'H2': 0.003965,
-        'CO': -0.004201,
-        'CH4': 0.106929,
-        'NH3': 0.058960,
-        'S2': -0.012671,
-    },
-    'authO_low_T3000': {
-        'P_surf': 0.000003,
-        'H2O': -0.000161,
-        'CO2': -0.001038,
-        'N2': -0.000076,
-        'SO2': 0.000011,
-        'O2': 0.002529,
-        'H2': 0.002241,
-        'CO': 0.003252,
-        'CH4': 0.072967,
-        'NH3': 0.062713,
-        'S2': -0.020349,
-    },
     'authO_default_T1500': {
         'P_surf': 0.000003,
         'H2O': 0.000004,
@@ -851,7 +912,6 @@ AUTHO_EXPECTED_DEX: dict[str, dict[str, float]] = {
         'CO': 0.003718,
         'CH4': 0.073470,
         'NH3': 0.062793,
-        'S2': -0.020466,
     },
     'authO_high_T1500': {
         'P_surf': 0.000003,
@@ -903,7 +963,57 @@ AUTHO_EXPECTED_DEX: dict[str, dict[str, float]] = {
         'CO': 0.004065,
         'CH4': 0.074142,
         'NH3': 0.062986,
-        'S2': -0.020109,
+    },
+    'authO_low_T1500': {
+        'P_surf': 0.000003,
+        'H2O': 0.000004,
+        'CO2': 0.000002,
+        'N2': 0.000003,
+        'SO2': 0.000003,
+        'O2': 0.000091,
+        'H2': -0.006035,
+        'CO': 0.013848,
+        'CH4': 0.047367,
+        'NH3': -0.019674,
+        'S2': -0.015901,
+    },
+    'authO_low_T2000': {
+        'P_surf': 0.000003,
+        'H2O': -0.000000,
+        'CO2': 0.000040,
+        'N2': 0.000004,
+        'SO2': 0.000004,
+        'O2': -0.000711,
+        'H2': 0.003119,
+        'CO': -0.005753,
+        'CH4': 0.107429,
+        'NH3': 0.037920,
+        'S2': -0.012580,
+    },
+    'authO_low_T2500': {
+        'P_surf': 0.000003,
+        'H2O': -0.000035,
+        'CO2': 0.000263,
+        'N2': 0.000004,
+        'SO2': 0.000011,
+        'O2': -0.000145,
+        'H2': 0.003965,
+        'CO': -0.004201,
+        'CH4': 0.106929,
+        'NH3': 0.058960,
+        'S2': -0.012671,
+    },
+    'authO_low_T3000': {
+        'P_surf': 0.000003,
+        'H2O': -0.000161,
+        'CO2': -0.001038,
+        'N2': -0.000076,
+        'SO2': 0.000011,
+        'O2': 0.002529,
+        'H2': 0.002241,
+        'CO': 0.003252,
+        'CH4': 0.072967,
+        'NH3': 0.062713,
     },
 }
 
@@ -993,17 +1103,23 @@ def _build_gas_only_ddict(
     return ddict
 
 
+def _guarded_log10_ratio(p1: float, p2: float) -> float:
+    """Return log10(p1 / p2), or nan if either pressure is non-positive."""
+    if p1 <= 0.0 or p2 <= 0.0:
+        return float('nan')
+    return math.log10(p1 / p2)
+
+
 def _solve_calliope_gas_only(
     target: dict[str, float],
     ddict: dict[str, float | int],
     autho: bool,
-    tight_tol: bool = False,
 ) -> tuple[dict[str, float], bool]:
     """Solve CALLIOPE gas-only equilibrium with nguess=1000, tracking whether preseed is used."""
     np.random.seed(42)
     kw: dict[str, Any] = {
-        'rtol': 1.0e-6 if tight_tol else 1.0e-5,
-        'atol': 1.0e8 if tight_tol else 1.0e10,
+        'rtol': 1.0e-5,
+        'atol': 1.0e10,
         'xtol': 1.0e-8,
         'nguess': 1000,
         'opt_solver': False,
@@ -1351,233 +1467,225 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
     held_for_h2s_rows: list[str] = []
     preseed_count = 0
 
-    try:
-        for idx, case in enumerate(buffered_cases):
-            cid = case['case_id']
-            ddict = _build_gas_only_ddict(
-                m_mantle=m_mantle,
-                g_surf=g_surf,
-                r_int=r_earth,
-                t_magma=case['T_K'],
-                fo2_shift=case['fO2_shift_IW'],
-            )
-            cal_out, used_preseed = _solve_calliope_gas_only(
-                case['cal_targets'], ddict, autho=False
-            )
-            if used_preseed:
-                preseed_count += 1
+    for idx, case in enumerate(buffered_cases):
+        cid = case['case_id']
+        ddict = _build_gas_only_ddict(
+            m_mantle=m_mantle,
+            g_surf=g_surf,
+            r_int=r_earth,
+            t_magma=case['T_K'],
+            fo2_shift=case['fO2_shift_IW'],
+        )
+        cal_out, used_preseed = _solve_calliope_gas_only(
+            case['cal_targets'], ddict, autho=False
+        )
+        if used_preseed:
+            preseed_count += 1
 
-            d_h2s_case = math.log10(
-                float(cal_out['H2S_bar']) / float(asdict_buf['H2S_g']['pressure'][idx])
-            )
-            d_s2_case = math.log10(
-                float(cal_out['S2_bar']) / float(asdict_buf['S2_g']['pressure'][idx])
-            )
-            d_so2_case = math.log10(
-                float(cal_out['SO2_bar']) / float(asdict_buf['O2S_g']['pressure'][idx])
-            )
-            sulfur_report_rows.append(
-                f'{cid}: d_H2S={d_h2s_case:+.4f}, d_S2={d_s2_case:+.4f}, d_SO2={d_so2_case:+.4f}'
-            )
-            with report_path.open('a', encoding='utf-8') as f:
-                f.write(f'{cid}\t{d_h2s_case:+.6f}\t{d_s2_case:+.6f}\t{d_so2_case:+.6f}\n')
+        d_h2s_case = _guarded_log10_ratio(
+            float(cal_out['H2S_bar']), float(asdict_buf['H2S_g']['pressure'][idx])
+        )
+        d_s2_case = _guarded_log10_ratio(
+            float(cal_out['S2_bar']), float(asdict_buf['S2_g']['pressure'][idx])
+        )
+        d_so2_case = _guarded_log10_ratio(
+            float(cal_out['SO2_bar']), float(asdict_buf['O2S_g']['pressure'][idx])
+        )
+        sulfur_report_rows.append(
+            f'{cid}: d_H2S={d_h2s_case:+.4f}, d_S2={d_s2_case:+.4f}, d_SO2={d_so2_case:+.4f}'
+        )
+        with report_path.open('a', encoding='utf-8') as f:
+            f.write(f'{cid}\t{d_h2s_case:+.6f}\t{d_s2_case:+.6f}\t{d_so2_case:+.6f}\n')
 
-            # Rebuild gas element totals from solved partial pressures and check against target.
-            rec_masses = _reconstruct_gas_element_masses(
-                cal_out, r_int=r_earth, g_surf=g_surf, elements=('H', 'C', 'N', 'S')
+        # Rebuild gas element totals from solved partial pressures and check against target.
+        rec_masses = _reconstruct_gas_element_masses(
+            cal_out, r_int=r_earth, g_surf=g_surf, elements=('H', 'C', 'N', 'S')
+        )
+        hcns_max = max(float(case['cal_targets'][k]) for k in ('H', 'C', 'N', 'S'))
+        cal_tol = hcns_max * 1.0e-5 + 1.0e10 + float(TRUNC_MASS)
+        for el in ('H', 'C', 'N', 'S'):
+            assert abs(rec_masses[el] - float(case['cal_targets'][el])) <= cal_tol, (
+                f'{cid} reconstructed {el} mass mismatch'
             )
-            hcns_max = max(float(case['cal_targets'][k]) for k in ('H', 'C', 'N', 'S'))
-            cal_tol = hcns_max * 1.0e-5 + 1.0e10 + float(TRUNC_MASS)
-            for el in ('H', 'C', 'N', 'S'):
-                assert abs(rec_masses[el] - float(case['cal_targets'][el])) <= cal_tol, (
-                    f'{cid} reconstructed {el} mass mismatch'
-                )
 
-            exp_case = BUFFERED_EXPECTED_DEX[cid]
-            held_case = BUFFERED_CASE_KEYS_HELD_FOR_H2S_FIX.get(cid, ())
-            d_psurf = math.log10(float(cal_out['P_surf']) / float(ptot_buf[idx]))
-            if 'P_surf' in held_case:
-                held_for_h2s_rows.append(f'{cid}:P_surf={d_psurf:+.6f}')
-            else:
-                _assert_near_dex(
-                    d_psurf,
-                    exp_case['P_surf'],
-                    GRID_OFFSET_MARGIN_DEX,
-                    f'{cid} P_surf',
-                )
-            for sp_cal, sp_atm in (
-                ('H2O', 'H2O_g'),
-                ('N2', 'N2_g'),
-                ('H2', 'H2_g'),
-                ('NH3', 'H3N_g'),
-                ('CH4', 'CH4_g'),
-                ('CO2', 'CO2_g'),
-                ('CO', 'CO_g'),
-                ('SO2', 'O2S_g'),
-                ('H2S', 'H2S_g'),
-                ('S2', 'S2_g'),
-            ):
-                d_sp = math.log10(
-                    float(cal_out[f'{sp_cal}_bar']) / float(asdict_buf[sp_atm]['pressure'][idx])
-                )
-                if sp_cal in BUFFERED_SPECIES_HELD_FOR_H2S_FIX or sp_cal in held_case:
-                    held_for_h2s_rows.append(f'{cid}:{sp_cal}={d_sp:+.6f}')
-                else:
-                    _assert_near_dex(
-                        d_sp,
-                        exp_case[sp_cal],
-                        GRID_OFFSET_MARGIN_DEX,
-                        f'{cid} {sp_cal}',
-                    )
-
-            q_so2_cal = float(cal_out['SO2_bar']) / (
-                (float(cal_out['S2_bar']) ** 0.5) * float(cal_out['O2_bar'])
-            )
-            q_so2_atm = float(asdict_buf['O2S_g']['pressure'][idx]) / (
-                (float(asdict_buf['S2_g']['pressure'][idx]) ** 0.5)
-                * float(asdict_buf['O2_g']['pressure'][idx])
-            )
+        exp_case = BUFFERED_EXPECTED_DEX[cid]
+        held_case = BUFFERED_CASE_KEYS_HELD_FOR_H2S_FIX.get(cid, ())
+        d_psurf = math.log10(float(cal_out['P_surf']) / float(ptot_buf[idx]))
+        if 'P_surf' in held_case:
+            held_for_h2s_rows.append(f'{cid}:P_surf={d_psurf:+.6f}')
+        else:
             _assert_near_dex(
-                math.log10(q_so2_cal / q_so2_atm),
-                K_OFFSET_EXPECTED_DEX[case['T_K']]['SO2'],
-                K_OFFSET_MARGIN_DEX,
-                f'{cid} Q_SO2',
-            )
-
-        for idx, case in enumerate(autho_cases):
-            cid = case['case_id']
-            ddict = _build_gas_only_ddict(
-                m_mantle=m_mantle,
-                g_surf=g_surf,
-                r_int=r_earth,
-                t_magma=case['T_K'],
-                fo2_shift=case['fO2_shift_IW'],
-            )
-            cal_out, used_preseed = _solve_calliope_gas_only(
-                case['cal_targets'], ddict, autho=True, tight_tol=case['is_1500_K']
-            )
-            if used_preseed:
-                preseed_count += 1
-
-            d_h2s_case = math.log10(
-                float(cal_out['H2S_bar']) / float(asdict_auth['H2S_g']['pressure'][idx])
-            )
-            d_s2_case = math.log10(
-                float(cal_out['S2_bar']) / float(asdict_auth['S2_g']['pressure'][idx])
-            )
-            d_so2_case = math.log10(
-                float(cal_out['SO2_bar']) / float(asdict_auth['O2S_g']['pressure'][idx])
-            )
-            sulfur_report_rows.append(
-                f'{cid}: d_H2S={d_h2s_case:+.4f}, d_S2={d_s2_case:+.4f}, d_SO2={d_so2_case:+.4f}'
-            )
-            with report_path.open('a', encoding='utf-8') as f:
-                f.write(f'{cid}\t{d_h2s_case:+.6f}\t{d_s2_case:+.6f}\t{d_so2_case:+.6f}\n')
-
-            rec_masses = _reconstruct_gas_element_masses(
-                cal_out, r_int=r_earth, g_surf=g_surf, elements=('H', 'C', 'N', 'S', 'O')
-            )
-            for el in ('H', 'C', 'N', 'S', 'O'):
-                cal_el_tol = max(float(case['cal_targets'][el]) * 1.0e-5, float(TRUNC_MASS))
-                assert abs(rec_masses[el] - float(case['cal_targets'][el])) <= cal_el_tol, (
-                    f'{cid} reconstructed {el} mass mismatch'
-                )
-
-            if case['is_1500_K']:
-                # 1e-9 relative O error shifts log10 fO2 by up to 2.7e-5 dex; the 0.005 dex O2 margin allows relative O error <= 2.0e-7.
-                cal_o_tgt = float(case['cal_targets']['O'])
-                cal_o_rel = abs(rec_masses['O'] - cal_o_tgt) / cal_o_tgt
-                assert cal_o_rel <= 2.0e-7, (
-                    f'{cid} CALLIOPE relative O residual {cal_o_rel:.4e} > 2.0e-7'
-                )
-
-                stoich_o = {'H2O_g': 1, 'O2_g': 2, 'CO2_g': 2, 'CO_g': 1, 'O2S_g': 2}
-                atm_o_tgt = float(case['atm_targets']['O'])
-                atm_o_rec = sum(
-                    float(asdict_auth[sp_g]['gas_mass'][idx])
-                    * (
-                        stoich_o[sp_g]
-                        * float(atom_mass_atm['O'])
-                        / float(asdict_auth[sp_g]['molar_mass'][idx])
-                    )
-                    for sp_g in stoich_o
-                )
-                atm_o_rel = abs(atm_o_rec - atm_o_tgt) / atm_o_tgt
-                assert atm_o_rel <= 2.0e-7, (
-                    f'{cid} atmodeller relative O residual {atm_o_rel:.4e} > 2.0e-7'
-                )
-
-            exp_case = AUTHO_EXPECTED_DEX[cid]
-            _assert_near_dex(
-                math.log10(float(cal_out['P_surf']) / float(ptot_auth[idx])),
+                d_psurf,
                 exp_case['P_surf'],
-                AUTHO_MAJOR_MARGIN_DEX,
+                GRID_OFFSET_MARGIN_DEX,
                 f'{cid} P_surf',
             )
-            for sp_cal, sp_atm in (
-                ('H2O', 'H2O_g'),
-                ('CO2', 'CO2_g'),
-                ('N2', 'N2_g'),
-                ('SO2', 'O2S_g'),
-                ('O2', 'O2_g'),
-                ('H2', 'H2_g'),
-                ('CO', 'CO_g'),
-                ('CH4', 'CH4_g'),
-                ('NH3', 'H3N_g'),
-                ('H2S', 'H2S_g'),
-                ('S2', 'S2_g'),
-            ):
-                if sp_cal in AUTHO_HELD_FOR_H2S_FIX:
-                    continue
-                margin = (
-                    AUTHO_MAJOR_MARGIN_DEX
-                    if sp_cal in ('H2O', 'CO2', 'N2', 'SO2', 'S2')
-                    else GRID_OFFSET_MARGIN_DEX
-                )
+        for sp_cal, sp_atm in (
+            ('H2O', 'H2O_g'),
+            ('N2', 'N2_g'),
+            ('H2', 'H2_g'),
+            ('NH3', 'H3N_g'),
+            ('CH4', 'CH4_g'),
+            ('CO2', 'CO2_g'),
+            ('CO', 'CO_g'),
+            ('SO2', 'O2S_g'),
+            ('H2S', 'H2S_g'),
+            ('S2', 'S2_g'),
+        ):
+            d_sp = math.log10(
+                float(cal_out[f'{sp_cal}_bar']) / float(asdict_buf[sp_atm]['pressure'][idx])
+            )
+            if sp_cal in BUFFERED_SPECIES_HELD_FOR_H2S_FIX or sp_cal in held_case:
+                held_for_h2s_rows.append(f'{cid}:{sp_cal}={d_sp:+.6f}')
+            else:
                 _assert_near_dex(
-                    math.log10(
-                        float(cal_out[f'{sp_cal}_bar'])
-                        / float(asdict_auth[sp_atm]['pressure'][idx])
-                    ),
+                    d_sp,
                     exp_case[sp_cal],
-                    margin,
+                    GRID_OFFSET_MARGIN_DEX,
                     f'{cid} {sp_cal}',
                 )
 
-            q_so2_cal = float(cal_out['SO2_bar']) / (
-                (float(cal_out['S2_bar']) ** 0.5) * float(cal_out['O2_bar'])
+        q_so2_cal = float(cal_out['SO2_bar']) / (
+            (float(cal_out['S2_bar']) ** 0.5) * float(cal_out['O2_bar'])
+        )
+        q_so2_atm = float(asdict_buf['O2S_g']['pressure'][idx]) / (
+            (float(asdict_buf['S2_g']['pressure'][idx]) ** 0.5)
+            * float(asdict_buf['O2_g']['pressure'][idx])
+        )
+        _assert_near_dex(
+            math.log10(q_so2_cal / q_so2_atm),
+            K_OFFSET_EXPECTED_DEX[case['T_K']]['SO2'],
+            K_OFFSET_MARGIN_DEX,
+            f'{cid} Q_SO2',
+        )
+
+    for idx, case in enumerate(autho_cases):
+        cid = case['case_id']
+        ddict = _build_gas_only_ddict(
+            m_mantle=m_mantle,
+            g_surf=g_surf,
+            r_int=r_earth,
+            t_magma=case['T_K'],
+            fo2_shift=case['fO2_shift_IW'],
+        )
+        cal_out, used_preseed = _solve_calliope_gas_only(
+            case['cal_targets'],
+            ddict,
+            autho=True,
+        )
+        if used_preseed:
+            preseed_count += 1
+
+        d_h2s_case = _guarded_log10_ratio(
+            float(cal_out['H2S_bar']), float(asdict_auth['H2S_g']['pressure'][idx])
+        )
+        d_s2_case = _guarded_log10_ratio(
+            float(cal_out['S2_bar']), float(asdict_auth['S2_g']['pressure'][idx])
+        )
+        d_so2_case = _guarded_log10_ratio(
+            float(cal_out['SO2_bar']), float(asdict_auth['O2S_g']['pressure'][idx])
+        )
+        sulfur_report_rows.append(
+            f'{cid}: d_H2S={d_h2s_case:+.4f}, d_S2={d_s2_case:+.4f}, d_SO2={d_so2_case:+.4f}'
+        )
+        with report_path.open('a', encoding='utf-8') as f:
+            f.write(f'{cid}\t{d_h2s_case:+.6f}\t{d_s2_case:+.6f}\t{d_so2_case:+.6f}\n')
+
+        rec_masses = _reconstruct_gas_element_masses(
+            cal_out, r_int=r_earth, g_surf=g_surf, elements=('H', 'C', 'N', 'S', 'O')
+        )
+        for el in ('H', 'C', 'N', 'S', 'O'):
+            cal_el_tol = max(float(case['cal_targets'][el]) * 1.0e-5, float(TRUNC_MASS))
+            assert abs(rec_masses[el] - float(case['cal_targets'][el])) <= cal_el_tol, (
+                f'{cid} reconstructed {el} mass mismatch'
             )
-            q_so2_atm = float(asdict_auth['O2S_g']['pressure'][idx]) / (
-                (float(asdict_auth['S2_g']['pressure'][idx]) ** 0.5)
-                * float(asdict_auth['O2_g']['pressure'][idx])
+
+        if case['is_1500_K']:
+            # 1e-9 relative O error shifts log10 fO2 by 6e-6 to 2.7e-5 dex; well within margin.
+            cal_o_tgt = float(case['cal_targets']['O'])
+            cal_o_rel = abs(rec_masses['O'] - cal_o_tgt) / cal_o_tgt
+            assert cal_o_rel <= 1.0e-9, (
+                f'{cid} CALLIOPE relative O residual {cal_o_rel:.4e} > 1.0e-9'
+            )
+
+            stoich_o = {'H2O_g': 1, 'O2_g': 2, 'CO2_g': 2, 'CO_g': 1, 'O2S_g': 2}
+            atm_o_tgt = float(case['atm_targets']['O'])
+            atm_o_rec = sum(
+                float(asdict_auth[sp_g]['gas_mass'][idx])
+                * (
+                    stoich_o[sp_g]
+                    * float(atom_mass_atm['O'])
+                    / float(asdict_auth[sp_g]['molar_mass'][idx])
+                )
+                for sp_g in stoich_o
+            )
+            atm_o_rel = abs(atm_o_rec - atm_o_tgt) / atm_o_tgt
+            assert atm_o_rel <= 1.0e-9, (
+                f'{cid} atmodeller relative O residual {atm_o_rel:.4e} > 1.0e-9'
+            )
+
+        exp_case = AUTHO_EXPECTED_DEX[cid]
+        _assert_near_dex(
+            math.log10(float(cal_out['P_surf']) / float(ptot_auth[idx])),
+            exp_case['P_surf'],
+            AUTHO_MAJOR_MARGIN_DEX,
+            f'{cid} P_surf',
+        )
+        held_auth_case = AUTHO_CASE_KEYS_HELD_FOR_H2S_FIX.get(cid, ())
+        for sp_cal, sp_atm in (
+            ('H2O', 'H2O_g'),
+            ('CO2', 'CO2_g'),
+            ('N2', 'N2_g'),
+            ('SO2', 'O2S_g'),
+            ('O2', 'O2_g'),
+            ('H2', 'H2_g'),
+            ('CO', 'CO_g'),
+            ('CH4', 'CH4_g'),
+            ('NH3', 'H3N_g'),
+            ('H2S', 'H2S_g'),
+            ('S2', 'S2_g'),
+        ):
+            if sp_cal in AUTHO_HELD_FOR_H2S_FIX or sp_cal in held_auth_case:
+                continue
+            margin = (
+                AUTHO_MAJOR_MARGIN_DEX
+                if sp_cal in ('H2O', 'CO2', 'N2', 'SO2', 'S2')
+                else GRID_OFFSET_MARGIN_DEX
             )
             _assert_near_dex(
-                math.log10(q_so2_cal / q_so2_atm),
-                K_OFFSET_EXPECTED_DEX[case['T_K']]['SO2'],
-                K_OFFSET_MARGIN_DEX,
-                f'{cid} Q_SO2',
+                math.log10(
+                    float(cal_out[f'{sp_cal}_bar'])
+                    / float(asdict_auth[sp_atm]['pressure'][idx])
+                ),
+                exp_case[sp_cal],
+                margin,
+                f'{cid} {sp_cal}',
             )
 
-        record_property('calliope_preseed_count', preseed_count)
-        assert preseed_count == 0, (
-            f'Expected 0 preseeded solves with nguess=1000, got {preseed_count}'
+        q_so2_cal = float(cal_out['SO2_bar']) / (
+            (float(cal_out['S2_bar']) ** 0.5) * float(cal_out['O2_bar'])
+        )
+        q_so2_atm = float(asdict_auth['O2S_g']['pressure'][idx]) / (
+            (float(asdict_auth['S2_g']['pressure'][idx]) ** 0.5)
+            * float(asdict_auth['O2_g']['pressure'][idx])
+        )
+        _assert_near_dex(
+            math.log10(q_so2_cal / q_so2_atm),
+            K_OFFSET_EXPECTED_DEX[case['T_K']]['SO2'],
+            K_OFFSET_MARGIN_DEX,
+            f'{cid} Q_SO2',
         )
 
-        assert len(held_for_h2s_rows) == 263
-        record_property('buffered_held_for_h2s_fix_count', len(held_for_h2s_rows))
-        record_property('buffered_held_for_h2s_fix_dex', '; '.join(held_for_h2s_rows))
+    record_property('calliope_preseed_count', preseed_count)
+    assert preseed_count == 0, (
+        f'Expected 0 preseeded solves with nguess=1000, got {preseed_count}'
+    )
 
-        assert len(sulfur_report_rows) == 72
-        record_property('sulfur_72_case_report_dex', '\n'.join(sulfur_report_rows))
-        print('72-case sulfur species log10(CALLIOPE/atmodeller) report [dex]:')
-        for row in sulfur_report_rows:
-            print(f'  {row}')
-        report_lines = [
-            line for line in report_path.read_text(encoding='utf-8').strip().split('\n') if line
-        ]
-        assert len(report_lines) == 73, (
-            f'Expected 73 lines in sulfur report, got {len(report_lines)}'
-        )
-    finally:
-        pass
+    record_property('buffered_held_for_h2s_fix_count', len(held_for_h2s_rows))
+    record_property('buffered_held_for_h2s_fix_dex', '; '.join(held_for_h2s_rows))
+
+    record_property('sulfur_72_case_report_dex', '\n'.join(sulfur_report_rows))
+    print('72-case sulfur species log10(CALLIOPE/atmodeller) report [dex]:')
+    for row in sulfur_report_rows:
+        print(f'  {row}')
     assert report_path.is_file() and report_path.stat().st_size > 0

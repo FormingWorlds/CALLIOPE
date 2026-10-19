@@ -276,9 +276,20 @@ def test_element_balance_across_75_case_grid():
             )
             checked_elements = ('H', 'C', 'N', 'S', 'O')
         else:
+            p_guess = (
+                {
+                    'H2O': 10.0 if float(target.get('H', 1.0)) > 0 else 0.0,
+                    'CO2': 100.0 if float(target.get('C', 1.0)) > 0 else 0.0,
+                    'N2': 1.0 if float(target.get('N', 1.0)) > 0 else 0.0,
+                    'S2': 1.0 if float(target.get('S', 1.0)) > 0 else 0.0,
+                }
+                if any(float(target.get(el, 1.0)) == 0.0 for el in ('H', 'C', 'N', 'S'))
+                else None
+            )
             out = equilibrium_atmosphere(
                 target,
                 ddict,
+                p_guess=p_guess,
                 rtol=RTOL_DERIVED,
                 atol=ATOL_KG,
                 xtol=1.0e-8,
@@ -365,9 +376,23 @@ def test_element_balance_across_75_case_grid():
                         opt_solver=False,
                     )
                 else:
+                    has_zero_target = any(
+                        float(target.get(el, 1.0)) == 0.0 for el in ('H', 'C', 'N', 'S')
+                    )
+                    p_guess = (
+                        {
+                            'H2O': 10.0 if float(target.get('H', 1.0)) > 0 else 0.0,
+                            'CO2': 100.0 if float(target.get('C', 1.0)) > 0 else 0.0,
+                            'N2': 1.0 if float(target.get('N', 1.0)) > 0 else 0.0,
+                            'S2': 1.0 if float(target.get('S', 1.0)) > 0 else 0.0,
+                        }
+                        if has_zero_target
+                        else None
+                    )
                     out_s = equilibrium_atmosphere(
                         target,
                         ddict,
+                        p_guess=p_guess,
                         rtol=RTOL_DERIVED,
                         atol=ATOL_KG,
                         xtol=1.0e-8,
@@ -389,7 +414,6 @@ def test_element_balance_across_75_case_grid():
                     err_s = abs(rec_s[el]['total_kg'] - float(target[el]))
                     assert err_s <= tol_s, f'{case_id} seed={seed} {el}: {err_s!r} > {tol_s!r}'
 
-                p_floor = 1.0e-10  # bar
                 for sp in (
                     'H2O',
                     'H2',
@@ -405,16 +429,40 @@ def test_element_balance_across_75_case_grid():
                 ):
                     p_ref = float(out[f'{sp}_bar'])
                     p_s = float(out_s[f'{sp}_bar'])
-                    assert (p_ref > p_floor) == (p_s > p_floor), (
-                        f'{case_id} seed={seed} {sp} p_bar floor mismatch: '
-                        f'ref={p_ref:.4e} bar, seed={p_s:.4e} bar'
-                    )
-                    if p_ref > p_floor:
-                        diff_dex = abs(math.log10(p_s / p_ref))
-                        assert diff_dex <= 1.0e-4, (
-                            f'{case_id} seed={seed} {sp} p_bar offset '
-                            f'{diff_dex:.4e} dex > 1e-4 dex'
+                    req_els = {
+                        'H2O': ('H',),
+                        'H2': ('H',),
+                        'O2': ('O',) if case['mode'] == 'authoritative_O' else (),
+                        'CO2': ('C',),
+                        'CO': ('C',),
+                        'CH4': ('C', 'H'),
+                        'N2': ('N',),
+                        'NH3': ('N', 'H'),
+                        'S2': ('S',),
+                        'SO2': ('S',),
+                        'H2S': ('S', 'H'),
+                    }[sp]
+                    if any(float(target.get(el, 1.0)) == 0.0 for el in req_els):
+                        assert p_ref == 0.0, (
+                            f'{case_id} {sp} p_ref={p_ref} != 0 for zero element target'
                         )
+                        assert p_s == 0.0, (
+                            f'{case_id} seed={seed} {sp} p_s={p_s} != 0 for zero target'
+                        )
+                    else:
+                        # 1e-10 bar is CALLIOPE's solver p_guess truncation floor below
+                        # which trace speciation is not converged.
+                        p_floor = 1.0e-10  # bar
+                        assert (p_ref > p_floor) == (p_s > p_floor), (
+                            f'{case_id} seed={seed} {sp} p_bar floor mismatch: '
+                            f'ref={p_ref:.4e} bar, seed={p_s:.4e} bar'
+                        )
+                        if p_ref > p_floor:
+                            diff_dex = abs(math.log10(p_s / p_ref))
+                            assert diff_dex <= 1.0e-4, (
+                                f'{case_id} seed={seed} {sp} p_bar offset '
+                                f'{diff_dex:.4e} dex > 1e-4 dex'
+                            )
 
 
 def test_species_to_element_summation_and_residual_vectors():
