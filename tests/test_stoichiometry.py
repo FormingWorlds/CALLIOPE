@@ -376,10 +376,8 @@ class TestEquilibriumChemistry:
         assert p_low > p_high, 'NH3 should be more abundant at lower T'
 
         # Discrimination guard: NH3 synthesis is exothermic, so the ratio
-        # between 1500 K and 3000 K should be several-fold. A near-unity
-        # ratio would mean the temperature dependence of the equilibrium
-        # constant is being missed. Empirical ratio at these (p_N2, p_H2)
-        # is ~8.7 with the janaf_NH3 fit.
+        # between 1500 K and 3000 K is several-fold (~8.7 with janaf_NH3);
+        # a near-unity ratio would mean the T dependence of K is missed.
         ratio = p_low / p_high
         assert ratio > 3.0, (
             f'p_NH3(1500K)/p_NH3(3000K) = {ratio:.2f}; expected several-fold '
