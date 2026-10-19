@@ -50,10 +50,9 @@ class ModifiedKeq:
         return (37774.0 / T - 7.6128, 0)
 
     def janaf_H2S(self, T):
-        # JANAF log10Keq for S2 + 2 H2 = 2 H2S (doubled form)
-        # Coefficients = 2x the formation constant for 0.5 S2 + H2 = H2S
-        # See notebook in `tools/`
-        return (13462.03094 / T - 7.24546062, 0)
+        # JANAF log10Keq for S2 + 2 H2 = 2 H2S (doubled form), fit over 700-5000 K
+        # Per mole: log Kf(H2S) - 0.5 log Kf(S2); see `tools/fit_H2S.ipynb`
+        return (9440.174611 / T - 5.16908096, 0)
 
     def janaf_NH3(self, T):
         # JANAF log10Keq for N2 + 3 H2 = 2 NH3 (doubled form)

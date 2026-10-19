@@ -79,10 +79,10 @@ This unusual encoding (zero `fO2_stoich`, but explicit $p_{\mathrm{O_2}}$ in the
 ### H$_2$S from S$_2$ + 2H$_2$ ($\mathrm{S_2} + 2\,\mathrm{H_2} \rightleftharpoons 2\,\mathrm{H_2S}$, doubled form)
 
 $$
-\log_{10} K_\mathrm{eq}^{\mathrm{H_2S}}(T) = +\frac{13462.0309}{T} - 7.2455
+\log_{10} K_\mathrm{eq}^{\mathrm{H_2S}}(T) = +\frac{9440.1746}{T} - 5.1691
 $$
 
-(`janaf_H2S`; doubled JANAF fit, fitted to JANAF table data in `tools/fit_H2S.ipynb`). Stoichiometric coefficient 0; recovery is
+(`janaf_H2S`; doubled JANAF fit, twice a least-squares fit of $\log_{10} K_f(\mathrm{H_2S}) - \tfrac{1}{2}\log_{10} K_f(\mathrm{S_2})$ over the JANAF rows at $700 \le T \le 5000$ K, in `tools/fit_H2S.ipynb`; largest deviation 0.018 dex per mole, at 700 K). Stoichiometric coefficient 0; recovery is
 
 $$
 p_{\mathrm{H_2S}} = \sqrt{G_\mathrm{eq}^{\mathrm{H_2S}} \cdot p_{\mathrm{S_2}} \cdot p_{\mathrm{H_2}}^2}.
@@ -125,7 +125,7 @@ After the walk, every `p_d[s]` is clipped to be non-negative. The function retur
 
 ## Why this is the right level of detail
 
-The choice to expand only six redox couples is a deliberate trade-off between completeness and well-posedness. Adding more species (e.g. HCN, HCl, CS$_2$) requires either (i) more elemental constraints (Cl, additional H atoms in HCN), or (ii) extra equilibrium reactions whose constants are calibrated outside the relevant $T$-range. In the present species set, every secondary species has a clean reduction back to one of the four primaries via a [JANAF](https://janaf.nist.gov/) or IVTHANTHERMO fit. The underlying fits are valid over a wider window ($\sim$500-4000 K for the Schaefer & Fegley 2017 [^cite-schaeferfegley2017] IVTHANTHERMO sources, similar for the JANAF fits used here); CALLIOPE restricts itself to $1500 \le T \le 3000$ K because that matches the magma-ocean regime the solver is targeted at and the calibration window of the solubility laws (see [Solubility laws](solubility.md)).
+The choice to expand only six redox couples is a deliberate trade-off between completeness and well-posedness. Adding more species (e.g. HCN, HCl, CS$_2$) requires either (i) more elemental constraints (Cl, additional H atoms in HCN), or (ii) extra equilibrium reactions whose constants are calibrated outside the relevant $T$-range. In the present species set, every secondary species has a clean reduction back to one of the four primaries via a [JANAF](https://janaf.nist.gov/) or IVTHANTHERMO fit. The underlying fits are valid over a wider window ($\sim$500-4000 K for the Schaefer & Fegley 2017 [^cite-schaeferfegley2017] IVTHANTHERMO sources, ). The JANAF fits used here cover $1500 \le T \le 3000$ K (`janaf_H2`, `janaf_CO`) or $700 \le T \le 5000$ K (`janaf_H2S`); 700 K is the outgassing temperature floor in PROTEUS and 5000 K lies above the hottest magma-ocean surfaces in coupled runs. CALLIOPE evaluates each closed form at the temperature it is given and does not clip $T$, so outside a fit window a constant is an extrapolation. The solubility laws have their own calibration windows (see [Solubility laws](solubility.md)).
 
 For application contexts that require Cl-bearing species, sub-ideal real-gas effects, or condensation, the [atmodeller](https://atmodeller.readthedocs.io/) JAX-based solver (Bower et al. 2025 [^cite-bower2025]) is the supported alternative within the PROTEUS framework.
 
