@@ -46,11 +46,15 @@ def janaf_log_k():
 
     0.5 S2 + H2 = H2S: log Kf(H2S) - 0.5 log Kf(S2). Both tables share the sulfur
     reference state, which cancels, so the combination holds on both sides of 882 K.
+    0.5 N2 + 1.5 H2 = NH3: log Kf(NH3), since N2 and H2 are reference states.
     """
 
     def per_mole(product):
-        h2s, s2 = _janaf_log_kf('H2S'), _janaf_log_kf('S2')
-        rows = {'H2S': {T: h2s[T] - 0.5 * s2[T] for T in h2s.keys() & s2.keys()}}[product]
+        if product == 'NH3':
+            rows = _janaf_log_kf('NH3')
+        else:
+            h2s, s2 = _janaf_log_kf('H2S'), _janaf_log_kf('S2')
+            rows = {'H2S': {T: h2s[T] - 0.5 * s2[T] for T in h2s.keys() & s2.keys()}}[product]
         T = np.array(sorted(rows))
         return T, np.array([rows[t] for t in T])
 

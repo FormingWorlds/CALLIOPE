@@ -237,16 +237,19 @@ def test_modified_keq_finite_positive(T, dIW):
         assert val > 0.0
 
 
-@pytest.mark.parametrize('product', ['H2S'], ids=['hydrogen_sulfide'])
+@pytest.mark.parametrize(
+    ('product', 'tol'), [('H2S', 0.03), ('NH3', 0.045)], ids=['hydrogen_sulfide', 'ammonia']
+)
 @given(T=st.floats(min_value=700.0, max_value=5000.0))
 @settings(deadline=None, max_examples=200)
-def test_janaf_constant_tracks_janaf_between_rows(janaf_log_k, product, T):
+def test_janaf_constant_tracks_janaf_between_rows(janaf_log_k, product, tol, T):
     """Between JANAF rows (700-5000 K) the per-mole log10 K stays within
-    0.03 dex of the rows interpolated in 1/T, and falls with T (exothermic)."""
+    `tol` dex (fit residual plus interpolation) of the rows interpolated in
+    1/T, and falls with T (exothermic)."""
     T_rows, log_k_rows = janaf_log_k(product)
     janaf = np.interp(1.0 / T, 1.0 / T_rows[::-1], log_k_rows[::-1])
     method = getattr(ModifiedKeq(f'janaf_{product}'), f'janaf_{product}')
     fit = 0.5 * method(T)[0]
-    assert abs(fit - janaf) < 0.03
+    assert abs(fit - janaf) < tol
     assert fit > 0.5 * method(1.01 * T)[0]
     assert math.isfinite(fit)

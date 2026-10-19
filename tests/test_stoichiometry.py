@@ -310,14 +310,14 @@ class TestEquilibriumChemistry:
         assert abs(p_code - p_wrong_stoich) > 0.5 * p_expected
 
     @pytest.mark.parametrize('T', [1500.0, 2000.0, 2500.0, 3000.0])
-    def test_NH3_equilibrium(self, T):
-        """p_NH3 from code matches analytical K_f * p_N2^0.5 * p_H2^1.5."""
+    def test_NH3_equilibrium(self, T, janaf_log_k):
+        """p_NH3 from code matches K_f * p_N2^0.5 * p_H2^1.5 with K_f from the JANAF row at T."""
         p_N2 = 1.0
         p_H2 = 1.0
 
-        # Analytical: K_f for 0.5 N2 + 1.5 H2 -> NH3
-        log10_Kf = 2664.015623 / T - 5.99238046
-        Kf = 10.0**log10_Kf
+        # K_f for 0.5 N2 + 1.5 H2 -> NH3; the fit misses these rows by < 0.024 dex (< 6 %).
+        T_rows, log10_Kf = janaf_log_k('NH3')
+        Kf = 10.0 ** log10_Kf[T_rows == T][0]
         p_expected = Kf * p_N2**0.5 * p_H2**1.5
 
         # Code path
@@ -325,7 +325,7 @@ class TestEquilibriumChemistry:
         Geq = mk(T, 0.0)
         p_code = (Geq * p_N2 * p_H2**3) ** 0.5
 
-        assert p_code == pytest.approx(p_expected, rel=1e-6), (
+        assert p_code == pytest.approx(p_expected, rel=0.06), (
             f'NH3 at {T}K: code={p_code:.6e}, expected={p_expected:.6e}'
         )
 
@@ -335,8 +335,8 @@ class TestEquilibriumChemistry:
         # forms coincide; sample a non-symmetric point to discriminate.
         p_N2_test, p_H2_test = 0.5, 2.0
         p_code_asym = (Geq * p_N2_test * p_H2_test**3) ** 0.5
-        p_correct_asym = Kf * p_N2_test**0.5 * p_H2_test**1.5
-        p_wrong_swapped = Kf * p_N2_test**1.5 * p_H2_test**0.5
+        p_correct_asym = p_code * p_N2_test**0.5 * p_H2_test**1.5
+        p_wrong_swapped = p_code * p_N2_test**1.5 * p_H2_test**0.5
         assert p_code_asym == pytest.approx(p_correct_asym, rel=1e-6)
         assert abs(p_code_asym - p_wrong_swapped) > 0.1 * p_correct_asym
 

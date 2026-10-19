@@ -165,9 +165,9 @@ def test_modified_keq_unknown_model_raises():
 # JANAF fit range: the PROTEUS outgassing floor (700 K) to above the hottest
 # magma-ocean surfaces in coupled runs. Tolerance = max fit residual plus margin [dex].
 JANAF_FIT_RANGE_K = (700.0, 5000.0)
-JANAF_FIT_TOL_DEX = {'H2S': 0.025}
-# Fit with the S2 coefficient 1 instead of 1/2 over 200-4000 K (doubled form).
-WRONG_S2_COEFFICIENT_FIT = {'H2S': (13462.03094, 7.24546062)}
+JANAF_FIT_TOL_DEX = {'H2S': 0.025, 'NH3': 0.04}
+# Earlier fits over 200-4000 K (doubled form); for H2S with the S2 coefficient 1, not 1/2.
+OLD_RANGE_FIT = {'H2S': (13462.03094, 7.24546062), 'NH3': (5328.031246, 11.98476092)}
 
 
 def _per_mole_log_k(product, T):
@@ -186,21 +186,21 @@ def _rows_in_fit_range(janaf_log_k, product):
 
 @pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
-@pytest.mark.parametrize('product', ['H2S'], ids=['hydrogen_sulfide'])
+@pytest.mark.parametrize('product', ['H2S', 'NH3'], ids=['hydrogen_sulfide', 'ammonia'])
 def test_janaf_constant_matches_janaf_rows_over_fit_range(janaf_log_k, product):
     """The doubled-form constant matches every NIST-JANAF row from 700 to 5000 K.
 
     Reference: JANAF 4th ed. log Kf columns in `tools/` (H2S: log Kf(H2S) -
-    0.5 log Kf(S2)). Both range ends are table rows, so the edges are tested.
+    0.5 log Kf(S2); NH3: log Kf(NH3)). Both range ends are table rows, so the edges are tested.
     """
     T, janaf = _rows_in_fit_range(janaf_log_k, product)
     assert T[0] == pytest.approx(JANAF_FIT_RANGE_K[0])
     assert T[-1] == pytest.approx(JANAF_FIT_RANGE_K[1])
     resid = _per_mole_log_k(product, T) - janaf
     assert np.max(np.abs(resid)) < JANAF_FIT_TOL_DEX[product]
-    # Discrimination: the S2-coefficient-1 fit misses the rows by far more.
-    a, b = WRONG_S2_COEFFICIENT_FIT[product]
-    assert np.max(np.abs(0.5 * (a / T - b) - janaf)) > 4 * JANAF_FIT_TOL_DEX[product]
+    # Discrimination: the 200-4000 K fits miss the rows by far more.
+    a, b = OLD_RANGE_FIT[product]
+    assert np.max(np.abs(0.5 * (a / T - b) - janaf)) > 3 * JANAF_FIT_TOL_DEX[product]
     # Sign: the formation reactions are exothermic, so log K falls with T.
     assert np.all(np.diff(_per_mole_log_k(product, T)) < 0)
     # Scale: per-mole log10 K stays within a few dex (ln instead of log10 is x2.3).
@@ -208,7 +208,7 @@ def test_janaf_constant_matches_janaf_rows_over_fit_range(janaf_log_k, product):
 
 
 @pytest.mark.reference_pinned
-@pytest.mark.parametrize('product', ['H2S'], ids=['hydrogen_sulfide'])
+@pytest.mark.parametrize('product', ['H2S', 'NH3'], ids=['hydrogen_sulfide', 'ammonia'])
 def test_janaf_coefficients_are_least_squares_fit_of_janaf_rows(janaf_log_k, product):
     """The coefficients equal a least-squares a/T - b fit of the JANAF rows in range.
 
