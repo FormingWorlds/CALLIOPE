@@ -389,6 +389,28 @@ def test_element_balance_across_75_case_grid():
                     err_s = abs(rec_s[el]['total_kg'] - float(target[el]))
                     assert err_s <= tol_s, f'{case_id} seed={seed} {el}: {err_s!r} > {tol_s!r}'
 
+                for sp in (
+                    'H2O',
+                    'H2',
+                    'O2',
+                    'CO2',
+                    'CO',
+                    'CH4',
+                    'N2',
+                    'NH3',
+                    'S2',
+                    'SO2',
+                    'H2S',
+                ):
+                    p_ref = float(out.get(f'{sp}_bar', 0.0))
+                    p_s = float(out_s.get(f'{sp}_bar', 0.0))
+                    if p_ref > 1.0e-12 and p_s > 0.0:
+                        diff_dex = abs(math.log10(p_s / p_ref))
+                        assert diff_dex <= 1.0e-4, (
+                            f'{case_id} seed={seed} {sp} p_bar offset '
+                            f'{diff_dex:.4e} dex > 1e-4 dex'
+                        )
+
 
 def test_species_to_element_summation_and_residual_vectors():
     """Verify atmosphere_mass, dissolved_mass, func, and func_authoritative_O against stoichiometric sums."""

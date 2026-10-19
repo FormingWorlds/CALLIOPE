@@ -39,6 +39,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install ".[develop]" "atmodeller @ git+https://github.com/FormingWorlds/atmodeller.git@main"
+          python -c "import importlib.metadata as md, json; dist = md.distribution('atmodeller'); raw = dist.read_text('direct_url.json'); sha = json.loads(raw).get('vcs_info', {}).get('commit_id', 'unknown') if raw else 'unknown'; print(f'Installed atmodeller {dist.version} (git SHA: {sha})')"
 
       - name: Run unit + smoke + integration + slow tests with coverage
         env:
