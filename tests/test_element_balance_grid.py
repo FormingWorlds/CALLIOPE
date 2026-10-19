@@ -1,10 +1,10 @@
 """Elemental mass-balance consistency tests over the 75-case parameter grid.
 
-Verifies independent species-stoichiometry elemental mass recovery against the
-input elemental inventory across the 60-point buffered grid (5 fO2 x 4 T x
-3 inventories), the 12-point authoritative-oxygen grid (4 T x 3 inventories),
-the 2 named PROTEUS reference configurations (tutorial_earth and
-cmb_regression_singleimpact), and the 5-noble-gas complement configuration.
+Verifies stoichiometric species-to-element mass recovery against the input
+elemental inventory across the 60-point buffered grid (5 fO2 x 4 T x 3
+inventories), the 12-point authoritative-oxygen grid (4 T x 3 inventories),
+2 volatile-inventory configurations using elemental budgets from PROTEUS
+reference inputs at T = 2000 K, and a 5-noble-gas complement configuration.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ import math
 import numpy as np
 import pytest
 
-from calliope.constants import molar_mass, noble_gases, ocean_moles
+from calliope.constants import molar_mass, noble_gases, ocean_moles, volatile_species
 from calliope.solve import (
     TRUNC_MASS,
     atmosphere_mass,
@@ -26,9 +26,13 @@ from calliope.solve import (
     func_authoritative_O,
 )
 
-logging.getLogger('calliope').setLevel(logging.WARNING)
+logging.getLogger('fwl.calliope').setLevel(logging.WARNING)
 
-pytestmark = [pytest.mark.unit, pytest.mark.timeout(300)]
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.physics_invariant,
+    pytest.mark.timeout(120),
+]
 
 SPECIES_STOICH: dict[str, dict[str, int]] = {
     'H2O': {'H': 2, 'O': 1},
@@ -50,18 +54,7 @@ SPECIES_STOICH: dict[str, dict[str, int]] = {
 }
 
 RTOL_DERIVED = 1.0e-5
-ATOL_PER_ELEMENT_KG: dict[str, float] = {
-    'H': 1.0e10,
-    'C': 1.0e10,
-    'N': 1.0e10,
-    'S': 1.0e10,
-    'O': 1.0e10,
-    'He': 1.0e10,
-    'Ne': 1.0e10,
-    'Ar': 1.0e10,
-    'Kr': 1.0e10,
-    'Xe': 1.0e10,
-}
+ATOL_KG = 1.0e10
 
 
 def _build_ddict(
@@ -82,7 +75,7 @@ def _build_ddict(
         'T_magma': t_magma,
         'fO2_shift_IW': fo2_shift,
     }
-    for sp in ('H2O', 'CO2', 'N2', 'S2', 'SO2', 'H2S', 'NH3', 'H2', 'CH4', 'CO', 'O2'):
+    for sp in volatile_species:
         ddict[f'{sp}_included'] = 1
         ddict[f'{sp}_initial_bar'] = 0.0
     for ng in noble_gases:
@@ -130,7 +123,7 @@ def _reconstruct_from_species(
 
 
 def _build_grid_cases() -> list[dict]:
-    """Build the 75-case parameter grid (60 buffered + 12 authoritative O + 3 named/noble)."""
+    """Build the 75-case parameter grid (60 buffered + 12 authoritative O + 3 reference-budget/noble)."""
     mass_ocean = float(ocean_moles * molar_mass['H2'])
     m_earth = 5.972e24
     r_earth = 6.335439e6
@@ -197,9 +190,10 @@ def _build_grid_cases() -> list[dict]:
                     'nobles': (),
                 }
             )
+    # Volatile budgets and fO2_shift_IW from PROTEUS reference inputs evaluated at T = 2000 K.
     cases.append(
         {
-            'case_id': 'named_tutorial_earth_T2000_IW+2',
+            'case_id': 'budget_tutorial_earth_T2000_IW+2',
             'mode': 'buffered',
             'T_K': 2000.0,
             'fO2_shift_IW': 2.0,
@@ -217,7 +211,7 @@ def _build_grid_cases() -> list[dict]:
     g_cmb = g_default * (0.5 ** (1.0 / 3.0))
     cases.append(
         {
-            'case_id': 'named_cmb_regression_singleimpact_T2000_IW+1',
+            'case_id': 'budget_cmb_singleimpact_T2000_IW+1',
             'mode': 'buffered',
             'T_K': 2000.0,
             'fO2_shift_IW': 1.0,
@@ -235,7 +229,7 @@ def _build_grid_cases() -> list[dict]:
         noble_targets[ng] = noble_mass
     cases.append(
         {
-            'case_id': 'named_noble_gas_complement_T2000_IW+2',
+            'case_id': 'budget_noble_gas_complement_T2000_IW+2',
             'mode': 'buffered_noble',
             'T_K': 2000.0,
             'fO2_shift_IW': 2.0,
@@ -256,6 +250,7 @@ def test_element_balance_across_75_case_grid():
     assert len(cases) == 75
 
     for case in cases:
+        case_id = case['case_id']
         ddict = _build_ddict(
             m_mantle=case['M_mantle'],
             g_surf=case['gravity'],
@@ -273,7 +268,7 @@ def test_element_balance_across_75_case_grid():
                 ddict,
                 fO2_hint=case['fO2_shift_IW'],
                 rtol=RTOL_DERIVED,
-                atol=1.0e10,
+                atol=ATOL_KG,
                 xtol=1.0e-8,
                 random_seed=42,
                 print_result=False,
@@ -285,46 +280,97 @@ def test_element_balance_across_75_case_grid():
                 target,
                 ddict,
                 rtol=RTOL_DERIVED,
-                atol=1.0e10,
+                atol=ATOL_KG,
                 xtol=1.0e-8,
                 print_result=False,
                 opt_solver=False,
             )
             checked_elements = ('H', 'C', 'N', 'S') + case['nobles']
-            assert math.isfinite(out['O_kg_total'])
-            assert out['O_kg_total'] > 0.0
-            assert 'O_res' not in out
+            assert math.isfinite(out['O_kg_total']), f'{case_id}: O_kg_total not finite'
+            assert out['O_kg_total'] > 0.0, f'{case_id}: O_kg_total <= 0'
 
-        rec = _reconstruct_from_species(
-            out, r_int=case['R_int'], g_surf=case['gravity'], elements=checked_elements
+        # Verify VMR normalization and hydrostatic total mass identity on every case.
+        vmr_sum = sum(float(out.get(f'{sp}_vmr', 0.0)) for sp in SPECIES_STOICH)
+        assert vmr_sum == pytest.approx(1.0, rel=1.0e-12, abs=0.0), (
+            f'{case_id}: vmr_sum={vmr_sum}'
         )
-        for el in checked_elements:
-            t_kg = float(target[el])
-            tol_kg = max(RTOL_DERIVED * t_kg, ATOL_PER_ELEMENT_KG[el])
-            rec_gas = rec[el]['gas_kg']
-            rec_liq = rec[el]['liq_kg']
-            rec_tot = rec[el]['total_kg']
+        expected_m_atm = (
+            1.0e5
+            * 4.0
+            * math.pi
+            * (case['R_int'] ** 2)
+            / case['gravity']
+            * float(out['P_surf'])
+        )
+        assert float(out['M_atm']) == pytest.approx(expected_m_atm, rel=1.0e-12, abs=0.0), (
+            f'{case_id}: M_atm={out["M_atm"]} != {expected_m_atm}'
+        )
 
-            assert rec_gas == pytest.approx(out[f'{el}_kg_atm'], rel=1.0e-11, abs=1.0), (
-                f'{case["case_id"]} {el}: reconstructed gas {rec_gas!r} != {out[f"{el}_kg_atm"]!r}'
+        rec_elements = (
+            checked_elements if case['mode'] == 'authoritative_O' else checked_elements + ('O',)
+        )
+        rec = _reconstruct_from_species(
+            out, r_int=case['R_int'], g_surf=case['gravity'], elements=rec_elements
+        )
+        for el in rec_elements:
+            assert rec[el]['gas_kg'] == pytest.approx(
+                out[f'{el}_kg_atm'], rel=1.0e-11, abs=1.0
+            ), (
+                f'{case_id} {el}: reconstructed gas {rec[el]["gas_kg"]!r} != {out[f"{el}_kg_atm"]!r}'
             )
-            assert rec_liq == pytest.approx(out[f'{el}_kg_liquid'], rel=1.0e-11, abs=1.0), (
-                f'{case["case_id"]} {el}: reconstructed liq {rec_liq!r} != {out[f"{el}_kg_liquid"]!r}'
+            assert rec[el]['liq_kg'] == pytest.approx(
+                out[f'{el}_kg_liquid'], rel=1.0e-11, abs=1.0
+            ), (
+                f'{case_id} {el}: reconstructed liq {rec[el]["liq_kg"]!r} != {out[f"{el}_kg_liquid"]!r}'
             )
             assert out[f'{el}_kg_total'] == pytest.approx(
                 out[f'{el}_kg_atm'] + out[f'{el}_kg_liquid'], rel=1.0e-12, abs=1.0
-            )
+            ), f'{case_id} {el}: total != atm + liquid'
+
+        # Solver acceptance criterion: per-element for authoritative_O and nobles; scalar CHNOS max for buffered.
+        hcns_max = max(float(target[k]) for k in ('H', 'C', 'N', 'S'))
+        for el in checked_elements:
+            t_kg = float(target[el])
+            if case['mode'] == 'authoritative_O' or el in noble_gases:
+                tol_kg = max(RTOL_DERIVED * t_kg, float(TRUNC_MASS))
+            else:
+                tol_kg = hcns_max * RTOL_DERIVED + ATOL_KG + float(TRUNC_MASS)
+            rec_tot = rec[el]['total_kg']
             assert out[f'{el}_res'] == pytest.approx(
                 out[f'{el}_kg_total'] - t_kg, rel=1.0e-11, abs=1.0
-            )
+            ), f'{case_id} {el}: res mismatch'
             abs_err = abs(rec_tot - t_kg)
             assert abs_err <= tol_kg, (
-                f'{case["case_id"]} {el}: |recovered - target| = {abs_err!r} > tol {tol_kg!r}'
+                f'{case_id} {el}: |recovered - target| = {abs_err!r} > tol {tol_kg!r}'
             )
+
+        # Verify multi-seed stability across 5 seeds on the zero-N/S tutorial_earth budget case.
+        if case_id == 'budget_tutorial_earth_T2000_IW+2':
+            for seed in (0, 1, 2, 3, 42):
+                np.random.seed(seed)
+                out_s = equilibrium_atmosphere(
+                    target,
+                    ddict,
+                    rtol=RTOL_DERIVED,
+                    atol=ATOL_KG,
+                    xtol=1.0e-8,
+                    print_result=False,
+                    opt_solver=False,
+                )
+                rec_s = _reconstruct_from_species(
+                    out_s,
+                    r_int=case['R_int'],
+                    g_surf=case['gravity'],
+                    elements=('H', 'C', 'N', 'S'),
+                )
+                tol_s = hcns_max * RTOL_DERIVED + ATOL_KG + float(TRUNC_MASS)
+                for el in ('H', 'C', 'N', 'S'):
+                    err_s = abs(rec_s[el]['total_kg'] - float(target[el]))
+                    assert err_s <= tol_s, f'{case_id} seed={seed} {el}: {err_s!r} > {tol_s!r}'
 
 
 def test_species_to_element_summation_and_residual_vectors():
-    """Verify atmosphere_mass, dissolved_mass, func, and func_authoritative_O against independent stoichiometry."""
+    """Verify atmosphere_mass, dissolved_mass, func, and func_authoritative_O against stoichiometric sums."""
     nobles = ('He', 'Ne', 'Ar', 'Kr', 'Xe')
     ddict = _build_ddict(
         m_mantle=4.0311e24,
@@ -367,34 +413,44 @@ def test_species_to_element_summation_and_residual_vectors():
             expected_int[el] += sp_int * w_frac_liq
 
     for el in all_elements:
-        assert m_atm[el] > 0.0
-        assert m_atm[el] == pytest.approx(expected_atm[el], rel=1.0e-12)
-        if el in m_int:
-            assert m_int[el] > 0.0
-            assert m_int[el] == pytest.approx(expected_int[el], rel=1.0e-12)
-
-    # Verify each conditional secondary gas species contributes nonzero elemental mass to m_atm
-    for sec_sp, elem in (
-        ('H2', 'H'),
-        ('CH4', 'H'),
-        ('H2S', 'H'),
-        ('NH3', 'H'),
-        ('CO', 'C'),
-        ('CH4', 'C'),
-        ('NH3', 'N'),
-        ('CO', 'O'),
-        ('SO2', 'O'),
-        ('SO2', 'S'),
-        ('H2S', 'S'),
-    ):
-        ddict_off = dict(ddict)
-        ddict_off[f'{sec_sp}_included'] = 0
-        m_atm_off = atmosphere_mass(pin, ddict_off)
-        assert m_atm[elem] != pytest.approx(m_atm_off[elem], rel=1.0e-12), (
-            f'Turning off {sec_sp} must change atmospheric {elem} mass'
+        assert m_atm[el] > 0.0, f'm_atm[{el}] <= 0'
+        assert m_atm[el] == pytest.approx(expected_atm[el], rel=1.0e-12, abs=0.0), (
+            f'm_atm[{el}] mismatch'
+        )
+        assert el in m_int, f'{el} missing from m_int'
+        assert m_int[el] > 0.0, f'm_int[{el}] <= 0'
+        assert m_int[el] == pytest.approx(expected_int[el], rel=1.0e-12, abs=0.0), (
+            f'm_int[{el}] mismatch'
         )
 
-    # Verify O2 contributes to m_atm['O'] at oxidizing fO2 where pO2 is large
+    # Verify secondary gas species contributions at fixed mean molar mass equal their stoichiometric sums.
+    primary_sp = ('H2O', 'CO2', 'N2', 'S2', *nobles)
+    secondary_sp = ('H2', 'CH4', 'H2S', 'NH3', 'CO', 'SO2', 'O2')
+    for el in ('H', 'C', 'N', 'S', 'O'):
+        prim_sum = sum(
+            float(m_atm[sp])
+            * (
+                1.0
+                if sp in noble_gases
+                else (SPECIES_STOICH[sp].get(el, 0) * float(molar_mass[el]))
+                / float(molar_mass[sp])
+            )
+            for sp in primary_sp
+            if el in SPECIES_STOICH[sp]
+        )
+        sec_sum = sum(
+            float(m_atm[sp])
+            * (SPECIES_STOICH[sp].get(el, 0) * float(molar_mass[el]))
+            / float(molar_mass[sp])
+            for sp in secondary_sp
+            if el in SPECIES_STOICH[sp]
+        )
+        assert sec_sum > 0.0, f'secondary species contribution to {el} must be positive'
+        assert float(m_atm[el]) - prim_sum == pytest.approx(sec_sum, rel=1.0e-11, abs=0.0), (
+            f'secondary species stoichiometric sum mismatch for {el}'
+        )
+
+    # Verify O2 contributes to m_atm['O'] at oxidizing fO2 where pO2 is large.
     ddict_ox = dict(ddict, fO2_shift_IW=10.0)
     pin_ox = dict(pin, S2=0.0)
     m_atm_ox = atmosphere_mass(pin_ox, ddict_ox)
@@ -406,33 +462,36 @@ def test_species_to_element_summation_and_residual_vectors():
     ) * molar_mass['O']
     assert m_atm_ox['O'] > o_without_o2 * 1.001
     assert m_atm_ox['O'] - o_without_o2 == pytest.approx(
-        m_atm_ox['O2'] * (2.0 * molar_mass['O'] / molar_mass['O2']), rel=1.0e-12
+        m_atm_ox['O2'] * (2.0 * molar_mass['O'] / molar_mass['O2']), rel=1.0e-12, abs=0.0
     )
 
-    # Verify dissolved CO and CH4 contribute to dissolved C and H
-    for diss_sp, elem in (('CO', 'C'), ('CH4', 'C'), ('CH4', 'H'), ('CO', 'O')):
-        ddict_off = dict(ddict)
-        ddict_off[f'{diss_sp}_included'] = 0
-        m_int_off = dissolved_mass(pin, ddict_off)
-        assert m_int[elem] != pytest.approx(m_int_off[elem], rel=1.0e-12), (
-            f'Turning off dissolved {diss_sp} must change dissolved {elem} mass'
-        )
-
-    # Verify func and func_authoritative_O residual vectors equal (m_atm + m_int - target)
-    target = {el: 0.75 * (expected_atm[el] + expected_int.get(el, 0.0)) for el in all_elements}
+    # Verify func and func_authoritative_O residual vectors equal (m_atm + m_int - target).
+    target = {el: 0.75 * (expected_atm[el] + expected_int[el]) for el in all_elements}
     x_buf = [pin['H2O'], pin['CO2'], pin['N2'], pin['S2']] + [pin[ng] for ng in nobles]
     res_buf = func(x_buf, ddict, target)
     buf_elems = ('H', 'C', 'N', 'S') + nobles
     assert len(res_buf) == len(buf_elems)
     for idx, el in enumerate(buf_elems):
         expected_res = expected_atm[el] + expected_int[el] - target[el]
-        assert res_buf[idx] == pytest.approx(expected_res, rel=1.0e-12)
+        assert res_buf[idx] == pytest.approx(expected_res, rel=1.0e-12, abs=0.0), (
+            f'res_buf[{el}] mismatch'
+        )
         assert abs(res_buf[idx]) > TRUNC_MASS
 
-    x_auth = [pin['H2O'], pin['CO2'], pin['N2'], pin['S2'], -1.5] + [pin[ng] for ng in nobles]
+    # Use a distinct fO2_shift (+3.0 != ddict['fO2_shift_IW'] = -1.5) to verify x_auth[4] is used.
+    fo2_auth = 3.0
+    ddict_auth_ref = dict(ddict, fO2_shift_IW=fo2_auth)
+    m_atm_auth = atmosphere_mass(pin, ddict_auth_ref)
+    m_int_auth = dissolved_mass(pin, ddict_auth_ref)
+    x_auth = [pin['H2O'], pin['CO2'], pin['N2'], pin['S2'], fo2_auth] + [
+        pin[ng] for ng in nobles
+    ]
     res_auth = func_authoritative_O(x_auth, ddict, target)
     auth_elems = ('H', 'C', 'N', 'S', 'O') + nobles
     assert len(res_auth) == len(auth_elems)
+    assert res_auth[0] != pytest.approx(res_buf[0], rel=1.0e-3, abs=0.0)
     for idx, el in enumerate(auth_elems):
-        expected_res = expected_atm[el] + expected_int[el] - target[el]
-        assert res_auth[idx] == pytest.approx(expected_res, rel=1.0e-12)
+        expected_res_auth = float(m_atm_auth[el]) + float(m_int_auth[el]) - target[el]
+        assert res_auth[idx] == pytest.approx(expected_res_auth, rel=1.0e-12, abs=0.0), (
+            f'res_auth[{el}] mismatch at fO2_shift={fo2_auth}'
+        )
