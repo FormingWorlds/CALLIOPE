@@ -147,7 +147,7 @@ fig.savefig('coupled_loop.pdf')
 
 *Surface partial pressures across a two-phase driver. **(a)** A 25-step cooling sequence from $3000$ K down to $1500$ K at fixed $\Phi = 1$ and $\Delta\mathrm{IW} = +0.5$. **(b)** An 11-step crystallisation step at fixed $T = 1500$ K with the magma melt fraction shrinking from $\Phi = 1$ to $\Phi = 0.5$. The legend lists the ten tracked species in their PROTEUS-standard colours; the annotation in panel (a) shows the cold-start time (first call), the warm-step median (every subsequent call), and the total wall time for the full $25 + 11$ steps.*
 
-In panel (a) the atmosphere stays carbon-dominated across the whole cooling range; CO is the dominant species throughout (CO/CO$_2$ ratio falls modestly as $T$ drops). The fastest-moving species are H$_2$S (rises) and S$_2$ (falls): sulfur speciation is the most sensitive marker of cooling at this redox.
+In panel (a) the atmosphere stays carbon-dominated across the whole cooling range; CO is the dominant species throughout (CO/CO$_2$ ratio falls modestly as $T$ drops). The fastest-moving species are CH$_4$ (rises by almost 5 orders of magnitude) and SO$_2$ (falls by 4); S$_2$ falls and H$_2$S rises by 1 to 2 orders, so sulfur speciation is a sensitive marker of cooling at this redox.
 
 Panel (b) shows the magma-volume effect cleanly. As $\Phi$ drops the dissolved-friendly species (H$_2$O above all, plus the trace S species) rise sharply because the shrinking melt reservoir pushes them into the atmosphere; the barely-soluble species (CO, CO$_2$, N$_2$) move comparatively little. The total surface pressure rises by tens of percent across the $\Phi = 1 \to 0.5$ step, almost entirely driven by the H$_2$O / H$_2$S / SO$_2$ surge.
 
