@@ -283,14 +283,14 @@ class TestEquilibriumChemistry:
         assert abs(p_code - p_wrong_stoich) > 0.5 * p_expected
 
     @pytest.mark.parametrize('T', [1500.0, 2000.0, 2500.0, 3000.0])
-    def test_H2S_equilibrium(self, T):
-        """p_H2S from code matches analytical K_f * p_S2^0.5 * p_H2."""
+    def test_H2S_equilibrium(self, T, janaf_log_k):
+        """p_H2S from code matches K_f * p_S2^0.5 * p_H2 with K_f from the JANAF row at T."""
         p_S2 = 0.01
         p_H2 = 0.1
 
-        # Analytical: K_f for 0.5 S2 + H2 -> H2S
-        log10_Kf = 6731.01547 / T - 3.62273031
-        Kf = 10.0**log10_Kf
+        # K_f for 0.5 S2 + H2 -> H2S; the fit misses these rows by < 0.004 dex (< 1 %).
+        T_rows, log10_Kf = janaf_log_k('H2S')
+        Kf = 10.0 ** log10_Kf[T_rows == T][0]
         p_expected = Kf * p_S2**0.5 * p_H2
 
         # Code path
@@ -298,7 +298,7 @@ class TestEquilibriumChemistry:
         Geq = mk(T, 0.0)
         p_code = (Geq * p_S2 * p_H2**2) ** 0.5
 
-        assert p_code == pytest.approx(p_expected, rel=1e-6), (
+        assert p_code == pytest.approx(p_expected, rel=0.015), (
             f'H2S at {T}K: code={p_code:.6e}, expected={p_expected:.6e}'
         )
 
