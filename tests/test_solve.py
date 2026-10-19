@@ -395,8 +395,7 @@ def test_trace_sulfur_with_absent_nitrogen_is_lost_with_a_warning(
 def test_all_positive_root_is_unchanged(monkeypatch, caplog, seed, p_surf, h2o):
     """At the Earth fiducial every accepted root has positive primaries, so
     the clip changes nothing and the result is the root fsolve returned. The
-    pins hold to rel 1e-5, the solver's xtol noise across platforms; they move
-    with the equilibrium constants (p_H2S is 3e-3 of the 9.28 bar surface)."""
+    pins hold to rel 1e-5, the solver's xtol noise across platforms."""
     roots, _ = _spy_roots(monkeypatch)
     np.random.seed(seed)
     r = equilibrium_atmosphere(_earth_target_HCNS(), _earth_ddict(), p_guess=None, **_COLD)

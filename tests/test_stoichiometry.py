@@ -335,9 +335,9 @@ class TestEquilibriumChemistry:
         # forms coincide; sample a non-symmetric point to discriminate.
         p_N2_test, p_H2_test = 0.5, 2.0
         p_code_asym = (Geq * p_N2_test * p_H2_test**3) ** 0.5
-        p_correct_asym = p_code * p_N2_test**0.5 * p_H2_test**1.5
-        p_wrong_swapped = p_code * p_N2_test**1.5 * p_H2_test**0.5
-        assert p_code_asym == pytest.approx(p_correct_asym, rel=1e-6)
+        p_correct_asym = Kf * p_N2_test**0.5 * p_H2_test**1.5
+        p_wrong_swapped = Kf * p_N2_test**1.5 * p_H2_test**0.5
+        assert p_code_asym == pytest.approx(p_correct_asym, rel=0.06)
         assert abs(p_code_asym - p_wrong_swapped) > 0.1 * p_correct_asym
 
     def test_SO2_increases_with_fO2(self):

@@ -50,11 +50,10 @@ def janaf_log_k():
     """
 
     def per_mole(product):
-        if product == 'NH3':
-            rows = _janaf_log_kf('NH3')
-        else:
-            h2s, s2 = _janaf_log_kf('H2S'), _janaf_log_kf('S2')
-            rows = {'H2S': {T: h2s[T] - 0.5 * s2[T] for T in h2s.keys() & s2.keys()}}[product]
+        rows = _janaf_log_kf(product)
+        if product == 'H2S':
+            s2 = _janaf_log_kf('S2')
+            rows = {T: y - 0.5 * s2[T] for T, y in rows.items() if T in s2}
         T = np.array(sorted(rows))
         return T, np.array([rows[t] for t in T])
 

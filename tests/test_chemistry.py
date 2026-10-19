@@ -162,12 +162,12 @@ def test_modified_keq_unknown_model_raises():
         ModifiedKeq('janaf_O3')  # not an implemented reaction
 
 
-# JANAF fit range: the PROTEUS outgassing floor (700 K) to above the hottest
-# magma-ocean surfaces in coupled runs. Tolerance = max fit residual plus margin [dex].
+# JANAF fit range: the default PROTEUS outgassing floor (700 K) to above the 99.9th
+# percentile of T_magma in coupled runs. Tolerance = max fit residual plus margin [dex].
 JANAF_FIT_RANGE_K = (700.0, 5000.0)
 JANAF_FIT_TOL_DEX = {'H2S': 0.025, 'NH3': 0.04}
-# Earlier fits over 200-4000 K (doubled form); for H2S with the S2 coefficient 1, not 1/2.
-OLD_RANGE_FIT = {'H2S': (13462.03094, 7.24546062), 'NH3': (5328.031246, 11.98476092)}
+# Wrong-formula guard: fits over 200-4000 K (doubled form), for H2S with S2 coefficient 1.
+WRONG_FORMULA_FIT = {'H2S': (13462.03094, 7.24546062), 'NH3': (5328.031246, 11.98476092)}
 
 
 def _per_mole_log_k(product, T):
@@ -198,8 +198,8 @@ def test_janaf_constant_matches_janaf_rows_over_fit_range(janaf_log_k, product):
     assert T[-1] == pytest.approx(JANAF_FIT_RANGE_K[1])
     resid = _per_mole_log_k(product, T) - janaf
     assert np.max(np.abs(resid)) < JANAF_FIT_TOL_DEX[product]
-    # Discrimination: the 200-4000 K fits miss the rows by far more.
-    a, b = OLD_RANGE_FIT[product]
+    # Discrimination: the wrong-formula fits miss the rows by far more.
+    a, b = WRONG_FORMULA_FIT[product]
     assert np.max(np.abs(0.5 * (a / T - b) - janaf)) > 3 * JANAF_FIT_TOL_DEX[product]
     # Sign: the formation reactions are exothermic, so log K falls with T.
     assert np.all(np.diff(_per_mole_log_k(product, T)) < 0)
@@ -216,11 +216,7 @@ def test_janaf_coefficients_are_least_squares_fit_of_janaf_rows(janaf_log_k, pro
     """
     T, janaf = _rows_in_fit_range(janaf_log_k, product)
     slope, intercept = np.polyfit(1.0 / T, 2.0 * janaf, 1)
-    T1, T2 = JANAF_FIT_RANGE_K
-    k1, k2 = 2.0 * _per_mole_log_k(product, T1), 2.0 * _per_mole_log_k(product, T2)
-    a = (k1 - k2) / (1.0 / T1 - 1.0 / T2)
-    assert a == pytest.approx(slope, rel=1e-6)
-    assert a / T1 - k1 == pytest.approx(-intercept, rel=1e-6)
-    # Sign and scale guards: exothermic slope; a in K is thousands, not tens.
-    assert a > 0
-    assert 1e3 < a < 1e5
+    fit = 2.0 * _per_mole_log_k(product, T)
+    # atol because the doubled H2S log K crosses zero near 1830 K.
+    np.testing.assert_allclose(fit, slope / T + intercept, rtol=1e-6, atol=1e-6)
+    assert fit[0] > fit[-1]
