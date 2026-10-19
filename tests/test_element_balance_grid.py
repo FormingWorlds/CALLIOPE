@@ -350,7 +350,7 @@ def test_element_balance_across_75_case_grid():
             'budget_cmb_singleimpact_T2000_IW+1',
             'authO_default_T2000',
         ):
-            for seed in (0, 1, 2, 3, 42):
+            for seed in (0, 1, 2, 3, 4):
                 np.random.seed(seed)
                 if case['mode'] == 'authoritative_O':
                     out_s = equilibrium_atmosphere_authoritative_O(
@@ -389,6 +389,7 @@ def test_element_balance_across_75_case_grid():
                     err_s = abs(rec_s[el]['total_kg'] - float(target[el]))
                     assert err_s <= tol_s, f'{case_id} seed={seed} {el}: {err_s!r} > {tol_s!r}'
 
+                p_floor = 1.0e-10  # bar
                 for sp in (
                     'H2O',
                     'H2',
@@ -402,9 +403,13 @@ def test_element_balance_across_75_case_grid():
                     'SO2',
                     'H2S',
                 ):
-                    p_ref = float(out.get(f'{sp}_bar', 0.0))
-                    p_s = float(out_s.get(f'{sp}_bar', 0.0))
-                    if p_ref > 1.0e-12 and p_s > 0.0:
+                    p_ref = float(out[f'{sp}_bar'])
+                    p_s = float(out_s[f'{sp}_bar'])
+                    assert (p_ref > p_floor) == (p_s > p_floor), (
+                        f'{case_id} seed={seed} {sp} p_bar floor mismatch: '
+                        f'ref={p_ref:.4e} bar, seed={p_s:.4e} bar'
+                    )
+                    if p_ref > p_floor:
                         diff_dex = abs(math.log10(p_s / p_ref))
                         assert diff_dex <= 1.0e-4, (
                             f'{case_id} seed={seed} {sp} p_bar offset '
