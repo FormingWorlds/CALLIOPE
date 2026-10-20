@@ -244,6 +244,7 @@ def test_janaf_fit_warns_once_below_fit_range(fit_range_warnings, product):
     assert record.levelno == logging.WARNING
     assert f'janaf_{product}' in record.getMessage()
     assert 'T = 650.0 K' in record.getMessage()
+    assert f'fit range starts at {JANAF_FIT_RANGE_K[0]:g} K' in record.getMessage()
     other = 'NH3' if product == 'H2S' else 'H2S'
     getattr(ModifiedKeq(f'janaf_{other}'), f'janaf_{other}')(650.0)
     assert len(fit_range_warnings.records) == 2
