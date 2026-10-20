@@ -25,7 +25,6 @@ import pytest
 # hypothesis`` at module top.
 pytest.importorskip('hypothesis')
 
-import numpy as np  # noqa: E402
 from hypothesis import example, given, settings  # noqa: E402
 from hypothesis import strategies as st  # noqa: E402
 
@@ -240,7 +239,7 @@ def test_modified_keq_finite_positive(T, dIW):
 
 
 @given(T=st.floats(min_value=1.0, max_value=1.0e4))
-@example(T=float(np.nextafter(700.0, 0.0)))
+@example(T=math.nextafter(700.0, 0.0))
 @example(T=700.0)
 @settings(deadline=None, max_examples=200)
 def test_janaf_fit_range_warning_only_below_700K(T):

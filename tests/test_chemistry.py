@@ -256,13 +256,38 @@ def test_janaf_fit_warning_edges_and_other_constants(fit_range_warnings):
     for name in ('janaf_H2S', 'janaf_NH3'):
         method = getattr(ModifiedKeq(name), name)
         method(np.array([700.0, 1500.0, 5000.0, np.inf]))
+        method(2000)
+        method(np.array([700, 5000]))
         method(float('nan'))
         assert method(np.array([]))[0].size == 0
     assert fit_range_warnings.records == []
     assert chemistry._WARNED_BELOW_FIT == set()
     # A NaN entry is skipped; the largest float below 700 K still warns.
-    just_below = float(np.nextafter(JANAF_FIT_RANGE_K[0], 0.0))
+    just_below = math.nextafter(JANAF_FIT_RANGE_K[0], 0.0)
     ModifiedKeq('janaf_H2S').janaf_H2S(np.array([np.nan, just_below]))
     assert len(fit_range_warnings.records) == 1
     assert f'T = {just_below} K' in fit_range_warnings.records[0].getMessage()
     assert chemistry._WARNED_BELOW_FIT == {'janaf_H2S'}
+
+
+@pytest.mark.parametrize(
+    'T',
+    [
+        650.0,
+        np.float64(650.0),
+        np.float32(650.0),
+        650,
+        np.int64(650),
+        np.array(650.0),
+        np.array([900.0, 650.0, 800.0]),
+        np.array([[900, 650], [800, 720]]),
+    ],
+    ids=['float', 'float64', 'float32', 'int', 'int64', 'zero_d', 'minimum_inside', 'int_2d'],
+)
+def test_janaf_fit_warning_for_every_numeric_form_of_T(fit_range_warnings, T):
+    """Each numeric form of T gives a finite constant and one warning that names its lowest entry."""
+    log_k, stoich = ModifiedKeq('janaf_H2S').janaf_H2S(T)
+    assert np.all(np.isfinite(log_k))
+    assert stoich == 0
+    assert len(fit_range_warnings.records) == 1
+    assert 'T = 650.0 K' in fit_range_warnings.records[0].getMessage()
