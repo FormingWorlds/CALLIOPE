@@ -1761,3 +1761,5 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
             assert case_nan_skips == 0, (
                 f'{cid}: expected 0 NaN-pair skips for S target > 0, got {case_nan_skips}'
             )
+    # Every grid case has an S target > 0, so the report has zero NaN-pair skips.
+    assert nan_pair_skips == 0, f'Expected 0 total NaN-pair skips, got {nan_pair_skips}'

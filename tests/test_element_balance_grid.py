@@ -374,7 +374,8 @@ def test_element_balance_across_75_case_grid():
                 out[f'{el}_kg_atm'] + out[f'{el}_kg_liquid'], rel=1.0e-12, abs=1.0
             ), f'{case_id} {el}: total != atm + liquid'
 
-        # Solver acceptance criterion: per-element for authoritative_O and nobles; scalar CHNOS max for buffered.
+        # Solver acceptance criterion: per-element for authoritative_O and nobles;
+        # scalar CHNOS max for buffered.
         hcns_max = max(float(target[k]) for k in ('H', 'C', 'N', 'S'))
         for el in checked_elements:
             t_kg = float(target[el])
@@ -391,7 +392,8 @@ def test_element_balance_across_75_case_grid():
                 f'{case_id} {el}: |recovered - target| = {abs_err!r} > tol {tol_kg!r}'
             )
 
-        # Verify multi-seed stability across 5 seeds on 2-element, 4-element, and 5-element cases.
+        # Verify multi-seed stability across 5 seeds on 2-element, 4-element,
+        # and 5-element cases.
         if case_id in (
             'budget_tutorial_earth_T2000_IW+2',
             'budget_cmb_singleimpact_T2000_IW+1',
@@ -489,9 +491,9 @@ def test_element_balance_across_75_case_grid():
                             f'{case_id} seed={seed} {sp} p_s={p_s} != 0 for zero target'
                         )
                     else:
-                        # 1e-10 bar floor: 19x-25x below atol mass resolution (Earth 1.945e-9,
-                        # cmb 2.45e-9 bar, tolerance in eq_atm); authO_default_T2000 NH3
-                        # at 5.13e-10 bar < N gate: rtol*target, ~1.5e-4 bar as m g/A.
+                        # 1e-10 bar floor: 19x-25x below ATOL_KG as m g/A (Earth 1.945e-9,
+                        # cmb 2.45e-9 bar); authO_default_T2000 NH3 at 5.13e-10 bar < N gate:
+                        # rtol*target, ~1.5e-4 bar as m g/A.
                         p_floor = 1.0e-10  # bar
                         assert (p_ref > p_floor) == (p_s > p_floor), (
                             f'{case_id} seed={seed} {sp} p_bar floor mismatch: '
@@ -507,6 +509,36 @@ def test_element_balance_across_75_case_grid():
             assert len(set(fsolve_first_x0s)) == 5, (
                 f'{case_id}: duplicate initial fsolve x0 across seeds {fsolve_first_x0s}'
             )
+            if case['mode'] == 'authoritative_O':
+                # Run seed 0 a second time with different global state to verify
+                # default_rng(seed) determinism against unseeded default_rng mutant.
+                repeat_x0 = [None]
+
+                def _spy_repeat(func, x0, *a, **k):
+                    if repeat_x0[0] is None:
+                        repeat_x0[0] = tuple(np.round(np.asarray(x0, dtype=float), 12))
+                    return orig_fsolve(func, x0, *a, **k)
+
+                solve_mod.opt.fsolve = _spy_repeat
+                try:
+                    np.random.seed(1)
+                    equilibrium_atmosphere_authoritative_O(
+                        target,
+                        ddict,
+                        fO2_hint=case['fO2_shift_IW'],
+                        rtol=RTOL_DERIVED,
+                        atol=ATOL_KG,
+                        xtol=1.0e-8,
+                        random_seed=0,
+                        print_result=False,
+                        opt_solver=False,
+                    )
+                finally:
+                    solve_mod.opt.fsolve = orig_fsolve
+                assert repeat_x0[0] == fsolve_first_x0s[0], (
+                    f'{case_id}: seed 0 repeat with global seed 1 gave different x0 '
+                    f'{repeat_x0[0]} != {fsolve_first_x0s[0]}'
+                )
 
         if case_id == 'budget_tutorial_earth_T2000_IW+2':
             # Solver does not hold zero-target species below atol.
@@ -612,7 +644,8 @@ def test_species_to_element_summation_and_residual_vectors():
             f'm_int[{el}] mismatch'
         )
 
-    # Verify secondary gas species contributions at fixed mean molar mass equal their stoichiometric sums.
+    # Verify secondary gas species contributions at fixed mean molar mass
+    # equal their stoichiometric sums.
     primary_sp = ('H2O', 'CO2', 'N2', 'S2', *nobles)
     secondary_sp = ('H2', 'CH4', 'H2S', 'NH3', 'CO', 'SO2', 'O2')
     for el in ('H', 'C', 'N', 'S', 'O'):
@@ -667,7 +700,8 @@ def test_species_to_element_summation_and_residual_vectors():
         )
         assert abs(res_buf[idx]) > TRUNC_MASS
 
-    # Use a distinct fO2_shift (+3.0 != ddict['fO2_shift_IW'] = -1.5) to verify x_auth[4] is used.
+    # Use a distinct fO2_shift (+3.0 != ddict['fO2_shift_IW'] = -1.5) to verify
+    # that x_auth[4] is used.
     fo2_auth = 3.0
     ddict_auth_ref = dict(ddict, fO2_shift_IW=fo2_auth)
     m_atm_auth = atmosphere_mass(pin, ddict_auth_ref)
