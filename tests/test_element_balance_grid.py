@@ -546,7 +546,6 @@ def test_element_balance_across_75_case_grid():
         if case_id == 'budget_tutorial_earth_T2000_IW+2':
             # Solver does not hold zero-target species below atol.
             gate_zero_kg = hcns_max * RTOL_DERIVED + ATOL_KG + float(TRUNC_MASS)
-            max_n2_kg = 0.0
             fsolve_none_x0s: list[tuple[float, ...]] = []
             for seed_none in (0, 8, 32, 93, 138):
                 first_x0_none = [None]
@@ -587,13 +586,9 @@ def test_element_balance_across_75_case_grid():
                     f'{case_id} seed={seed_none} p_guess=None N2_kg_total '
                     f'{n2_kg_none!r} > gate {gate_zero_kg!r}'
                 )
-                max_n2_kg = max(max_n2_kg, n2_kg_none)
             assert len(fsolve_none_x0s) == 5, f'{case_id}: expected 5 seeds'
             assert len(set(fsolve_none_x0s)) == 5, (
                 f'{case_id}: duplicate initial fsolve x0 across seeds {fsolve_none_x0s}'
-            )
-            assert max_n2_kg <= gate_zero_kg, (
-                f'{case_id} max N2 {max_n2_kg!r} > gate {gate_zero_kg!r}'
             )
 
 

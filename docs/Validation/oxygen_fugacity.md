@@ -5,13 +5,11 @@ behaviour of `calliope.oxygen_fugacity` against published sources.
 
 | Test id | Reference | Source page | Scope |
 |---|---|---|---|
-| `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_matches_published_fit` | Fischer et al. (2011) [^cite-fischer2011], EPSL 304, 496 (1-bar curve fit to Chase 1998 in supplement; Eq. 2 is the pressure term); cross-checked against O'Neill & Eggins (2002) [^cite-oneilleggins2002] | [doi:10.1016/j.epsl.2011.02.025](https://doi.org/10.1016/j.epsl.2011.02.025) | Pins the Fischer-vs-O'Neill cross-calibration offset (0.258 dex at T = 2000 K) as the independent anchor, with a secondary regression check on the coded Fischer fit `6.94059 - 28.1808e3 / T` and a wrong-buffer discrimination guard against O'Neill & Eggins (2002) at the same T. |
+| `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_cross_check_and_regression` | Fischer et al. (2011) [^cite-fischer2011], EPSL 304, 496; cross-checked against O'Neill & Eggins (2002) [^cite-oneilleggins2002] | [doi:10.1016/j.epsl.2011.02.025](https://doi.org/10.1016/j.epsl.2011.02.025) | Pins the coded Fischer-vs-O'Neill offset (0.258 dex at T = 2000 K) and the coded Fischer expression `6.94059 - 28.1808e3 / T` as regression checks, with a wrong-buffer discrimination guard against O'Neill & Eggins (2002) at the same T. |
 
 ## Re-derivation note
 
-`OxygenFugacity('fischer')` implements the Fischer et al. (2011) 1-bar iron-wüstite
-(IW) buffer fit (fitted to Chase 1998 values in their supplement; their Eq. 2 is
-the pressure term):
+Fischer et al. (2011) calculate the 1-bar Fe-FeO curve from Chase (1998) (Fig. 6) and add the pressure integral of their Eq. 2; their supplement (Table S2) gives a P-T polynomial. The source of this 2-term form is not stated in the paper body. `OxygenFugacity('fischer')` evaluates:
 
 ```
 log10(fO2)_IW(T) = 6.94059 - 28.1808e3 / T
@@ -43,22 +41,22 @@ reference point.
 
 ## Anchor type
 
-Cross-implementation cross-check, plus published benchmark. The
-independent anchor is the cross-calibration offset between the Fischer
-(2011) and O'Neill & Eggins (2002) IW fits, which are coded from separate,
-independent published formulae; the offset is independent of either single
-fit, so a coefficient error in either fit moves it, and fails the test.
-Neither the Fischer et al. (2011) supplementary file, nor the Chase (1998)
-JANAF Fe, FeO, and O2 tables, are present in the repository test data, so
-no independent numerical pin of the Fischer 1-bar fit coefficients exists;
-the coded Fischer value is pinned as a secondary regression check, and
-the O'Neill value is also the wrong-buffer discrimination guard.
+Cross-implementation cross-check and regression check. Neither the Fischer
+et al. (2011) supplementary file, nor the Chase (1998) JANAF Fe, FeO, and
+O2 tables, are present in the repository test data, and the source of the
+coded 2-term form is not stated in the paper body, so no independent
+numerical pin of the Fischer 1-bar fit exists. The test pins the 0.258 dex
+offset between the coded `OxygenFugacity.fischer` and
+`OxygenFugacity.oneill` expressions at 2000 K alongside the closed-form
+evaluation `6.94059 - 28.1808e3 / T` as regression checks, and uses the
+O'Neill & Eggins (2002) value as the wrong-buffer discrimination guard.
 
 ## Cross-references
 
-- `src/calliope/oxygen_fugacity.py` lines 26-34: implementations of both
-  buffers, with a comment at line 32 pinning the `8.31441` constant to
-  the literal O'Neill & Eggins (2002) value (do not replace with
+- `src/calliope/oxygen_fugacity.py` (`OxygenFugacity.fischer` and
+  `OxygenFugacity.oneill`): implementations of both buffers, with an
+  inline comment in `OxygenFugacity.oneill` pinning the `8.31441` constant
+  to the literal O'Neill & Eggins (2002) value (do not replace with
   `constants.R_gas`).
 - `docs/Explanations/oxygen_fugacity.md`: user-facing concept page with
   the empirical anchor (Earth ~ IW+3.5, Mars ~ IW, Mercury IW-3 to IW-5)

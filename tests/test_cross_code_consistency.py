@@ -11,17 +11,28 @@ Verifies:
    per-temperature reaction-data offset (K_OFFSET_EXPECTED_DEX). For H2S,
    CALLIOPE's janaf_H2S (tools/fit_H2S.ipynb) fits g_H2S - g_S2 - g_H2 (unit S2
    stoichiometric coefficient over 200-4000 K instead of 0.5 S2), producing a
-   +0.29 to -0.39 dex per-mole K_p offset across 1500-3000 K, and janaf_NH3 is
-   also queued for refit. H2S, NH3, and 188 buffered per-case keys (51 of them
-   S2, 17 of them NH3) plus 3 authO S2 keys (318 held grid keys in total: 188
-   buffered per-case + 3 authO S2 + 60 buffered H2S + 43 remaining buffered NH3
-   + 12 authO H2S + 12 authO NH3) whose offset shifts by > half its assert
-   margin (0.0025 dex for 0.005-margin keys, 0.0005 for authO majors) under a
+   +0.29 to -0.39 dex per-mole K_p offset across 1500-3000 K; for NH3,
+   janaf_NH3 (tools/fit_NH3.ipynb, 5328.031246 / T - 11.98476092) differs from
+   NASA Glenn by -0.011 to +0.059 dex per mole across 1500-3000 K (up to 0.076
+   dex on grid NH3 pressures) and from the 700-5000 K JANAF refit
+   (5648.850436 / T - 12.15151238) by -0.024 to +0.030 dex per mole, so NH3
+   keys are held alongside H2S. H2S, NH3, and 188 buffered per-case keys (51 of
+   them S2, 17 of them NH3) plus 3 authO S2 keys (318 held grid keys in total:
+   188 buffered per-case + 3 authO S2 + 60 buffered H2S + 43 remaining buffered
+   NH3 + 12 authO H2S + 12 authO NH3) whose offset shifts by > half its assert
+   margin (0.0025 dex for 0.005-margin keys, 0.0005 for authO majors) under the
    0.5 S2 refit are held under a wide envelope (0.5 dex per S atom: |d| <= 1.0
-   dex on held S2 keys, |d| <= 0.5 dex on all other held keys). For
-   authO_low_T3000 S2, the refit shift (0.000478 dex) is kept held as an
-   exception within 4.4 % of the 0.0005 threshold, while authO_high_T2500 S2
-   (0.000437 dex) is not held.
+   dex on held S2 keys, |d| <= 0.5 dex on all other held keys). Under the
+   700-5000 K JANAF refit constants (janaf_H2S = 9440.174611 / T - 5.16908096,
+   janaf_NH3 = 5648.850436 / T - 12.15151238), the largest non-held shifts are
+   +0.002294 dex on N2 in buffered_default_T3000_IW-4 for the janaf_H2S refit
+   (-0.002022 dex on N2 in buffered_high_T1500_IW-2 for the janaf_NH3 refit,
+   +0.002357 dex with both refits; +0.002411 dex under direct NASA Glenn H2S
+   K_p substitution); authO_low_T3000 S2 shifts by -0.000425 dex under the
+   janaf_H2S refit (-0.000478 dex under direct NASA Glenn H2S K_p substitution,
+   kept held), while authO_high_T2500 S2 shifts by -0.000390 dex (-0.000383 dex
+   with both refits, -0.000437 dex under direct NASA Glenn substitution, not
+   held).
 2. Live 72-case gas-only equilibrium cross-comparison against atmodeller (60
    buffered cases with matched fO2 plus 12 authoritative-O cases) on the shared
    volatile species (H2O, H2, O2, CO2, CO, CH4, N2, NH3, S2, SO2, H2S). This
@@ -29,19 +40,24 @@ Verifies:
    construction: the secondary-species pins follow from the K offsets and the
    primary pins to within 1.5e-6 dex, and the CH4 and NH3 K differences remain
    open. In the 60 buffered cases both codes receive CALLIOPE's
-   OxygenFugacity('fischer') fO2 (Fischer et al. 2011 fits the 1-bar curve to
-   Chase 1998 values in its supplement, while Eq. 2 is the pressure term; no
-   independent numerical pin of the Fischer 1-bar fit exists in the repository
-   test data). Elemental inventories are defined in moles (n_O = 0.5 n_H +
-   2 n_C + 2 n_S at the stoichiometric H2O + CO2 + SO2 endpoint) and converted
-   to mass per code with that code's atomic masses
-   (calliope.constants.molar_mass and molmass.Formula), and surface gravity is
-   matched to atmodeller.Planet.surface_gravity. Across all 12 authoritative-O
-   cases (1500 to 3000 K), solved log10(fO2) (O2 partial pressure) is pinned to
-   its per-case measured offset (-0.000732 to +0.002551 dex) +-0.005 dex
-   (-0.005732 to +0.007551 dex total). H2 follows DeltaK with H2O and O2, CO
-   with CO2 and O2, CH4 with CO2, O2 and H2 (d_CH4 = DeltaK + d_CO2 - d_O2 +
-   2 d_H2), NH3 with N2 and H2; the relation holds for the pinned values.
+   OxygenFugacity('fischer') fO2 (Fischer et al. (2011) calculate the 1-bar
+   Fe-FeO curve from Chase (1998) (Fig. 6) and add the pressure integral of
+   their Eq. 2; their supplement (Table S2) gives a P-T polynomial. The source
+   of this 2-term form is not stated in the paper body, and no independent
+   numerical pin of the Fischer 1-bar fit exists in the repository test data).
+   Buffered CALLIOPE solves draw initial guesses from a local default_rng(42)
+   copy of get_initial_pressures so multi-start draws do not mutate global NumPy
+   RNG state while keeping the pinned trajectories unchanged. Elemental
+   inventories are defined in moles (n_O = 0.5 n_H + 2 n_C + 2 n_S at the
+   stoichiometric H2O + CO2 + SO2 endpoint) and converted to mass per code with
+   that code's atomic masses (calliope.constants.molar_mass and molmass.Formula),
+   and surface gravity is matched to atmodeller.Planet.surface_gravity. Across
+   all 12 authoritative-O cases (1500 to 3000 K), solved log10(fO2) (O2 partial
+   pressure) is pinned to its per-case measured offset (-0.000732 to +0.002620
+   dex) +-0.005 dex (-0.005732 to +0.007620 dex total). H2 follows DeltaK with
+   H2O and O2, CO with CO2 and O2, CH4 with CO2, O2 and H2 (d_CH4 = DeltaK +
+   d_CO2 - d_O2 + 2 d_H2), NH3 with N2 and H2; the relation holds for the
+   pinned values.
 """
 
 from __future__ import annotations
@@ -80,6 +96,7 @@ def _check_cross_code_required_env(module_name: str) -> None:
 
 
 _check_cross_code_required_env('atmodeller')
+_check_cross_code_required_env('molmass')
 atmodeller = pytest.importorskip('atmodeller')
 molmass = pytest.importorskip('molmass')
 from atmodeller.containers import FixedFugacityConstraint, SolverParameters  # noqa: E402
@@ -374,8 +391,8 @@ assert sum('NH3' in v for v in BUFFERED_CASE_KEYS_HELD_FOR_H2S_FIX.values()) == 
 assert sum(len(v) for v in AUTHO_CASE_KEYS_HELD_FOR_H2S_FIX.values()) == 3
 assert sum('S2' in v for v in AUTHO_CASE_KEYS_HELD_FOR_H2S_FIX.values()) == 3
 
-# Measured log10(P_CALLIOPE / P_atmodeller) offsets at matched moles and g=9.930522 m s^-2
-# for H2S-independent keys (max H2S shift 0.002411 dex), asserted within +-0.005 dex.
+# Non-held log10(P_CALLIOPE / P_atmodeller) offsets; max refit shifts are +0.002294 dex
+# (N2 buffered_default_T3000_IW-4, H2S refit) and -0.002022 (N2 buffered_high_T1500_IW-2, NH3).
 GRID_OFFSET_MARGIN_DEX: float = 0.005
 AUTHO_MAJOR_MARGIN_DEX: float = 0.001
 BUFFERED_EXPECTED_DEX: dict[str, dict[str, float]] = {
@@ -1230,6 +1247,11 @@ def test_held_key_envelope_and_required_env_guards(monkeypatch):
     for ok_val in ('0', '1', ''):
         monkeypatch.setenv('CHEM_CROSS_CODE_REQUIRED', ok_val)
         _check_cross_code_required_env('math')
+    monkeypatch.setenv('CHEM_CROSS_CODE_REQUIRED', '1')
+    with pytest.raises(ModuleNotFoundError):
+        _check_cross_code_required_env('_nonexistent_cross_code_module_r62')
+    monkeypatch.setenv('CHEM_CROSS_CODE_REQUIRED', '0')
+    _check_cross_code_required_env('_nonexistent_cross_code_module_r62')
 
 
 def test_calliope_equilibrium_constants_and_reaction_quotients_vs_nasa_glenn(record_property):

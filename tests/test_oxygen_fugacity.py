@@ -3,13 +3,17 @@
 Exercises the `OxygenFugacity` IW-buffer dispatcher and its two
 underlying fits:
 
-- Reference pin: Fischer et al. (2011) IW value at T = 2000 K against
-  the closed-form `6.94059 - 28.1808e3 / T`, with a discrimination
-  guard against the O'Neill & Eggins (2002) IW at the same T. The
-  guard catches a regression that silently dispatches to the wrong
-  buffer; a default change in `oxygen_fugacity.py` would otherwise
-  silently shift every PROTEUS-side number pinned to the previous
-  default.
+- Cross-calibration and regression check: coded Fischer IW value at
+  T = 2000 K against the closed-form `6.94059 - 28.1808e3 / T`, with a
+  discrimination guard against the O'Neill & Eggins (2002) IW at the same
+  T. Fischer et al. (2011) calculate the 1-bar Fe-FeO curve from Chase
+  (1998) (Fig. 6) and add the pressure integral of their Eq. 2; their
+  supplement (Table S2) gives a P-T polynomial. The source of this 2-term
+  form is not stated in the paper body, and no independent numerical pin
+  of the Fischer 1-bar fit exists in the repository test data. The guard
+  catches a regression that silently dispatches to the wrong buffer; a
+  default change in `oxygen_fugacity.py` would otherwise silently shift
+  every PROTEUS-side number pinned to the previous default.
 - Monotonicity: `log10(fO2)` is monotonic in T along each buffer
   over the 1500-3000 K range.
 - Symmetry: `fO2_shift` is strictly additive: `of(T, dIW) = of(T, 0) + dIW`.
@@ -32,26 +36,25 @@ pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 
 @pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
-def test_oxygen_fugacity_fischer_value_at_2000K_matches_published_fit():
-    """Fischer 2011 IW at T = 2000 K, cross-checked against the
-    independent O'Neill & Eggins (2002) calibration.
+def test_oxygen_fugacity_fischer_value_at_2000K_cross_check_and_regression():
+    """Coded Fischer IW at T = 2000 K, cross-checked against O'Neill & Eggins (2002).
 
-    The `'fischer'` and `'oneill'` paths in `oxygen_fugacity.py` are
-    independent fits to the same iron-wustite equilibrium, coded from
-    separate published formulae. At T = 2000 K they agree to 0.258 dex
-    (Fischer -7.14981, O'Neill -7.40782). The reference anchor is the
-    cross-calibration offset between the two: it is derived from two
-    independent implementations, so a coefficient transcription error in
-    either fit moves the offset and fails the test, which a self-pin
-    against one fit's own re-typed formula cannot detect. Both values
-    cluster with other published IW fits (Frost 1991 ~ -7.04; O'Neill
+    Fischer et al. (2011) calculate the 1-bar Fe-FeO curve from Chase (1998)
+    (Fig. 6) and add the pressure integral of their Eq. 2; their supplement
+    (Table S2) gives a P-T polynomial. The source of this 2-term form is not
+    stated in the paper body, and no independent numerical pin of the Fischer
+    1-bar fit exists in the repository test data. At T = 2000 K the coded
+    `'fischer'` (-7.14981) and `'oneill'` (-7.40782) expressions differ by
+    0.258 dex; pinning both the 0.258 dex offset and the closed-form value
+    provides a regression check and a wrong-buffer discrimination guard. Both
+    values cluster with other published IW fits (Frost 1991 ~ -7.04; O'Neill
     1988 ~ -7.55) within the ~0.5 dex scatter of the literature.
     """
     fischer = OxygenFugacity('fischer')(2000.0)
     oneill = OxygenFugacity('oneill')(2000.0)
-    # Cross-calibration offset between the two independent buffer fits.
+    # Regression check on the offset between the two coded buffer expressions.
     assert (fischer - oneill) == pytest.approx(0.258, abs=0.02)
-    # Direct regression check on the coded Fischer 1-bar fit at 2000 K.
+    # Direct regression check on the coded Fischer 1-bar expression at 2000 K.
     assert fischer == pytest.approx(6.94059 - 28.1808e3 / 2000.0, rel=1e-4)
     # Wrong-buffer guard: a silent dispatch to 'oneill' lands 0.26 dex
     # away from the Fischer value.
