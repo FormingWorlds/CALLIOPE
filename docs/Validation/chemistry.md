@@ -5,7 +5,7 @@ behaviour of `calliope.chemistry` against published sources.
 
 | Test id | Reference | Source page | Scope |
 |---|---|---|---|
-| `tests/test_chemistry.py::test_modified_keq_janaf_H2_matches_closed_form_at_2000K_with_oneill` | NIST JANAF Thermochemical Tables [^cite-chase1998] (4th ed.), fits for `H2O = H2 + 0.5 O2` over 1500-3000 K | `src/calliope/chemistry.py:41-43` (`janaf_H2`) | Pins `Geq(janaf_H2)` at T = 2000 K under the O'Neill 2002 [^cite-oneilleggins2002] IW buffer against the closed-form `10^(Keq - 0.5 * log10_fO2)`; includes a wrong-reaction discrimination guard against `schaefer_H` [^cite-schaeferfegley2017] at the same conditions. |
+| `tests/test_chemistry.py::test_modified_keq_janaf_H2_matches_closed_form_at_2000K_with_oneill` | NIST JANAF Thermochemical Tables [^cite-chase1998] (4th ed.), fits for `H2O = H2 + 0.5 O2` over 1500-3000 K | `src/calliope/chemistry.py` (`ModifiedKeq.janaf_H2`) | Pins `Geq(janaf_H2)` at T = 2000 K under the O'Neill 2002 [^cite-oneilleggins2002] IW buffer against the closed-form `10^(Keq - 0.5 * log10_fO2)`; includes a wrong-reaction discrimination guard against `schaefer_H` [^cite-schaeferfegley2017] at the same conditions. |
 | `tests/test_chemistry.py::test_janaf_constant_matches_janaf_rows_over_fit_range[hydrogen_sulfide]` | NIST JANAF Thermochemical Tables [^cite-chase1998] (4th ed.), log Kf of H2S and S2 in `tools/` | `src/calliope/chemistry.py` (`janaf_H2S`) | Per mole, `0.5 * log10 K` of `S2 + 2 H2 = 2 H2S` lies within 0.025 dex of `log Kf(H2S) - 0.5 log Kf(S2)` at every JANAF row from 700 to 5000 K; the test also requires the discriminating coefficients `DISCRIMINATING_FIT['H2S']` (S2 coefficient 1) to miss the rows by more than 0.075 dex, three times the tolerance. Last compared 2026-10-20. |
 | `tests/test_chemistry.py::test_janaf_coefficients_are_least_squares_fit_of_janaf_rows[hydrogen_sulfide]` | Same JANAF rows | `tools/fit_H2S.ipynb` | The `janaf_H2S` coefficients equal a least-squares `a/T - b` fit of the rows in 700-5000 K to rel 1e-6. |
 | `tests/test_chemistry.py::test_janaf_constant_matches_janaf_rows_over_fit_range[ammonia]` | NIST JANAF Thermochemical Tables [^cite-chase1998] (4th ed.), log Kf of NH3 in `tools/` | `src/calliope/chemistry.py` (`janaf_NH3`) | Per mole, `0.5 * log10 K` of `N2 + 3 H2 = 2 NH3` lies within 0.04 dex of `log Kf(NH3)` at every JANAF row from 700 to 5000 K; the test also requires the discriminating coefficients `DISCRIMINATING_FIT['NH3']` to miss the rows by more than 0.12 dex, three times the tolerance. Last compared 2026-10-20. |
@@ -65,8 +65,8 @@ switching from O'Neill to Fischer changes Geq beyond rel=1e-6.
 
 ## Cross-references
 
-- `src/calliope/chemistry.py:11-22`: `ModifiedKeq` constructor and `__call__`.
-- `src/calliope/chemistry.py:24-60`: per-reaction coefficient methods.
+- `src/calliope/chemistry.py` (`ModifiedKeq.__init__`, `ModifiedKeq.__call__`): constructor and modified constant.
+- `src/calliope/chemistry.py` (`ModifiedKeq.schaefer_*`, `ModifiedKeq.janaf_*`): per-reaction coefficient methods.
 - `docs/Explanations/equilibrium_chemistry.md`: user-facing concept page.
 
 ## References

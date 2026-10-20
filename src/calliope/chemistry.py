@@ -15,13 +15,20 @@ _WARNED_BELOW_FIT: set[str] = set()
 
 
 def _warn_below_fit(name, T):
-    """Log one warning per process for `name` when any T is below the fit range or NaN."""
-    if name not in _WARNED_BELOW_FIT and not np.min(T) >= JANAF_FIT_T_MIN:
+    """Log one warning per process for `name` when T, or an entry of T, is below the fit range.
+
+    NaN entries are skipped, so a NaN input neither warns nor uses up the warning.
+    """
+    if name in _WARNED_BELOW_FIT:
+        return
+    t_min = T if isinstance(T, float) else np.fmin.reduce(np.ravel(T), initial=np.inf)
+    if t_min < JANAF_FIT_T_MIN:
         _WARNED_BELOW_FIT.add(name)
         log.warning(
-            '%s is fitted over 700-5000 K; T = %.1f K extrapolates the fit (logged once)',
+            '%s is fitted from %g K up; T = %s K extrapolates the fit (logged once per process)',
             name,
-            np.min(T),
+            JANAF_FIT_T_MIN,
+            float(t_min),
         )
 
 
@@ -67,13 +74,17 @@ class ModifiedKeq:
         return (37774.0 / T - 7.6128, 0)
 
     def janaf_H2S(self, T):
-        """JANAF log10Keq for S2 + 2 H2 = 2 H2S (doubled form), valid 700-5000 K (fit range)"""
-        # Per mole: log Kf(H2S) - 0.5 log Kf(S2); see `tools/fit_H2S.ipynb`
+        """JANAF log10Keq for S2 + 2 H2 = 2 H2S (doubled form); warns once below 700 K.
+
+        Per mole: log Kf(H2S) - 0.5 log Kf(S2), fitted over 700-5000 K; see `tools/fit_H2S.ipynb`.
+        """
         _warn_below_fit('janaf_H2S', T)
         return (9440.174611 / T - 5.16908096, 0)
 
     def janaf_NH3(self, T):
-        """JANAF log10Keq for N2 + 3 H2 = 2 NH3 (doubled form), valid 700-5000 K (fit range)"""
-        # Per mole: log Kf(NH3); see `tools/fit_NH3.ipynb`
+        """JANAF log10Keq for N2 + 3 H2 = 2 NH3 (doubled form); warns once below 700 K.
+
+        Per mole: log Kf(NH3), fitted over 700-5000 K; see `tools/fit_NH3.ipynb`.
+        """
         _warn_below_fit('janaf_NH3', T)
         return (5648.850436 / T - 12.15151238, 0)
