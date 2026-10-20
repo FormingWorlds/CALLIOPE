@@ -408,8 +408,8 @@ def test_element_balance_across_75_case_grid():
 
                 solve_mod.opt.fsolve = _spy_fsolve
                 try:
-                    np.random.seed(seed)
                     if case['mode'] == 'authoritative_O':
+                        np.random.seed(0)
                         out_s = equilibrium_atmosphere_authoritative_O(
                             target,
                             ddict,
@@ -422,6 +422,7 @@ def test_element_balance_across_75_case_grid():
                             opt_solver=False,
                         )
                     else:
+                        np.random.seed(seed)
                         p_guess = _construct_zero_target_p_guess(target, randomize=True)
                         out_s = equilibrium_atmosphere(
                             target,
@@ -488,9 +489,9 @@ def test_element_balance_across_75_case_grid():
                             f'{case_id} seed={seed} {sp} p_s={p_s} != 0 for zero target'
                         )
                     else:
-                        # 1e-10 bar floor, 19x to 25x below atol mass resolution (tutorial Earth 1.945e-9,
-                        # cmb_singleimpact 2.45e-9 bar); gate is tolerance in equilibrium_atmosphere
-                        # or rtol*target (authO); NH3 5.13e-10 bar checked below its ~1.5e-4 bar gate.
+                        # 1e-10 bar floor: 19x-25x below atol mass resolution (Earth 1.945e-9,
+                        # cmb 2.45e-9 bar, tolerance in eq_atm); authO_default_T2000 NH3
+                        # at 5.13e-10 bar < N gate: rtol*target, ~1.5e-4 bar as m g/A.
                         p_floor = 1.0e-10  # bar
                         assert (p_ref > p_floor) == (p_s > p_floor), (
                             f'{case_id} seed={seed} {sp} p_bar floor mismatch: '
@@ -537,14 +538,11 @@ def test_element_balance_across_75_case_grid():
                     solve_mod.opt.fsolve = orig_fsolve
                 fsolve_none_x0s.append(first_x0_none[0])
 
-                assert abs(out_none['N_res']) <= gate_zero_kg, (
-                    f'{case_id} seed={seed_none} p_guess=None N_res '
-                    f'{out_none["N_res"]!r} > gate {gate_zero_kg!r}'
-                )
-                assert abs(out_none['S_res']) <= gate_zero_kg, (
-                    f'{case_id} seed={seed_none} p_guess=None S_res '
-                    f'{out_none["S_res"]!r} > gate {gate_zero_kg!r}'
-                )
+                for el_res in ('H', 'C', 'N', 'S'):
+                    assert abs(out_none[f'{el_res}_res']) <= gate_zero_kg, (
+                        f'{case_id} seed={seed_none} p_guess=None {el_res}_res '
+                        f'{out_none[f"{el_res}_res"]!r} > gate {gate_zero_kg!r}'
+                    )
                 for sp in ('N2', 'NH3', 'S2', 'SO2', 'H2S'):
                     assert 0.0 <= float(out_none[f'{sp}_kg_total']), (
                         f'{case_id} seed={seed_none} p_guess=None {sp} mass negative'
@@ -554,6 +552,7 @@ def test_element_balance_across_75_case_grid():
             assert len(set(fsolve_none_x0s)) == 5, (
                 f'{case_id}: duplicate initial fsolve x0 across seeds {fsolve_none_x0s}'
             )
+            # Pin is expected to change if the solver holds zero-target slots at 0.
             assert max_n2_kg > ATOL_KG, (
                 f'{case_id} max N2 {max_n2_kg!r} not > ATOL_KG {ATOL_KG!r}'
             )

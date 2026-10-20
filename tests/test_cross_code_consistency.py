@@ -1712,7 +1712,8 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
 
     record_property('held_for_h2s_fix_count', len(held_for_h2s_rows))
     record_property('held_for_h2s_fix_dex', '; '.join(held_for_h2s_rows))
-    # 263 held keys breakdown: 188 buffered per-case + 3 authO per-case + 60 buffered H2S + 12 authO H2S
+    # 263 held keys breakdown: 188 buffered per-case + 3 authO per-case
+    # + 60 buffered H2S + 12 authO H2S.
     assert len(held_for_h2s_rows) == 263
 
     record_property('sulfur_72_case_report_dex', '\n'.join(sulfur_report_rows))
@@ -1738,14 +1739,25 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
     row_case_ids = [line.split('\t')[0] for line in report_lines[1:]]
     assert set(row_case_ids) == set(expected_case_ids), 'Report case ID set mismatch'
     assert len(row_case_ids) == 72, f'Expected 72 rows, got {len(row_case_ids)}'
+    s_targets_by_id = {
+        c['case_id']: float(c['cal_targets']['S']) for c in buffered_cases + autho_cases
+    }
+    nan_pair_skips = 0
     for line in report_lines[1:]:
         parts = line.split('\t')
         cid = parts[0]
         vals = tuple(float(x) for x in parts[1:])
         exp_vals = expected_sulfur[cid]
+        case_nan_skips = 0
         for v_read, v_exp, sp in zip(vals, exp_vals, ('H2S', 'S2', 'SO2'), strict=True):
             if math.isnan(v_read) and math.isnan(v_exp):
+                case_nan_skips += 1
+                nan_pair_skips += 1
                 continue
             assert abs(v_read - v_exp) <= 1.0e-6, (
                 f'{cid} {sp} read-back offset {v_read} != {v_exp}'
+            )
+        if s_targets_by_id[cid] > 0.0:
+            assert case_nan_skips == 0, (
+                f'{cid}: expected 0 NaN-pair skips for S target > 0, got {case_nan_skips}'
             )
