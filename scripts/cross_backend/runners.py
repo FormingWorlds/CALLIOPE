@@ -106,9 +106,8 @@ def run_calliope(
     output. The `random_seed` is fixed by default so a re-run of the
     figure scripts produces identical numbers. ``buffer`` selects the
     IW parameterisation and is passed to the solver as ``fO2_model``;
-    default 'fischer' is the CALLIOPE default the comparison figures
-    were produced with ('hirschmann' is the current library default,
-    'oneill' the legacy one).
+    default 'fischer' is the buffer the comparison figures are produced
+    with ('hirschmann' is the library default, 'oneill' the legacy one).
     """
     from calliope.solve import equilibrium_atmosphere_authoritative_O
 

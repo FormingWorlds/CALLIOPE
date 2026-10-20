@@ -51,10 +51,9 @@ at the Eq. 18 boundary: the jump stays below 0.019 dex from 1000 to
 
 ## Default buffer
 
-The CALLIOPE default IW buffer is Fischer (2011). Tests that pin an IW
-value MUST carry a discrimination guard so a change of default (or an
-accidental config-side override) does not silently move the test's
-reference point.
+The CALLIOPE default IW buffer is Hirschmann (2021). Tests that pin an IW value MUST carry a discrimination
+guard so a change of default (or an accidental config-side override) does
+not silently move the test's reference point.
 
 ## Anchor type
 
@@ -68,16 +67,17 @@ value also serves as the wrong-buffer discrimination guard.
 
 ## Cross-references
 
-- `src/calliope/oxygen_fugacity.py` lines 26-34: implementations of both
-  buffers, with a comment at line 32 pinning the `8.31441` constant to
-  the literal O'Neill & Eggins (2002) value (do not replace with
-  `constants.R_gas`).
+- `src/calliope/oxygen_fugacity.py` lines 61-103: implementations of the
+  three buffers, with a comment at line 71 pinning the `8.31441` constant
+  to the literal O'Neill & Eggins (2002) value (do not replace with
+  `constants.R_gas`). `DEFAULT_FO2_MODEL` at line 15 names the default.
 - `docs/Explanations/oxygen_fugacity.md`: user-facing concept page with
   the empirical anchor (Earth ~ IW+3.5, Mars ~ IW, Mercury IW-3 to IW-5)
   for both buffers.
 - `docs/Explanations/cross_backend_comparison.md`: empirical comparison
-  of CALLIOPE Fischer vs atmodeller Hirschmann combined, showing the
-  0.16 dex residual at Earth fiducial after the buffer-default flip.
+  of CALLIOPE Fischer (passed explicitly as `fO2_model='fischer'` by the
+  comparison harness) vs atmodeller Hirschmann combined, showing the
+  0.16 dex residual at the Earth fiducial.
 
 ## References
 

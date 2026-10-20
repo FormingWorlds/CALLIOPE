@@ -1,9 +1,9 @@
 """Figure 1: The IW buffer divergence.
 
 Top panel: log10 fO2 at the IW buffer vs temperature for the three
-parameterisations used in the FWL ecosystem (O'Neill & Eggins 2002 the
-CALLIOPE default; Fischer et al. 2011 the CALLIOPE alternative;
-Hirschmann composite the atmodeller default).
+parameterisations used in the FWL ecosystem (O'Neill & Eggins 2002 and
+Fischer et al. 2011 the CALLIOPE alternatives to its Hirschmann 2021
+default; Hirschmann composite the atmodeller default).
 
 Bottom panel: difference between Hirschmann and the two CALLIOPE
 parameterisations, in dex.
@@ -42,7 +42,7 @@ def make_figure() -> dict:
         gridspec_kw={'height_ratios': [2.0, 1.0], 'hspace': 0.12},
     )
 
-    ax_top.plot(T, f_fischer, color=COLOR_CAL, label='Fischer et al. 2011 (CALLIOPE default)')
+    ax_top.plot(T, f_fischer, color=COLOR_CAL, label='Fischer et al. 2011 (CALLIOPE)')
     ax_top.plot(
         T,
         f_oneill,

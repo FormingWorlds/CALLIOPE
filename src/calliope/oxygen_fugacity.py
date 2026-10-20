@@ -47,6 +47,8 @@ class OxygenFugacity:
     """log10 oxygen fugacity as a function of temperature"""
 
     def __init__(self, model=DEFAULT_FO2_MODEL):
+        if model not in FO2_MODELS:
+            raise ValueError(f'Unknown IW buffer {model!r}; expected one of {FO2_MODELS}.')
         self.callmodel = getattr(self, model)
 
     def __call__(self, T, fO2_shift=0):

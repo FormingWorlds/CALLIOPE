@@ -23,7 +23,8 @@ underlying fits:
 - Boundedness: `log10(fO2)` is finite for any valid (T > 0, dIW finite).
 - Error contract: T <= 0 raises `ValueError` mentioning the divergence
   in the underlying formulae; negative pressure raises `ValueError`;
-  unknown buffer names raise `AttributeError` at construction.
+  unknown buffer names, `None` and non-model attribute names raise
+  `ValueError` at construction.
 """
 
 from __future__ import annotations
@@ -183,17 +184,21 @@ def test_oxygen_fugacity_nonpositive_T_raises(bad_T):
 
 
 def test_oxygen_fugacity_unknown_buffer_name_raises():
-    """Constructing with an unknown buffer name raises `AttributeError`.
+    """Constructing with a name outside FO2_MODELS raises `ValueError`.
 
-    The dispatcher uses `getattr(self, model)` so a typo lands as an
-    `AttributeError` at construction (eager), not at first call (lazy).
-    Eager failure is preferable: it surfaces config typos before any
-    chemistry step runs.
+    The check runs at construction (eager), not at first call (lazy), so a
+    config typo surfaces before any chemistry step runs. `None` and the
+    names of non-model attributes (`__call__`, which a bare attribute
+    lookup would resolve) are refused the same way; every name in
+    FO2_MODELS still constructs and evaluates to a finite fO2.
     """
-    with pytest.raises(AttributeError):
-        OxygenFugacity('frost1991')  # not implemented in CALLIOPE
-    with pytest.raises(AttributeError):
-        OxygenFugacity('typo_fisher')
+    from calliope.oxygen_fugacity import FO2_MODELS
+
+    for bad in ('frost1991', 'typo_fisher', None, '__call__', 'Hirschmann'):
+        with pytest.raises(ValueError, match='Unknown IW buffer'):
+            OxygenFugacity(bad)
+    for name in FO2_MODELS:
+        assert np.isfinite(OxygenFugacity(name)(2000.0))
 
 
 @pytest.mark.physics_invariant

@@ -181,7 +181,7 @@ class TestSolubilityS2_buffer:
             default, rel=1e-14
         )
         assert SolubilityS2(fO2_model='oneill')(1.0e-21, T, 0.0) == pytest.approx(0, abs=1e-300)
-        with pytest.raises(AttributeError):
+        with pytest.raises(ValueError, match='Unknown IW buffer'):
             SolubilityS2(fO2_model='typo')
 
 
@@ -222,7 +222,7 @@ class TestSolubilityS2_xFeO:
         ppmw = exp(9.491) ~ 13249
 
         Hidden coupling: the pin depends on the default IW buffer
-        (Hirschmann 2021 since 2026-10, Fischer 2011 before). Any change to the IW buffer
+        (Hirschmann 2021). Any change to the default or to the IW buffer
         coefficients in oxygen_fugacity.py will require regenerating
         this number; the failure surfaces here, not in
         test_oxygen_fugacity.
@@ -231,7 +231,7 @@ class TestSolubilityS2_xFeO:
         out = s(1.0, 2500.0, 0.0)
         # Regression pin: computed at default x_FeO=10.0 with Hirschmann 2021.
         assert out == pytest.approx(13248.67, rel=1e-5)
-        # Wrong-buffer guard: the former Fischer 2011 default gave 13085.87.
+        # Wrong-buffer guard: the Fischer 2011 buffer gives 13085.87.
         assert abs(out - 13085.87) > 100.0
         # Sign and scale guards: positive ppmw, order 1e4 at these conditions.
         assert out > 0
@@ -484,6 +484,51 @@ class TestSolubilityN2_meltComposition:
         out = s(50.0)
         assert math.isfinite(out)
         assert out == pytest.approx(0.0611 * 50.0, rel=1e-12)
+
+
+class TestSolubilityN2_shift:
+    """The Dasgupta et al. (2022) law takes fO2_shift as its Delta-IW directly.
+    Their Eq. 2 defines Delta-IW by the Fe-FeO activity ratio of the melt and
+    names no IW buffer curve, so the law has no buffer to convert to.
+    """
+
+    @pytest.mark.physics_invariant
+    def test_shift_is_the_delta_iw_of_the_law(self):
+        """At T = 2500 K, p_N2 = 1 bar and p_tot = 10 bar, the law is the closed
+        form of Eq. 10: the reduced-N term sqrt(p_GPa) exp(5908 sqrt(p_tot_GPa)
+        / T - 1.6 dIW) plus the molecular term p_GPa * dasfac_2, giving 0.05146
+        ppmw at dIW = 0. Lowering the shift by the 0.713 dex between the
+        Hirschmann (2021) and O'Neill & Eggins (2002) buffers, which is what
+        converting an O'Neill shift onto Hirschmann would do, gives 0.07438
+        ppmw, so the raw and converted readings are distinguishable. The law
+        takes no buffer argument, and zero N2 pressure dissolves nothing.
+        """
+        from calliope.oxygen_fugacity import OxygenFugacity
+
+        T, p_N2, p_tot = 2500.0, 1.0, 10.0
+        law = SolubilityN2('dasgupta')
+        raw = law(p_N2, p_tot, T, 0.0)
+        reduced = math.sqrt(p_N2 * 1e-4) * math.exp(5908.0 * math.sqrt(p_tot * 1e-4) / T)
+        molecular = p_N2 * 1e-4 * law.dasfac_2
+        assert raw == pytest.approx(reduced + molecular, rel=1e-12)
+        assert raw == pytest.approx(0.05146, rel=1e-3)
+
+        # Wrong-law guard: the buffer-converted reading at the same shift.
+        offset = OxygenFugacity('hirschmann')(T) - OxygenFugacity('oneill')(T)
+        assert offset == pytest.approx(0.713, abs=2e-3)
+        converted = law(p_N2, p_tot, T, -offset)
+        assert converted == pytest.approx(
+            reduced * math.exp(1.6 * offset) + molecular, rel=1e-12
+        )
+        assert converted == pytest.approx(0.07438, rel=1e-3)
+        assert converted / raw == pytest.approx(1.4456, rel=1e-3)
+
+        # More reducing means more dissolved N, through the reduced term only.
+        assert law(p_N2, p_tot, T, -1.0) > raw > law(p_N2, p_tot, T, 1.0)
+        assert law(p_N2, p_tot, T, 50.0) == pytest.approx(molecular, rel=1e-12)
+        assert law(0.0, p_tot, T, 0.0) == pytest.approx(0.0, abs=1e-300)
+        with pytest.raises(TypeError):
+            SolubilityN2('dasgupta', fO2_model='oneill')
 
 
 # ---------------------------------------------------------------------------

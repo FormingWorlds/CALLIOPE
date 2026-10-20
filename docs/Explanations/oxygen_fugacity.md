@@ -20,7 +20,7 @@ which fixes a single curve $\log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T)$ in $T$-$f
 
 ### Hirschmann (2021), `hirschmann` (default) [^cite-hirschmann2021]
 
-An empirical fit to a thermodynamic model of iron coexisting with wüstite of equilibrium stoichiometry $\mathrm{Fe}_{1-y}\mathrm{O}$, valid from 1000 to 3000 K and from 1 bar to 100 GPa. Hirschmann (2021) [^cite-hirschmann2021] shows that the JANAF properties of stoichiometric FeO, which underlie the Fischer et al. (2011) high-pressure buffer, are too reducing by 0.2 to 1.1 log units at 100 kPa. The fit (their Table 1) is
+An empirical fit to a thermodynamic model of iron coexisting with wüstite of equilibrium stoichiometry $\mathrm{Fe}_{1-y}\mathrm{O}$, valid from 1000 to 3000 K and from 1 bar to 100 GPa. Hirschmann (2021) [^cite-hirschmann2021] finds that the IW buffer computed from the JANAF properties of stoichiometric FeO is too reducing, by 1.1 log units at 1000 K and 0.2 log units at 3000 K. That comparison is against JANAF itself, not against the two-parameter `fischer` fit coded below: at 1 bar the Hirschmann fit sits $0.42$ dex above `fischer` at 1000 K and $0.11$ dex below it at 3000 K. The fit (their Table 1) is
 
 $$
 \log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T, P) = a + b\,T + c\,T \ln T + \frac{d}{T},
@@ -52,7 +52,7 @@ $$
 with $R = 8.31441$ J K$^{-1}$ mol$^{-1}$. Bower et al. (2022) [^cite-bower2022] adopted this as the "IW buffer to which $f_{\mathrm{O}_2}$ is referenced". CALLIOPE retains it under the model name `oneill` (function `OxygenFugacity.oneill(T)` in `oxygen_fugacity.py`); keep it as the choice when you need to reproduce results from the older literature line.
 
 !!! note "Choice of buffer"
-    CALLIOPE defaults to Hirschmann (2021) because it accounts for the variable stoichiometry of wüstite, which the JANAF-based stoichiometric-FeO fits do not, and because it is the calibration that atmodeller's Hirschmann composite uses above 1000 K. At 1 bar the three buffers differ as follows: Hirschmann is $0.23$ dex more oxidising than Fischer at $T = 1500$ K, $0.10$ dex at 2000 K, within $0.01$ dex near 2500 K, and $0.11$ dex more reducing at 3000 K. Against O'Neill, Hirschmann is $0.22$ dex more reducing at 1500 K, $0.35$ dex more oxidising at 2000 K, and $0.95$ dex more oxidising at 3000 K. The choice therefore matters at the few-tenths-of-a-dex level for inferred partial pressures across most of the magma-ocean range. Fischer 2011 was the default before Hirschmann, and O'Neill before that; both remain available as `OxygenFugacity('fischer')` and `OxygenFugacity('oneill')` to reproduce earlier results. See [Backend comparison](cross_backend_comparison.md) for the cross-backend comparison.
+    CALLIOPE defaults to Hirschmann (2021) because it accounts for the variable stoichiometry of wüstite, which the JANAF-based stoichiometric-FeO fits do not, and because it is the calibration that atmodeller's Hirschmann composite uses above 1000 K. At 1 bar the three buffers differ as follows: Hirschmann is $0.23$ dex more oxidising than Fischer at $T = 1500$ K, $0.10$ dex at 2000 K, within $0.01$ dex near 2500 K, and $0.11$ dex more reducing at 3000 K. Against O'Neill, Hirschmann is $0.22$ dex more reducing at 1500 K, $0.35$ dex more oxidising at 2000 K, and $0.95$ dex more oxidising at 3000 K. The choice therefore matters at the few-tenths-of-a-dex level for inferred partial pressures across most of the magma-ocean range. Fischer and O'Neill are available as `OxygenFugacity('fischer')` and `OxygenFugacity('oneill')`, or as `fO2_model='fischer'` and `fO2_model='oneill'` on a solve. See [Backend comparison](cross_backend_comparison.md) for the cross-backend comparison.
 
 ## Selecting the buffer
 
@@ -62,7 +62,7 @@ Both solver entry points take the buffer as an argument:
 out = equilibrium_atmosphere(target, ddict, fO2_model='fischer')
 ```
 
-The same choice can be made with the `ddict['fO2_model']` key, which is also what the lower-level helpers (`get_partial_pressures`, `atmosphere_mass`, `dissolved_mass`) read. The buffer applies to the whole solve: the O$_2$ partial pressure, every modified equilibrium constant and the S$_2$ solubility all use it, so a solve never mixes two buffers. Without either, the solve uses the default `DEFAULT_FO2_MODEL = 'hirschmann'`. An unknown name, or an argument that contradicts `ddict['fO2_model']`, raises `ValueError`.
+The same choice can be made with the `ddict['fO2_model']` key, which is also what the lower-level helpers (`get_partial_pressures`, `atmosphere_mass`, `dissolved_mass`) read. The buffer applies to the whole solve: the O$_2$ partial pressure, every modified equilibrium constant and the S$_2$ solubility use it, so a solve never mixes two buffers. The Dasgupta N$_2$ law is the exception: it takes the shift itself as its $\Delta\mathrm{IW}$ without converting it (see [Solubility](solubility.md)), so at a fixed absolute $f_{\mathrm{O}_2}$ the dissolved N depends on the buffer chosen. Without either, the solve uses the default `DEFAULT_FO2_MODEL = 'hirschmann'`. An unknown name, or an argument that contradicts `ddict['fO2_model']`, raises `ValueError` from the solver entry points; a `None` argument or `ddict['fO2_model']` there selects the default. The helpers raise `ValueError` for an unknown name or a `None` in `ddict['fO2_model']`.
 
 ## How $\Delta\mathrm{IW}$ enters the chemistry
 
@@ -96,7 +96,7 @@ The Gaillard et al. (2022) [^cite-gaillard2022] sulfide solubility carries an ex
 
 ### 4. The N$_2$ Dasgupta solubility
 
-Similarly, the Dasgupta et al. (2022) [^cite-dasgupta2022] N$_2$ solubility includes a $-1.6\,\Delta\mathrm{IW}$ term in its exponent, so reducing conditions sharply increase the dissolved-N inventory. This is one mechanism by which planet-scale N partitioning is tied to mantle redox; see Nicholls et al. (2026) [^cite-nicholls2026] for an application to L 98-59 d, where the inferred H$_2$-dominated atmosphere with photochemical SO$_2$ implies $\Delta\mathrm{IW}$ between IW-4 and IW-1.
+Similarly, the Dasgupta et al. (2022) [^cite-dasgupta2022] N$_2$ solubility includes a $-1.6\,\Delta\mathrm{IW}$ term in its exponent, so reducing conditions sharply increase the dissolved-N inventory. `solubility.SolubilityN2.dasgupta` takes the solve's shift as this $\Delta\mathrm{IW}$ directly, on whichever buffer the solve uses. Dasgupta et al. (2022) define $\Delta\mathrm{IW}$ by the Fe–FeO activity ratio of the melt (their Eq. 2) and name no IW buffer curve, so there is no buffer to convert to. This is the one channel that the `fO2_model` setting does not reach: at a fixed absolute $f_{\mathrm{O}_2}$, switching buffers moves the shift and with it the dissolved N. This is one mechanism by which planet-scale N partitioning is tied to mantle redox; see Nicholls et al. (2026) [^cite-nicholls2026] for an application to L 98-59 d, where the inferred H$_2$-dominated atmosphere with photochemical SO$_2$ implies $\Delta\mathrm{IW}$ between IW-4 and IW-1.
 
 ## Reference values for $\Delta\mathrm{IW}$
 

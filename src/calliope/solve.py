@@ -104,8 +104,14 @@ def _noble_henry_seed(core_out, active, target_d, ddict):
 # not rejected for sub-10-kg mass-balance noise.
 TRUNC_MASS = 1e1
 
-# Elements whose emptied budget has been warned about in this process.
-_EMPTIED_WARNED = set()
+# Elements named in a fallback warning in this process.
+_FALLBACK_WARNED = set()
+
+
+def _emptied(resid, budgets, rtol):
+    """Mask of nonzero budgets that a state with residuals ``resid`` [kg] leaves empty."""
+    return (budgets > 0.0) & (np.asarray(resid) <= -(1.0 - rtol) * budgets)
+
 
 # Solver bounds, in one place so the cold-start guess range, the trust-constr
 # box, and the fO2-hint validation cannot drift apart.
@@ -157,10 +163,12 @@ def _with_fO2_model(ddict, fO2_model):
     Every place that turns ``fO2_shift`` into an absolute fO2 (the O2
     partial pressure, the modified equilibrium constants, the S2
     solubility) reads the buffer from this key, so one solve uses one
-    buffer. ``fO2_model=None`` keeps the buffer already in ``ddict``, or
-    the default. A ``fO2_model`` that contradicts ``ddict['fO2_model']``
-    raises ``ValueError`` rather than picking one silently, as does an
-    unknown buffer name. The caller's ``ddict`` is not modified.
+    buffer. The Dasgupta N2 solubility takes ``fO2_shift`` itself as its
+    Delta-IW, with no conversion between buffers. ``fO2_model=None`` keeps
+    the buffer already in ``ddict``, or the default. A ``fO2_model`` that
+    contradicts ``ddict['fO2_model']`` raises ``ValueError`` rather than
+    picking one silently, as does an unknown buffer name. The caller's
+    ``ddict`` is not modified.
     """
     in_ddict = ddict.get('fO2_model')
     if fO2_model is None:
@@ -431,7 +439,8 @@ def _dissolved_mass(pin, fO2_shift, ddict):
         mass_int_d['CH4'] = 0.0
 
     # Override class default 'libourel'; dasgupta carries fO2 + p_total
-    # dependence which the linear Libourel law does not.
+    # dependence which the linear Libourel law does not. It reads the raw
+    # shift on the solve's buffer; see SolubilityN2.
     sol_N2 = SolubilityN2('dasgupta')
     ppmw_N2 = sol_N2(p_d['N2'], ptot, ddict['T_magma'], fO2_shift)
     mass_int_d['N2'] = prefactor * ppmw_N2
@@ -825,11 +834,13 @@ def equilibrium_atmosphere(
         >= ``P_GUESS_MIN_BAR``.
     fO2_model : str or None, default None
         IW buffer the shift is referenced to: one of ``FO2_MODELS``
-        ('hirschmann', 'fischer', 'oneill'). Applies to the whole solve: the
-        O2 partial pressure, the modified equilibrium constants and the S2
-        solubility. ``None`` uses ``ddict['fO2_model']`` if present, else
-        ``DEFAULT_FO2_MODEL``. A value that contradicts ``ddict['fO2_model']``,
-        or an unknown name, raises ValueError.
+        ('hirschmann', 'fischer', 'oneill'). Sets the O2 partial pressure,
+        the modified equilibrium constants and the S2 solubility. The
+        Dasgupta N2 solubility takes the shift itself as its Delta-IW on
+        any buffer, so it is not converted. ``None`` uses
+        ``ddict['fO2_model']`` if present, else ``DEFAULT_FO2_MODEL``. A
+        value that contradicts ``ddict['fO2_model']``, or an unknown name,
+        raises ValueError.
 
     Returns
     -------
@@ -937,7 +948,8 @@ def equilibrium_atmosphere(
     # to their own per-gas gate below.
     tolerance = np.amax([target_d[e] for e in ('H', 'C', 'N', 'S')]) * rtol + atol + TRUNC_MASS
     elements = ('H', 'C', 'N', 'S') + active
-    elem_tol = np.maximum(np.array([target_d[e] for e in elements]) * rtol, TRUNC_MASS)
+    budgets = np.array([target_d[e] for e in elements])
+    elem_tol = np.maximum(budgets * rtol, TRUNC_MASS)
     log.debug('Required tolerance: %g' % tolerance)
 
     with warnings.catch_warnings():
@@ -999,20 +1011,34 @@ def equilibrium_atmosphere(
 
             # Species form from pH2 before any clip, so a negative pH2O still forms CH4 and
             # H2S. Judge and report a root with a negative primary in its clipped form; see
-            # docs/Explanations/mass_balance.md (sign check) for the acceptance rule.
+            # docs/Explanations/mass_balance.md (sign check) for the acceptance rule. A clip
+            # that empties a budget the root still held worsens it by far more than its
+            # tolerance, so it is rejected here; it can still return as the warned fallback.
+            sol_resid = np.asarray(this_resid)
             if success and np.any(sol < 0.0):
                 clipped = np.maximum(sol, 0.0)
-                clipped_resid = np.abs(func(clipped, ddict, target_d))
+                clipped_signed = np.asarray(func(clipped, ddict, target_d))
+                clipped_resid = np.abs(clipped_signed)
                 in_gate = np.amax(clipped_resid[:4]) <= tolerance and np.all(
                     clipped_resid[4:] <= elem_tol[4:]
                 )
                 if in_gate and np.all(clipped_resid - np.abs(this_resid) <= elem_tol):
-                    sol = clipped
+                    sol, sol_resid = clipped, clipped_signed
                 else:
                     log.debug('Solution rejected: a negative primary carries mass, %s bar', sol)
                     success = False
                     if in_gate:
                         fallback = (clipped, clipped_resid)
+
+            # The scalar gate does not bound a budget below it, so a state that empties a
+            # nonzero budget beyond its tolerance passes it. Such a state is refused while
+            # attempts remain; it can still return as the warned fallback.
+            if success and np.any(
+                _emptied(sol_resid, budgets, rtol) & (np.abs(sol_resid) > elem_tol)
+            ):
+                log.debug('Solution rejected: it empties a nonzero budget, %s bar', sol)
+                success = False
+                fallback = (sol, np.abs(sol_resid))
 
             if success:
                 break
@@ -1025,19 +1051,21 @@ def equilibrium_atmosphere(
             if opt_solver:
                 solver = 1 - solver
 
-    # Out of attempts: fall back to the last clipped root that passes the mass gates.
-    fell_back = not success and fallback is not None
-    if fell_back:
-        sol, clipped_resid = fallback
-        log.warning(
-            'No root closes every element once clipped at 0 after %d attempts; returning '
-            'the last clipped root that passes the mass gate, with |residual| over '
-            'tolerance for %s',
+    # Out of attempts: fall back to the last refused root that passes the mass gates. The
+    # warning is given once per process and element; repeats go to debug.
+    if not success and fallback is not None:
+        sol, fallback_resid = fallback
+        over = [elements[i] for i in np.flatnonzero(fallback_resid > elem_tol)]
+        new = [e for e in over if e not in _FALLBACK_WARNED]
+        _FALLBACK_WARNED.update(new)
+        (log.warning if new else log.debug)(
+            'No root closes every element after %d attempts; returning the last root that '
+            'passes the mass gate, with |residual| over tolerance for %s',
             count + 1,
             ', '.join(
-                f'{elements[i]} ({clipped_resid[i]:.3g} kg, tolerance {elem_tol[i]:.3g} kg, '
+                f'{elements[i]} ({fallback_resid[i]:.3g} kg, tolerance {elem_tol[i]:.3g} kg, '
                 f'budget {target_d[elements[i]]:.3g} kg)'
-                for i in np.flatnonzero(clipped_resid > elem_tol)
+                for i in np.flatnonzero(fallback_resid > elem_tol)
             ),
         )
         success = True
@@ -1050,25 +1078,6 @@ def equilibrium_atmosphere(
     log.debug('    Initial guess attempt number = %d' % count)
 
     res_l = func(sol, ddict, target_d)
-    # A returned state that empties a nonzero budget is warned once per process and element;
-    # repeats go to debug, and a fallback is covered by its own warning.
-    budgets = np.array([target_d[e] for e in elements])
-    emptied = [
-        elements[i]
-        for i in np.flatnonzero(
-            (budgets > 0.0) & (np.asarray(res_l) <= -(1.0 - rtol) * budgets)
-        )
-    ]
-    if emptied and not fell_back:
-        new = [e for e in emptied if e not in _EMPTIED_WARNED]
-        _EMPTIED_WARNED.update(new)
-        (log.warning if new else log.debug)(
-            'The returned state leaves these budgets empty: %s',
-            ', '.join(
-                f'{e} (residual {res_l[elements.index(e)]:.3g} kg, budget {target_d[e]:.3g} kg)'
-                for e in emptied
-            ),
-        )
     log.debug('    Residuals: %s' % res_l)
 
     sol_dict = {'H2O': sol[0], 'CO2': sol[1], 'N2': sol[2], 'S2': sol[3]}
@@ -1254,11 +1263,13 @@ def equilibrium_atmosphere_authoritative_O(
         >= ``P_GUESS_MIN_BAR``.
     fO2_model : str or None, default None
         IW buffer that ``fO2_shift_derived`` is referenced to: one of ``FO2_MODELS``
-        ('hirschmann', 'fischer', 'oneill'). Applies to the whole solve: the
-        O2 partial pressure, the modified equilibrium constants and the S2
-        solubility. ``None`` uses ``ddict['fO2_model']`` if present, else
-        ``DEFAULT_FO2_MODEL``. A value that contradicts ``ddict['fO2_model']``,
-        or an unknown name, raises ValueError.
+        ('hirschmann', 'fischer', 'oneill'). Sets the O2 partial pressure,
+        the modified equilibrium constants and the S2 solubility. The
+        Dasgupta N2 solubility takes the shift itself as its Delta-IW on
+        any buffer, so it is not converted. ``None`` uses
+        ``ddict['fO2_model']`` if present, else ``DEFAULT_FO2_MODEL``. A
+        value that contradicts ``ddict['fO2_model']``, or an unknown name,
+        raises ValueError.
 
     Returns
     -------

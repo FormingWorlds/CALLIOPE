@@ -141,15 +141,17 @@ def test_round_trip_self_consistency_at_earth_fiducial():
 @pytest.mark.physics_invariant
 def test_ddict_buffer_reaches_every_fo2_channel():
     """With ddict['fO2_model'] = 'oneill', the O2 partial pressure, the H2,
-    CO and SO2 modified equilibrium constants and the S2 solubility all
+    CO, CH4 and SO2 modified equilibrium constants and the S2 solubility all
     reference the O'Neill & Eggins (2002) IW buffer. At 2500 K O'Neill sits
     0.713 dex below the default Hirschmann (2021) buffer, so a channel left
-    on the default fails by far more than the tolerances. An unknown buffer
-    name in ddict fails loudly instead of falling back to the default.
+    on the default fails by far more than the tolerances. The Dasgupta N2
+    law takes the shift itself as its Delta-IW, so it is not converted to
+    another buffer. An unknown buffer name, or None, in ddict raises
+    ValueError instead of falling back to the default.
     """
     from calliope.chemistry import ModifiedKeq
     from calliope.oxygen_fugacity import OxygenFugacity
-    from calliope.solubility import SolubilityS2
+    from calliope.solubility import SolubilityN2, SolubilityS2
 
     T, dIW = 2500.0, 2.0
     ddict = dict(_earth_ddict(T=T, dIW=dIW), fO2_model='oneill')
@@ -163,6 +165,11 @@ def test_ddict_buffer_reaches_every_fo2_channel():
     assert p['CO'] / p['CO2'] == pytest.approx(
         ModifiedKeq('janaf_CO', 'oneill')(T, dIW), rel=1e-12
     )
+    # CH4 carries one O2 in its modified constant, so the default buffer
+    # would move this ratio by the full 0.713 dex.
+    assert p['CH4'] / (p['CO2'] * p['H2'] ** 2) == pytest.approx(
+        ModifiedKeq('schaefer_CH4', 'oneill')(T, dIW), rel=1e-12
+    )
     assert p['SO2'] ** 2 / (p['S2'] * p['O2'] ** 2) == pytest.approx(
         ModifiedKeq('janaf_SO2', 'oneill')(T, dIW), rel=1e-10
     )
@@ -170,14 +177,26 @@ def test_ddict_buffer_reaches_every_fo2_channel():
     assert solve_mod.dissolved_mass(pin, ddict)['S2'] == pytest.approx(
         prefactor * SolubilityS2(fO2_model='oneill')(pin['S2'], T, dIW), rel=1e-12
     )
+    p_tot = solve_mod.get_total_pressure(p)
+    n2_raw = SolubilityN2('dasgupta')(pin['N2'], p_tot, T, dIW)
+    n2_mass = solve_mod.dissolved_mass(pin, ddict)['N2']
+    assert n2_mass == pytest.approx(prefactor * n2_raw, rel=1e-12)
+    # Wrong-law guard: converting the shift to Hirschmann's Delta-IW (dIW - 0.713)
+    # would grow the reduced-N term by exp(1.6 * 0.713) = 3.13.
+    offset = OxygenFugacity('hirschmann')(T) - OxygenFugacity('oneill')(T)
+    n2_converted = SolubilityN2('dasgupta')(pin['N2'], p_tot, T, dIW - offset)
+    assert n2_converted / n2_raw > 1.01
 
     # Wrong-buffer guard: without the key the solve uses Hirschmann, whose
     # O2 pressure at the same shift is 0.713 dex higher.
     p_default = solve_mod.get_partial_pressures(pin, _earth_ddict(T=T, dIW=dIW))
     assert np.log10(p_default['O2'] / p['O2']) == pytest.approx(0.713, abs=2e-3)
 
-    with pytest.raises(AttributeError):
-        solve_mod.get_partial_pressures(pin, dict(ddict, fO2_model='typo'))
+    for bad in ('typo', None):
+        with pytest.raises(ValueError, match='Unknown IW buffer'):
+            solve_mod.get_partial_pressures(pin, dict(ddict, fO2_model=bad))
+        with pytest.raises(ValueError, match='Unknown IW buffer'):
+            solve_mod.dissolved_mass(pin, dict(ddict, fO2_model=bad))
 
 
 @pytest.mark.physics_invariant
@@ -270,6 +289,61 @@ def test_authoritative_o_reports_the_shift_against_the_chosen_buffer():
 
 
 @pytest.mark.physics_invariant
+def test_authoritative_o_dissolved_n_follows_the_shift_on_each_buffer():
+    """At 3000 K and IW-2 the Hirschmann (2021) and Fischer (2011) buffers sit
+    0.954 and 1.063 dex above O'Neill & Eggins (2002). The same O budget then
+    gives nearly the same absolute fO2 (within 0.03 dex) on all three buffers,
+    but a shift lower by about the offset. The Dasgupta N2 law takes that shift
+    as its Delta-IW, so its reduced-N term grows and the melt holds 3.6x
+    (Hirschmann) and 4.1x (Fischer) the N it holds on O'Neill: 2.50e18 and
+    2.85e18 kg against 7.02e17 kg of the 8e18 kg budget, with P_surf 2.9 and
+    3.5 % lower. Every element still closes on every buffer.
+    """
+    from calliope.oxygen_fugacity import OxygenFugacity
+
+    T, dIW = 3000.0, -2.0
+    ddict = _earth_ddict(T=T, dIW=dIW)
+    target = _earth_target_HCNS()
+    np.random.seed(0)
+    fwd = equilibrium_atmosphere(
+        target, ddict, fO2_model='oneill', print_result=False, nguess=200
+    )
+    tgt = dict(target, O=fwd['O_kg_total'])
+    kw = dict(
+        fO2_hint=dIW,
+        p_guess={s: fwd[s + '_bar'] for s in ('H2O', 'CO2', 'N2', 'S2')},
+        random_seed=0,
+        nguess=500,
+        nsolve=1000,
+        print_result=False,
+    )
+    runs = {
+        m: equilibrium_atmosphere_authoritative_O(tgt, ddict, fO2_model=m, **kw)
+        for m in ('oneill', 'hirschmann', 'fischer')
+    }
+
+    ref = runs['oneill']
+    assert ref['fO2_shift_derived'] == pytest.approx(dIW, abs=1e-4)
+    assert ref['N2_kg_liquid'] == pytest.approx(7.02e17, rel=1e-2)
+    expected = {'hirschmann': (2.50e18, 0.971), 'fischer': (2.85e18, 0.965)}
+    for m, r in runs.items():
+        for e in 'HCNS':
+            assert abs(r[e + '_res']) <= 1e-5 * target[e] + 1e10, (m, e)
+        assert np.log10(r['O2_bar'] / ref['O2_bar']) == pytest.approx(0.0, abs=0.03), m
+        if m == 'oneill':
+            continue
+        offset = OxygenFugacity(m)(T) - OxygenFugacity('oneill')(T)
+        # The shift falls by nearly the offset; N2 dissolution takes up the rest.
+        assert r['fO2_shift_derived'] == pytest.approx(dIW - offset, abs=0.05), m
+        n_liq, p_ratio = expected[m]
+        assert r['N2_kg_liquid'] == pytest.approx(n_liq, rel=1e-2), m
+        assert r['P_surf'] / ref['P_surf'] == pytest.approx(p_ratio, rel=1e-3), m
+        # Guard: a buffer-converted N2 law would keep the O'Neill N within 1e-3.
+        assert r['N2_kg_liquid'] / ref['N2_kg_liquid'] > 3.0, m
+    assert OxygenFugacity()(T) - OxygenFugacity('oneill')(T) == pytest.approx(0.954, abs=2e-3)
+
+
+@pytest.mark.physics_invariant
 def test_equilibrium_atmosphere_mass_closure_at_earth_fiducial():
     """Per-element mass closure: `sum(species_kg_total)` recovers the
     input H, C, N, S budgets within solver tolerance.
@@ -345,8 +419,8 @@ _COLD = dict(
 
 @pytest.fixture(autouse=True)
 def _fresh_empty_budget_warnings(monkeypatch):
-    """Each test sees the empty-budget warning as if in a new process."""
-    monkeypatch.setattr(solve_mod, '_EMPTIED_WARNED', set())
+    """Each test sees the fallback warning as if in a new process."""
+    monkeypatch.setattr(solve_mod, '_FALLBACK_WARNED', set())
 
 
 def _spy_roots(monkeypatch):
@@ -390,7 +464,7 @@ def test_low_h_cold_start_rejects_the_negative_water_root(monkeypatch, caplog):
     Some cold starts reach the root with negative pH2O, which closes the mass
     balance with no H2O or H2 in the atmosphere. It is rejected, and the solver
     goes on to the physical root at 25.05 bar with the Hirschmann (2021) IW
-    buffer (24.82 bar with the former Fischer 2011 default). Which seeds reach
+    buffer (24.82 bar with the Fischer 2011 buffer). Which seeds reach
     the negative root depends on the platform's floating point (seed 6 does on
     macOS arm64, not on Linux x86_64), so every seed must return the physical
     root and at least one of them must have rejected the negative one.
@@ -409,7 +483,7 @@ def test_low_h_cold_start_rejects_the_negative_water_root(monkeypatch, caplog):
         assert r['H2O_bar'] > 0.0, seed
         assert r['P_surf'] == pytest.approx(25.0485, rel=1e-4), seed
         assert r['H_kg_total'] == pytest.approx(_LOW_H['H'], rel=1e-3), seed
-    assert 'returning the last clipped root' not in caplog.text
+    assert 'returning the last root' not in caplog.text
     assert rejected >= 1
 
 
@@ -436,22 +510,9 @@ def test_absent_element_root_is_accepted_and_reported_clipped(monkeypatch):
     [
         ({'H': 0.0, 'C': 5.0e19, 'N': 0.0, 'S': 1.0e18}, 0),
         ({'H': 0.0, 'C': 5.0e19, 'N': 0.0, 'S': 1.0e18}, 2),
-        pytest.param(
-            {'H': 1.0e15, 'C': 5.0e19, 'N': 1.0e17, 'S': 1.0e18},
-            0,
-            marks=pytest.mark.xfail(
-                strict=False,
-                reason=(
-                    'With the Hirschmann IW buffer this seed converges on macOS arm64 to '
-                    'a root with pH2O near -9e-10 bar; clipping it empties the 1e15 kg H '
-                    'budget, which the scalar mass gate (1.5e16 kg) does not catch. On '
-                    'Linux x86_64 the same seed reaches a root that keeps H and passes.'
-                ),
-            ),
-        ),
         ({'H': 1.0e15, 'C': 5.0e19, 'N': 1.0e17, 'S': 1.0e18}, 1),
     ],
-    ids=['no_H_no_N-0', 'no_H_no_N-2', 'trace_H-0', 'trace_H-1'],
+    ids=['no_H_no_N-0', 'no_H_no_N-2', 'trace_H-1'],
 )
 def test_sub_gate_hydrogen_reports_no_phantom_species(monkeypatch, target, seed):
     """An H budget below the scalar mass gate (1.5e16 kg here) yields a state
@@ -475,6 +536,43 @@ def test_sub_gate_hydrogen_reports_no_phantom_species(monkeypatch, target, seed)
     for e in 'CS':
         assert abs(r[e + '_res']) <= max(target[e] * _COLD['rtol'], solve_mod.TRUNC_MASS), e
     assert r['H_kg_total'] == pytest.approx(target['H'], rel=0.1, abs=solve_mod.TRUNC_MASS)
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.parametrize(('fO2_model', 'seed'), [('hirschmann', 0), ('oneill', 3)])
+def test_root_that_empties_hydrogen_is_refused_and_h_is_kept(
+    monkeypatch, caplog, fO2_model, seed
+):
+    """A 1e15 kg H budget lies below the scalar gate (1.5e16 kg), so the gate does
+    not see a root that loses it. These seeds converge on a root with pH2O near
+    -74 bar (Hirschmann) or -83 bar (O'Neill), which loses the whole H budget once
+    clipped, and on a root with pH2O within 1e-8 bar of zero, which has lost it
+    before any clip. Both are refused, and the solve goes on to a root that keeps
+    H, with no fallback warning and no phantom CH4, H2S or NH3. C and S close on
+    their own tolerance.
+    """
+    target = {'H': 1.0e15, 'C': 5.0e19, 'N': 1.0e17, 'S': 1.0e18}
+    roots, converged = _spy_roots(monkeypatch)
+    np.random.seed(seed)
+    r = equilibrium_atmosphere(
+        dict(target),
+        _earth_ddict(T=1500.0, dIW=2.0),
+        p_guess=None,
+        fO2_model=fO2_model,
+        **_COLD,
+    )
+    refused = [root for root, ok in zip(roots[:-1], converged[:-1]) if ok]
+    assert any(root[0] < -1.0 for root in refused)
+    assert any(abs(root[0]) < 1.0e-8 for root in refused)
+    assert roots[-1][0] > 0.0
+    assert 'returning the last root' not in caplog.text
+    # An emptied state would give 0 kg here.
+    assert r['H_kg_total'] == pytest.approx(target['H'], rel=1.0e-3)
+    assert r['CH4_bar'] < 1.0e-20
+    assert r['H2S_bar'] < 1.0e-12
+    assert r['NH3_bar'] < 1.0e-12
+    for e in 'CS':
+        assert abs(r[e + '_res']) <= max(target[e] * _COLD['rtol'], solve_mod.TRUNC_MASS), e
 
 
 def test_unjudgeable_clipped_root_is_rejected(monkeypatch):
@@ -507,7 +605,7 @@ def test_clipped_root_must_close_each_noble_gas(monkeypatch, caplog):
             p_guess={'H2O': 1.0, 'CO2': 5.0, 'N2': 1.0, 'S2': 0.5, 'He': 2.0},
             **{**_COLD, 'nguess': 1},
         )
-    assert 'returning the last clipped root' not in caplog.text
+    assert 'returning the last root' not in caplog.text
     np.testing.assert_array_equal(seen[-1][2], 0.0)
     assert seen[-1][4] == pytest.approx(2.0, rel=1e-12)
 
@@ -517,25 +615,21 @@ def test_clipped_root_must_close_each_noble_gas(monkeypatch, caplog):
     ('seed', 'p_surf'),
     [(0, 25.13491096061388), (1, 25.134909250760263), (2, 25.134908903155235)],
 )
-def test_trace_sulfur_with_absent_nitrogen_is_lost_with_a_warning(
-    monkeypatch, caplog, seed, p_surf
-):
-    """An S budget below the scalar mass gate with no N leaves pN2 and pS2
-    negative at the accepted root, both inert. The clip moves no mass, so the
-    accepted root is fsolve's own clipped (P_surf to rel 1e-5, the xtol noise);
-    the S budget is lost within the gate and the warning names S."""
-    roots, _ = _spy_roots(monkeypatch)
+def test_trace_sulfur_with_absent_nitrogen_returns_through_the_fallback(caplog, seed, p_surf):
+    """An S budget below the scalar mass gate with no N: no attempt in 1000
+    reaches a root that keeps S, so every root that passes the gate is refused
+    and the last one returns through the fallback, whose warning names S. pN2
+    and pS2 are reported clipped to zero (P_surf to rel 1e-5, the xtol noise)
+    and H, C close."""
     np.random.seed(seed)
     target = {'H': 1.0e20, 'C': 5.0e19, 'N': 0.0, 'S': 1.0e14}
     r = equilibrium_atmosphere(target, _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **_COLD)
-    assert roots[-1][3] < 0.0
-    assert 'returning the last clipped root' not in caplog.text
-    np.testing.assert_array_equal(
-        [r[s + '_bar'] for s in ('H2O', 'CO2', 'N2', 'S2')], np.maximum(roots[-1], 0.0)
-    )
+    assert 'after 1000 attempts' in caplog.text
+    assert 'tolerance for S (1e+14 kg, tolerance 1e+10 kg, budget 1e+14 kg)' in caplog.text
+    np.testing.assert_array_equal([r['N2_bar'], r['S2_bar'], r['S_kg_total']], 0.0)
     assert r['P_surf'] == pytest.approx(p_surf, rel=1e-5)
-    assert r['S_kg_total'] == 0.0
-    assert 'leaves these budgets empty: S (residual -1e+14 kg, budget 1e+14 kg)' in caplog.text
+    for e in 'HC':
+        assert abs(r[e + '_res']) <= target[e] * _COLD['rtol'], e
 
 
 @pytest.mark.physics_invariant
@@ -556,7 +650,7 @@ def test_all_positive_root_is_unchanged(monkeypatch, caplog, seed, p_surf, h2o):
     )
     assert r['P_surf'] == pytest.approx(p_surf, rel=1e-5)
     assert r['H2O_bar'] == pytest.approx(h2o, rel=1e-5)
-    assert 'leaves these budgets empty' not in caplog.text
+    assert 'No root closes' not in caplog.text
 
 
 @pytest.mark.parametrize('n2', [1.0e-30, -1.0e-30])
@@ -568,7 +662,7 @@ def test_verdict_does_not_depend_on_an_inert_sign(monkeypatch, caplog, n2):
     r = _one_attempt()
     assert r['H2O_bar'] == pytest.approx(1.0, rel=1e-12)
     np.testing.assert_array_equal(r['N2_bar'], max(n2, 0.0))
-    assert 'returning the last clipped root' not in caplog.text
+    assert 'returning the last root' not in caplog.text
     # The clipped state is evaluated only for the negative sign.
     assert len(seen) == (3 if n2 < 0.0 else 2)
 
@@ -604,7 +698,7 @@ def test_clip_that_closes_an_element_is_accepted(monkeypatch, caplog):
     )
     r = _one_attempt()
     np.testing.assert_array_equal([r['H2O_bar'], seen[-1][0]], 0.0)
-    assert 'returning the last clipped root' not in caplog.text
+    assert 'returning the last root' not in caplog.text
     assert r['CO2_bar'] == pytest.approx(5.0, rel=1e-12)
 
 
@@ -628,7 +722,7 @@ def test_fallback_never_returns_a_state_outside_the_mass_gate(caplog, nguess):
         except RuntimeError:
             outcomes.append(None)
     assert all(p is None or p == pytest.approx(25.0485, rel=1e-4) for p in outcomes)
-    assert 'returning the last clipped root' not in caplog.text
+    assert 'returning the last root' not in caplog.text
 
 
 @pytest.mark.parametrize(('second_in_gate', 'co2'), [(True, 7.0), (False, 5.0)])
@@ -665,7 +759,7 @@ def test_clipped_state_outside_the_mass_gate_is_no_fallback(monkeypatch, caplog)
     )
     with pytest.raises(RuntimeError, match='Could not find solution'):
         _one_attempt()
-    assert 'returning the last clipped root' not in caplog.text
+    assert 'returning the last root' not in caplog.text
     assert 2.0e16 > max(_LOW_H.values()) * _COLD['rtol'] + _COLD['atol']
 
 
@@ -701,7 +795,7 @@ def test_accepted_clipped_state_must_pass_the_noble_gate(monkeypatch, caplog):
             p_guess={'H2O': 1.0, 'CO2': 5.0, 'N2': 1.0, 'S2': 0.5, 'He': 2.0},
             **{**_COLD, 'nguess': 1},
         )
-    assert 'returning the last clipped root' not in caplog.text
+    assert 'returning the last root' not in caplog.text
     assert 1.3e13 - 6.0e12 < 1.0e17 * _COLD['rtol']
 
 
@@ -723,10 +817,12 @@ def test_sub_gate_budget_worsened_by_the_clip_is_rejected(monkeypatch, caplog):
     assert 1.0e15 < max(target.values()) * _COLD['rtol'] + _COLD['atol']
 
 
-def test_trace_hydrogen_without_opt_solver_warns_that_h_is_empty(caplog):
-    """With the library tolerances and nguess and fsolve only, a trace H budget (1e12 kg) ends on
-    a root that has already lost its H, which the clip leaves unchanged; the
-    result is returned with a warning naming H, its residual and its budget."""
+def test_trace_hydrogen_without_opt_solver_returns_through_the_fallback(caplog):
+    """With the library tolerances and nguess and fsolve only, no attempt keeps a
+    trace H budget (1e12 kg): every root that passes the mass gate loses it. The
+    last of them returns through the fallback, whose warning names H with its
+    residual, tolerance and budget, and S, which that root misses by 1.59e13 kg
+    against a 1e13 kg tolerance."""
     np.random.seed(1)
     r = equilibrium_atmosphere(
         {'H': 1.0e12, 'C': 5.0e19, 'N': 0.0, 'S': 1.0e18},
@@ -740,7 +836,9 @@ def test_trace_hydrogen_without_opt_solver_warns_that_h_is_empty(caplog):
         print_result=False,
         opt_solver=False,
     )
-    assert 'leaves these budgets empty: H (residual -1e+12 kg, budget 1e+12 kg)' in caplog.text
+    assert 'after 7500 attempts' in caplog.text
+    assert 'tolerance for H (1e+12 kg, tolerance 1e+07 kg, budget 1e+12 kg)' in caplog.text
+    assert 'S (1.59e+13 kg, tolerance 1e+13 kg' in caplog.text
     assert r['H_kg_total'] == pytest.approx(0.0, abs=1.0e12 * 1e-5)
 
 
@@ -759,33 +857,47 @@ def _empty_budget_solve(monkeypatch, residual, target=_SUB_GATE_N):
 
 
 @pytest.mark.parametrize(
-    ('n_res', 'warned'),
+    ('n_res', 'refused'),
     [(-1.0e15, True), (-0.5e15, False), (1.0e15, False)],
     ids=['emptied', 'half_lost', 'overfilled'],
 )
-def test_empty_budget_warning_needs_the_whole_budget_lost(monkeypatch, caplog, n_res, warned):
-    """An accepted state whose N residual is minus the N budget (1e15 kg, inside
-    the scalar gate) warns; losing half of it or overfilling it does not."""
+def test_refusal_needs_the_whole_budget_lost(monkeypatch, caplog, n_res, refused):
+    """A state whose N residual is minus the N budget (1e15 kg, inside the scalar
+    gate) is refused, and with no attempt left it returns through the fallback,
+    whose warning names N; a state that loses half of it or overfills it is
+    accepted."""
     r = _empty_budget_solve(monkeypatch, [0.0, 0.0, n_res, 0.0])
-    assert ('leaves these budgets empty: N (residual' in caplog.text) == warned
+    assert ('tolerance for N (1e+15 kg' in caplog.text) == refused
     np.testing.assert_array_equal([r[g + '_bar'] for g in _PRIMARIES], _STUB_ROOT)
+
+
+def test_budget_within_the_mass_floor_may_be_emptied(monkeypatch, caplog):
+    """A 5 kg N budget lost whole lies within the 10 kg floor of the N tolerance,
+    so the state is accepted rather than refused."""
+    r = _empty_budget_solve(monkeypatch, [0.0, 0.0, -5.0, 0.0], target=dict(_LOW_H, N=5.0))
+    assert 'No root closes' not in caplog.text
+    np.testing.assert_array_equal([r[g + '_bar'] for g in _PRIMARIES], _STUB_ROOT)
+    assert 5.0 < solve_mod.TRUNC_MASS
 
 
 def test_zero_budget_is_never_empty(monkeypatch, caplog):
-    """An element with no budget and no residual is not reported as emptied."""
+    """An element with no budget and no residual is not refused as emptied."""
     r = _empty_budget_solve(monkeypatch, [0.0, 0.0, 0.0, 0.0], target=dict(_LOW_H, N=0.0))
-    assert 'leaves these budgets empty' not in caplog.text
+    assert 'No root closes' not in caplog.text
     np.testing.assert_array_equal([r[g + '_bar'] for g in _PRIMARIES], _STUB_ROOT)
 
 
-def test_empty_budget_warns_once_per_element(monkeypatch, caplog):
-    """A second solve that empties the same budget logs at debug, not warning."""
+def test_fallback_warns_once_per_element(monkeypatch, caplog):
+    """A second solve that falls back on the same emptied budget logs at debug,
+    not warning."""
     caplog.set_level(logging.DEBUG, logger='fwl.calliope.solve')
     for _ in range(2):
         _empty_budget_solve(monkeypatch, [0.0, 0.0, -1.0e15, 0.0])
-    records = [r for r in caplog.records if 'leaves these budgets empty' in r.getMessage()]
+    records = [r for r in caplog.records if 'No root closes' in r.getMessage()]
     assert [r.levelno for r in records] == [logging.WARNING, logging.DEBUG]
-    assert all('N (residual -1e+15 kg, budget 1e+15 kg)' in r.getMessage() for r in records)
+    assert all(
+        'N (1e+15 kg, tolerance 1e+11 kg, budget 1e+15 kg)' in r.getMessage() for r in records
+    )
 
 
 def test_fallback_that_empties_a_budget_warns_once(monkeypatch, caplog):

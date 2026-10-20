@@ -403,7 +403,7 @@ class TestEquilibriumChemistry:
         # Values computed at the default IW buffer (Hirschmann 2021).
         assert g_h2 == pytest.approx(0.97534, rel=1e-3)
         assert g_co == pytest.approx(4.3771, rel=1e-3)
-        # Wrong-buffer guard: the former Fischer 2011 default gave 1.0896.
+        # Wrong-buffer guard: the Fischer 2011 buffer gives 1.0896.
         assert abs(g_h2 - 1.0896) > 0.05
 
     def test_get_partial_pressures_end_to_end(self):

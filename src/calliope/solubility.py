@@ -151,6 +151,14 @@ class SolubilityN2(Solubility):
         (0.56, 0.11, 0.01) match the Earth-mantle reference adopted in
         prior CALLIOPE releases; override for non-Earth compositions.
         These kwargs have no effect when `composition='libourel'`.
+
+    Notes
+    -----
+    The Dasgupta law takes ``fO2_shift`` as its Delta-IW directly, on
+    whichever IW buffer the solve uses. Dasgupta et al. (2022) Eq. 2 defines
+    Delta-IW by the Fe-FeO activity ratio of the melt and names no IW buffer
+    curve, so no conversion to a reference buffer is applied. At a fixed
+    absolute fO2 the dissolved N therefore depends on the buffer choice.
     """
 
     def __init__(self, composition='libourel', x_SiO2=0.56, x_Al2O3=0.11, x_TiO2=0.01):
