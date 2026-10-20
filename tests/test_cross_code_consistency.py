@@ -21,8 +21,9 @@ Verifies:
    188 buffered per-case + 3 authO S2 + 60 buffered H2S + 43 remaining buffered
    NH3 + 12 authO H2S + 12 authO NH3) whose offset shifts by > half its assert
    margin (0.0025 dex for 0.005-margin keys, 0.0005 for authO majors) under the
-   0.5 S2 refit are held under a wide envelope (0.5 dex per S atom: |d| <= 1.0
-   dex on held S2 keys, |d| <= 0.5 dex on all other held keys). Under the
+   0.5 S2 refit are held under an envelope (0.5 dex per S atom: |d| <= 1.0 dex
+   on held S2 keys; |d| <= 0.1 dex on held NH3 keys; |d| <= 0.5 dex on all other
+   held keys). Under the
    700-5000 K JANAF refit constants (janaf_H2S = 9440.174611 / T - 5.16908096,
    janaf_NH3 = 5648.850436 / T - 12.15151238), the largest non-held shifts are
    +0.002294 dex on N2 in buffered_default_T3000_IW-4 for the janaf_H2S refit
@@ -185,9 +186,11 @@ K_OFFSET_EXPECTED_DEX: dict[float, dict[str, float]] = {
 # (51 S2, 17 NH3) and 3 authO S2 keys (318 total held grid keys).
 BUFFERED_SPECIES_HELD_FOR_H2S_FIX: tuple[str, ...] = ('H2S', 'NH3')
 AUTHO_HELD_FOR_H2S_FIX: tuple[str, ...] = ('H2S', 'NH3')
-# 0.5 dex per S atom gives 1.0 dex on held S2 keys and 0.5 dex on all other held keys.
+# 0.5 dex per S atom gives 1.0 dex on held S2 keys; held NH3 keys (largest offset 0.076 dex)
+# get 0.1 dex, every other held key 0.5 dex.
 HELD_KEY_MAX_DEX: float = 0.5
 HELD_S2_KEY_MAX_DEX: float = 1.0
+HELD_NH3_KEY_MAX_DEX: float = 0.1
 AUTHO_CASE_KEYS_HELD_FOR_H2S_FIX: dict[str, tuple[str, ...]] = {
     'authO_default_T3000': ('S2',),
     'authO_high_T3000': ('S2',),
@@ -1119,8 +1122,10 @@ def _assert_held_envelope_dex(
     species: str,
     label: str,
 ) -> None:
-    """Assert that a held key lies within its wide envelope (1.0 dex S2, 0.5 dex else)."""
-    limit_dex = HELD_S2_KEY_MAX_DEX if species == 'S2' else HELD_KEY_MAX_DEX
+    """Assert that a held key lies within its envelope (1.0 dex S2, 0.1 dex NH3, 0.5 dex else)."""
+    limit_dex = {'S2': HELD_S2_KEY_MAX_DEX, 'NH3': HELD_NH3_KEY_MAX_DEX}.get(
+        species, HELD_KEY_MAX_DEX
+    )
     assert math.isfinite(actual_dex) and abs(actual_dex) <= limit_dex, (
         f'{label}: held {species} log10 offset {actual_dex:+.6f} dex exceeds '
         f'+-{limit_dex:.2f} dex envelope'
@@ -1224,7 +1229,7 @@ def _solve_calliope_gas_only(
 
 
 def test_held_key_envelope_and_required_env_guards(monkeypatch):
-    """Verify held-key envelope bounds (1.0 dex S2, 0.5 dex else) and env-flag validation."""
+    """Verify held-key envelope bounds (1.0 dex S2, 0.1 dex NH3, 0.5 dex else) and env flags."""
     _assert_held_envelope_dex(0.99, 'S2', 'held S2 within bound')
     _assert_held_envelope_dex(-0.99, 'S2', 'held S2 negative within bound')
     with pytest.raises(AssertionError, match=r'exceeds \+-1\.00 dex envelope'):
