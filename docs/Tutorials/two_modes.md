@@ -49,7 +49,7 @@ O_kg = buffered['O_kg_total']
 print(f'Buffered mode: dIW input = {ddict["fO2_shift_IW"]:+.2f}, O_kg_total = {O_kg:.3e} kg')
 ```
 
-You should see something like `Buffered mode: dIW input = +1.00, O_kg_total = 1.006e+22 kg`. The total O is what the chemistry needed at $\Delta\mathrm{IW} = +1$ to balance the H, C, N, S budget against the buffer; it is a derived output, not a free knob.
+You should see something like `Buffered mode: dIW input = +1.00, O_kg_total = 1.036e+22 kg`. The total O is what the chemistry needed at $\Delta\mathrm{IW} = +1$ to balance the H, C, N, S budget against the buffer; it is a derived output, not a free knob.
 
 ## Step 2: pass that O back through the authoritative-O entry point
 
