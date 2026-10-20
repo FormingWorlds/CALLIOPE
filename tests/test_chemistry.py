@@ -168,8 +168,8 @@ def test_modified_keq_unknown_model_raises():
 # Tolerance = max fit residual plus margin [dex].
 JANAF_FIT_RANGE_K = (700.0, 5000.0)
 JANAF_FIT_TOL_DEX = {'H2S': 0.025, 'NH3': 0.04}
-# Discriminating fits (doubled form): a/T - b fits of fG over 200-4000 K, for H2S
-# with the S2 coefficient 1 instead of 1/2.
+# Wrong constants (doubled form) the row test must reject: H2S with the S2 coefficient 1
+# instead of 1/2, and an NH3 fit that misses the rows by up to 0.158 dex (H2S 1.853 dex).
 DISCRIMINATING_FIT = {'H2S': (13462.03094, 7.24546062), 'NH3': (5328.031246, 11.98476092)}
 
 
