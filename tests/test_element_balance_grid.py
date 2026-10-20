@@ -482,9 +482,9 @@ def test_element_balance_across_75_case_grid():
                             f'{case_id} seed={seed} {sp} p_s={p_s} != 0 for zero target'
                         )
                     else:
-                        # Floor 1e-10 bar reflects solver mass resolution atol/(area*1e5/g)
-                        # (~1.94e-9 bar Earth); species below floor (CH4 8.76e-19 bar in
-                        # authO_default_T2000) are not seed-checked.
+                        # 1e-10 bar empirical floor, ~19x below atol res (1.945e-9 bar Earth,
+                        # 2.45e-9 bar cmb); real gate solve.py:896 buffered, rtol*target authO;
+                        # NH3 at 5.13e-10 bar (authO_default_T2000) checked below that res.
                         p_floor = 1.0e-10  # bar
                         assert (p_ref > p_floor) == (p_s > p_floor), (
                             f'{case_id} seed={seed} {sp} p_bar floor mismatch: '
@@ -502,23 +502,25 @@ def test_element_balance_across_75_case_grid():
                 )
 
         if case_id == 'budget_tutorial_earth_T2000_IW+2':
-            # Zero-target species with p_guess=None stay below solver atol
-            # (1.0e10 kg, ~1.94e-9 bar for Earth).
-            out_none = equilibrium_atmosphere(
-                target,
-                ddict,
-                p_guess=None,
-                rtol=RTOL_DERIVED,
-                atol=ATOL_KG,
-                xtol=1.0e-8,
-                print_result=False,
-                opt_solver=False,
-            )
-            for sp in ('N2', 'NH3', 'S2', 'SO2', 'H2S'):
-                assert out_none[f'{sp}_kg_total'] <= ATOL_KG, (
-                    f'{case_id} p_guess=None {sp} mass '
-                    f'{out_none[f"{sp}_kg_total"]!r} > atol {ATOL_KG!r}'
+            # Solver does not hold zero-target species below atol.
+            gate_zero_kg = hcns_max * RTOL_DERIVED + ATOL_KG + float(TRUNC_MASS)
+            for seed_none in (0, 32, 93, 138):
+                np.random.seed(seed_none)
+                out_none = equilibrium_atmosphere(
+                    target,
+                    ddict,
+                    p_guess=None,
+                    rtol=RTOL_DERIVED,
+                    atol=ATOL_KG,
+                    xtol=1.0e-8,
+                    print_result=False,
+                    opt_solver=False,
                 )
+                for sp in ('N2', 'NH3', 'S2', 'SO2', 'H2S'):
+                    assert out_none[f'{sp}_kg_total'] <= gate_zero_kg, (
+                        f'{case_id} seed={seed_none} p_guess=None {sp} mass '
+                        f'{out_none[f"{sp}_kg_total"]!r} > gate {gate_zero_kg!r}'
+                    )
 
 
 def test_species_to_element_summation_and_residual_vectors():

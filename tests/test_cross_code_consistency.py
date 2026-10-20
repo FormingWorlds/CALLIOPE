@@ -7,12 +7,12 @@ Verifies:
    reaction-data offset (K_OFFSET_EXPECTED_DEX). For H2S, CALLIOPE's janaf_H2S
    (tools/fit_H2S.ipynb) fits g_H2S - g_S2 - g_H2 (unit S2 stoichiometric
    coefficient over 200-4000 K instead of 0.5 S2), producing a +0.29 to -0.39 dex
-   per-mole K_p offset across 1500-3000 K; H2S, S2 on 51 buffered cases, and any
-   case-species key whose offset shifts by > half its assert margin (0.0025 dex for
-   0.005-margin keys, 0.0005 for authO majors) under a 0.5 S2 refit are held (188 held
-   keys). For authO_low_T3000 S2, the refit shift (0.000478 dex) is kept held as an
-   exception within 4% of the 0.0005 threshold, while authO_high_T2500 S2 (0.000437 dex)
-   is not held.
+   per-mole K_p offset across 1500-3000 K; H2S, and 188 buffered per-case keys (51
+   of them S2) plus 3 authO S2 keys (191 held per-case keys) whose offset shifts
+   by > half its assert margin (0.0025 dex for 0.005-margin keys, 0.0005 for authO
+   majors) under a 0.5 S2 refit are held. For authO_low_T3000 S2, the refit shift
+   (0.000478 dex) is kept held as an exception within 4.4 % of the 0.0005
+   threshold, while authO_high_T2500 S2 (0.000437 dex) is not held.
 2. Live 72-case gas-only equilibrium cross-comparison against atmodeller (60
    buffered cases with matched fO2 plus 12 authoritative-O cases) on the shared
    volatile species (H2O, H2, O2, CO2, CO, CH4, N2, NH3, S2, SO2, H2S). Elemental
@@ -133,9 +133,9 @@ K_OFFSET_EXPECTED_DEX: dict[float, dict[str, float]] = {
     },
 }
 
-# Keys held (depend on janaf_H2S): buffered H2S, S2 on 51 buffered cases and 188 held
-# per-case keys shifting > half assert margin (0.0025 dex for 0.005 keys, 0.0005 for
-# authO majors) under the 0.5 S2 refit.
+# Keys held (depend on janaf_H2S): buffered H2S; 188 buffered per-case keys (51 of them S2)
+# plus 3 authO S2 keys (191) shifting > half assert margin (0.0025 dex for 0.005 keys,
+# 0.0005 for authO majors) under the 0.5 S2 refit.
 BUFFERED_SPECIES_HELD_FOR_H2S_FIX: tuple[str, ...] = ('H2S',)
 AUTHO_HELD_FOR_H2S_FIX: tuple[str, ...] = ('H2S',)
 AUTHO_CASE_KEYS_HELD_FOR_H2S_FIX: dict[str, tuple[str, ...]] = {
@@ -1352,7 +1352,6 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
                     {
                         'case_id': f'buffered_{inv_label}_T{int(t_k)}_IW{fo2:+.0f}',
                         'T_K': t_k,
-                        'is_1500_K': int(t_k) == 1500,
                         'fO2_shift_IW': fo2,
                         'cal_targets': {
                             el: m_inv[el] * float(molar_mass[el])
@@ -1376,7 +1375,6 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
                 {
                     'case_id': f'authO_{inv_label}_T{int(t_k)}',
                     'T_K': t_k,
-                    'is_1500_K': int(t_k) == 1500,
                     'fO2_shift_IW': 2.0,
                     'cal_targets': {
                         el: m_inv[el] * float(molar_mass[el])
@@ -1485,6 +1483,7 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
     report_path.write_text('case_id\td_H2S_dex\td_S2_dex\td_SO2_dex\n', encoding='utf-8')
 
     sulfur_report_rows: list[str] = []
+    expected_sulfur: dict[str, tuple[float, float, float]] = {}
     held_for_h2s_rows: list[str] = []
     preseed_count = 0
 
@@ -1512,6 +1511,7 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
         d_so2_case = _guarded_log10_ratio(
             float(cal_out['SO2_bar']), float(asdict_buf['O2S_g']['pressure'][idx])
         )
+        expected_sulfur[cid] = (d_h2s_case, d_s2_case, d_so2_case)
         sulfur_report_rows.append(
             f'{cid}: d_H2S={d_h2s_case:+.4f}, d_S2={d_s2_case:+.4f}, d_SO2={d_so2_case:+.4f}'
         )
@@ -1606,6 +1606,7 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
         d_so2_case = _guarded_log10_ratio(
             float(cal_out['SO2_bar']), float(asdict_auth['O2S_g']['pressure'][idx])
         )
+        expected_sulfur[cid] = (d_h2s_case, d_s2_case, d_so2_case)
         sulfur_report_rows.append(
             f'{cid}: d_H2S={d_h2s_case:+.4f}, d_S2={d_s2_case:+.4f}, d_SO2={d_so2_case:+.4f}'
         )
@@ -1703,7 +1704,7 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
         f'Expected 0 preseeded solves with nguess=1000, got {preseed_count}'
     )
 
-    record_property('buffered_held_for_h2s_fix_count', len(held_for_h2s_rows))
+    record_property('held_for_h2s_fix_count', len(held_for_h2s_rows))
     record_property('buffered_held_for_h2s_fix_dex', '; '.join(held_for_h2s_rows))
 
     record_property('sulfur_72_case_report_dex', '\n'.join(sulfur_report_rows))
@@ -1718,7 +1719,22 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
     ]
     n_rows = len(report_lines)
     assert n_rows == 73, f'Expected 1 header + 72 data rows, got {n_rows}'
-    row_case_ids = [line.split('\t')[0] for line in report_lines[1:]]
-    assert len(set(row_case_ids)) == 72, (
-        f'Expected 72 distinct case IDs, got {len(set(row_case_ids))}'
+    expected_header = 'case_id\td_H2S_dex\td_S2_dex\td_SO2_dex'
+    assert report_lines[0] == expected_header, (
+        f'Header mismatch: got {report_lines[0]!r}, expected {expected_header!r}'
     )
+    expected_case_ids = [c['case_id'] for c in buffered_cases] + [
+        c['case_id'] for c in autho_cases
+    ]
+    row_case_ids = [line.split('\t')[0] for line in report_lines[1:]]
+    assert set(row_case_ids) == set(expected_case_ids), 'Report case ID set mismatch'
+    assert len(row_case_ids) == 72, f'Expected 72 rows, got {len(row_case_ids)}'
+    for line in report_lines[1:]:
+        parts = line.split('\t')
+        cid = parts[0]
+        vals = tuple(float(x) for x in parts[1:])
+        exp_vals = expected_sulfur[cid]
+        for v_read, v_exp, sp in zip(vals, exp_vals, ('H2S', 'S2', 'SO2'), strict=True):
+            assert abs(v_read - v_exp) <= 1.0e-6, (
+                f'{cid} {sp} read-back offset {v_read} != {v_exp}'
+            )
