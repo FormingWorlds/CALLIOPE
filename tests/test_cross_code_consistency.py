@@ -188,7 +188,7 @@ K_OFFSET_EXPECTED_DEX: dict[float, dict[str, float]] = {
 BUFFERED_SPECIES_HELD_FOR_H2S_FIX: tuple[str, ...] = ('H2S', 'NH3')
 AUTHO_HELD_FOR_H2S_FIX: tuple[str, ...] = ('H2S', 'NH3')
 # 0.5 dex per S atom gives 1.0 dex on held S2 keys; held NH3 keys (largest offset 0.076 dex)
-# get 0.1 dex, every other held key 0.5 dex.
+# get 0.1 dex, which fails a +0.03 dex per mole janaf_NH3 error; other held keys get 0.5 dex.
 HELD_KEY_MAX_DEX: float = 0.5
 HELD_S2_KEY_MAX_DEX: float = 1.0
 HELD_NH3_KEY_MAX_DEX: float = 0.1
