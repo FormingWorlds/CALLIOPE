@@ -21,19 +21,20 @@ Verifies:
    188 buffered per-case + 3 authO S2 + 60 buffered H2S + 43 remaining buffered
    NH3 + 12 authO H2S + 12 authO NH3) whose offset shifts by > half its assert
    margin (0.0025 dex for 0.005-margin keys, 0.0005 for authO majors) under the
-   0.5 S2 refit are held under an envelope (0.5 dex per S atom: |d| <= 1.0 dex
-   on held S2 keys; |d| <= 0.1 dex on held NH3 keys; |d| <= 0.5 dex on all other
-   held keys). Under the
-   700-5000 K JANAF refit constants (janaf_H2S = 9440.174611 / T - 5.16908096,
+   0.5 S2 refit are held under an envelope (|d| <= 1.0 dex on held S2 keys,
+   0.5 dex per S atom; |d| <= 0.1 dex on held NH3 keys; |d| <= 0.5 dex on all
+   other held keys). Under the 700-5000 K JANAF refit constants
+   (janaf_H2S = 9440.174611 / T - 5.16908096,
    janaf_NH3 = 5648.850436 / T - 12.15151238), patched into ModifiedKeq for
    the CALLIOPE grid against the same atmodeller pressures, the largest
    non-held shifts are +0.002294 dex on N2 in buffered_default_T3000_IW-4 for
    the janaf_H2S refit (-0.002022 dex on N2 in buffered_high_T1500_IW-2 for the
-   janaf_NH3 refit, +0.002357 dex with both refits). Two keys below the
-   half-margin rule are held because their janaf_H2S refit shift is within 15 %
-   of it: authO_low_T3000 S2 (-0.000425 of 0.0005 dex) and
+   janaf_NH3 refit, +0.002357 dex with both refits). Two S-bearing keys below
+   the half-margin rule are held because their janaf_H2S refit shift is within
+   15 % of it: authO_low_T3000 S2 (-0.000425 of 0.0005 dex) and
    buffered_high_T2000_IW+4 SO2 (-0.002268 of 0.0025 dex); authO_high_T2500 S2
-   (-0.000390 dex) is not held.
+   (-0.000390 dex) and the N2, CO2, and CO keys of buffered_default_T3000_IW-4
+   (+0.002294, +0.002284, +0.002284 dex) are not held.
 2. Live 72-case gas-only equilibrium cross-comparison against atmodeller (60
    buffered cases with matched fO2 plus 12 authoritative-O cases) on the shared
    volatile species (H2O, H2, O2, CO2, CO, CH4, N2, NH3, S2, SO2, H2S). This
