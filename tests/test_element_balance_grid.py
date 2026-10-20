@@ -15,6 +15,7 @@ import math
 import numpy as np
 import pytest
 
+import calliope.solve as solve_mod
 from calliope.constants import molar_mass, noble_gases, ocean_moles, volatile_species
 from calliope.solve import (
     TRUNC_MASS,
@@ -291,6 +292,7 @@ def test_element_balance_across_75_case_grid():
     """Verify species-reconstructed elemental mass conservation across all 75 grid cases."""
     cases = _build_grid_cases()
     assert len(cases) == 75
+    orig_fsolve = solve_mod.opt.fsolve
 
     for case in cases:
         case_id = case['case_id']
@@ -395,42 +397,46 @@ def test_element_balance_across_75_case_grid():
             'budget_cmb_singleimpact_T2000_IW+1',
             'authO_default_T2000',
         ):
-            seed_x0s: list[tuple[float, float, float, float]] = []
+            fsolve_first_x0s: list[tuple[float, ...]] = []
             for seed in (0, 1, 2, 3, 4):
-                np.random.seed(seed)
-                if case['mode'] == 'authoritative_O':
-                    out_s = equilibrium_atmosphere_authoritative_O(
-                        target,
-                        ddict,
-                        fO2_hint=case['fO2_shift_IW'],
-                        rtol=RTOL_DERIVED,
-                        atol=ATOL_KG,
-                        xtol=1.0e-8,
-                        random_seed=seed,
-                        print_result=False,
-                        opt_solver=False,
-                    )
-                else:
-                    p_guess = _construct_zero_target_p_guess(target, randomize=True)
-                    if p_guess is not None:
-                        seed_x0s.append(
-                            (
-                                p_guess['H2O'],
-                                p_guess['CO2'],
-                                p_guess['N2'],
-                                p_guess['S2'],
-                            )
+                first_x0 = [None]
+
+                def _spy_fsolve(func, x0, *a, **k):
+                    if first_x0[0] is None:
+                        first_x0[0] = tuple(np.round(np.asarray(x0, dtype=float), 12))
+                    return orig_fsolve(func, x0, *a, **k)
+
+                solve_mod.opt.fsolve = _spy_fsolve
+                try:
+                    np.random.seed(seed)
+                    if case['mode'] == 'authoritative_O':
+                        out_s = equilibrium_atmosphere_authoritative_O(
+                            target,
+                            ddict,
+                            fO2_hint=case['fO2_shift_IW'],
+                            rtol=RTOL_DERIVED,
+                            atol=ATOL_KG,
+                            xtol=1.0e-8,
+                            random_seed=seed,
+                            print_result=False,
+                            opt_solver=False,
                         )
-                    out_s = equilibrium_atmosphere(
-                        target,
-                        ddict,
-                        p_guess=p_guess,
-                        rtol=RTOL_DERIVED,
-                        atol=ATOL_KG,
-                        xtol=1.0e-8,
-                        print_result=False,
-                        opt_solver=False,
-                    )
+                    else:
+                        p_guess = _construct_zero_target_p_guess(target, randomize=True)
+                        out_s = equilibrium_atmosphere(
+                            target,
+                            ddict,
+                            p_guess=p_guess,
+                            rtol=RTOL_DERIVED,
+                            atol=ATOL_KG,
+                            xtol=1.0e-8,
+                            print_result=False,
+                            opt_solver=False,
+                        )
+                finally:
+                    solve_mod.opt.fsolve = orig_fsolve
+                fsolve_first_x0s.append(first_x0[0])
+
                 rec_s = _reconstruct_from_species(
                     out_s,
                     r_int=case['R_int'],
@@ -482,9 +488,10 @@ def test_element_balance_across_75_case_grid():
                             f'{case_id} seed={seed} {sp} p_s={p_s} != 0 for zero target'
                         )
                     else:
-                        # 1e-10 bar empirical floor, ~19x below atol res (1.945e-9 bar Earth,
-                        # 2.45e-9 bar cmb); real gate solve.py:896 buffered, rtol*target authO;
-                        # NH3 at 5.13e-10 bar (authO_default_T2000) checked below that res.
+                        # 1e-10 bar empirical floor, 19x to 25x below the atol mass resolution
+                        # (tutorial Earth 1.945e-9, cmb_singleimpact 2.45e-9 bar); acceptance gate is
+                        # tolerance in equilibrium_atmosphere (buffered) or rtol*target (authO);
+                        # NH3 at 5.13e-10 bar (authO_default_T2000) checked well below its ~1.5e-4 bar gate.
                         p_floor = 1.0e-10  # bar
                         assert (p_ref > p_floor) == (p_s > p_floor), (
                             f'{case_id} seed={seed} {sp} p_bar floor mismatch: '
@@ -496,31 +503,61 @@ def test_element_balance_across_75_case_grid():
                                 f'{case_id} seed={seed} {sp} p_bar offset '
                                 f'{diff_dex:.4e} dex > 1e-4 dex'
                             )
-            if seed_x0s:
-                assert len(set(seed_x0s)) >= 2, (
-                    f'{case_id}: all seeds started from identical x0'
-                )
+            assert len(fsolve_first_x0s) == 5, f'{case_id}: expected 5 seeded solves'
+            assert len(set(fsolve_first_x0s)) == 5, (
+                f'{case_id}: duplicate initial fsolve x0 across seeds {fsolve_first_x0s}'
+            )
 
         if case_id == 'budget_tutorial_earth_T2000_IW+2':
             # Solver does not hold zero-target species below atol.
             gate_zero_kg = hcns_max * RTOL_DERIVED + ATOL_KG + float(TRUNC_MASS)
-            for seed_none in (0, 32, 93, 138):
-                np.random.seed(seed_none)
-                out_none = equilibrium_atmosphere(
-                    target,
-                    ddict,
-                    p_guess=None,
-                    rtol=RTOL_DERIVED,
-                    atol=ATOL_KG,
-                    xtol=1.0e-8,
-                    print_result=False,
-                    opt_solver=False,
+            max_n2_kg = 0.0
+            fsolve_none_x0s: list[tuple[float, ...]] = []
+            for seed_none in (0, 8, 32, 93, 138):
+                first_x0_none = [None]
+
+                def _spy_fsolve_none(func, x0, *a, **k):
+                    if first_x0_none[0] is None:
+                        first_x0_none[0] = tuple(np.round(np.asarray(x0, dtype=float), 12))
+                    return orig_fsolve(func, x0, *a, **k)
+
+                solve_mod.opt.fsolve = _spy_fsolve_none
+                try:
+                    np.random.seed(seed_none)
+                    out_none = equilibrium_atmosphere(
+                        target,
+                        ddict,
+                        p_guess=None,
+                        rtol=RTOL_DERIVED,
+                        atol=ATOL_KG,
+                        xtol=1.0e-8,
+                        print_result=False,
+                        opt_solver=False,
+                    )
+                finally:
+                    solve_mod.opt.fsolve = orig_fsolve
+                fsolve_none_x0s.append(first_x0_none[0])
+
+                assert abs(out_none['N_res']) <= gate_zero_kg, (
+                    f'{case_id} seed={seed_none} p_guess=None N_res '
+                    f'{out_none["N_res"]!r} > gate {gate_zero_kg!r}'
+                )
+                assert abs(out_none['S_res']) <= gate_zero_kg, (
+                    f'{case_id} seed={seed_none} p_guess=None S_res '
+                    f'{out_none["S_res"]!r} > gate {gate_zero_kg!r}'
                 )
                 for sp in ('N2', 'NH3', 'S2', 'SO2', 'H2S'):
-                    assert out_none[f'{sp}_kg_total'] <= gate_zero_kg, (
-                        f'{case_id} seed={seed_none} p_guess=None {sp} mass '
-                        f'{out_none[f"{sp}_kg_total"]!r} > gate {gate_zero_kg!r}'
+                    assert 0.0 <= float(out_none[f'{sp}_kg_total']), (
+                        f'{case_id} seed={seed_none} p_guess=None {sp} mass negative'
                     )
+                max_n2_kg = max(max_n2_kg, float(out_none['N2_kg_total']))
+            assert len(fsolve_none_x0s) == 5, f'{case_id}: expected 5 seeds'
+            assert len(set(fsolve_none_x0s)) == 5, (
+                f'{case_id}: duplicate initial fsolve x0 across seeds {fsolve_none_x0s}'
+            )
+            assert max_n2_kg > ATOL_KG, (
+                f'{case_id} max N2 {max_n2_kg!r} not > ATOL_KG {ATOL_KG!r}'
+            )
 
 
 def test_species_to_element_summation_and_residual_vectors():

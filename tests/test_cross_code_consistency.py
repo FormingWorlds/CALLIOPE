@@ -334,6 +334,12 @@ BUFFERED_CASE_KEYS_HELD_FOR_H2S_FIX: dict[str, tuple[str, ...]] = {
     ),
 }
 
+# Hold-table count assertions: 188 buffered keys (51 S2) and 3 authO S2 keys.
+assert sum(len(v) for v in BUFFERED_CASE_KEYS_HELD_FOR_H2S_FIX.values()) == 188
+assert sum('S2' in v for v in BUFFERED_CASE_KEYS_HELD_FOR_H2S_FIX.values()) == 51
+assert sum(len(v) for v in AUTHO_CASE_KEYS_HELD_FOR_H2S_FIX.values()) == 3
+assert sum('S2' in v for v in AUTHO_CASE_KEYS_HELD_FOR_H2S_FIX.values()) == 3
+
 # Measured log10(P_CALLIOPE / P_atmodeller) offsets at matched moles and g=9.930522 m s^-2
 # for H2S-independent keys (shift <= half assert margin: max 0.002411 dex for N2 in
 # buffered_default_T3000_IW-4), asserted within +-0.005 dex.
@@ -1705,7 +1711,9 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
     )
 
     record_property('held_for_h2s_fix_count', len(held_for_h2s_rows))
-    record_property('buffered_held_for_h2s_fix_dex', '; '.join(held_for_h2s_rows))
+    record_property('held_for_h2s_fix_dex', '; '.join(held_for_h2s_rows))
+    # 263 held keys breakdown: 188 buffered per-case + 3 authO per-case + 60 buffered H2S + 12 authO H2S
+    assert len(held_for_h2s_rows) == 263
 
     record_property('sulfur_72_case_report_dex', '\n'.join(sulfur_report_rows))
     print('72-case sulfur species log10(CALLIOPE/atmodeller) report [dex]:')
@@ -1726,6 +1734,7 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
     expected_case_ids = [c['case_id'] for c in buffered_cases] + [
         c['case_id'] for c in autho_cases
     ]
+    assert len(set(expected_case_ids)) == 72
     row_case_ids = [line.split('\t')[0] for line in report_lines[1:]]
     assert set(row_case_ids) == set(expected_case_ids), 'Report case ID set mismatch'
     assert len(row_case_ids) == 72, f'Expected 72 rows, got {len(row_case_ids)}'
@@ -1735,6 +1744,8 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
         vals = tuple(float(x) for x in parts[1:])
         exp_vals = expected_sulfur[cid]
         for v_read, v_exp, sp in zip(vals, exp_vals, ('H2S', 'S2', 'SO2'), strict=True):
+            if math.isnan(v_read) and math.isnan(v_exp):
+                continue
             assert abs(v_read - v_exp) <= 1.0e-6, (
                 f'{cid} {sp} read-back offset {v_read} != {v_exp}'
             )
