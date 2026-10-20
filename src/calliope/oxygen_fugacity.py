@@ -7,11 +7,8 @@ import numpy as np
 
 log = logging.getLogger('fwl.' + __name__)
 
-# Single source of truth for the default fO2 buffer. ``OxygenFugacity`` and
-# ``chemistry.ModifiedKeq`` both default to this name so the two cannot drift
-# out of step. Fischer is the more recent IW parameterisation and tracks the
-# atmodeller Hirschmann composite to within ~0.2 dex across magma-ocean
-# temperatures (see docs/Explanations/cross_backend_comparison.md).
+# Shared default fO2 buffer for OxygenFugacity and ModifiedKeq; fischer minus atmodeller IW
+# is -0.226 to +0.109 dex over 1500-3000 K (-0.424 at 1000 K, +0.205 at 3500 K).
 DEFAULT_FO2_MODEL = 'fischer'
 
 
@@ -33,8 +30,10 @@ class OxygenFugacity:
     def fischer(self, T):
         """Fischer et al. (2011) IW (FeO equation of state, EPSL 304, 496).
 
-        The coefficients are the p = 1 bar isoline of their Figure 6,
-        obtained by integrating their Equation 2.
+        Fischer et al. (2011) calculate the 1-bar Fe-FeO curve from Chase (1998)
+        (Fig. 6) and add the pressure integral of their Eq. 2; their supplement
+        (Table S2) gives a P-T polynomial. The source of this 2-term form is not
+        stated in the paper body.
         """
         return 6.94059 - 28.1808 * 1e3 / T
 

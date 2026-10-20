@@ -205,7 +205,7 @@ The two modes give bit-identical results in the cases where they should: for any
 
 ## Redox state
 
-`fO2_shift_IW` is in $\log_{10}$ units relative to the O'Neill & Eggins (2002) [^cite-oneilleggins2002] IW buffer. Under `fO2_source = "user_constant"` this value is the buffer offset; under `fO2_source = "from_O_budget"` it is only the initial-guess seed. Common reference values:
+`fO2_shift_IW` is in $\log_{10}$ units relative to CALLIOPE's IW buffer, Fischer et al. (2011) by default, with O'Neill & Eggins (2002) [^cite-oneilleggins2002] as the alternative form. Under `fO2_source = "user_constant"` this value is the buffer offset; under `fO2_source = "from_O_budget"` it is only the initial-guess seed. Common reference values:
 
 | $\Delta\mathrm{IW}$ | Description |
 |---|---|

@@ -20,7 +20,7 @@ which fixes a single curve $\log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T)$ in $T$-$f
 
 ### Fischer et al. (2011), `fischer` (default) [^cite-fischer2011]
 
-A simpler two-parameter fit of the 1-bar IW buffer. The fit reproduces the 1-bar curve in Fischer et al. (2011) [^cite-fischer2011] Fig. 6, which itself derives from Chase (1998) [^cite-chase1998] NIST-JANAF tabulation. Fischer's own high-pressure measurements ($\le$200 GPa) extend the buffer to deep-mantle conditions but are not used by CALLIOPE.
+A simpler two-parameter fit of the 1-bar IW buffer. Fischer et al. (2011) [^cite-fischer2011] calculate the 1-bar Fe-FeO curve of their Fig. 6 from Chase (1998) [^cite-chase1998] and give a P-T polynomial in their supplement (Table S2); the source of this 2-term form is not stated in the paper body, and no independent pin of it exists in the test data. Fischer's own high-pressure measurements ($\le$200 GPa) extend the buffer to deep-mantle conditions but are not used by CALLIOPE.
 
 $$
 \log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T) = 6.94059 - \frac{28180.8}{T}.
