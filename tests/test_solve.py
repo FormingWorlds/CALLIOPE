@@ -546,10 +546,13 @@ def test_root_that_empties_hydrogen_is_refused_and_h_is_kept(
     """A 1e15 kg H budget lies below the scalar gate (1.5e16 kg), so the gate does
     not see a root that loses it. These seeds converge on a root with pH2O near
     -74 bar (Hirschmann) or -83 bar (O'Neill), which loses the whole H budget once
-    clipped, and on a root with pH2O within 1e-8 bar of zero, which has lost it
-    before any clip. Both are refused, and the solve goes on to a root that keeps
-    H, with no fallback warning and no phantom CH4, H2S or NH3. C and S close on
-    their own tolerance.
+    clipped. It is refused, and the solve goes on to a root that keeps H, with no
+    fallback warning and no phantom CH4, H2S or NH3. C and S close on their own
+    tolerance. Which other roots a seed reaches depends on the platform's floating
+    point (on macOS arm64 both seeds also reach a root that has lost its H before
+    any clip, on Linux x86_64 only the O'Neill one does), so the test asserts the
+    outcome; the refusal of an unclipped emptied root is pinned by
+    test_emptied_root_is_refused_for_a_later_root_that_keeps_the_budget.
     """
     target = {'H': 1.0e15, 'C': 5.0e19, 'N': 1.0e17, 'S': 1.0e18}
     roots, converged = _spy_roots(monkeypatch)
@@ -563,11 +566,11 @@ def test_root_that_empties_hydrogen_is_refused_and_h_is_kept(
     )
     refused = [root for root, ok in zip(roots[:-1], converged[:-1]) if ok]
     assert any(root[0] < -1.0 for root in refused)
-    assert any(abs(root[0]) < 1.0e-8 for root in refused)
     assert roots[-1][0] > 0.0
     assert 'returning the last root' not in caplog.text
-    # An emptied state would give 0 kg here.
-    assert r['H_kg_total'] == pytest.approx(target['H'], rel=1.0e-3)
+    # The scalar gate does not bound H here, so H is pinned to 10 %, as in
+    # test_sub_gate_hydrogen_reports_no_phantom_species; an emptied state gives 0 kg.
+    assert r['H_kg_total'] == pytest.approx(target['H'], rel=0.1)
     assert r['CH4_bar'] < 1.0e-20
     assert r['H2S_bar'] < 1.0e-12
     assert r['NH3_bar'] < 1.0e-12
@@ -869,6 +872,25 @@ def test_refusal_needs_the_whole_budget_lost(monkeypatch, caplog, n_res, refused
     r = _empty_budget_solve(monkeypatch, [0.0, 0.0, n_res, 0.0])
     assert ('tolerance for N (1e+15 kg' in caplog.text) == refused
     np.testing.assert_array_equal([r[g + '_bar'] for g in _PRIMARIES], _STUB_ROOT)
+
+
+def test_emptied_root_is_refused_for_a_later_root_that_keeps_the_budget(monkeypatch, caplog):
+    """An all-positive root that empties a 1e15 kg H budget passes the scalar
+    gate (1.5e16 kg) and has nothing to clip, yet is refused; the solve goes on
+    to the next attempt, whose root closes every element, and returns it with
+    no fallback warning."""
+    roots = iter([np.array([1.0, 5.0, 1.0, 0.5]), np.array([2.0, 5.0, 1.0, 0.5])])
+    monkeypatch.setattr(solve_mod.opt, 'fsolve', lambda *a, **k: (next(roots), {}, 1, 'stub'))
+    target = dict(_LOW_H, H=1.0e15)
+    monkeypatch.setattr(
+        solve_mod, 'func', lambda x, *a: [-target['H'] if x[0] < 1.5 else 0.0, 0.0, 0.0, 0.0]
+    )
+    r = equilibrium_atmosphere(
+        target, _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **{**_COLD, 'nguess': 2}
+    )
+    assert r['H2O_bar'] == pytest.approx(2.0, rel=1e-12)
+    assert 'No root closes' not in caplog.text
+    assert target['H'] < max(target.values()) * _COLD['rtol'] + _COLD['atol']
 
 
 def test_budget_within_the_mass_floor_may_be_emptied(monkeypatch, caplog):
