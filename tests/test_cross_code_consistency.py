@@ -1601,7 +1601,8 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
             )
 
         if case['is_1500_K']:
-            # 1e-9 relative O error shifts log10 fO2 by 6e-6 to 2.7e-5 dex; well within margin.
+            # A 1e-9 relative O error shifts log10 fO2 by at most 2.7e-5 dex
+            # (largest at 1500 K).
             cal_o_tgt = float(case['cal_targets']['O'])
             cal_o_rel = abs(rec_masses['O'] - cal_o_tgt) / cal_o_tgt
             assert cal_o_rel <= 1.0e-9, (
