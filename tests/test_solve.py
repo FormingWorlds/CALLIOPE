@@ -731,3 +731,17 @@ def test_authoritative_o_low_h_returns_the_physical_root():
     assert r['H2O_bar'] > 0.0
     assert r['P_surf'] == pytest.approx(24.8219, rel=1e-4)
     assert r['fO2_shift_derived'] == pytest.approx(2.0, abs=1e-4)
+
+
+@pytest.mark.parametrize('T', [1800, np.int64(1800)], ids=['python_int', 'numpy_int64'])
+def test_integer_T_magma_solves_like_the_float_value(T):
+    """An integer T_magma reaches every equilibrium constant and gives the same
+    seeded Earth atmosphere, H2S and NH3 included, as T_magma = 1800.0."""
+    np.random.seed(0)
+    ref = equilibrium_atmosphere(_earth_target_HCNS(), _earth_ddict(), p_guess=None, **_COLD)
+    np.random.seed(0)
+    r = equilibrium_atmosphere(_earth_target_HCNS(), _earth_ddict(T=T), p_guess=None, **_COLD)
+    assert r['H2S_bar'] > 0.0
+    assert r['NH3_bar'] > 0.0
+    for key in ('P_surf', 'H2S_bar', 'NH3_bar'):
+        assert r[key] == pytest.approx(ref[key], rel=1e-12), key
