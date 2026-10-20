@@ -5,6 +5,10 @@ elemental inventory across the 60-point buffered grid (5 fO2 x 4 T x 3
 inventories), the 12-point authoritative-oxygen grid (4 T x 3 inventories),
 2 volatile-inventory configurations using elemental budgets from PROTEUS
 reference inputs at T = 2000 K, and a 5-noble-gas complement configuration.
+
+Scope: the melt is checked for element balance only (no cross-code solubility
+comparison); gas-phase cross-code consistency is checked in
+test_cross_code_consistency.py.
 """
 
 from __future__ import annotations
@@ -491,9 +495,8 @@ def test_element_balance_across_75_case_grid():
                             f'{case_id} seed={seed} {sp} p_s={p_s} != 0 for zero target'
                         )
                     else:
-                        # 1e-10 bar floor: 19x-25x below ATOL_KG as m g/A (Earth 1.945e-9,
-                        # cmb 2.45e-9 bar); authO_default_T2000 NH3 at 5.13e-10 bar < N gate:
-                        # rtol*target, ~1.5e-4 bar as m g/A.
+                        # 1e-10 bar floor (19x-25x below ATOL_KG as m g/A); authO_default_T2000
+                        # NH3 at 5.13e-10 bar lies below the N gate (rtol*target ~ 1.5e-4 bar).
                         p_floor = 1.0e-10  # bar
                         assert (p_ref > p_floor) == (p_s > p_floor), (
                             f'{case_id} seed={seed} {sp} p_bar floor mismatch: '
@@ -579,14 +582,18 @@ def test_element_balance_across_75_case_grid():
                     assert 0.0 <= float(out_none[f'{sp}_kg_total']), (
                         f'{case_id} seed={seed_none} p_guess=None {sp} mass negative'
                     )
-                max_n2_kg = max(max_n2_kg, float(out_none['N2_kg_total']))
+                n2_kg_none = float(out_none['N2_kg_total'])
+                assert n2_kg_none <= gate_zero_kg, (
+                    f'{case_id} seed={seed_none} p_guess=None N2_kg_total '
+                    f'{n2_kg_none!r} > gate {gate_zero_kg!r}'
+                )
+                max_n2_kg = max(max_n2_kg, n2_kg_none)
             assert len(fsolve_none_x0s) == 5, f'{case_id}: expected 5 seeds'
             assert len(set(fsolve_none_x0s)) == 5, (
                 f'{case_id}: duplicate initial fsolve x0 across seeds {fsolve_none_x0s}'
             )
-            # Pin is expected to change if the solver holds zero-target slots at 0.
-            assert max_n2_kg > ATOL_KG, (
-                f'{case_id} max N2 {max_n2_kg!r} not > ATOL_KG {ATOL_KG!r}'
+            assert max_n2_kg <= gate_zero_kg, (
+                f'{case_id} max N2 {max_n2_kg!r} > gate {gate_zero_kg!r}'
             )
 
 

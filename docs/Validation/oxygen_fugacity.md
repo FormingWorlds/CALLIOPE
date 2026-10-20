@@ -5,12 +5,13 @@ behaviour of `calliope.oxygen_fugacity` against published sources.
 
 | Test id | Reference | Source page | Scope |
 |---|---|---|---|
-| `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_matches_published_fit` | Fischer et al. (2011) [^cite-fischer2011], EPSL 304, 496, Eq. 2; cross-checked against O'Neill & Eggins (2002) [^cite-oneilleggins2002] | [doi:10.1016/j.epsl.2011.02.025](https://doi.org/10.1016/j.epsl.2011.02.025) | Pins the Fischer-vs-O'Neill cross-calibration offset (0.258 dex at T = 2000 K) as the independent anchor, with a secondary regression check on the coded Fischer fit `6.94059 - 28.1808e3 / T` and a wrong-buffer discrimination guard against O'Neill & Eggins (2002) at the same T. |
+| `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_matches_published_fit` | Fischer et al. (2011) [^cite-fischer2011], EPSL 304, 496 (1-bar curve fit to Chase 1998 in supplement; Eq. 2 is the pressure term); cross-checked against O'Neill & Eggins (2002) [^cite-oneilleggins2002] | [doi:10.1016/j.epsl.2011.02.025](https://doi.org/10.1016/j.epsl.2011.02.025) | Pins the Fischer-vs-O'Neill cross-calibration offset (0.258 dex at T = 2000 K) as the independent anchor, with a secondary regression check on the coded Fischer fit `6.94059 - 28.1808e3 / T` and a wrong-buffer discrimination guard against O'Neill & Eggins (2002) at the same T. |
 
 ## Re-derivation note
 
-`OxygenFugacity('fischer')` implements Fischer et al. (2011) Eq. 2 for
-the iron-wüstite (IW) buffer:
+`OxygenFugacity('fischer')` implements the Fischer et al. (2011) 1-bar iron-wüstite
+(IW) buffer fit (fitted to Chase 1998 values in their supplement; their Eq. 2 is
+the pressure term):
 
 ```
 log10(fO2)_IW(T) = 6.94059 - 28.1808e3 / T
@@ -42,13 +43,16 @@ reference point.
 
 ## Anchor type
 
-Cross-implementation cross-check plus published benchmark. The
+Cross-implementation cross-check, plus published benchmark. The
 independent anchor is the cross-calibration offset between the Fischer
-(2011) and O'Neill & Eggins (2002) IW fits, which are coded from separate
-published formulae; the offset is independent of either single fit, so a
-coefficient error in either moves it and fails the test. The coded
-Fischer value is pinned as a secondary regression check, and the O'Neill
-value also serves as the wrong-buffer discrimination guard.
+(2011) and O'Neill & Eggins (2002) IW fits, which are coded from separate,
+independent published formulae; the offset is independent of either single
+fit, so a coefficient error in either fit moves it, and fails the test.
+Neither the Fischer et al. (2011) supplementary file, nor the Chase (1998)
+JANAF Fe, FeO, and O2 tables, are present in the repository test data, so
+no independent numerical pin of the Fischer 1-bar fit coefficients exists;
+the coded Fischer value is pinned as a secondary regression check, and
+the O'Neill value is also the wrong-buffer discrimination guard.
 
 ## Cross-references
 

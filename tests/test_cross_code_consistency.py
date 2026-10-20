@@ -1,30 +1,47 @@
 """Cross-code thermodynamic and gas-only equilibrium consistency tests.
 
+Scope: gas-phase cross-code consistency only (Phi_global = 0.0; the melt is
+checked for element balance only in test_element_balance_grid.py, and no test
+compares melt solubility across codes).
+
 Verifies:
 1. CALLIOPE equilibrium constants (ModifiedKeq) and algebraic secondary gas
    speciation against the 9-coefficient NASA Glenn reference values across
-   T in {1500, 2000, 2500, 3000} K within +-0.002 dex of the measured per-temperature
-   reaction-data offset (K_OFFSET_EXPECTED_DEX). For H2S, CALLIOPE's janaf_H2S
-   (tools/fit_H2S.ipynb) fits g_H2S - g_S2 - g_H2 (unit S2 stoichiometric
-   coefficient over 200-4000 K instead of 0.5 S2), producing a +0.29 to -0.39 dex
-   per-mole K_p offset across 1500-3000 K; H2S, and 188 buffered per-case keys (51
-   of them S2) plus 3 authO S2 keys (191 held per-case keys) whose offset shifts
-   by > half its assert margin (0.0025 dex for 0.005-margin keys, 0.0005 for authO
-   majors) under a 0.5 S2 refit are held. For authO_low_T3000 S2, the refit shift
-   (0.000478 dex) is kept held as an exception within 4.4 % of the 0.0005
-   threshold, while authO_high_T2500 S2 (0.000437 dex) is not held.
+   T in {1500, 2000, 2500, 3000} K within +-0.002 dex of the measured
+   per-temperature reaction-data offset (K_OFFSET_EXPECTED_DEX). For H2S,
+   CALLIOPE's janaf_H2S (tools/fit_H2S.ipynb) fits g_H2S - g_S2 - g_H2 (unit S2
+   stoichiometric coefficient over 200-4000 K instead of 0.5 S2), producing a
+   +0.29 to -0.39 dex per-mole K_p offset across 1500-3000 K, and janaf_NH3 is
+   also queued for refit. H2S, NH3, and 188 buffered per-case keys (51 of them
+   S2, 17 of them NH3) plus 3 authO S2 keys (318 held grid keys in total: 188
+   buffered per-case + 3 authO S2 + 60 buffered H2S + 43 remaining buffered NH3
+   + 12 authO H2S + 12 authO NH3) whose offset shifts by > half its assert
+   margin (0.0025 dex for 0.005-margin keys, 0.0005 for authO majors) under a
+   0.5 S2 refit are held under a wide envelope (0.5 dex per S atom: |d| <= 1.0
+   dex on held S2 keys, |d| <= 0.5 dex on all other held keys). For
+   authO_low_T3000 S2, the refit shift (0.000478 dex) is kept held as an
+   exception within 4.4 % of the 0.0005 threshold, while authO_high_T2500 S2
+   (0.000437 dex) is not held.
 2. Live 72-case gas-only equilibrium cross-comparison against atmodeller (60
    buffered cases with matched fO2 plus 12 authoritative-O cases) on the shared
-   volatile species (H2O, H2, O2, CO2, CO, CH4, N2, NH3, S2, SO2, H2S). Elemental
-   inventories are defined in moles (n_O = 0.5 n_H + 2 n_C + 2 n_S at the
-   stoichiometric H2O + CO2 + SO2 endpoint) and converted to mass per code with
-   that code's atomic masses (calliope.constants.molar_mass and molmass.Formula),
-   and surface gravity is matched to atmodeller.Planet.surface_gravity.
-   Across all 12 authoritative-O cases (1500 to 3000 K), solved log10(fO2) (O2 partial
-   pressure) agrees within expected +-0.005 dex (measured -0.0007 to +0.0026).
-   H2 follows DeltaK with H2O and O2, CO with CO2 and O2, CH4 with CO2, O2 and H2
-   (d_CH4 = DeltaK + d_CO2 - d_O2 + 2 d_H2), NH3 with N2 and H2; the relation holds
-   for the pinned values.
+   volatile species (H2O, H2, O2, CO2, CO, CH4, N2, NH3, S2, SO2, H2S). This
+   72-case grid is a regression snapshot of thermodynamic data that differ by
+   construction: the secondary-species pins follow from the K offsets and the
+   primary pins to within 1.5e-6 dex, and the CH4 and NH3 K differences remain
+   open. In the 60 buffered cases both codes receive CALLIOPE's
+   OxygenFugacity('fischer') fO2 (Fischer et al. 2011 fits the 1-bar curve to
+   Chase 1998 values in its supplement, while Eq. 2 is the pressure term; no
+   independent numerical pin of the Fischer 1-bar fit exists in the repository
+   test data). Elemental inventories are defined in moles (n_O = 0.5 n_H +
+   2 n_C + 2 n_S at the stoichiometric H2O + CO2 + SO2 endpoint) and converted
+   to mass per code with that code's atomic masses
+   (calliope.constants.molar_mass and molmass.Formula), and surface gravity is
+   matched to atmodeller.Planet.surface_gravity. Across all 12 authoritative-O
+   cases (1500 to 3000 K), solved log10(fO2) (O2 partial pressure) is pinned to
+   its per-case measured offset (-0.000732 to +0.002551 dex) +-0.005 dex
+   (-0.005732 to +0.007551 dex total). H2 follows DeltaK with H2O and O2, CO
+   with CO2 and O2, CH4 with CO2, O2 and H2 (d_CH4 = DeltaK + d_CO2 - d_O2 +
+   2 d_H2), NH3 with N2 and H2; the relation holds for the pinned values.
 """
 
 from __future__ import annotations
@@ -38,8 +55,8 @@ from typing import Any
 
 import numpy as np
 import pytest
-import scipy.optimize as opt
 
+import calliope.solve as solve_mod
 from calliope.chemistry import ModifiedKeq
 from calliope.constants import molar_mass, noble_gases, ocean_moles, volatile_species
 from calliope.oxygen_fugacity import OxygenFugacity
@@ -48,11 +65,26 @@ from calliope.solve import (
     atmosphere_mass,
     equilibrium_atmosphere,
     equilibrium_atmosphere_authoritative_O,
-    func,
-    func_authoritative_O,
 )
 
 logging.getLogger('fwl.calliope').setLevel(logging.WARNING)
+
+
+def _check_cross_code_required_env(module_name: str) -> None:
+    """Validate CHEM_CROSS_CODE_REQUIRED and enforce module presence when set to '1'."""
+    req = os.environ.get('CHEM_CROSS_CODE_REQUIRED')
+    if req not in (None, '', '0', '1'):
+        pytest.fail(f'Invalid CHEM_CROSS_CODE_REQUIRED={req!r}; expected unset, "0", or "1".')
+    if req == '1':
+        importlib.import_module(module_name)
+
+
+_check_cross_code_required_env('atmodeller')
+atmodeller = pytest.importorskip('atmodeller')
+molmass = pytest.importorskip('molmass')
+from atmodeller.containers import FixedFugacityConstraint, SolverParameters  # noqa: E402
+from atmodeller.output import OutputSolution  # noqa: E402
+from molmass import Formula  # noqa: E402
 
 pytestmark = [
     pytest.mark.integration,
@@ -98,10 +130,9 @@ NASA_GLENN_LOG10_K_REF: dict[float, dict[str, float]] = {
 }
 
 # Measured log10(K_CALLIOPE / K_NASA_Glenn) per mole of product at each temperature,
-# asserted within +-K_OFFSET_MARGIN_DEX (0.002 dex); H2S is held:
-# these keys depend on the janaf_H2S constant.
+# asserted within +-K_OFFSET_MARGIN_DEX (0.002 dex); H2S and NH3 are held.
 K_OFFSET_MARGIN_DEX: float = 0.002
-K_OFFSET_HELD_FOR_H2S_FIX: tuple[str, ...] = ('H2S',)
+K_OFFSET_HELD_FOR_H2S_FIX: tuple[str, ...] = ('H2S', 'NH3')
 K_OFFSET_EXPECTED_DEX: dict[float, dict[str, float]] = {
     1500.0: {
         'H2': -0.005993,
@@ -133,11 +164,13 @@ K_OFFSET_EXPECTED_DEX: dict[float, dict[str, float]] = {
     },
 }
 
-# Keys held (depend on janaf_H2S): buffered H2S; 188 buffered per-case keys (51 of them S2)
-# plus 3 authO S2 keys (191) shifting > half assert margin (0.0025 dex for 0.005 keys,
-# 0.0005 for authO majors) under the 0.5 S2 refit.
-BUFFERED_SPECIES_HELD_FOR_H2S_FIX: tuple[str, ...] = ('H2S',)
-AUTHO_HELD_FOR_H2S_FIX: tuple[str, ...] = ('H2S',)
+# Keys held for the janaf_H2S / janaf_NH3 refit: H2S, NH3, 188 buffered per-case keys
+# (51 S2, 17 NH3) and 3 authO S2 keys (318 total held grid keys).
+BUFFERED_SPECIES_HELD_FOR_H2S_FIX: tuple[str, ...] = ('H2S', 'NH3')
+AUTHO_HELD_FOR_H2S_FIX: tuple[str, ...] = ('H2S', 'NH3')
+# 0.5 dex per S atom gives 1.0 dex on held S2 keys and 0.5 dex on all other held keys.
+HELD_KEY_MAX_DEX: float = 0.5
+HELD_S2_KEY_MAX_DEX: float = 1.0
 AUTHO_CASE_KEYS_HELD_FOR_H2S_FIX: dict[str, tuple[str, ...]] = {
     'authO_default_T3000': ('S2',),
     'authO_high_T3000': ('S2',),
@@ -334,15 +367,15 @@ BUFFERED_CASE_KEYS_HELD_FOR_H2S_FIX: dict[str, tuple[str, ...]] = {
     ),
 }
 
-# Hold-table count assertions: 188 buffered keys (51 S2) and 3 authO S2 keys.
+# Hold-table count assertions: 188 buffered keys (51 S2, 17 NH3) and 3 authO S2 keys.
 assert sum(len(v) for v in BUFFERED_CASE_KEYS_HELD_FOR_H2S_FIX.values()) == 188
 assert sum('S2' in v for v in BUFFERED_CASE_KEYS_HELD_FOR_H2S_FIX.values()) == 51
+assert sum('NH3' in v for v in BUFFERED_CASE_KEYS_HELD_FOR_H2S_FIX.values()) == 17
 assert sum(len(v) for v in AUTHO_CASE_KEYS_HELD_FOR_H2S_FIX.values()) == 3
 assert sum('S2' in v for v in AUTHO_CASE_KEYS_HELD_FOR_H2S_FIX.values()) == 3
 
 # Measured log10(P_CALLIOPE / P_atmodeller) offsets at matched moles and g=9.930522 m s^-2
-# for H2S-independent keys (shift <= half assert margin: max 0.002411 dex for N2 in
-# buffered_default_T3000_IW-4), asserted within +-0.005 dex.
+# for H2S-independent keys (max H2S shift 0.002411 dex), asserted within +-0.005 dex.
 GRID_OFFSET_MARGIN_DEX: float = 0.005
 AUTHO_MAJOR_MARGIN_DEX: float = 0.001
 BUFFERED_EXPECTED_DEX: dict[str, dict[str, float]] = {
@@ -1048,13 +1081,6 @@ GAS_SPECIES_STOICH: dict[str, dict[str, int]] = {
 }
 
 
-def _import_sibling(module_name: str) -> Any:
-    """Import sibling equilibrium package, failing when CHEM_CROSS_CODE_REQUIRED=1 is set."""
-    if os.environ.get('CHEM_CROSS_CODE_REQUIRED') == '1':
-        return importlib.import_module(module_name)
-    return pytest.importorskip(module_name)
-
-
 def _assert_near_dex(
     actual_dex: float,
     expected_dex: float,
@@ -1068,6 +1094,19 @@ def _assert_near_dex(
         f'{label}: log10 offset {actual_dex:+.6f} dex outside '
         f'[{lo_dex:+.6f}, {hi_dex:+.6f}] dex '
         f'(expected {expected_dex:+.6f} +- {margin_dex:.4f})'
+    )
+
+
+def _assert_held_envelope_dex(
+    actual_dex: float,
+    species: str,
+    label: str,
+) -> None:
+    """Assert that a held key lies within its wide envelope (1.0 dex S2, 0.5 dex else)."""
+    limit_dex = HELD_S2_KEY_MAX_DEX if species == 'S2' else HELD_KEY_MAX_DEX
+    assert math.isfinite(actual_dex) and abs(actual_dex) <= limit_dex, (
+        f'{label}: held {species} log10 offset {actual_dex:+.6f} dex exceeds '
+        f'+-{limit_dex:.2f} dex envelope'
     )
 
 
@@ -1131,12 +1170,8 @@ def _solve_calliope_gas_only(
     target: dict[str, float],
     ddict: dict[str, float | int],
     autho: bool,
-) -> tuple[dict[str, float], bool]:
-    """Solve CALLIOPE gas-only equilibrium with nguess=1000.
-
-    Tracks whether preseed is used.
-    """
-    np.random.seed(42)
+) -> dict[str, float]:
+    """Solve CALLIOPE gas-only equilibrium with nguess=1000 using a local RNG."""
     kw: dict[str, Any] = {
         'rtol': 1.0e-5,
         'atol': 1.0e10,
@@ -1146,45 +1181,55 @@ def _solve_calliope_gas_only(
         'print_result': False,
     }
     fo2 = float(ddict['fO2_shift_IW'])
-    try:
-        if autho:
-            return (
-                equilibrium_atmosphere_authoritative_O(
-                    target, ddict, fO2_hint=fo2, random_seed=42, **kw
-                ),
-                False,
-            )
-        return equilibrium_atmosphere(target, ddict, **kw), False
-    except RuntimeError:
-        pass
-
-    scales = np.array(
-        [target[k] for k in (('H', 'C', 'N', 'S', 'O') if autho else ('H', 'C', 'N', 'S'))]
-    )
-    y0 = [5.0, 4.0, 2.0, -20.0, 6.0] if autho else [4.0, 3.0, 1.0, -15.0 if fo2 > 0 else 1.0]
-    lo = [-80.0] * 4 + ([-11.99] if autho else [])
-    hi = [14.0] * 4 + ([11.99] if autho else [])
-
-    def f_log(y: np.ndarray) -> np.ndarray:
-        yc = np.clip(y[:4], -80.0, 14.0)
-        x: list[float] = [float(np.exp(v)) for v in yc]
-        if autho:
-            x.append(float(np.clip(y[4], -11.99, 11.99)))
-            return np.asarray(func_authoritative_O(x, ddict, target)) / scales
-        return np.asarray(func(x, ddict, target)) / scales
-
-    res = opt.least_squares(
-        f_log, y0, bounds=(lo, hi), ftol=1.0e-14, xtol=1.0e-14, gtol=1.0e-14
-    )
-    p_g = {sp: float(np.exp(res.x[i])) for i, sp in enumerate(('H2O', 'CO2', 'N2', 'S2'))}
     if autho:
-        return (
-            equilibrium_atmosphere_authoritative_O(
-                target, ddict, fO2_hint=float(res.x[4]), p_guess=p_g, random_seed=42, **kw
-            ),
-            True,
+        return equilibrium_atmosphere_authoritative_O(
+            target, ddict, fO2_hint=fo2, random_seed=42, **kw
         )
-    return equilibrium_atmosphere(target, ddict, p_guess=p_g, **kw), True
+    rng = np.random.default_rng(42)
+    orig_get_init = solve_mod.get_initial_pressures
+
+    def _seeded_get_init(
+        target_d_arg: dict[str, float],
+        p_guess_max: float = solve_mod.P_GUESS_MAX_BAR,
+        n_extra: int = 0,
+    ) -> tuple[float, ...]:
+        hi = np.log10(p_guess_max)
+        lo = np.log10(solve_mod.P_GUESS_MIN_BAR)
+        return tuple(
+            float(10.0 ** rng.uniform(low=lo, high=hi)) for _ in range(4 + int(n_extra))
+        )
+
+    solve_mod.get_initial_pressures = _seeded_get_init
+    try:
+        return equilibrium_atmosphere(target, ddict, **kw)
+    finally:
+        solve_mod.get_initial_pressures = orig_get_init
+
+
+def test_held_key_envelope_and_required_env_guards(monkeypatch):
+    """Verify held-key envelope bounds (1.0 dex S2, 0.5 dex else) and env-flag validation."""
+    _assert_held_envelope_dex(0.99, 'S2', 'held S2 within bound')
+    _assert_held_envelope_dex(-0.99, 'S2', 'held S2 negative within bound')
+    with pytest.raises(AssertionError, match=r'exceeds \+-1\.00 dex envelope'):
+        _assert_held_envelope_dex(1.01, 'S2', 'held S2 above bound')
+    with pytest.raises(AssertionError, match=r'exceeds \+-1\.00 dex envelope'):
+        _assert_held_envelope_dex(-1.01, 'S2', 'held S2 below bound')
+
+    for sp in ('H2S', 'NH3', 'SO2', 'CH4', 'P_surf'):
+        _assert_held_envelope_dex(0.49, sp, f'held {sp} within bound')
+        _assert_held_envelope_dex(-0.49, sp, f'held {sp} negative within bound')
+        with pytest.raises(AssertionError, match=r'exceeds \+-0\.50 dex envelope'):
+            _assert_held_envelope_dex(0.51, sp, f'held {sp} above bound')
+        with pytest.raises(AssertionError, match=r'exceeds \+-0\.50 dex envelope'):
+            _assert_held_envelope_dex(-0.51, sp, f'held {sp} below bound')
+
+    for bad_val in ('true', 'yes', '2', 'false'):
+        monkeypatch.setenv('CHEM_CROSS_CODE_REQUIRED', bad_val)
+        with pytest.raises(pytest.fail.Exception, match='Invalid CHEM_CROSS_CODE_REQUIRED'):
+            _check_cross_code_required_env('atmodeller')
+    for ok_val in ('0', '1', ''):
+        monkeypatch.setenv('CHEM_CROSS_CODE_REQUIRED', ok_val)
+        _check_cross_code_required_env('math')
 
 
 def test_calliope_equilibrium_constants_and_reaction_quotients_vs_nasa_glenn(record_property):
@@ -1305,6 +1350,7 @@ def test_calliope_equilibrium_constants_and_reaction_quotients_vs_nasa_glenn(rec
         exp_k = K_OFFSET_EXPECTED_DEX[t_k]
         for sp, d_val in product_quotients.items():
             if sp in K_OFFSET_HELD_FOR_H2S_FIX:
+                _assert_held_envelope_dex(d_val, sp, f'{t_label} K_{sp}')
                 h2s_report_rows.append(f'{t_label}: d_log10_K_{sp}={d_val:+.6f} dex')
                 if int(t_k) == 1500 and sp == 'H2S':
                     assert abs(d_val - 0.287432) <= 0.02, (
@@ -1326,9 +1372,10 @@ def test_calliope_equilibrium_constants_and_reaction_quotients_vs_nasa_glenn(rec
 
 def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path):
     """Verify CALLIOPE vs atmodeller cross-code agreement over all 72 gas-only grid cases."""
-    atmodeller = _import_sibling('atmodeller')
-    from atmodeller.containers import FixedFugacityConstraint, SolverParameters
-    from molmass import Formula
+    report_env = os.environ.get('CHEM_SULFUR_REPORT_PATH')
+    report_path = Path(report_env) if report_env else (tmp_path / 'sulfur_72_case_report.tsv')
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text('case_id\td_H2S_dex\td_S2_dex\td_SO2_dex\n', encoding='utf-8')
 
     mass_ocean = float(ocean_moles * molar_mass['H2'])
     m_earth = 5.972e24
@@ -1449,6 +1496,7 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
         solver='robust',
         solver_parameters=solver_params,
     )
+    assert isinstance(mdl_buf.output, OutputSolution)
     buf_success = np.asarray(mdl_buf.output.multi_attempt_solution.solver_success, dtype=bool)
     buf_failed = [buffered_cases[i]['case_id'] for i in np.where(~buf_success)[0]]
     assert np.all(buf_success), f'atmodeller buffered solve failed on {buf_failed}'
@@ -1476,6 +1524,7 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
         solver='robust',
         solver_parameters=solver_params,
     )
+    assert isinstance(mdl_auth.output, OutputSolution)
     sol_auth = mdl_auth.output.multi_attempt_solution
     auth_success = np.asarray(sol_auth.solver_success, dtype=bool)
     auth_failed = [autho_cases[i]['case_id'] for i in np.where(~auth_success)[0]]
@@ -1483,15 +1532,9 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
     asdict_auth = mdl_auth.output.asdict()
     ptot_auth = np.asarray(mdl_auth.output.total_pressure())
 
-    report_env = os.environ.get('CHEM_SULFUR_REPORT_PATH')
-    report_path = Path(report_env) if report_env else (tmp_path / 'sulfur_72_case_report.tsv')
-    report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text('case_id\td_H2S_dex\td_S2_dex\td_SO2_dex\n', encoding='utf-8')
-
     sulfur_report_rows: list[str] = []
     expected_sulfur: dict[str, tuple[float, float, float]] = {}
     held_for_h2s_rows: list[str] = []
-    preseed_count = 0
 
     for idx, case in enumerate(buffered_cases):
         cid = case['case_id']
@@ -1502,11 +1545,7 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
             t_magma=case['T_K'],
             fo2_shift=case['fO2_shift_IW'],
         )
-        cal_out, used_preseed = _solve_calliope_gas_only(
-            case['cal_targets'], ddict, autho=False
-        )
-        if used_preseed:
-            preseed_count += 1
+        cal_out = _solve_calliope_gas_only(case['cal_targets'], ddict, autho=False)
 
         d_h2s_case = _guarded_log10_ratio(
             float(cal_out['H2S_bar']), float(asdict_buf['H2S_g']['pressure'][idx])
@@ -1537,8 +1576,9 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
 
         exp_case = BUFFERED_EXPECTED_DEX[cid]
         held_case = BUFFERED_CASE_KEYS_HELD_FOR_H2S_FIX.get(cid, ())
-        d_psurf = math.log10(float(cal_out['P_surf']) / float(ptot_buf[idx]))
+        d_psurf = _guarded_log10_ratio(float(cal_out['P_surf']), float(ptot_buf[idx]))
         if 'P_surf' in held_case:
+            _assert_held_envelope_dex(d_psurf, 'P_surf', f'{cid} P_surf')
             held_for_h2s_rows.append(f'{cid}:P_surf={d_psurf:+.6f}')
         else:
             _assert_near_dex(
@@ -1559,10 +1599,11 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
             ('H2S', 'H2S_g'),
             ('S2', 'S2_g'),
         ):
-            d_sp = math.log10(
-                float(cal_out[f'{sp_cal}_bar']) / float(asdict_buf[sp_atm]['pressure'][idx])
+            d_sp = _guarded_log10_ratio(
+                float(cal_out[f'{sp_cal}_bar']), float(asdict_buf[sp_atm]['pressure'][idx])
             )
             if sp_cal in BUFFERED_SPECIES_HELD_FOR_H2S_FIX or sp_cal in held_case:
+                _assert_held_envelope_dex(d_sp, sp_cal, f'{cid} {sp_cal}')
                 held_for_h2s_rows.append(f'{cid}:{sp_cal}={d_sp:+.6f}')
             else:
                 _assert_near_dex(
@@ -1595,13 +1636,11 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
             t_magma=case['T_K'],
             fo2_shift=case['fO2_shift_IW'],
         )
-        cal_out, used_preseed = _solve_calliope_gas_only(
+        cal_out = _solve_calliope_gas_only(
             case['cal_targets'],
             ddict,
             autho=True,
         )
-        if used_preseed:
-            preseed_count += 1
 
         d_h2s_case = _guarded_log10_ratio(
             float(cal_out['H2S_bar']), float(asdict_auth['H2S_g']['pressure'][idx])
@@ -1628,8 +1667,8 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
                 f'{cid} reconstructed {el} mass mismatch'
             )
 
-        # A 1e-9 relative O error shifts log10 fO2 by at most 2.7e-5 dex
-        # (largest at 1500 K).
+        # Measured relative O residuals (12 authO cases): CALLIOPE <= 1.17e-10 (rtol=1e-5),
+        # atmodeller <= 4.52e-11 (atol=1e-6); 1e-9 gives 8.5x/22x margins (<= 2.7e-5 dex fO2).
         cal_o_tgt = float(case['cal_targets']['O'])
         cal_o_rel = abs(rec_masses['O'] - cal_o_tgt) / cal_o_tgt
         assert cal_o_rel <= 1.0e-9, (
@@ -1654,7 +1693,7 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
 
         exp_case = AUTHO_EXPECTED_DEX[cid]
         _assert_near_dex(
-            math.log10(float(cal_out['P_surf']) / float(ptot_auth[idx])),
+            _guarded_log10_ratio(float(cal_out['P_surf']), float(ptot_auth[idx])),
             exp_case['P_surf'],
             AUTHO_MAJOR_MARGIN_DEX,
             f'{cid} P_surf',
@@ -1673,10 +1712,11 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
             ('H2S', 'H2S_g'),
             ('S2', 'S2_g'),
         ):
-            d_sp = math.log10(
-                float(cal_out[f'{sp_cal}_bar']) / float(asdict_auth[sp_atm]['pressure'][idx])
+            d_sp = _guarded_log10_ratio(
+                float(cal_out[f'{sp_cal}_bar']), float(asdict_auth[sp_atm]['pressure'][idx])
             )
             if sp_cal in AUTHO_HELD_FOR_H2S_FIX or sp_cal in held_auth_case:
+                _assert_held_envelope_dex(d_sp, sp_cal, f'{cid} {sp_cal}')
                 held_for_h2s_rows.append(f'{cid}:{sp_cal}={d_sp:+.6f}')
                 continue
             margin = (
@@ -1705,16 +1745,11 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
             f'{cid} Q_SO2',
         )
 
-    record_property('calliope_preseed_count', preseed_count)
-    assert preseed_count == 0, (
-        f'Expected 0 preseeded solves with nguess=1000, got {preseed_count}'
-    )
-
     record_property('held_for_h2s_fix_count', len(held_for_h2s_rows))
     record_property('held_for_h2s_fix_dex', '; '.join(held_for_h2s_rows))
-    # 263 held keys breakdown: 188 buffered per-case + 3 authO per-case
-    # + 60 buffered H2S + 12 authO H2S.
-    assert len(held_for_h2s_rows) == 263
+    # 318 held keys: 188 buffered per-case (incl. 17 NH3) + 3 authO S2 + 60 buffered H2S
+    # + 43 remaining buffered NH3 + 12 authO H2S + 12 authO NH3.
+    assert len(held_for_h2s_rows) == 318
 
     record_property('sulfur_72_case_report_dex', '\n'.join(sulfur_report_rows))
     print('72-case sulfur species log10(CALLIOPE/atmodeller) report [dex]:')

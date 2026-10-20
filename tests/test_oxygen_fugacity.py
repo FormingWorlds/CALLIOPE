@@ -49,13 +49,9 @@ def test_oxygen_fugacity_fischer_value_at_2000K_matches_published_fit():
     """
     fischer = OxygenFugacity('fischer')(2000.0)
     oneill = OxygenFugacity('oneill')(2000.0)
-    # Independent anchor: the cross-calibration offset between the two
-    # buffers. A coefficient error in either published fit shifts this
-    # offset away from 0.258 dex and fails the test.
+    # Cross-calibration offset between the two independent buffer fits.
     assert (fischer - oneill) == pytest.approx(0.258, abs=0.02)
-    # Regression check on the coded Fischer fit value (secondary; this
-    # line alone re-types the source formula and so cannot catch a
-    # source-side coefficient typo, which the offset anchor above does).
+    # Direct regression check on the coded Fischer 1-bar fit at 2000 K.
     assert fischer == pytest.approx(6.94059 - 28.1808e3 / 2000.0, rel=1e-4)
     # Wrong-buffer guard: a silent dispatch to 'oneill' lands 0.26 dex
     # away from the Fischer value.
@@ -129,10 +125,7 @@ def test_oxygen_fugacity_monotonic_in_T():
         high = of(3000.0)
         # Strict ordering: monotonic, not just non-decreasing.
         assert low < mid < high
-        # Discrimination: the 1500 K -> 3000 K delta is ~2 dex for
-        # Fischer (28180.8/1500 - 28180.8/3000 = 9.39). A regression
-        # that flipped the slope sign would invert the ordering above
-        # but pin the magnitude to catch a coefficient-only bug too.
+        # Discrimination: 1500 K -> 3000 K delta exceeds 1 dex for both fits.
         assert (high - low) > 1.0
 
 
@@ -150,12 +143,8 @@ def test_oxygen_fugacity_finite_over_realistic_temperature_range():
             for dIW in (-3.0, 0.0, 1.5):
                 val = of(T, fO2_shift=dIW)
                 assert math.isfinite(val)
-                # Bounded order-of-magnitude: log10(fO2) on the IW buffer
-                # stays in [-40, +5] over the 800-5000 K window for any
-                # dIW in [-3, +1.5]. The lower edge is set by the
-                # T = 800 K / dIW = -3 corner (~-31). Pin the envelope so
-                # a unit-conversion bug (e.g. log10 -> ln, factor 2.3)
-                # surfaces.
+                # log10(fO2) stays in [-40, +5] over 800-5000 K for dIW in [-3, +1.5];
+                # catches a log10 -> ln unit-conversion slip (factor 2.3).
                 assert -40 < val < 5
 
 
