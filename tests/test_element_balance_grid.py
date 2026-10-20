@@ -450,8 +450,8 @@ def test_element_balance_across_75_case_grid():
                             f'{case_id} seed={seed} {sp} p_s={p_s} != 0 for zero target'
                         )
                     else:
-                        # 1e-10 bar is CALLIOPE's solver p_guess truncation floor below
-                        # which trace speciation is not converged.
+                        # 1e-10 bar is the p_guess level below which the CALLIOPE solver
+                        # collapses the pressure bound to 1 bar.
                         p_floor = 1.0e-10  # bar
                         assert (p_ref > p_floor) == (p_s > p_floor), (
                             f'{case_id} seed={seed} {sp} p_bar floor mismatch: '
