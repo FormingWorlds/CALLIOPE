@@ -1232,7 +1232,14 @@ def test_held_key_envelope_and_required_env_guards(monkeypatch):
     with pytest.raises(AssertionError, match=r'exceeds \+-1\.00 dex envelope'):
         _assert_held_envelope_dex(-1.01, 'S2', 'held S2 below bound')
 
-    for sp in ('H2S', 'NH3', 'SO2', 'CH4', 'P_surf'):
+    _assert_held_envelope_dex(0.09, 'NH3', 'held NH3 within bound')
+    _assert_held_envelope_dex(-0.09, 'NH3', 'held NH3 negative within bound')
+    with pytest.raises(AssertionError, match=r'exceeds \+-0\.10 dex envelope'):
+        _assert_held_envelope_dex(0.11, 'NH3', 'held NH3 above bound')
+    with pytest.raises(AssertionError, match=r'exceeds \+-0\.10 dex envelope'):
+        _assert_held_envelope_dex(-0.11, 'NH3', 'held NH3 below bound')
+
+    for sp in ('H2S', 'SO2', 'CH4', 'P_surf'):
         _assert_held_envelope_dex(0.49, sp, f'held {sp} within bound')
         _assert_held_envelope_dex(-0.49, sp, f'held {sp} negative within bound')
         with pytest.raises(AssertionError, match=r'exceeds \+-0\.50 dex envelope'):
