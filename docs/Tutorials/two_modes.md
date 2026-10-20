@@ -49,7 +49,7 @@ O_kg = buffered['O_kg_total']
 print(f'Buffered mode: dIW input = {ddict["fO2_shift_IW"]:+.2f}, O_kg_total = {O_kg:.3e} kg')
 ```
 
-You should see something like `Buffered mode: dIW input = +1.00, O_kg_total = 1.036e+22 kg`. The total O is what the chemistry needed at $\Delta\mathrm{IW} = +1$ to balance the H, C, N, S budget against the buffer; it is a derived output, not a free knob.
+You should see something like `Buffered mode: dIW input = +1.00, O_kg_total = 1.036e+22 kg`. The total O is what the chemistry needed at $\Delta\mathrm{IW} = +1$ to balance the H, C, N, S budget against the buffer; it is a derived output, not a free parameter.
 
 ## Step 2: pass that O back through the authoritative-O entry point
 
@@ -113,7 +113,7 @@ residuals = recovered - diw_grid
 print('worst-case residual:', np.max(np.abs(residuals)))
 ```
 
-A warm-started sweep prints something like `worst-case residual: 2.2e-11`. Closure holds at solver precision because both entry points solve the same underlying system; the residual reflects fsolve's `xtol`, not any chemistry difference. If you remove the `p_guess` threading, expect occasional grid points where the buffered call lands in a spurious basin and the closure residual jumps by several orders of magnitude.
+A warm-started sweep prints something like `worst-case residual: 2.3e-11`. Closure holds at solver precision because both entry points solve the same underlying system; the residual reflects fsolve's `xtol`, not any chemistry difference. If you remove the `p_guess` threading, expect occasional grid points where the buffered call lands in a spurious basin and the closure residual jumps by several orders of magnitude.
 
 ## The goal of this tutorial
 
@@ -126,7 +126,7 @@ If your version of this plot does not land on the diagonal, the most likely caus
 ## When to pick which mode
 
 - **Buffered mode** is the right choice when you can specify the redox state directly: laboratory comparisons, exploratory parameter sweeps over $\Delta\mathrm{IW}$, anything where redox is an experimental variable rather than a derived quantity.
-- **Authoritative-O mode** is the right choice in a planetary coupling where you track the volatile O budget end-to-end (escape losses, ingassing, mantle-atmosphere partitioning), and the redox state should emerge from the chemistry rather than be imposed. This is the entry point PROTEUS uses when `planet.fO2_source = "from_O_budget"`.
+- **Authoritative-O mode** is the right choice in a planetary coupling where you track the volatile O budget in full (escape losses, ingassing, mantle-atmosphere partitioning), and the redox state should emerge from the chemistry rather than be imposed. This is the entry point PROTEUS uses when `planet.fO2_source = "from_O_budget"`.
 
 ## Where to go next
 

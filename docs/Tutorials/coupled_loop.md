@@ -151,7 +151,7 @@ In panel (a) the atmosphere stays carbon-dominated across the whole cooling rang
 
 Panel (b) shows the magma-volume effect cleanly. As $\Phi$ drops the shrinking melt reservoir pushes H$_2$O and S$_2$ into the atmosphere and the species tied to them by the gas-phase equilibria rise with them; CO, CO$_2$ and N$_2$ change little in relative terms. The total surface pressure rises by about 6 % across the $\Phi = 1 \to 0.5$ step, and CO, CO$_2$, H$_2$O and H$_2$ supply almost all of the 90 bar increase.
 
-The wall-time annotation is the most pedagogically important number on the plot. The total wall time is dominated by the cold-start step; warm steps are typically order milliseconds each across both phases, even though phase 2 changes a different state variable than phase 1. This is what makes long PROTEUS runs ($10^4$ or more outer-loop iterations) feasible: each CALLIOPE call costs essentially nothing once the basin is found.
+The wall-time annotation is the most pedagogically important number on the plot. The time of a single step, the cold start included, varies from run to run, so the annotation shows no fixed split between steps; warm steps typically take about a millisecond each in both phases, even though phase 2 changes a different state variable than phase 1. This is what makes long PROTEUS runs ($10^4$ or more outer-loop iterations) feasible: each CALLIOPE call costs essentially nothing once the basin is found.
 
 ## Where to go next
 
