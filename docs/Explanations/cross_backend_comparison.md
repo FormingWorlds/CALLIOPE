@@ -37,7 +37,7 @@ Four axes contribute to cross-backend $\Delta\mathrm{IW}$ disagreement. Two can 
 
 | Axis | CALLIOPE | atmodeller | Aligned by default? |
 |---|---|---|---|
-| IW buffer | Fischer et al. 2011 [^cite-fischer2011] (current default, see below); O'Neill & Eggins 2002 [^cite-oneilleggins2002] available as legacy `'oneill'` | Hirschmann composite (Hirschmann et al. 2008 [^cite-hirschmann2008] below 1000 K, Hirschmann 2021 [^cite-hirschmann2021] above) | Close (Fischer is within ~0.2 dex of Hirschmann across the magma-ocean range) |
+| IW buffer | Fischer et al. 2011 [^cite-fischer2011] (current default, see below); O'Neill & Eggins 2002 [^cite-oneilleggins2002] available as legacy `'oneill'` | Hirschmann composite (Hirschmann et al. 2008 [^cite-hirschmann2008] below 1000 K, Hirschmann 2021 [^cite-hirschmann2021] above) | Close at magma-ocean temperatures: Fischer minus Hirschmann is $-0.226$ dex at 1500 K and $+0.109$ dex at 3000 K ($-0.424$ dex at 1000 K) |
 | H$_2$O solubility | Sossi et al. 2023 [^cite-sossi2023] peridotite | `H2O_peridotite_sossi23` | Yes |
 | CO$_2$ solubility | Dixon et al. 1995 [^cite-dixon1995] basalt | `CO2_basalt_dixon95` | Yes |
 | N$_2$ solubility | Dasgupta et al. 2022 [^cite-dasgupta2022] | `N2_basalt_dasgupta22` | Yes |
