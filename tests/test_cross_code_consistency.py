@@ -25,15 +25,15 @@ Verifies:
    on held S2 keys; |d| <= 0.1 dex on held NH3 keys; |d| <= 0.5 dex on all other
    held keys). Under the
    700-5000 K JANAF refit constants (janaf_H2S = 9440.174611 / T - 5.16908096,
-   janaf_NH3 = 5648.850436 / T - 12.15151238), the largest non-held shifts are
-   +0.002294 dex on N2 in buffered_default_T3000_IW-4 for the janaf_H2S refit
-   (-0.002022 dex on N2 in buffered_high_T1500_IW-2 for the janaf_NH3 refit,
-   +0.002357 dex with both refits; +0.002411 dex under direct NASA Glenn H2S
-   K_p substitution); authO_low_T3000 S2 shifts by -0.000425 dex under the
-   janaf_H2S refit (-0.000478 dex under direct NASA Glenn H2S K_p substitution,
-   kept held), while authO_high_T2500 S2 shifts by -0.000390 dex (-0.000383 dex
-   with both refits, -0.000437 dex under direct NASA Glenn substitution, not
-   held).
+   janaf_NH3 = 5648.850436 / T - 12.15151238), patched into ModifiedKeq for
+   the CALLIOPE grid against the same atmodeller pressures, the largest
+   non-held shifts are +0.002294 dex on N2 in buffered_default_T3000_IW-4 for
+   the janaf_H2S refit (-0.002022 dex on N2 in buffered_high_T1500_IW-2 for the
+   janaf_NH3 refit, +0.002357 dex with both refits). Two keys below the
+   half-margin rule are held because their janaf_H2S refit shift is within 15 %
+   of it: authO_low_T3000 S2 (-0.000425 of 0.0005 dex) and
+   buffered_high_T2000_IW+4 SO2 (-0.002268 of 0.0025 dex); authO_high_T2500 S2
+   (-0.000390 dex) is not held.
 2. Live 72-case gas-only equilibrium cross-comparison against atmodeller (60
    buffered cases with matched fO2 plus 12 authoritative-O cases) on the shared
    volatile species (H2O, H2, O2, CO2, CO, CH4, N2, NH3, S2, SO2, H2S). This
@@ -48,7 +48,7 @@ Verifies:
    numerical pin of the Fischer 1-bar fit exists in the repository test data).
    Buffered CALLIOPE solves draw initial guesses from a local default_rng(42)
    copy of get_initial_pressures so multi-start draws do not mutate global NumPy
-   RNG state while keeping the pinned trajectories unchanged. Elemental
+   RNG state while keeping the pinned roots unchanged. Elemental
    inventories are defined in moles (n_O = 0.5 n_H + 2 n_C + 2 n_S at the
    stoichiometric H2O + CO2 + SO2 endpoint) and converted to mass per code with
    that code's atomic masses (calliope.constants.molar_mass and molmass.Formula),

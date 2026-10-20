@@ -89,4 +89,4 @@ jobs:
         with:
           name: calliope-atmodeller-sulfur-72-case-report
           path: sulfur_72_case_report.tsv
-          if-no-files-found: warn
+          if-no-files-found: error
