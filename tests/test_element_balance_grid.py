@@ -482,10 +482,9 @@ def test_element_balance_across_75_case_grid():
                             f'{case_id} seed={seed} {sp} p_s={p_s} != 0 for zero target'
                         )
                     else:
-                        # 1e-10 bar floor reflects solver mass resolution atol/(area*1e5/g)
-                        # (~1.94e-9 bar for Earth). Trace species below this floor
-                        # (such as CH4 at ~8.76e-19 bar in authO_default_T2000) are not
-                        # seed-checked.
+                        # Floor 1e-10 bar reflects solver mass resolution atol/(area*1e5/g)
+                        # (~1.94e-9 bar Earth); species below floor (CH4 8.76e-19 bar in
+                        # authO_default_T2000) are not seed-checked.
                         p_floor = 1.0e-10  # bar
                         assert (p_ref > p_floor) == (p_s > p_floor), (
                             f'{case_id} seed={seed} {sp} p_bar floor mismatch: '

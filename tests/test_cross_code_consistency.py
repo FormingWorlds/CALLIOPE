@@ -133,10 +133,9 @@ K_OFFSET_EXPECTED_DEX: dict[float, dict[str, float]] = {
     },
 }
 
-# Keys held: these keys depend on the janaf_H2S constant:
-# buffered H2S, S2 on 51 buffered cases, and 188 held per-case keys whose offset
-# shifts by > half the assert margin (0.0025 dex for 0.005-margin keys, 0.0005 for authO
-# majors) under the S2-coefficient-0.5 janaf_H2S refit.
+# Keys held (depend on janaf_H2S): buffered H2S, S2 on 51 buffered cases and 188 held
+# per-case keys shifting > half assert margin (0.0025 dex for 0.005 keys, 0.0005 for
+# authO majors) under the 0.5 S2 refit.
 BUFFERED_SPECIES_HELD_FOR_H2S_FIX: tuple[str, ...] = ('H2S',)
 AUTHO_HELD_FOR_H2S_FIX: tuple[str, ...] = ('H2S',)
 AUTHO_CASE_KEYS_HELD_FOR_H2S_FIX: dict[str, tuple[str, ...]] = {
@@ -335,11 +334,9 @@ BUFFERED_CASE_KEYS_HELD_FOR_H2S_FIX: dict[str, tuple[str, ...]] = {
     ),
 }
 
-# Measured per-case log10(P_CALLIOPE / P_atmodeller) offsets at matched moles
-# and g_surf = 9.930522 m s^-2
-# for all H2S-independent keys (shift <= half the assert margin: 0.0025 dex for
-# 0.005-margin keys, 0.0005 for authO majors; largest asserted shift is 0.002411 dex for
-# buffered_default_T3000_IW-4 N2), asserted within +-0.005 dex.
+# Measured log10(P_CALLIOPE / P_atmodeller) offsets at matched moles and g=9.930522 m s^-2
+# for H2S-independent keys (shift <= half assert margin: max 0.002411 dex for N2 in
+# buffered_default_T3000_IW-4), asserted within +-0.005 dex.
 GRID_OFFSET_MARGIN_DEX: float = 0.005
 AUTHO_MAJOR_MARGIN_DEX: float = 0.001
 BUFFERED_EXPECTED_DEX: dict[str, dict[str, float]] = {
