@@ -244,6 +244,49 @@ def _build_grid_cases() -> list[dict]:
     return cases
 
 
+def _construct_zero_target_p_guess(
+    target: dict[str, float],
+    randomize: bool = False,
+) -> dict[str, float] | None:
+    """Construct an initial guess respecting zero-target elements.
+
+    When any element among ('H', 'C', 'N', 'S') has a zero target, return a guess
+    with zero pressure for species containing zero-target elements. When randomize is
+    True, draw non-zero slots from the active NumPy random generator.
+    """
+    if not any(float(target.get(el, 1.0)) == 0.0 for el in ('H', 'C', 'N', 'S')):
+        return None
+    if randomize:
+        return {
+            'H2O': (
+                float(10 ** np.random.uniform(low=-1.0, high=2.0))
+                if float(target.get('H', 1.0)) > 0
+                else 0.0
+            ),
+            'CO2': (
+                float(10 ** np.random.uniform(low=0.0, high=3.0))
+                if float(target.get('C', 1.0)) > 0
+                else 0.0
+            ),
+            'N2': (
+                float(10 ** np.random.uniform(low=-2.0, high=1.0))
+                if float(target.get('N', 1.0)) > 0
+                else 0.0
+            ),
+            'S2': (
+                float(10 ** np.random.uniform(low=-2.0, high=1.0))
+                if float(target.get('S', 1.0)) > 0
+                else 0.0
+            ),
+        }
+    return {
+        'H2O': 10.0 if float(target.get('H', 1.0)) > 0 else 0.0,
+        'CO2': 100.0 if float(target.get('C', 1.0)) > 0 else 0.0,
+        'N2': 1.0 if float(target.get('N', 1.0)) > 0 else 0.0,
+        'S2': 1.0 if float(target.get('S', 1.0)) > 0 else 0.0,
+    }
+
+
 def test_element_balance_across_75_case_grid():
     """Verify species-reconstructed elemental mass conservation across all 75 grid cases."""
     cases = _build_grid_cases()
@@ -276,16 +319,7 @@ def test_element_balance_across_75_case_grid():
             )
             checked_elements = ('H', 'C', 'N', 'S', 'O')
         else:
-            p_guess = (
-                {
-                    'H2O': 10.0 if float(target.get('H', 1.0)) > 0 else 0.0,
-                    'CO2': 100.0 if float(target.get('C', 1.0)) > 0 else 0.0,
-                    'N2': 1.0 if float(target.get('N', 1.0)) > 0 else 0.0,
-                    'S2': 1.0 if float(target.get('S', 1.0)) > 0 else 0.0,
-                }
-                if any(float(target.get(el, 1.0)) == 0.0 for el in ('H', 'C', 'N', 'S'))
-                else None
-            )
+            p_guess = _construct_zero_target_p_guess(target, randomize=False)
             out = equilibrium_atmosphere(
                 target,
                 ddict,
@@ -361,6 +395,7 @@ def test_element_balance_across_75_case_grid():
             'budget_cmb_singleimpact_T2000_IW+1',
             'authO_default_T2000',
         ):
+            seed_x0s: list[tuple[float, float, float, float]] = []
             for seed in (0, 1, 2, 3, 4):
                 np.random.seed(seed)
                 if case['mode'] == 'authoritative_O':
@@ -376,19 +411,16 @@ def test_element_balance_across_75_case_grid():
                         opt_solver=False,
                     )
                 else:
-                    has_zero_target = any(
-                        float(target.get(el, 1.0)) == 0.0 for el in ('H', 'C', 'N', 'S')
-                    )
-                    p_guess = (
-                        {
-                            'H2O': 10.0 if float(target.get('H', 1.0)) > 0 else 0.0,
-                            'CO2': 100.0 if float(target.get('C', 1.0)) > 0 else 0.0,
-                            'N2': 1.0 if float(target.get('N', 1.0)) > 0 else 0.0,
-                            'S2': 1.0 if float(target.get('S', 1.0)) > 0 else 0.0,
-                        }
-                        if has_zero_target
-                        else None
-                    )
+                    p_guess = _construct_zero_target_p_guess(target, randomize=True)
+                    if p_guess is not None:
+                        seed_x0s.append(
+                            (
+                                p_guess['H2O'],
+                                p_guess['CO2'],
+                                p_guess['N2'],
+                                p_guess['S2'],
+                            )
+                        )
                     out_s = equilibrium_atmosphere(
                         target,
                         ddict,
@@ -450,8 +482,10 @@ def test_element_balance_across_75_case_grid():
                             f'{case_id} seed={seed} {sp} p_s={p_s} != 0 for zero target'
                         )
                     else:
-                        # 1e-10 bar is the p_guess level below which the CALLIOPE solver
-                        # collapses the pressure bound to 1 bar.
+                        # 1e-10 bar floor reflects solver mass resolution atol/(area*1e5/g)
+                        # (~1.94e-9 bar for Earth). Trace species below this floor
+                        # (such as CH4 at ~8.76e-19 bar in authO_default_T2000) are not
+                        # seed-checked.
                         p_floor = 1.0e-10  # bar
                         assert (p_ref > p_floor) == (p_s > p_floor), (
                             f'{case_id} seed={seed} {sp} p_bar floor mismatch: '
@@ -463,6 +497,29 @@ def test_element_balance_across_75_case_grid():
                                 f'{case_id} seed={seed} {sp} p_bar offset '
                                 f'{diff_dex:.4e} dex > 1e-4 dex'
                             )
+            if seed_x0s:
+                assert len(set(seed_x0s)) >= 2, (
+                    f'{case_id}: all seeds started from identical x0'
+                )
+
+        if case_id == 'budget_tutorial_earth_T2000_IW+2':
+            # Zero-target species with p_guess=None stay below solver atol
+            # (1.0e10 kg, ~1.94e-9 bar for Earth).
+            out_none = equilibrium_atmosphere(
+                target,
+                ddict,
+                p_guess=None,
+                rtol=RTOL_DERIVED,
+                atol=ATOL_KG,
+                xtol=1.0e-8,
+                print_result=False,
+                opt_solver=False,
+            )
+            for sp in ('N2', 'NH3', 'S2', 'SO2', 'H2S'):
+                assert out_none[f'{sp}_kg_total'] <= ATOL_KG, (
+                    f'{case_id} p_guess=None {sp} mass '
+                    f'{out_none[f"{sp}_kg_total"]!r} > atol {ATOL_KG!r}'
+                )
 
 
 def test_species_to_element_summation_and_residual_vectors():
