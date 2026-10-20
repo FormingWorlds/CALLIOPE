@@ -3,9 +3,26 @@ from __future__ import annotations
 
 import logging
 
+import numpy as np
+
 from .oxygen_fugacity import DEFAULT_FO2_MODEL, OxygenFugacity
 
 log = logging.getLogger('fwl.' + __name__)
+
+# Lower end of the janaf_H2S and janaf_NH3 fit range [K]; below it the fits extrapolate.
+JANAF_FIT_T_MIN = 700.0
+_WARNED_BELOW_FIT: set[str] = set()
+
+
+def _warn_below_fit(name, T):
+    """Log one warning per process for `name` when any T is below the fit range or NaN."""
+    if name not in _WARNED_BELOW_FIT and not np.min(T) >= JANAF_FIT_T_MIN:
+        _WARNED_BELOW_FIT.add(name)
+        log.warning(
+            '%s is fitted over 700-5000 K; T = %.1f K extrapolates the fit (logged once)',
+            name,
+            np.min(T),
+        )
 
 
 class ModifiedKeq:
@@ -50,11 +67,13 @@ class ModifiedKeq:
         return (37774.0 / T - 7.6128, 0)
 
     def janaf_H2S(self, T):
-        # JANAF log10Keq for S2 + 2 H2 = 2 H2S (doubled form), fit over 700-5000 K
+        """JANAF log10Keq for S2 + 2 H2 = 2 H2S (doubled form), valid 700-5000 K (fit range)"""
         # Per mole: log Kf(H2S) - 0.5 log Kf(S2); see `tools/fit_H2S.ipynb`
+        _warn_below_fit('janaf_H2S', T)
         return (9440.174611 / T - 5.16908096, 0)
 
     def janaf_NH3(self, T):
-        # JANAF log10Keq for N2 + 3 H2 = 2 NH3 (doubled form), fit over 700-5000 K
+        """JANAF log10Keq for N2 + 3 H2 = 2 NH3 (doubled form), valid 700-5000 K (fit range)"""
         # Per mole: log Kf(NH3); see `tools/fit_NH3.ipynb`
+        _warn_below_fit('janaf_NH3', T)
         return (5648.850436 / T - 12.15151238, 0)
