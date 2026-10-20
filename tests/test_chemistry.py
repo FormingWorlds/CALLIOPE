@@ -23,11 +23,13 @@ Physics invariants:
 
 from __future__ import annotations
 
+import logging
 import math
 
 import numpy as np
 import pytest
 
+from calliope import chemistry
 from calliope.chemistry import ModifiedKeq
 
 pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
@@ -219,3 +221,49 @@ def test_janaf_coefficients_are_least_squares_fit_of_janaf_rows(janaf_log_k, pro
     # atol because the doubled H2S log K crosses zero near 1830 K.
     np.testing.assert_allclose(fit, slope / T + intercept, rtol=1e-6, atol=1e-6)
     assert fit[0] > fit[-1]
+
+
+@pytest.fixture
+def fit_range_warnings(monkeypatch, caplog):
+    """Fresh once-per-process warning state; returns the log capture."""
+    monkeypatch.setattr(chemistry, '_WARNED_BELOW_FIT', set(), raising=False)
+    caplog.set_level(logging.WARNING, logger='fwl.calliope.chemistry')
+    return caplog
+
+
+@pytest.mark.parametrize('product', ['H2S', 'NH3'], ids=['hydrogen_sulfide', 'ammonia'])
+def test_janaf_fit_warns_once_below_fit_range(fit_range_warnings, product):
+    """Below 700 K the fit extrapolates: one warning per process and constant, naming T."""
+    method = getattr(ModifiedKeq(f'janaf_{product}'), f'janaf_{product}')
+    method(JANAF_FIT_RANGE_K[0])
+    assert fit_range_warnings.records == []
+    for T in (699.0, 300.0, np.array([600.0, 800.0])):
+        method(T)
+    assert len(fit_range_warnings.records) == 1
+    record = fit_range_warnings.records[0]
+    assert record.levelno == logging.WARNING
+    assert f'janaf_{product}' in record.getMessage()
+    assert 'T = 699.0 K' in record.getMessage()
+    other = 'NH3' if product == 'H2S' else 'H2S'
+    getattr(ModifiedKeq(f'janaf_{other}'), f'janaf_{other}')(650.0)
+    assert len(fit_range_warnings.records) == 2
+
+
+def test_janaf_fit_warning_edges_and_other_constants(fit_range_warnings):
+    """No warning inside 700-5000 K, at inf, or for constants without this fit range; NaN warns."""
+    for name in (
+        'janaf_H2',
+        'janaf_CO',
+        'janaf_SO2',
+        'schaefer_CH4',
+        'schaefer_C',
+        'schaefer_H',
+    ):
+        getattr(ModifiedKeq(name), name)(500.0)
+    for name in ('janaf_H2S', 'janaf_NH3'):
+        getattr(ModifiedKeq(name), name)(np.array([700.0, 1500.0, 5000.0, np.inf]))
+    assert fit_range_warnings.records == []
+    assert chemistry._WARNED_BELOW_FIT == set()
+    ModifiedKeq('janaf_H2S').janaf_H2S(float('nan'))
+    assert len(fit_range_warnings.records) == 1
+    assert chemistry._WARNED_BELOW_FIT == {'janaf_H2S'}
