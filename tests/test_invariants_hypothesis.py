@@ -25,7 +25,8 @@ import pytest
 # hypothesis`` at module top.
 pytest.importorskip('hypothesis')
 
-from hypothesis import given, settings  # noqa: E402
+import numpy as np  # noqa: E402
+from hypothesis import example, given, settings  # noqa: E402
 from hypothesis import strategies as st  # noqa: E402
 
 from calliope import chemistry  # noqa: E402
@@ -239,12 +240,14 @@ def test_modified_keq_finite_positive(T, dIW):
 
 
 @given(T=st.floats(min_value=1.0, max_value=1.0e4))
+@example(T=float(np.nextafter(700.0, 0.0)))
+@example(T=700.0)
 @settings(deadline=None, max_examples=200)
 def test_janaf_fit_range_warning_only_below_700K(T):
     """`janaf_H2S` and `janaf_NH3` warn once below 700 K and never from 700 K up."""
     for name in ('janaf_H2S', 'janaf_NH3'):
         with (
-            mock.patch.object(chemistry, '_WARNED_BELOW_FIT', set(), create=True) as warned,
+            mock.patch.object(chemistry, '_WARNED_BELOW_FIT', set()) as warned,
             mock.patch.object(chemistry.log, 'warning') as warn,
         ):
             getattr(ModifiedKeq(name), name)(T)
