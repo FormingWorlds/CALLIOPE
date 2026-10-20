@@ -15,17 +15,16 @@ _WARNED_BELOW_FIT: set[str] = set()
 
 
 def _warn_below_fit(name, T):
-    """Log one warning per process for `name` when T, or an entry of T, is below the fit range.
-
-    NaN entries are skipped, so a NaN input neither warns nor uses up the warning.
-    """
+    """Log one warning per process for `name` when any non-NaN entry of T is below the fit range."""
     if name in _WARNED_BELOW_FIT:
         return
-    t_min = T if isinstance(T, float) else np.fmin.reduce(np.ravel(T), initial=np.inf)
+    t_min = (
+        T if isinstance(T, float) else np.fmin.reduce(np.ravel(T), initial=np.inf, dtype=float)
+    )
     if t_min < JANAF_FIT_T_MIN:
         _WARNED_BELOW_FIT.add(name)
         log.warning(
-            '%s is fitted from %g K up; T = %s K extrapolates the fit (logged once per process)',
+            '%s fit range starts at %g K; T = %s K extrapolates the fit (logged once per process)',
             name,
             JANAF_FIT_T_MIN,
             float(t_min),
