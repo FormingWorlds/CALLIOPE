@@ -5,14 +5,13 @@ behaviour of `calliope.oxygen_fugacity` against published sources.
 
 | Test id | Reference | Source page | Scope |
 |---|---|---|---|
-| `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_matches_published_fit` | Fischer et al. (2011) [^cite-fischer2011], EPSL 304, 496, Eq. 2; cross-checked against O'Neill & Eggins (2002) [^cite-oneilleggins2002] | [doi:10.1016/j.epsl.2011.02.025](https://doi.org/10.1016/j.epsl.2011.02.025) | Pins the Fischer-vs-O'Neill cross-calibration offset (0.258 dex at T = 2000 K) as the independent anchor, with a secondary regression check on the coded Fischer fit `6.94059 - 28.1808e3 / T` and a wrong-buffer discrimination guard against O'Neill & Eggins (2002) at the same T. |
+| `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_cross_check_and_regression` | Fischer et al. (2011) [^cite-fischer2011], EPSL 304, 496; cross-checked against O'Neill & Eggins (2002) [^cite-oneilleggins2002] | [doi:10.1016/j.epsl.2011.02.025](https://doi.org/10.1016/j.epsl.2011.02.025) | Pins the coded Fischer-vs-O'Neill offset (0.258 dex at T = 2000 K) and the coded Fischer expression `6.94059 - 28.1808e3 / T` as regression checks, with a wrong-buffer discrimination guard against O'Neill & Eggins (2002) at the same T. |
 | `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_hirschmann_value_at_1473K_matches_published_figure` | Hirschmann (2021) [^cite-hirschmann2021], GCA 313, 74, Table 1 and Fig. 5 | [doi:10.1016/j.gca.2021.08.039](https://doi.org/10.1016/j.gca.2021.08.039) | Pins the 1 bar value at T = 1473 K (-11.957) against the IW value read from Fig. 5 (~-11.94, 0.05 dex tolerance), with wrong-buffer guards against Fischer (2011) and O'Neill & Eggins (2002). |
 | `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_hirschmann_low_pressure_slope_matches_volume_change` | Analytical limit: d log10 fO2 / dP = 2 dV / (R T ln 10) | Hirschmann (2021) Appendix A for V(FeO) | The 0-1 GPa slope of the fit matches the room-temperature volume change of Fe + 1/2 O2 = FeO within 15% at 1200, 2000 and 3000 K. The fit runs 7-10% higher than this estimate. |
 
 ## Re-derivation note
 
-`OxygenFugacity('fischer')` implements Fischer et al. (2011) Eq. 2 for
-the iron-wüstite (IW) buffer:
+Fischer et al. (2011) calculate the 1-bar Fe-FeO curve from Chase (1998) (Fig. 6) and add the pressure integral of their Eq. 2; their supplement (Table S2) gives a P-T polynomial. The source of this 2-term form is not stated in the paper body. `OxygenFugacity('fischer')` evaluates:
 
 ```
 log10(fO2)_IW(T) = 6.94059 - 28.1808e3 / T
@@ -57,20 +56,24 @@ not silently move the test's reference point.
 
 ## Anchor type
 
-Cross-implementation cross-check plus published benchmark. The
-independent anchor is the cross-calibration offset between the Fischer
-(2011) and O'Neill & Eggins (2002) IW fits, which are coded from separate
-published formulae; the offset is independent of either single fit, so a
-coefficient error in either moves it and fails the test. The coded
-Fischer value is pinned as a secondary regression check, and the O'Neill
-value also serves as the wrong-buffer discrimination guard.
+Cross-implementation cross-check and regression check. Neither the Fischer
+et al. (2011) supplementary file, nor the Chase (1998) JANAF Fe, FeO, and
+O2 tables, are present in the repository test data, and the source of the
+coded 2-term form is not stated in the paper body, so no independent
+numerical pin of the Fischer 1-bar fit exists. The test pins the 0.258 dex
+offset between the coded `OxygenFugacity.fischer` and
+`OxygenFugacity.oneill` expressions at 2000 K alongside the closed-form
+evaluation `6.94059 - 28.1808e3 / T` as regression checks, and uses the
+O'Neill & Eggins (2002) value as the wrong-buffer discrimination guard.
 
 ## Cross-references
 
-- `src/calliope/oxygen_fugacity.py` lines 61-103: implementations of the
-  three buffers, with a comment at line 71 pinning the `8.31441` constant
-  to the literal O'Neill & Eggins (2002) value (do not replace with
-  `constants.R_gas`). `DEFAULT_FO2_MODEL` at line 15 names the default.
+- `src/calliope/oxygen_fugacity.py` (`OxygenFugacity.hirschmann`,
+  `OxygenFugacity.fischer` and `OxygenFugacity.oneill`): implementations of
+  the three buffers, with an inline comment in `OxygenFugacity.oneill`
+  pinning the `8.31441` constant to the literal O'Neill & Eggins (2002)
+  value (do not replace with `constants.R_gas`). `DEFAULT_FO2_MODEL` names
+  the default.
 - `docs/Explanations/oxygen_fugacity.md`: user-facing concept page with
   the empirical anchor (Earth ~ IW+3.5, Mars ~ IW, Mercury IW-3 to IW-5)
   for both buffers.

@@ -65,7 +65,7 @@ You should see (default Hirschmann 2021 IW buffer):
 
 ```
 Earth: P_surf = 1448.5 bar, M_atm = 7.53e+21 kg
-Mars : P_surf =  225.7 bar, M_atm = 8.78e+20 kg
+Mars : P_surf =  225.7 bar, M_atm = 8.79e+20 kg
 ```
 
 With `'fO2_model': 'fischer'` added to `ddict` you get $1449.4$ and $225.9$ bar instead; at $T = 2500$ K the two buffers differ by only $0.01$ dex.

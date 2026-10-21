@@ -63,8 +63,10 @@ class OxygenFugacity:
     def fischer(self, T):
         """Fischer et al. (2011) IW (FeO equation of state, EPSL 304, 496).
 
-        The coefficients are the p = 1 bar isoline of their Figure 6,
-        obtained by integrating their Equation 2.
+        Fischer et al. (2011) calculate the 1-bar Fe-FeO curve from Chase (1998)
+        (Fig. 6) and add the pressure integral of their Eq. 2; their supplement
+        (Table S2) gives a P-T polynomial. The source of this 2-term form is not
+        stated in the paper body.
         """
         return 6.94059 - 28.1808 * 1e3 / T
 

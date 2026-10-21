@@ -283,14 +283,15 @@ class TestEquilibriumChemistry:
         assert abs(p_code - p_wrong_stoich) > 0.5 * p_expected
 
     @pytest.mark.parametrize('T', [1500.0, 2000.0, 2500.0, 3000.0])
-    def test_H2S_equilibrium(self, T):
-        """p_H2S from code matches analytical K_f * p_S2^0.5 * p_H2."""
+    def test_H2S_equilibrium(self, T, janaf_log_k):
+        """p_H2S matches K_f * p_S2^0.5 * p_H2 with K_f from the JANAF row at T, and
+        get_partial_pressures applies these exponents."""
         p_S2 = 0.01
         p_H2 = 0.1
 
-        # Analytical: K_f for 0.5 S2 + H2 -> H2S
-        log10_Kf = 6731.01547 / T - 3.62273031
-        Kf = 10.0**log10_Kf
+        # K_f for 0.5 S2 + H2 -> H2S; the fit misses these rows by < 0.004 dex (< 1 %).
+        T_rows, log10_Kf = janaf_log_k('H2S')
+        Kf = 10.0 ** log10_Kf[T_rows == T][0]
         p_expected = Kf * p_S2**0.5 * p_H2
 
         # Code path
@@ -298,7 +299,7 @@ class TestEquilibriumChemistry:
         Geq = mk(T, 0.0)
         p_code = (Geq * p_S2 * p_H2**2) ** 0.5
 
-        assert p_code == pytest.approx(p_expected, rel=1e-6), (
+        assert p_code == pytest.approx(p_expected, rel=0.015), (
             f'H2S at {T}K: code={p_code:.6e}, expected={p_expected:.6e}'
         )
 
@@ -309,15 +310,26 @@ class TestEquilibriumChemistry:
         p_wrong_stoich = Kf * p_S2 * p_H2
         assert abs(p_code - p_wrong_stoich) > 0.5 * p_expected
 
+        # Exponents in solve.get_partial_pressures at p_S2 << p_H2, where swapping
+        # the S2 and H2 exponents changes p_H2S by the factor (p_S2 / p_H2)^0.5.
+        from calliope.solve import get_partial_pressures
+
+        pin = {'H2O': 1.0, 'CO2': 1e-30, 'N2': 1e-30, 'S2': 1e-4}
+        p_d = get_partial_pressures(pin, _make_ddict(T=T, fO2_shift=0.0))
+        k = Geq**0.5
+        assert p_d['H2S'] == pytest.approx(k * p_d['S2'] ** 0.5 * p_d['H2'], rel=1e-9)
+        assert abs(p_d['H2S'] - k * p_d['S2'] * p_d['H2'] ** 0.5) > 0.5 * p_d['H2S']
+
     @pytest.mark.parametrize('T', [1500.0, 2000.0, 2500.0, 3000.0])
-    def test_NH3_equilibrium(self, T):
-        """p_NH3 from code matches analytical K_f * p_N2^0.5 * p_H2^1.5."""
+    def test_NH3_equilibrium(self, T, janaf_log_k):
+        """p_NH3 matches K_f * p_N2^0.5 * p_H2^1.5 with K_f from the JANAF row at T, and
+        get_partial_pressures applies these exponents."""
         p_N2 = 1.0
         p_H2 = 1.0
 
-        # Analytical: K_f for 0.5 N2 + 1.5 H2 -> NH3
-        log10_Kf = 2664.015623 / T - 5.99238046
-        Kf = 10.0**log10_Kf
+        # K_f for 0.5 N2 + 1.5 H2 -> NH3; the fit misses these rows by < 0.024 dex (< 6 %).
+        T_rows, log10_Kf = janaf_log_k('NH3')
+        Kf = 10.0 ** log10_Kf[T_rows == T][0]
         p_expected = Kf * p_N2**0.5 * p_H2**1.5
 
         # Code path
@@ -325,20 +337,19 @@ class TestEquilibriumChemistry:
         Geq = mk(T, 0.0)
         p_code = (Geq * p_N2 * p_H2**3) ** 0.5
 
-        assert p_code == pytest.approx(p_expected, rel=1e-6), (
+        assert p_code == pytest.approx(p_expected, rel=0.06), (
             f'NH3 at {T}K: code={p_code:.6e}, expected={p_expected:.6e}'
         )
 
-        # Discrimination guard: the wrong stoichiometry that swaps the H2
-        # and N2 exponents (1.5 vs 0.5) would give Kf * p_N2^1.5 * p_H2^0.5,
-        # a different power-law in p_N2/p_H2. At p_N2 = p_H2 = 1.0 the two
-        # forms coincide; sample a non-symmetric point to discriminate.
-        p_N2_test, p_H2_test = 0.5, 2.0
-        p_code_asym = (Geq * p_N2_test * p_H2_test**3) ** 0.5
-        p_correct_asym = Kf * p_N2_test**0.5 * p_H2_test**1.5
-        p_wrong_swapped = Kf * p_N2_test**1.5 * p_H2_test**0.5
-        assert p_code_asym == pytest.approx(p_correct_asym, rel=1e-6)
-        assert abs(p_code_asym - p_wrong_swapped) > 0.1 * p_correct_asym
+        # Exponents in solve.get_partial_pressures at p_N2 << p_H2, where swapping
+        # the N2 and H2 exponents changes p_NH3 by the factor p_N2 / p_H2.
+        from calliope.solve import get_partial_pressures
+
+        pin = {'H2O': 1.0, 'CO2': 1e-30, 'N2': 0.01, 'S2': 1e-30}
+        p_d = get_partial_pressures(pin, _make_ddict(T=T, fO2_shift=0.0))
+        k = Geq**0.5
+        assert p_d['NH3'] == pytest.approx(k * p_d['N2'] ** 0.5 * p_d['H2'] ** 1.5, rel=1e-9)
+        assert abs(p_d['NH3'] - k * p_d['N2'] ** 1.5 * p_d['H2'] ** 0.5) > 0.5 * p_d['NH3']
 
     def test_SO2_increases_with_fO2(self):
         """More oxidizing conditions should produce more SO2."""
@@ -376,10 +387,8 @@ class TestEquilibriumChemistry:
         assert p_low > p_high, 'NH3 should be more abundant at lower T'
 
         # Discrimination guard: NH3 synthesis is exothermic, so the ratio
-        # between 1500 K and 3000 K should be several-fold. A near-unity
-        # ratio would mean the temperature dependence of the equilibrium
-        # constant is being missed. Empirical ratio at these (p_N2, p_H2)
-        # is ~7.7 with the janaf_NH3 fit.
+        # between 1500 K and 3000 K is several-fold (~8.7 with janaf_NH3);
+        # a near-unity ratio would mean the T dependence of K is missed.
         ratio = p_low / p_high
         assert ratio > 3.0, (
             f'p_NH3(1500K)/p_NH3(3000K) = {ratio:.2f}; expected several-fold '

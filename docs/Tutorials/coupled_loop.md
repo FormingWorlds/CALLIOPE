@@ -105,7 +105,7 @@ for j, phi in enumerate(phi_grid):
     p_guess = {s: float(res[f'{s}_bar']) for s in ('H2O', 'CO2', 'N2', 'S2')}
 ```
 
-As $\Phi$ drops, the partial pressures of the dissolved-friendly species (H$_2$O above all, then SO$_2$, NH$_3$, H$_2$S) rise: shrinking the melt reservoir squeezes the previously-dissolved volatiles into the atmosphere. The barely-soluble species (CO, CO$_2$, N$_2$) move comparatively little because they were already outgassed at $\Phi = 1$.
+As $\Phi$ drops, H$_2$O and S$_2$ rise by a factor of about 4: shrinking the melt reservoir squeezes the previously-dissolved volatiles into the atmosphere. The other species are set by the gas-phase equilibria at fixed $T$ and $\Delta\mathrm{IW}$, so they follow: H$_2$ rises with H$_2$O, CH$_4$ by about 15 as $p_{\mathrm{H_2}}^2$, NH$_3$ by about 8 as $p_{\mathrm{H_2}}^{1.5}$, H$_2$S by about 8 as $p_{\mathrm{H_2}}\,p_{\mathrm{S_2}}^{0.5}$ and SO$_2$ by 2 as $p_{\mathrm{S_2}}^{0.5}$. CO, CO$_2$ and N$_2$ change by less than 5 % because they were already outgassed at $\Phi = 1$.
 
 ## Step 4: plot both phases
 
@@ -147,11 +147,11 @@ fig.savefig('coupled_loop.pdf')
 
 *Surface partial pressures across a two-phase driver. **(a)** A 25-step cooling sequence from $3000$ K down to $1500$ K at fixed $\Phi = 1$ and $\Delta\mathrm{IW} = +0.5$. **(b)** An 11-step crystallisation step at fixed $T = 1500$ K with the magma melt fraction shrinking from $\Phi = 1$ to $\Phi = 0.5$. The legend lists the ten tracked species in their PROTEUS-standard colours; the annotation in panel (a) shows the cold-start time (first call), the warm-step median (every subsequent call), and the total wall time for the full $25 + 11$ steps.*
 
-In panel (a) the atmosphere stays carbon-dominated across the whole cooling range; CO is the dominant species throughout (CO/CO$_2$ ratio falls modestly as $T$ drops). The fastest-moving species are H$_2$S (rises) and S$_2$ (falls): sulfur speciation is the most sensitive marker of cooling at this redox.
+In panel (a) the atmosphere stays carbon-dominated across the whole cooling range; CO is the dominant species throughout (CO/CO$_2$ ratio falls modestly as $T$ drops). The fastest-moving species are CH$_4$ (rises by almost 5 orders of magnitude) and SO$_2$ (falls by 4); S$_2$ falls and H$_2$S rises by 1 to 2 orders, so sulfur speciation is a sensitive marker of cooling at this redox.
 
-Panel (b) shows the magma-volume effect cleanly. As $\Phi$ drops the dissolved-friendly species (H$_2$O above all, plus the trace S species) rise sharply because the shrinking melt reservoir pushes them into the atmosphere; the barely-soluble species (CO, CO$_2$, N$_2$) move comparatively little. The total surface pressure rises by tens of percent across the $\Phi = 1 \to 0.5$ step, almost entirely driven by the H$_2$O / H$_2$S / SO$_2$ surge.
+Panel (b) shows the magma-volume effect cleanly. As $\Phi$ drops the shrinking melt reservoir pushes H$_2$O and S$_2$ into the atmosphere and the species tied to them by the gas-phase equilibria rise with them; CO, CO$_2$ and N$_2$ change little in relative terms. The total surface pressure rises by about 6 % across the $\Phi = 1 \to 0.5$ step, and CO, CO$_2$, H$_2$O and H$_2$ supply almost all of the 90 bar increase.
 
-The wall-time annotation is the most pedagogically important number on the plot. The total wall time is dominated by the cold-start step; warm steps are typically order milliseconds each across both phases, even though phase 2 changes a different state variable than phase 1. This is what makes long PROTEUS runs ($10^4$ or more outer-loop iterations) feasible: each CALLIOPE call costs essentially nothing once the basin is found.
+The wall-time annotation is the most pedagogically important number on the plot. The time of a single step, the cold start included, varies from run to run, so the annotation shows no fixed split between steps; warm steps typically take about a millisecond each in both phases, even though phase 2 changes a different state variable than phase 1. This is what makes long PROTEUS runs ($10^4$ or more outer-loop iterations) feasible: each CALLIOPE call costs essentially nothing once the basin is found.
 
 ## Where to go next
 

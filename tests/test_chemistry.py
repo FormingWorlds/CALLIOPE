@@ -5,7 +5,8 @@ two reaction families:
 
 - JANAF tables: `janaf_H2`, `janaf_CO`, `janaf_SO2`, `janaf_H2S`,
   `janaf_NH3`. Coefficients are fits to the NIST JANAF Thermochemical
-  Tables over the 1500-3000 K CALLIOPE-use range.
+  Tables over 1500-3000 K (`janaf_H2`, `janaf_CO`) or 700-5000 K
+  (`janaf_H2S`, `janaf_NH3`, checked against every JANAF row in that range).
 - Schaefer & Fegley series: `schaefer_H`, `schaefer_C`, `schaefer_CH4`.
 
 Reference pin: `janaf_H2` Geq at T = 2000 K under the legacy O'Neill
@@ -22,10 +23,13 @@ Physics invariants:
 
 from __future__ import annotations
 
+import logging
 import math
 
+import numpy as np
 import pytest
 
+from calliope import chemistry
 from calliope.chemistry import ModifiedKeq
 
 pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
@@ -158,3 +162,133 @@ def test_modified_keq_unknown_model_raises():
         ModifiedKeq('typo_janaf')
     with pytest.raises(AttributeError):
         ModifiedKeq('janaf_O3')  # not an implemented reaction
+
+
+# JANAF fit range from the default PROTEUS outgassing floor (700 K) to 5000 K.
+# Tolerance = max fit residual plus margin [dex].
+JANAF_FIT_RANGE_K = (700.0, 5000.0)
+JANAF_FIT_TOL_DEX = {'H2S': 0.025, 'NH3': 0.04}
+# Wrong constants (doubled form) the row test must reject: H2S with the S2 coefficient 1
+# instead of 1/2, and an NH3 fit that misses the rows by up to 0.158 dex (H2S 1.853 dex).
+DISCRIMINATING_FIT = {'H2S': (13462.03094, 7.24546062), 'NH3': (5328.031246, 11.98476092)}
+
+
+def _per_mole_log_k(product, T):
+    """Per-mole log10 K from the doubled-form `janaf_<product>` method."""
+    log_k2, stoich = getattr(ModifiedKeq(f'janaf_{product}'), f'janaf_{product}')(T)
+    assert stoich == 0
+    return 0.5 * log_k2
+
+
+def _rows_in_fit_range(janaf_log_k, product):
+    """JANAF rows (T, per-mole log10 K) inside the fit range."""
+    T, y = janaf_log_k(product)
+    keep = (T >= JANAF_FIT_RANGE_K[0]) & (T <= JANAF_FIT_RANGE_K[1])
+    return T[keep], y[keep]
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.reference_pinned
+@pytest.mark.parametrize('product', ['H2S', 'NH3'], ids=['hydrogen_sulfide', 'ammonia'])
+def test_janaf_constant_matches_janaf_rows_over_fit_range(janaf_log_k, product):
+    """The doubled-form constant matches every NIST-JANAF row from 700 to 5000 K.
+
+    Reference: JANAF 4th ed. log Kf columns in `tools/` (H2S: log Kf(H2S) -
+    0.5 log Kf(S2); NH3: log Kf(NH3)). Both range ends are table rows, so the edges are tested.
+    """
+    T, janaf = _rows_in_fit_range(janaf_log_k, product)
+    assert T[0] == pytest.approx(JANAF_FIT_RANGE_K[0])
+    assert T[-1] == pytest.approx(JANAF_FIT_RANGE_K[1])
+    fit = _per_mole_log_k(product, T)
+    assert np.max(np.abs(fit - janaf)) < JANAF_FIT_TOL_DEX[product]
+    # Discrimination: the discriminating fits miss the rows by far more.
+    a, b = DISCRIMINATING_FIT[product]
+    assert np.max(np.abs(0.5 * (a / T - b) - janaf)) > 3 * JANAF_FIT_TOL_DEX[product]
+    # Sign: the formation reactions are exothermic, so log K falls with T.
+    assert np.all(np.diff(fit) < 0)
+
+
+@pytest.mark.reference_pinned
+@pytest.mark.parametrize('product', ['H2S', 'NH3'], ids=['hydrogen_sulfide', 'ammonia'])
+def test_janaf_coefficients_are_least_squares_fit_of_janaf_rows(janaf_log_k, product):
+    """The coefficients equal a least-squares a/T - b fit of the JANAF rows in range.
+
+    A changed fit range, form or coefficient moves the fit away from the code.
+    """
+    T, janaf = _rows_in_fit_range(janaf_log_k, product)
+    slope, intercept = np.polyfit(1.0 / T, 2.0 * janaf, 1)
+    fit = 2.0 * _per_mole_log_k(product, T)
+    # atol because the doubled H2S log K crosses zero near 1830 K.
+    np.testing.assert_allclose(fit, slope / T + intercept, rtol=1e-6, atol=1e-6)
+    assert fit[0] > fit[-1]
+
+
+@pytest.fixture
+def fit_range_warnings(monkeypatch, caplog):
+    """Fresh once-per-process warning state; returns the log capture."""
+    monkeypatch.setattr(chemistry, '_WARNED_BELOW_FIT', set())
+    caplog.set_level(logging.WARNING, logger='fwl.calliope.chemistry')
+    return caplog
+
+
+@pytest.mark.parametrize('product', ['H2S', 'NH3'], ids=['hydrogen_sulfide', 'ammonia'])
+def test_janaf_fit_warns_once_below_fit_range(fit_range_warnings, product):
+    """Below 700 K the fit extrapolates: one warning per process and constant, naming the lowest T."""
+    method = getattr(ModifiedKeq(f'janaf_{product}'), f'janaf_{product}')
+    method(JANAF_FIT_RANGE_K[0])
+    assert fit_range_warnings.records == []
+    for T in (np.array([800.0, 650.0]), 699.0, 300.0):
+        method(T)
+    assert len(fit_range_warnings.records) == 1
+    record = fit_range_warnings.records[0]
+    assert record.levelno == logging.WARNING
+    assert f'janaf_{product}' in record.getMessage()
+    assert 'T = 650.0 K' in record.getMessage()
+    assert f'fit range starts at {JANAF_FIT_RANGE_K[0]:g} K' in record.getMessage()
+    other = 'NH3' if product == 'H2S' else 'H2S'
+    getattr(ModifiedKeq(f'janaf_{other}'), f'janaf_{other}')(650.0)
+    assert len(fit_range_warnings.records) == 2
+
+
+def test_janaf_fit_warning_edges_and_other_constants(fit_range_warnings):
+    """No warning from 700 K up, at inf, for NaN, for an empty array, or for the other constants."""
+    for name in 'janaf_H2 janaf_CO janaf_SO2 schaefer_CH4 schaefer_C schaefer_H'.split():
+        getattr(ModifiedKeq(name), name)(500.0)
+    for name in ('janaf_H2S', 'janaf_NH3'):
+        method = getattr(ModifiedKeq(name), name)
+        method(np.array([700.0, 1500.0, 5000.0, np.inf]))
+        method(2000)
+        method(np.array([700, 5000]))
+        method(float('nan'))
+        assert method(np.array([]))[0].size == 0
+    assert fit_range_warnings.records == []
+    assert chemistry._WARNED_BELOW_FIT == set()
+    # A NaN entry is skipped; the largest float below 700 K still warns.
+    just_below = math.nextafter(JANAF_FIT_RANGE_K[0], 0.0)
+    ModifiedKeq('janaf_H2S').janaf_H2S(np.array([np.nan, just_below]))
+    assert len(fit_range_warnings.records) == 1
+    assert f'T = {just_below} K' in fit_range_warnings.records[0].getMessage()
+    assert chemistry._WARNED_BELOW_FIT == {'janaf_H2S'}
+
+
+@pytest.mark.parametrize(
+    'T',
+    [
+        650.0,
+        np.float64(650.0),
+        np.float32(650.0),
+        650,
+        np.int64(650),
+        np.array(650.0),
+        np.array([900.0, 650.0, 800.0]),
+        np.array([[900, 650], [800, 720]]),
+    ],
+    ids=['float', 'float64', 'float32', 'int', 'int64', 'zero_d', 'minimum_inside', 'int_2d'],
+)
+def test_janaf_fit_warning_for_every_numeric_form_of_T(fit_range_warnings, T):
+    """Each numeric form of T gives a finite constant and one warning that names its lowest entry."""
+    log_k, stoich = ModifiedKeq('janaf_H2S').janaf_H2S(T)
+    assert np.all(np.isfinite(log_k))
+    assert stoich == 0
+    assert len(fit_range_warnings.records) == 1
+    assert 'T = 650.0 K' in fit_range_warnings.records[0].getMessage()
