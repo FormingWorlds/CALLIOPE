@@ -1178,15 +1178,16 @@ def _build_gas_only_ddict(
     r_int: float,
     t_magma: float,
     fo2_shift: float,
-) -> dict[str, float | int]:
-    """Construct CALLIOPE gas-only parameter dictionary (Phi_global = 0.0)."""
-    ddict: dict[str, float | int] = {
+) -> dict[str, float | int | str]:
+    """Construct CALLIOPE gas-only parameter dictionary (Phi_global = 0.0, Fischer IW buffer)."""
+    ddict: dict[str, float | int | str] = {
         'M_mantle': m_mantle,
         'gravity': g_surf,
         'radius': r_int,
         'Phi_global': 0.0,
         'T_magma': t_magma,
         'fO2_shift_IW': fo2_shift,
+        'fO2_model': 'fischer',
     }
     for sp in volatile_species:
         ddict[f'{sp}_included'] = 1
@@ -1207,7 +1208,7 @@ def _guarded_log10_ratio(p1: float, p2: float) -> float:
 
 def _solve_calliope_gas_only(
     target: dict[str, float],
-    ddict: dict[str, float | int],
+    ddict: dict[str, float | int | str],
     autho: bool,
 ) -> dict[str, float]:
     """Solve CALLIOPE gas-only equilibrium with nguess=1000 using a local RNG."""
@@ -1267,7 +1268,7 @@ def test_calliope_equilibrium_constants_and_reaction_quotients_vs_nasa_glenn(rec
     Checked against NASA Glenn reference data.
     """
     keq_models = {
-        key: ModifiedKeq(key)
+        key: ModifiedKeq(key, 'fischer')
         for key in (
             'janaf_H2',
             'janaf_CO',
@@ -1285,7 +1286,7 @@ def test_calliope_equilibrium_constants_and_reaction_quotients_vs_nasa_glenn(rec
         'janaf_NH3': 0.0,
         'janaf_H2S': 0.0,
     }
-    fo2_model = OxygenFugacity()
+    fo2_model = OxygenFugacity('fischer')
     pin = {'H2O': 120.0, 'CO2': 80.0, 'N2': 15.0, 'S2': 4.0}
 
     for t_k, ref_dict in NASA_GLENN_LOG10_K_REF.items():
@@ -1484,7 +1485,7 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
         )
 
     solver_params = SolverParameters(atol=1.0e-6, rtol=1.0e-4, max_steps=1024, multistart=10)
-    fo2_fischer = OxygenFugacity()
+    fo2_fischer = OxygenFugacity('fischer')
 
     # Solve 60 buffered cases in atmodeller and take g_surf from Planet.surface_gravity.
     n_buf = len(buffered_cases)
