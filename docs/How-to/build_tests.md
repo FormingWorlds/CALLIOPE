@@ -104,18 +104,18 @@ The discrimination guard is a follow-up assertion that names the wrong formula a
 Example from `tests/test_oxygen_fugacity.py`:
 
 ```python
-def test_oxygen_fugacity_fischer_value_at_2000K_matches_published_fit():
-    """At T=2000 K the Fischer 2011 IW buffer evaluates to -7.14981.
+def test_oxygen_fugacity_fischer_value_at_2000K_cross_check_and_regression():
+    """At T=2000 K the coded Fischer IW expression evaluates to -7.14981.
 
     Discrimination: the O'Neill & Eggins 2002 buffer at the same T
     gives -7.4078, which differs from Fischer by 0.26 dex. The pin
     tolerance is 1e-4, so the wrong buffer would not pass.
     """
-    fischer_2000 = log10_fO2_IW_fischer_2011(2000.0)
+    fischer_2000 = OxygenFugacity('fischer')(2000.0)
     assert fischer_2000 == pytest.approx(-7.14981, rel=1e-4)
 
     # Discrimination guard against the most plausible wrong formula.
-    oneill_2000 = log10_fO2_IW_oneill_2002(2000.0)
+    oneill_2000 = OxygenFugacity('oneill')(2000.0)
     assert abs(fischer_2000 - oneill_2000) > 0.2
 ```
 
