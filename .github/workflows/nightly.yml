@@ -14,11 +14,8 @@ on:
 permissions:
   contents: read
 
-# Nightly: full test suite (unit + smoke + integration + slow) with
-# coverage instrumentation. The PR gate runs only the unit + smoke
-# tiers; the integration and slow tiers run real solver invocations
-# that exercise the full hybrid `equilibrium_atmosphere` solver.
-# Coverage is reported to the Codecov dashboard via codecov-action.
+# Nightly: full test suite (unit + smoke + integration + slow) with coverage
+# reported to Codecov, plus a separate CALLIOPE-atmodeller cross-code job.
 jobs:
   nightly:
     name: CALLIOPE-nightly (ubuntu-latest)
@@ -57,3 +54,39 @@ jobs:
           files: coverage.xml
           flags: nightly
           fail_ci_if_error: false
+
+  cross-code:
+    name: CALLIOPE-atmodeller-cross-code (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install CALLIOPE and atmodeller
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[develop]" "atmodeller @ git+https://github.com/FormingWorlds/atmodeller.git@main"
+          python -c "import importlib.metadata as md, json; dist = md.distribution('atmodeller'); raw = dist.read_text('direct_url.json'); sha = json.loads(raw).get('vcs_info', {}).get('commit_id', 'unknown') if raw else 'unknown'; print(f'Installed atmodeller {dist.version} (git SHA: {sha})')"
+
+      - name: Run CALLIOPE-atmodeller cross-code consistency tests
+        env:
+          CHEM_CROSS_CODE_REQUIRED: '1'
+          CHEM_SULFUR_REPORT_PATH: sulfur_72_case_report.tsv
+        run: |
+          pytest tests/test_cross_code_consistency.py
+
+      - name: Upload 72-case sulfur report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: calliope-atmodeller-sulfur-72-case-report
+          path: sulfur_72_case_report.tsv
+          if-no-files-found: error
