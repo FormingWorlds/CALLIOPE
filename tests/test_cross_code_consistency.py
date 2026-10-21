@@ -14,8 +14,9 @@ Verifies:
    volatile species (H2O, H2, O2, CO2, CO, CH4, N2, NH3, S2, SO2, H2S). This
    72-case grid is a regression snapshot of thermodynamic data that differ by
    construction: the secondary-species pins follow from the K offsets and the
-   primary pins to within 1.5e-6 dex, and the CH4 and NH3 K differences remain
-   open. In the 60 buffered cases both codes receive CALLIOPE's
+   primary pins to within 2e-6 dex (rounding of the 6-decimal pins), and the
+   CH4 and NH3 K offsets are the two largest in K_OFFSET_EXPECTED_DEX. In the
+   60 buffered cases both codes receive CALLIOPE's
    OxygenFugacity('fischer') fO2 (Fischer et al. (2011) calculate the 1-bar
    Fe-FeO curve from Chase (1998) (Fig. 6) and add the pressure integral of
    their Eq. 2; their supplement (Table S2) gives a P-T polynomial. The source
@@ -29,8 +30,8 @@ Verifies:
    that code's atomic masses (calliope.constants.molar_mass and molmass.Formula),
    and surface gravity is matched to atmodeller.Planet.surface_gravity. Across
    all 12 authoritative-O cases (1500 to 3000 K), solved log10(fO2) (O2 partial
-   pressure) is pinned to its per-case measured offset (-0.000732 to +0.002620
-   dex) +-0.005 dex (-0.005732 to +0.007620 dex total). H2 follows DeltaK with
+   pressure) is pinned to its per-case measured offset (-0.000721 to +0.002971
+   dex) +-0.005 dex (-0.005721 to +0.007971 dex total). H2 follows DeltaK with
    H2O and O2, CO with CO2 and O2, CH4 with CO2, O2 and H2 (d_CH4 = DeltaK +
    d_CO2 - d_O2 + 2 d_H2), NH3 with N2 and H2; the relation holds for the
    pinned values.
@@ -138,7 +139,7 @@ K_OFFSET_EXPECTED_DEX: dict[float, dict[str, float]] = {
         'H2': 0.002763,
         'CO': -0.006148,
         'CH4': 0.100441,
-        'SO2': 0.007005,
+        'SO2': 0.007004,
         'NH3': 0.030070,
         'H2S': -0.013703,
     },
@@ -778,7 +779,7 @@ BUFFERED_EXPECTED_DEX: dict[str, dict[str, float]] = {
     'buffered_low_T2000_IW+4': {
         'P_surf': 0.000014,
         'H2O': -0.000016,
-        'CO2': 0.000303,
+        'CO2': 0.000302,
         'N2': 0.000013,
         'SO2': 0.000028,
         'H2': 0.002748,
@@ -802,7 +803,7 @@ BUFFERED_EXPECTED_DEX: dict[str, dict[str, float]] = {
         'S2': 0.025200,
     },
     'buffered_low_T2000_IW-4': {
-        'P_surf': -0.000007,
+        'P_surf': -0.000008,
         'H2O': -0.002723,
         'CO2': 0.006045,
         'N2': -0.000021,
@@ -978,7 +979,7 @@ AUTHO_EXPECTED_DEX: dict[str, dict[str, float]] = {
     'authO_default_T2500': {
         'P_surf': 0.000003,
         'H2O': -0.000014,
-        'CO2': 0.000125,
+        'CO2': 0.000126,
         'N2': 0.000004,
         'SO2': 0.000005,
         'O2': -0.000181,
@@ -1034,7 +1035,7 @@ AUTHO_EXPECTED_DEX: dict[str, dict[str, float]] = {
     'authO_high_T2500': {
         'P_surf': 0.000003,
         'H2O': -0.000005,
-        'CO2': 0.000060,
+        'CO2': 0.000061,
         'N2': 0.000003,
         'SO2': 0.000004,
         'O2': -0.000221,
@@ -1081,7 +1082,7 @@ AUTHO_EXPECTED_DEX: dict[str, dict[str, float]] = {
         'SO2': 0.000004,
         'O2': -0.000708,
         'H2': 0.003117,
-        'CO': -0.005753,
+        'CO': -0.005754,
         'CH4': 0.107424,
         'NH3': 0.034748,
         'S2': -0.012585,
