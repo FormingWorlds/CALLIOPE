@@ -95,7 +95,7 @@ The current anchors:
 | Source | Anchor | Test |
 |---|---|---|
 | `chemistry.py` | JANAF Thermochemical Tables [^cite-chase1998] (4th ed.), $K_{eq}$ for $\mathrm{H_2O} \to \mathrm{H_2} + 0.5\,\mathrm{O_2}$ at 2000 K with the O'Neill & Eggins 2002 [^cite-oneilleggins2002] buffer | `tests/test_chemistry.py::test_modified_keq_janaf_H2_matches_closed_form_at_2000K_with_oneill` |
-| `oxygen_fugacity.py` | Fischer et al. 2011 [^cite-fischer2011] (EPSL 304, 496) IW buffer at 2000 K | `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_matches_published_fit` |
+| `oxygen_fugacity.py` | Cross-implementation check of the coded Fischer et al. 2011 [^cite-fischer2011] (EPSL 304, 496) IW expression against the O'Neill & Eggins 2002 [^cite-oneilleggins2002] buffer at 2000 K; no independent pin of the Fischer 1-bar fit exists | `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_cross_check_and_regression` |
 | `solubility.py` | Sossi et al. 2023 [^cite-sossi2023] peridotite H$_2$O fit; Gaillard et al. 2022 [^cite-gaillard2022] (EPSL 117255) S$_2$ fit | `tests/test_solubility.py::TestSolubilityH2O::test_peridotite_default_matches_sossi_2023_fit` and `TestSolubilityS2_xFeO::test_default_call_matches_gaillard_2022_earth_mantle_value` |
 | `solve.py` | Self-consistency between `equilibrium_atmosphere` (buffered) and `equilibrium_atmosphere_authoritative_O` (the authoritative-O entry point) at the Earth fiducial | `tests/test_solve.py::test_round_trip_self_consistency_at_earth_fiducial` |
 | `structure.py` | Wang, Lineweaver & Ireland 2018 [^cite-wang2018] (arxiv:1708.08718) Earth core mass fraction 0.325 | `tests/test_structure.py::test_calculate_mantle_mass_recovers_wang_2018_earth_core_fraction` |
