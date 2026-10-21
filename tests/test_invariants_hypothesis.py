@@ -15,6 +15,7 @@ exercises them.
 from __future__ import annotations
 
 import math
+from unittest import mock
 
 import pytest
 
@@ -24,9 +25,10 @@ import pytest
 # hypothesis`` at module top.
 pytest.importorskip('hypothesis')
 
-from hypothesis import given, settings  # noqa: E402
+from hypothesis import example, given, settings  # noqa: E402
 from hypothesis import strategies as st  # noqa: E402
 
+from calliope import chemistry  # noqa: E402
 from calliope.chemistry import ModifiedKeq  # noqa: E402
 from calliope.oxygen_fugacity import OxygenFugacity  # noqa: E402
 from calliope.solubility import SolubilityN2, SolubilityS2  # noqa: E402
@@ -234,3 +236,20 @@ def test_modified_keq_finite_positive(T, dIW):
         val = Keq(T, dIW)
         assert math.isfinite(val), f'{method}(T={T}, dIW={dIW}) = {val} is not finite'
         assert val > 0.0
+
+
+@given(T=st.floats(min_value=1.0, max_value=1.0e4))
+@example(T=math.nextafter(700.0, 0.0))
+@example(T=700.0)
+@settings(deadline=None, max_examples=200)
+def test_janaf_fit_range_warning_only_below_700K(T):
+    """`janaf_H2S` and `janaf_NH3` warn once below 700 K and never from 700 K up."""
+    for name in ('janaf_H2S', 'janaf_NH3'):
+        with (
+            mock.patch.object(chemistry, '_WARNED_BELOW_FIT', set()) as warned,
+            mock.patch.object(chemistry.log, 'warning') as warn,
+        ):
+            getattr(ModifiedKeq(name), name)(T)
+            getattr(ModifiedKeq(name), name)(T)
+        assert warn.call_count == (1 if T < 700.0 else 0), f'{name} at T={T}'
+        assert (name in warned) == (T < 700.0)

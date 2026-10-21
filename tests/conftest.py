@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -31,3 +32,29 @@ def pytest_collection_modifyitems(items):
 def _seed_global_rng():
     """Start every test from global NumPy RNG seed 0, so its solver restarts repeat."""
     np.random.seed(0)
+
+
+def _janaf_log_kf(species):
+    """Map T [K] to log10 Kf in the NIST-JANAF table copy ``tools/janaf_<species>.dat``."""
+    tab = np.loadtxt(Path(__file__).resolve().parents[1] / 'tools' / f'janaf_{species}.dat')
+    return dict(zip(tab[:, 0], tab[:, 7]))
+
+
+@pytest.fixture(scope='session')
+def janaf_log_k():
+    """Return ``f(product) -> (T, log10 K)`` per mole of product from the JANAF rows.
+
+    0.5 S2 + H2 = H2S: log Kf(H2S) - 0.5 log Kf(S2). Both tables share the sulfur
+    reference state, which cancels, so the combination holds on both sides of 882 K.
+    0.5 N2 + 1.5 H2 = NH3: log Kf(NH3), since N2 and H2 are reference states.
+    """
+
+    def per_mole(product):
+        rows = _janaf_log_kf(product)
+        if product == 'H2S':
+            s2 = _janaf_log_kf('S2')
+            rows = {T: y - 0.5 * s2[T] for T, y in rows.items() if T in s2}
+        T = np.array(sorted(rows))
+        return T, np.array([rows[t] for t in T])
+
+    return per_mole
