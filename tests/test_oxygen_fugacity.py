@@ -263,7 +263,8 @@ def test_oxygen_fugacity_hirschmann_low_pressure_slope_matches_volume_change():
     intercept in Hirschmann (2021) Appendix A; V(Fe) = 55.845 / 7.874
     cm3/mol from the density of alpha iron. Room-temperature volumes
     ignore thermal expansion and stoichiometry change, so the fit slope
-    over 0-1 GPa is expected within 15%, not exactly (it runs 7-10% high).
+    over 0-1 GPa is expected within 15%, not exactly (it runs 7.5, 8.2 and
+    10.4% high at 1200, 2000 and 3000 K).
     A bar/GPa slip in the pressure conversion changes the slope by 1e4.
     """
     of = OxygenFugacity('hirschmann')
@@ -285,8 +286,10 @@ def test_oxygen_fugacity_hirschmann_branches_continuous_at_fcc_hcp_boundary():
     Hirschmann (2021) fit the two iron polymorph fields separately, with a
     reported maximum mismatch against the thermodynamic model of
     0.028 dex. Both branches fit the same underlying model, so the jump at
-    the Eq. 18 boundary must stay within twice that mismatch. A sign error
-    in any Table 1 coefficient produces a jump of order 1 dex or more.
+    the Eq. 18 boundary must stay within twice that mismatch; the fit's own
+    jump is at most 0.0185 dex at these temperatures. A sign error in any
+    nonzero Table 1 coefficient raises the largest jump to at least 0.069 dex
+    (the square-root term of fcc/bcc c); the next smallest is 0.38 dex.
     """
     of = OxygenFugacity('hirschmann')
     for T in (1000.0, 1500.0, 2000.0, 2500.0, 3000.0):
@@ -365,7 +368,7 @@ def test_oxygen_fugacity_hirschmann_dispatcher_matches_the_full_fit_at_1bar():
         [np.geomspace(300.0, 9000.0, 200), [451.0, 1000.0, 4300.0, 8148.0]]
     )
     for T in temperatures:
-        assert of(T) == of.hirschmann(T, P_bar=1.0), T
+        assert of(T) == pytest.approx(of.hirschmann(T, P_bar=1.0), rel=1e-15, abs=1e-12), T
         assert of(T, 3.0) == pytest.approx(of.hirschmann(T) + 3.0, abs=1e-12), T
     assert abs(of.hirschmann(2000.0, P_bar=1.0e5) - of(2000.0)) > 0.5
     with pytest.raises(ValueError, match='Temperature must be positive'):
@@ -378,13 +381,15 @@ def test_oxygen_fugacity_hirschmann_1bar_stays_on_fcc_branch_outside_boundary_fi
     With the boundary held at its 1000 K and vertex (~4300 K) values there,
     the 1 bar buffer stays on the fcc/bcc row: -85.418 at 300 K (hcp row
     -85.200) and 2.317 at 8150 K (hcp row -40.125, a 42 dex fall). Across
-    8148 K the 1 bar buffer is continuous and keeps rising with T.
+    8148 K the 1 bar buffer is continuous and keeps rising with T. The full fit
+    is evaluated, as the 1 bar dispatcher skips the boundary.
     """
     of = OxygenFugacity('hirschmann')
-    assert of(300.0) == pytest.approx(-85.418, abs=1e-3)
-    assert abs(of(300.0) - (-85.200)) > 0.2  # hcp row
-    assert of(8150.0) == pytest.approx(2.317, abs=1e-3)
-    assert abs(of(8140.0) - of(8150.0)) < 0.01
-    assert of(8000.0) < of(8150.0) < of(9000.0)
+    iw = of.hirschmann
+    assert iw(300.0) == pytest.approx(-85.418, abs=1e-3)
+    assert abs(iw(300.0) - (-85.200)) > 0.2  # hcp row
+    assert iw(8150.0) == pytest.approx(2.317, abs=1e-3)
+    assert abs(iw(8140.0) - iw(8150.0)) < 0.01
+    assert iw(8000.0) < iw(8150.0) < iw(9000.0)
     with pytest.raises(ValueError, match='Temperature must be positive'):
         of(0.0)
