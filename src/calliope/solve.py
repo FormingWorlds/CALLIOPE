@@ -137,7 +137,7 @@ def _polish_fallback(state, resid, ddict, target_d, elem_tol, tolerance, xtol, n
     )
     polished = state.copy()
     polished[free] = result.x
-    if not result.success or np.any(polished < 0.0):
+    if np.any(polished < 0.0):
         return state, resid
     polished_resid = np.abs(np.asarray(func(polished, ddict, target_d)))
     in_gate = np.amax(polished_resid[:4]) <= tolerance and np.all(

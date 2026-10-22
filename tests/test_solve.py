@@ -821,6 +821,80 @@ def test_fallback_search_stops_fallback_attempts_after_the_first(monkeypatch, ca
     assert len(calls) == nguess
 
 
+# Library tolerances for H 1e12 kg, C 5e19 kg, no N and S 1e18 kg: the per-element
+# tolerances and the scalar mass gate the polish is judged against.
+_POLISH_TOL = np.array([1.0e7, 5.0e14, solve_mod.TRUNC_MASS, 1.0e13])
+_POLISH_GATE = 5.0e19 * 1e-5 + 1e10 + solve_mod.TRUNC_MASS
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.parametrize(
+    ('s_root', 'at_root', 'polished'),
+    [
+        (0.7, {}, True),
+        (-0.1, {}, False),
+        (0.7, {0: -1.0e17}, False),
+        (0.7, {2: 100.0}, False),
+        (None, {}, False),
+    ],
+    ids=['closes_s', 'negative_root', 'leaves_gate', 'no_better', 'no_root'],
+)
+def test_polished_fallback_is_kept_only_when_valid_and_better(
+    monkeypatch, s_root, at_root, polished
+):
+    """A clipped fallback with pH2O and pN2 at zero has lost its H (1e12 kg) and
+    misses S by 1.59e13 kg against a 1e13 kg tolerance, as a negative-pH2O root
+    does once its phantom H2S is dropped. Re-solving pCO2 and pS2 with the zero
+    primaries held at zero gives a state that closes S, and it replaces the
+    fallback. The fallback is kept as it is when the re-solve finds no root, or a
+    root with a negative pS2, one outside the scalar mass gate (H at 1e17 kg),
+    or one that misses as many elements by as much (N at 100 kg for S)."""
+    state = np.array([0.0, 6.0, 0.0, 0.7 - 1.59e-5])
+    # S residual [kg] is -1.59e13 at the fallback's pS2 and crosses zero at s_root
+    # (flat when s_root is None); C closes at pCO2 = 6 bar, H stays lost.
+    slope = 0.0 if s_root is None else 1.59e13 / (s_root - state[3])
+
+    def _residual(x, *a):
+        res = [-1.0e12, (x[1] - 6.0) * 1.0e19, 0.0, (x[3] - state[3]) * slope - 1.59e13]
+        if abs(x[3] - 0.7) < 1.0e-6:
+            for i, v in at_root.items():
+                res[i] = v
+        return res
+
+    monkeypatch.setattr(solve_mod, 'func', _residual)
+    resid = np.abs(np.asarray(_residual(state)))
+    assert solve_mod._fallback_rank(resid, _POLISH_TOL)[0] == 2
+    out, out_resid = solve_mod._polish_fallback(
+        state, resid, {}, {}, _POLISH_TOL, _POLISH_GATE, 1e-8, 1500
+    )
+    assert np.all(out >= 0.0)
+    np.testing.assert_array_equal(out[[0, 2]], 0.0)
+    np.testing.assert_allclose(out_resid, np.abs(_residual(out)), rtol=1e-12)
+    if polished:
+        assert out[3] == pytest.approx(0.7, rel=1e-9)
+        assert out_resid[3] <= _POLISH_TOL[3]
+        assert solve_mod._fallback_rank(out_resid, _POLISH_TOL) == (1, 1.0e5)
+    else:
+        np.testing.assert_array_equal(out, state)
+        np.testing.assert_array_equal(out_resid, resid)
+
+
+def test_polish_leaves_a_fallback_with_no_zero_primary_untouched(monkeypatch):
+    """With every primary positive there is nothing to hold at zero, so the
+    fallback is returned as it is and the residual is not evaluated again; with
+    every primary at zero there is nothing to re-solve."""
+    calls = []
+    monkeypatch.setattr(solve_mod, 'func', lambda x, *a: calls.append(x) or [0.0] * 4)
+    resid = np.array([1.0e12, 0.0, 0.0, 1.59e13])
+    for state in (np.array([1.0e-3, 6.0, 1.0e-9, 0.7]), np.zeros(4)):
+        out, out_resid = solve_mod._polish_fallback(
+            state, resid, {}, {}, _POLISH_TOL, _POLISH_GATE, 1e-8, 1500
+        )
+        assert out is state
+        assert out_resid is resid
+    assert calls == []
+
+
 def test_clipped_state_outside_the_mass_gate_is_no_fallback(monkeypatch, caplog):
     """A raw root inside the scalar gate whose clipped state falls outside it
     (2e16 kg against 1.5e16 kg) is rejected and kept as no fallback: with no
