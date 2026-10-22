@@ -493,7 +493,7 @@ def test_low_h_cold_start_rejects_the_negative_water_root(monkeypatch, caplog):
     pH2O (near -2.8e4 bar), which closes the mass balance with no H2O or H2 in
     the atmosphere. It is rejected, and whichever seeded restarts follow, the
     solver goes on to the physical root at 25.05 bar with the Hirschmann (2021)
-    IW buffer (24.82 bar with the Fischer 2011 buffer).
+    IW buffer (25.23 bar with the O'Neill 2002 buffer).
     """
     roots, converged = _spy_roots(monkeypatch)
     for seed in (4, 6, 7):
@@ -507,8 +507,7 @@ def test_low_h_cold_start_rejects_the_negative_water_root(monkeypatch, caplog):
         assert roots[-1][0] > 0.0, seed
         assert r['H2O_bar'] > 0.0, seed
         assert r['P_surf'] == pytest.approx(25.0485, rel=1e-4), seed
-        # Fischer 2011 and O'Neill 2002 buffers give 24.822 and 25.233 bar.
-        assert min(abs(r['P_surf'] - p) for p in (24.822, 25.233)) > 0.05, seed
+        assert abs(r['P_surf'] - 25.233) > 0.05, seed  # O'Neill 2002 buffer
         assert r['H_kg_total'] == pytest.approx(_LOW_H['H'], rel=1e-3), seed
     assert 'No root closes' not in caplog.text
 
@@ -655,8 +654,7 @@ def test_trace_sulfur_with_absent_nitrogen_returns_through_the_fallback(caplog, 
     assert 'tolerance for S (1e+14 kg, tolerance 1e+10 kg, budget 1e+14 kg)' in caplog.text
     np.testing.assert_array_equal([r['N2_bar'], r['S2_bar'], r['S_kg_total']], 0.0)
     assert r['P_surf'] == pytest.approx(25.1349, rel=1e-4)
-    # Fischer 2011 and O'Neill 2002 buffers give 24.910 and 25.318 bar.
-    assert min(abs(r['P_surf'] - p) for p in (24.910, 25.318)) > 0.05
+    assert abs(r['P_surf'] - 25.318) > 0.05  # O'Neill 2002 buffer
     for e in 'HC':
         assert abs(r[e + '_res']) <= target[e] * _COLD['rtol'], e
 
@@ -678,8 +676,7 @@ def test_all_positive_root_is_unchanged(monkeypatch, caplog, seed, p_surf, h2o):
         [r[s + '_bar'] for s in ('H2O', 'CO2', 'N2', 'S2')], roots[-1]
     )
     assert r['P_surf'] == pytest.approx(p_surf, rel=1e-5)
-    # Fischer 2011 and O'Neill 2002 buffers give 9.284 and 9.272 bar.
-    assert min(abs(r['P_surf'] - p) for p in (9.284, 9.272)) > 0.05
+    assert abs(r['P_surf'] - 9.272) > 0.05  # O'Neill 2002 buffer
     assert r['H2O_bar'] == pytest.approx(h2o, rel=1e-5)
     assert 'No root closes' not in caplog.text
     assert r['fallback'] is False
@@ -1219,8 +1216,7 @@ def test_trace_hydrogen_falls_back_to_the_clipped_root(caplog, target, seed):
         [r[s + '_bar'] for s in ('H2O', 'H2', 'CH4', 'H2S', 'NH3')], 0.0
     )
     assert r['P_surf'] == pytest.approx(25.0274, rel=1e-4)
-    # Fischer 2011 and O'Neill 2002 buffers give 24.801 and 25.212 bar.
-    assert min(abs(r['P_surf'] - p) for p in (24.801, 25.212)) > 0.05
+    assert abs(r['P_surf'] - 25.212) > 0.05  # O'Neill 2002 buffer
     # The returned clipped state still passes the scalar mass gate.
     gate = max(target.values()) * _LIBRARY['rtol'] + _LIBRARY['atol'] + solve_mod.TRUNC_MASS
     assert max(abs(r[e + '_res']) for e in 'HCNS') <= gate
@@ -1295,8 +1291,7 @@ def test_authoritative_o_low_h_returns_the_physical_root():
     r, tgt = _authoritative_o(_LOW_H, seed=42)
     assert r['H2O_bar'] > 0.0
     assert r['P_surf'] == pytest.approx(25.0485, rel=1e-4)
-    # Fischer 2011 and O'Neill 2002 buffers give 24.822 and 25.233 bar.
-    assert min(abs(r['P_surf'] - p) for p in (24.822, 25.233)) > 0.05
+    assert abs(r['P_surf'] - 25.233) > 0.05  # O'Neill 2002 buffer
     assert r['fO2_shift_derived'] == pytest.approx(2.0, abs=1e-4)
 
 
