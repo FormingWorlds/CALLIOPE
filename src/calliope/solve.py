@@ -104,13 +104,48 @@ def _noble_henry_seed(core_out, active, target_d, ddict):
 # not rejected for sub-10-kg mass-balance noise.
 TRUNC_MASS = 1e1
 
-# Elements named in a fallback warning in this process.
-_FALLBACK_WARNED = set()
+# Attempts allowed after the first fallback is stored, before the best one is returned. A
+# solvable trace budget (H 1e15 kg) reaches its root within 100 of them for ~85% of seeds.
+FALLBACK_ATTEMPTS = 100
 
 
-def _emptied(resid, budgets, rtol):
-    """Mask of nonzero budgets that a state with residuals ``resid`` [kg] leaves empty."""
-    return (budgets > 0.0) & (np.asarray(resid) <= -(1.0 - rtol) * budgets)
+def _fallback_rank(resid_abs, elem_tol):
+    """Rank of a state that misses closure: elements over tolerance, then worst |res| / tol."""
+    ratio = np.asarray(resid_abs) / elem_tol
+    return int(np.count_nonzero(ratio > 1.0)), float(np.amax(ratio))
+
+
+def _polish_fallback(state, resid, ddict, target_d, elem_tol, tolerance, xtol, nsolve):
+    """Re-solve the positive primaries of a fallback state with its zero ones held at 0.
+
+    A clipped root misses what its phantom species carried (the S of the H2S formed by a
+    negative pH2O). The polished state is kept only if it is non-negative, passes the mass
+    gates and ranks better; otherwise the fallback is returned as it is.
+    """
+    free = np.flatnonzero(state > 0.0)
+    if free.size in (0, state.size):
+        return state, resid
+
+    def _free_resid(y):
+        x = state.copy()
+        x[free] = y
+        return np.asarray(func(x, ddict, target_d))[free]
+
+    # opt.root (MINPACK hybrd, as fsolve) keeps this solve out of the restart loop's count.
+    result = opt.root(
+        _free_resid, state[free], method='hybr', options={'xtol': xtol, 'maxfev': nsolve}
+    )
+    polished = state.copy()
+    polished[free] = result.x
+    if not result.success or np.any(polished < 0.0):
+        return state, resid
+    polished_resid = np.abs(np.asarray(func(polished, ddict, target_d)))
+    in_gate = np.amax(polished_resid[:4]) <= tolerance and np.all(
+        polished_resid[4:] <= elem_tol[4:]
+    )
+    if in_gate and _fallback_rank(polished_resid, elem_tol) < _fallback_rank(resid, elem_tol):
+        return polished, polished_resid
+    return state, resid
 
 
 # Solver bounds, in one place so the cold-start guess range, the trust-constr
@@ -807,9 +842,12 @@ def equilibrium_atmosphere(
     hide_warnings : bool, default True
         Hide floating point runtime warnings raised by `scipy` for poor guesses.
     rtol : float, default 1e-5
-        Relative tolerance for mass conservation.
+        Relative tolerance for mass conservation. An accepted state closes
+        every element to ``max(rtol * budget, TRUNC_MASS)``.
     atol : float, default 1e10
-        Absolute tolerance for mass conservation [kg].
+        Absolute tolerance [kg] of the scalar mass gate,
+        ``rtol * max(budget) + atol + TRUNC_MASS``, that a state returned
+        through the warned fallback must pass.
     xtol : float, default 1e-8
         Relative tolerance for fsolve.
     p_guess : dict or None, default None
@@ -847,7 +885,9 @@ def equilibrium_atmosphere(
     partial_pressures : dict
         Volatile partial pressures [bar] keyed `<species>_bar`, plus per-species
         reservoir masses [kg], elemental totals, residuals, and atmospheric
-        diagnostics (P_surf, M_atm, atm_kg_per_mol, ratios).
+        diagnostics (P_surf, M_atm, atm_kg_per_mol, ratios). ``fallback`` is
+        True when no root closed every element and the closest refused state
+        was returned with a warning.
     """
 
     ddict = _with_fO2_model(ddict, fO2_model)
@@ -941,15 +981,12 @@ def equilibrium_atmosphere(
 
     bounds = opt.Bounds(lb=lb, ub=ub)
 
-    # Scalar CHNOS acceptance gate, keyed to the largest CHNOS budget only.
-    # Noble gas budgets are deliberately excluded from this maximum: a large
-    # noble inventory would otherwise inflate the tolerance and loosen the
-    # closure demanded of the trace CHNOS elements. The noble gases are held
-    # to their own per-gas gate below.
+    # Scalar CHNOS mass gate, keyed to the largest CHNOS budget only: a large noble inventory
+    # would inflate it and loosen the closure of the trace CHNOS elements, so the noble
+    # gases are held to their own per-gas gate below.
     tolerance = np.amax([target_d[e] for e in ('H', 'C', 'N', 'S')]) * rtol + atol + TRUNC_MASS
     elements = ('H', 'C', 'N', 'S') + active
-    budgets = np.array([target_d[e] for e in elements])
-    elem_tol = np.maximum(budgets * rtol, TRUNC_MASS)
+    elem_tol = np.maximum(np.array([target_d[e] for e in elements]) * rtol, TRUNC_MASS)
     log.debug('Required tolerance: %g' % tolerance)
 
     with warnings.catch_warnings():
@@ -961,7 +998,7 @@ def equilibrium_atmosphere(
             warnings.filterwarnings('ignore', category=UserWarning)
 
         solver: int = 0
-        fallback = None
+        fallback = fallback_rank = fallback_count = None
         for count in range(nguess):
             if solver == 0:
                 sol, _, ier, _ = opt.fsolve(
@@ -991,7 +1028,7 @@ def equilibrium_atmosphere(
             # the noble gases are held to their own per-gas gate below.
             chnos_resid = np.abs(np.asarray(this_resid[:4]))
             loss = np.amax(chnos_resid)
-            if loss > tolerance:
+            if not loss <= tolerance:
                 if success:
                     log.debug('Solution rejected by CHNOS residual')
                     log.debug('    d(i=%d) = %.2e kg' % (np.argmax(chnos_resid), loss))
@@ -1005,42 +1042,41 @@ def equilibrium_atmosphere(
             # authoritative-O path already uses.
             if success and active:
                 noble_resid = np.abs(np.asarray(this_resid[4:]))
-                if np.any(noble_resid > elem_tol[4:]):
+                if not np.all(noble_resid <= elem_tol[4:]):
                     log.debug('Solution rejected by noble gas residual')
                     success = False
 
             # Species form from pH2 before any clip, so a negative pH2O still forms CH4 and
-            # H2S. Judge and report a root with a negative primary in its clipped form; see
-            # docs/Explanations/mass_balance.md (sign check) for the acceptance rule. A clip
-            # that empties a budget the root still held worsens it by far more than its
-            # tolerance, so it is rejected here; it can still return as the warned fallback.
-            sol_resid = np.asarray(this_resid)
+            # H2S. A root with a negative primary is judged in its clipped form; see
+            # docs/Explanations/mass_balance.md (sign check).
+            state, state_resid = sol, np.abs(np.asarray(this_resid))
             if success and np.any(sol < 0.0):
-                clipped = np.maximum(sol, 0.0)
-                clipped_signed = np.asarray(func(clipped, ddict, target_d))
-                clipped_resid = np.abs(clipped_signed)
-                in_gate = np.amax(clipped_resid[:4]) <= tolerance and np.all(
-                    clipped_resid[4:] <= elem_tol[4:]
-                )
-                if in_gate and np.all(clipped_resid - np.abs(this_resid) <= elem_tol):
-                    sol, sol_resid = clipped, clipped_signed
-                else:
+                state = np.maximum(sol, 0.0)
+                state_resid = np.abs(np.asarray(func(state, ddict, target_d)))
+                if not (
+                    np.amax(state_resid[:4]) <= tolerance
+                    and np.all(state_resid[4:] <= elem_tol[4:])
+                ):
                     log.debug('Solution rejected: a negative primary carries mass, %s bar', sol)
                     success = False
-                    if in_gate:
-                        fallback = (clipped, clipped_resid)
 
-            # The scalar gate does not bound a budget below it, so a state that empties a
-            # nonzero budget beyond its tolerance passes it. Such a state is refused while
-            # attempts remain; it can still return as the warned fallback.
-            if success and np.any(
-                _emptied(sol_resid, budgets, rtol) & (np.abs(sol_resid) > elem_tol)
-            ):
-                log.debug('Solution rejected: it empties a nonzero budget, %s bar', sol)
+            # The mass gate does not bound a budget below it, so each element must close to
+            # its own tolerance, as in the authoritative-O path. A state that misses one is
+            # refused; the best such state is kept as the warned fallback.
+            if success and not np.all(state_resid <= elem_tol):
                 success = False
-                fallback = (sol, np.abs(sol_resid))
+                rank = _fallback_rank(state_resid, elem_tol)
+                log.debug(
+                    'Solution rejected: %d element(s) over tolerance, %s bar', rank[0], sol
+                )
+                if fallback is None or rank < fallback_rank:
+                    fallback, fallback_rank = (state, state_resid), rank
+                    fallback_count = count if fallback_count is None else fallback_count
 
             if success:
+                sol = state
+                break
+            if fallback is not None and count - fallback_count >= FALLBACK_ATTEMPTS:
                 break
 
             x0 = get_initial_pressures(target_d, p_guess_max=p_guess_max, n_extra=len(active))
@@ -1051,15 +1087,15 @@ def equilibrium_atmosphere(
             if opt_solver:
                 solver = 1 - solver
 
-    # Out of attempts: fall back to the last refused root that passes the mass gates. The
-    # warning is given once per process and element; repeats go to debug.
-    if not success and fallback is not None:
-        sol, fallback_resid = fallback
-        over = [elements[i] for i in np.flatnonzero(fallback_resid > elem_tol)]
-        new = [e for e in over if e not in _FALLBACK_WARNED]
-        _FALLBACK_WARNED.update(new)
-        (log.warning if new else log.debug)(
-            'No root closes every element after %d attempts; returning the last root that '
+    # Out of attempts: return the best refused state that passes the mass gates, polished
+    # with its emptied primaries held at zero and warned on every call.
+    fell_back = not success and fallback is not None
+    if fell_back:
+        sol, fallback_resid = _polish_fallback(
+            *fallback, ddict, target_d, elem_tol, tolerance, xtol, nsolve
+        )
+        log.warning(
+            'No root closes every element after %d attempts; returning the closest root that '
             'passes the mass gate, with |residual| over tolerance for %s',
             count + 1,
             ', '.join(
@@ -1171,6 +1207,7 @@ def equilibrium_atmosphere(
     outdict['S_res'] = res_l[3]
     for i, gas in enumerate(active):
         outdict[gas + '_res'] = res_l[4 + i]
+    outdict['fallback'] = fell_back
 
     return outdict
 

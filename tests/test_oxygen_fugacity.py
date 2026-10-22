@@ -352,6 +352,27 @@ def test_oxygen_fugacity_hirschmann_hcp_field_and_boundary_placement():
 
 
 @pytest.mark.physics_invariant
+def test_oxygen_fugacity_hirschmann_dispatcher_matches_the_full_fit_at_1bar():
+    """The dispatcher evaluates Hirschmann (2021) at 1 bar from precomputed
+    fcc/bcc coefficients, skipping the pressure polynomials and the fcc-hcp
+    branch test. It must give exactly ``hirschmann(T, P_bar=1.0)`` across
+    300-9000 K, including both ends of the held boundary range (1000 K, ~4300 K)
+    and the ~451 K and ~8148 K points where the unheld parabola reaches 1 bar,
+    and the shift must stay additive. At 10 GPa the full fit differs, so the
+    fast path is a 1 bar shortcut only."""
+    of = OxygenFugacity('hirschmann')
+    temperatures = np.concatenate(
+        [np.geomspace(300.0, 9000.0, 200), [451.0, 1000.0, 4300.0, 8148.0]]
+    )
+    for T in temperatures:
+        assert of(T) == of.hirschmann(T, P_bar=1.0), T
+        assert of(T, 3.0) == pytest.approx(of.hirschmann(T) + 3.0, abs=1e-12), T
+    assert abs(of.hirschmann(2000.0, P_bar=1.0e5) - of(2000.0)) > 0.5
+    with pytest.raises(ValueError, match='Temperature must be positive'):
+        of(-1.0)
+
+
+@pytest.mark.physics_invariant
 def test_oxygen_fugacity_hirschmann_1bar_stays_on_fcc_branch_outside_boundary_fit():
     """The Eq. 18 parabola drops below 1 bar under ~451 K and above ~8148 K.
     With the boundary held at its 1000 K and vertex (~4300 K) values there,

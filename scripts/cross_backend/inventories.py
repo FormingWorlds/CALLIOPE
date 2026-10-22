@@ -117,6 +117,7 @@ def derive_earth_volatile_O(T_magma: float = 2000.0, dIW: float = 3.5) -> float:
             ddict,
             hide_warnings=True,
             print_result=False,
+            fO2_model='fischer',
         )
     return float(out['O_kg_total'])
 
