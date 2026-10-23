@@ -227,6 +227,7 @@ def test_fo2_model_argument_sets_the_buffer_of_the_whole_solve():
     assert 'fO2_model' not in ddict
     np.random.seed(0)
     by_key = equilibrium_atmosphere(target, dict(ddict, fO2_model='oneill'), **kw)
+    assert by_key['fO2_model'] == 'oneill'
     np.testing.assert_array_equal(
         [by_arg[s + '_bar'] for s in volatile_species],
         [by_key[s + '_bar'] for s in volatile_species],
@@ -308,6 +309,8 @@ def test_authoritative_o_reports_the_shift_against_the_chosen_buffer():
     )
     on_oneill = equilibrium_atmosphere_authoritative_O(tgt, ddict, fO2_model='oneill', **kw)
     on_default = equilibrium_atmosphere_authoritative_O(tgt, ddict, **kw)
+    by_key = equilibrium_atmosphere_authoritative_O(tgt, dict(ddict, fO2_model='oneill'), **kw)
+    assert by_key['fO2_model'] == 'oneill'
     assert (on_oneill.get('fO2_model'), on_default.get('fO2_model')) == ('oneill', 'hirschmann')
 
     offset = OxygenFugacity()(T) - OxygenFugacity('oneill')(T)
