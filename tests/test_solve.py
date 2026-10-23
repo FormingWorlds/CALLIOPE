@@ -640,12 +640,13 @@ def test_clipped_root_must_close_each_noble_gas(monkeypatch, caplog):
 @pytest.mark.parametrize('seed', [0, 1, 2])
 def test_trace_sulfur_with_absent_nitrogen_returns_through_the_fallback(caplog, seed):
     """An S budget below the scalar mass gate with no N. A root that keeps S
-    exists (pS2 2.5e-17 bar), but the restarts do not reach it: every root they
-    find empties S and is refused. FALLBACK_ATTEMPTS after the first of them the
-    best returns through the fallback, well before the 1000 attempts run out,
-    and its warning names S. pN2 is reported as zero and H, C close. Which refused state ranks best depends on the seed, and the
-    states differ within rtol (1e-4): over seeds 0 to 7, P_surf spans 25.1335
-    to 25.1352 bar, so it is pinned to rel 1e-4."""
+    exists (pS2 2.507e-17 bar), but the restarts do not reach it: every root
+    they find empties S and is refused. FALLBACK_ATTEMPTS after the first of
+    them the best returns through the fallback, well before the 1000 attempts
+    run out, and its warning names S. pN2 is reported as zero and H, C close.
+    Which refused state ranks best depends on the seed, and the states differ
+    within rtol (1e-4): over seeds 0 to 7, P_surf spans 25.1335 to 25.1352 bar,
+    so it is pinned to rel 1e-4."""
     np.random.seed(seed)
     target = {'H': 1.0e20, 'C': 5.0e19, 'N': 0.0, 'S': 1.0e14}
     r = equilibrium_atmosphere(target, _earth_ddict(T=1500.0, dIW=2.0), p_guess=None, **_COLD)
@@ -661,11 +662,19 @@ def test_trace_sulfur_with_absent_nitrogen_returns_through_the_fallback(caplog, 
 
 
 @pytest.mark.physics_invariant
-def test_polished_fallback_that_closes_every_element_is_a_success(caplog):
+def test_polished_fallback_that_closes_every_element_is_a_success(monkeypatch, caplog):
     """No H and no N: the 3 attempts end on a refused root, and the polish of
     its positive primaries closes every element (C 8.2e3 kg, S 7.7e5 kg against
     tolerances of 5e15 and 1e14 kg). That state is returned as a success, with
     no fallback flag and no warning, not as a fallback that names no element."""
+    polished, real_polish = [], solve_mod._polish_fallback
+
+    def spy(state, resid, *args):
+        out = real_polish(state, resid, *args)
+        polished.append((resid, out[1]))
+        return out
+
+    monkeypatch.setattr(solve_mod, '_polish_fallback', spy)
     np.random.seed(0)
     target = {'H': 0.0, 'C': 5.0e19, 'N': 0.0, 'S': 1.0e18}
     r = equilibrium_atmosphere(
@@ -676,6 +685,9 @@ def test_polished_fallback_that_closes_every_element_is_a_success(caplog):
     )
     assert 'No root closes' not in caplog.text
     assert r['fallback'] is False
+    # The polish ran once and turned a state over tolerance into one that closes.
+    assert len(polished) == 1
+    assert polished[0][0][3] > 1.0e14 >= polished[0][1][3]
     for e in 'HCNS':
         assert abs(r[e + '_res']) <= max(target[e] * _COLD['rtol'], solve_mod.TRUNC_MASS), e
     assert r['S2_bar'] > 0.0 and r['CO2_bar'] > 0.0
@@ -1066,7 +1078,8 @@ def test_sub_gate_budget_worsened_by_the_clip_is_rejected(monkeypatch, caplog):
 
 def test_trace_hydrogen_without_opt_solver_returns_through_the_fallback(caplog):
     """With the library tolerances and fsolve only, no attempt keeps a trace H
-    budget (1e12 kg): every root that passes the mass gate loses it, and most
+    budget (1e12 kg): every root the restarts find that passes the mass gate
+    loses it (the root that keeps H, pH2O 1.79e-17 bar, is out of reach), and most
     are clipped negative-pH2O roots whose dropped H2S misses S by 1.59e13 kg
     against a 1e13 kg tolerance. The solve returns the closest of them
     FALLBACK_ATTEMPTS after the first, well before the 500 attempts run out,
@@ -1216,7 +1229,7 @@ _LIBRARY = dict(xtol=1e-8, rtol=1e-5, atol=1e10, nguess=50, nsolve=3000, print_r
 )
 def test_trace_hydrogen_falls_back_to_the_clipped_root(caplog, target, seed):
     """At library tolerances the restarts close a 1e12 kg H budget only with roots
-    whose negative pH2O carries the H in CH4 and H2S; the root with pH2O 1.8e-17
+    whose negative pH2O carries the H in CH4 and H2S; the root with pH2O 1.79e-17
     bar that closes every element is out of their reach. Clipping such a
     root empties the H budget, far beyond the H tolerance, so it is rejected, and
     the dropped phantom H2S takes S beyond its tolerance (1.59e13 kg against
