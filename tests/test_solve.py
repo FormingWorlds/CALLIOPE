@@ -671,7 +671,7 @@ def test_polished_fallback_that_closes_every_element_is_a_success(monkeypatch, c
 
     def spy(state, resid, *args):
         out = real_polish(state, resid, *args)
-        polished.append((resid, out[1]))
+        polished.append((resid[3], args[2][3], out[1][3]))  # S residual, S tolerance
         return out
 
     monkeypatch.setattr(solve_mod, '_polish_fallback', spy)
@@ -685,9 +685,9 @@ def test_polished_fallback_that_closes_every_element_is_a_success(monkeypatch, c
     )
     assert 'No root closes' not in caplog.text
     assert r['fallback'] is False
-    # The polish ran once and turned a state over tolerance into one that closes.
     assert len(polished) == 1
-    assert polished[0][0][3] > 1.0e14 >= polished[0][1][3]
+    s_before, s_tol, s_after = polished[0]
+    assert s_before > s_tol >= s_after
     for e in 'HCNS':
         assert abs(r[e + '_res']) <= max(target[e] * _COLD['rtol'], solve_mod.TRUNC_MASS), e
     assert r['S2_bar'] > 0.0 and r['CO2_bar'] > 0.0

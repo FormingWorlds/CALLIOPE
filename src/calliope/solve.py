@@ -886,8 +886,9 @@ def equilibrium_atmosphere(
         Volatile partial pressures [bar] keyed `<species>_bar`, plus per-species
         reservoir masses [kg], elemental totals, residuals, and atmospheric
         diagnostics (P_surf, M_atm, atm_kg_per_mol, ratios). ``fallback`` is
-        True when no root closed every element and the closest refused state
-        was returned with a warning.
+        True when the returned state misses the tolerance of an element and was
+        returned with a warning; a polished state that closes every element is
+        returned with ``fallback`` False.
     """
 
     ddict = _with_fO2_model(ddict, fO2_model)
