@@ -1088,12 +1088,15 @@ def equilibrium_atmosphere(
                 solver = 1 - solver
 
     # Out of attempts: return the best refused state that passes the mass gates, polished
-    # with its emptied primaries held at zero and warned on every call.
-    fell_back = not success and fallback is not None
-    if fell_back:
+    # with its emptied primaries held at zero; it is a fallback, warned, unless the polish
+    # closes every element.
+    fell_back = False
+    if not success and fallback is not None:
         sol, fallback_resid = _polish_fallback(
             *fallback, ddict, target_d, elem_tol, tolerance, xtol, nsolve
         )
+        fell_back, success = not np.all(fallback_resid <= elem_tol), True
+    if fell_back:
         log.warning(
             'No root closes every element after %d attempts; returning the closest root that '
             'passes the mass gate, with |residual| over tolerance for %s',
@@ -1104,7 +1107,6 @@ def equilibrium_atmosphere(
                 for i in np.flatnonzero(fallback_resid > elem_tol)
             ),
         )
-        success = True
 
     if not success:
         raise RuntimeError(
