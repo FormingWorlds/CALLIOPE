@@ -1318,7 +1318,8 @@ def equilibrium_atmosphere_authoritative_O(
     partial_pressures : dict
         Volatile partial pressures [bar] keyed ``<species>_bar``, plus
         per-species reservoir masses [kg], elemental totals, residuals,
-        and atmospheric diagnostics. Two additions relative to
+        and atmospheric diagnostics, as ``equilibrium_atmosphere`` returns
+        except ``fallback``. Two additions relative to
         ``equilibrium_atmosphere``:
 
         - ``fO2_shift_derived`` : float
