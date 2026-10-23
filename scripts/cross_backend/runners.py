@@ -89,32 +89,6 @@ def _calliope_ddict(
     return ddict
 
 
-def _with_calliope_buffer(buffer: str):
-    """Context manager that temporarily pins CALLIOPE's default IW
-    buffer to ``buffer`` ('fischer' or 'oneill'). Restores the prior
-    default on exit. Use this to compare both buffer choices from the
-    same harness regardless of which one is the library default.
-    """
-    from contextlib import contextmanager
-
-    from calliope.chemistry import ModifiedKeq
-    from calliope.oxygen_fugacity import OxygenFugacity
-
-    @contextmanager
-    def _ctx():
-        of_old = OxygenFugacity.__init__.__defaults__
-        mk_old = ModifiedKeq.__init__.__defaults__
-        OxygenFugacity.__init__.__defaults__ = (buffer,)
-        ModifiedKeq.__init__.__defaults__ = (buffer,)
-        try:
-            yield
-        finally:
-            OxygenFugacity.__init__.__defaults__ = of_old
-            ModifiedKeq.__init__.__defaults__ = mk_old
-
-    return _ctx()
-
-
 def run_calliope(
     inventory: Inventory,
     T_magma: float,
@@ -131,8 +105,9 @@ def run_calliope(
     Suppresses fsolve convergence-warning chatter for cleaner sweep
     output. The `random_seed` is fixed by default so a re-run of the
     figure scripts produces identical numbers. ``buffer`` selects the
-    IW parameterisation; default 'fischer' matches the CALLIOPE
-    library default; 'oneill' reproduces the legacy CALLIOPE behaviour.
+    IW parameterisation and is passed to the solver as ``fO2_model``;
+    default 'fischer' is the buffer the comparison figures are produced
+    with ('hirschmann' is the library default, 'oneill' the legacy one).
     """
     from calliope.solve import equilibrium_atmosphere_authoritative_O
 
@@ -148,7 +123,7 @@ def run_calliope(
         buffer=buffer,
     )
     try:
-        with warnings.catch_warnings(), _with_calliope_buffer(buffer):
+        with warnings.catch_warnings():
             warnings.simplefilter('ignore')
             out = equilibrium_atmosphere_authoritative_O(
                 target_d,
@@ -158,6 +133,7 @@ def run_calliope(
                 random_seed=random_seed,
                 nguess=nguess,
                 print_result=print_result,
+                fO2_model=buffer,
             )
     except Exception as exc:  # noqa: BLE001  (sweep must survive isolated failures)
         return BackendResult(

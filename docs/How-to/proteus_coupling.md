@@ -205,7 +205,7 @@ The two modes give bit-identical results in the cases where they should: for any
 
 ## Redox state
 
-`fO2_shift_IW` is in $\log_{10}$ units relative to CALLIOPE's IW buffer, Fischer et al. (2011) by default, with O'Neill & Eggins (2002) [^cite-oneilleggins2002] as the alternative form. Under `fO2_source = "user_constant"` this value is the buffer offset; under `fO2_source = "from_O_budget"` it is only the initial-guess seed. Common reference values:
+`fO2_shift_IW` is in $\log_{10}$ units relative to the CALLIOPE default IW buffer, Hirschmann (2021) [^cite-hirschmann2021]. Under `fO2_source = "user_constant"` this value is the buffer offset; under `fO2_source = "from_O_budget"` it is only the initial-guess seed. Common reference values:
 
 | $\Delta\mathrm{IW}$ | Description |
 |---|---|
@@ -256,6 +256,6 @@ For what the wrapper actually does on each iteration (sequence diagram, mapping 
  [^cite-cartierwood2019]: C. Cartier, B. J. Wood, *[The role of reducing conditions in building Mercury](https://doi.org/10.2138/gselements.15.1.39)*, Elements, 15(1), 39–45, 2019. [SciX](https://scixplorer.org/abs/2019Eleme..15...39C/abstract).
  [^cite-frostmccammon2008]: D. J. Frost, C. A. McCammon, *[The redox state of Earth's mantle](https://doi.org/10.1146/annurev.earth.36.031207.124322)*, Annual Review of Earth and Planetary Sciences, 36, 389–420, 2008. [SciX](https://scixplorer.org/abs/2008AREPS..36..389F/abstract).
  [^cite-nicholls2024]: H. Nicholls, T. Lichtenberg, D. J. Bower, R. Pierrehumbert, *[Magma ocean evolution at arbitrary redox state](https://doi.org/10.1029/2024JE008576)*, Journal of Geophysical Research: Planets, 129, e2024JE008576, 2024. [SciX](https://scixplorer.org/abs/2024JGRE..12908576N/abstract).
- [^cite-oneilleggins2002]: H. St. C. O'Neill, S. M. Eggins, *[The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts](https://doi.org/10.1016/S0009-2541(01)00414-4)*, Chemical Geology, 186, 151–181, 2002. [SciX](https://scixplorer.org/abs/2002ChGeo.186..151O/abstract).
+ [^cite-hirschmann2021]: M. M. Hirschmann, *[Iron-wüstite revisited: A revised calibration accounting for variable stoichiometry and the effects of pressure](https://doi.org/10.1016/j.gca.2021.08.039)*, Geochimica et Cosmochimica Acta, 313, 74–84, 2021.
  [^cite-sossi2020]: P. A. Sossi, A. D. Burnham, J. Badro, A. Lanzirotti, M. Newville, H. St. C. O'Neill, *[Redox state of Earth's magma ocean and its Venus-like early atmosphere](https://doi.org/10.1126/sciadv.abd1387)*, Science Advances, 6, eabd1387, 2020. [SciX](https://scixplorer.org/abs/2020SciA....6.1387S/abstract).
  [^cite-wadhwa2001]: M. Wadhwa, *[Redox state of Mars' upper mantle and crust from Eu anomalies in shergottite pyroxenes](https://doi.org/10.1126/science.1057594)*, Science, 291, 1527–1530, 2001. [SciX](https://scixplorer.org/abs/2001Sci...291.1527W/abstract).

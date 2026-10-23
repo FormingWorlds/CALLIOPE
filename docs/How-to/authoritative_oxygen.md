@@ -44,7 +44,7 @@ print(f"Surface pressure  : {result['P_surf']:.2f} bar")
 print(f"H2O bar           : {result['H2O_bar']:.2f}")
 ```
 
-The returned `result` dict carries every field `equilibrium_atmosphere` returns (per-species `_bar`, `_vmr`, `_kg_atm`, `_kg_liquid`, `_kg_solid`, `_kg_total`; per-element `_kg_atm`, `_res`; total `P_surf`, `M_atm`, `atm_kg_per_mol`) plus two new keys: `fO2_shift_derived` for the converged $\Delta\mathrm{IW}$ and `O_res` for the fifth mass-balance residual.
+The returned `result` dict carries every field `equilibrium_atmosphere` returns except `fallback` (per-species `_bar`, `_vmr`, `_kg_atm`, `_kg_liquid`, `_kg_solid`, `_kg_total`; per-element `_kg_atm`, `_res`; total `P_surf`, `M_atm`, `atm_kg_per_mol`; `fO2_model`, the IW buffer of the solve) plus two new keys: `fO2_shift_derived` for the converged $\Delta\mathrm{IW}$ and `O_res` for the fifth mass-balance residual.
 
 ## Recipe 2 - round-trip from buffered mode
 

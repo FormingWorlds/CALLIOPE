@@ -39,6 +39,7 @@ PLANET = {
 EARTH_HCNS = {'H': 5.6e20, 'C': 3.1e21, 'N': 3.7e19, 'S': 1.0e21}
 T_MAGMA = 2000.0
 DIW_ANCHOR = 3.5  # Sossi et al. 2020 Earth upper-mantle anchor
+FO2_MODEL = 'fischer'  # IW buffer of the backend-comparison page
 
 FROST_LO = 1.0  # Frost & McCammon (2008) Earth-mantle range, IW reference
 FROST_HI = 5.0
@@ -50,7 +51,16 @@ def collect() -> dict:
     Returns a dict with the buffered-mode O_kg_total and the
     authoritative-O recovered Delta-IW.
     """
-    ddict = {**PLANET, 'T_magma': T_MAGMA, 'Phi_global': 1.0, 'fO2_shift_IW': DIW_ANCHOR}
+    # Fischer 2011 is pinned to match the backend-comparison page, whose
+    # volatile-O reference was derived on that buffer. Both solves read
+    # the buffer from ddict, so the round trip never mixes two buffers.
+    ddict = {
+        **PLANET,
+        'T_magma': T_MAGMA,
+        'Phi_global': 1.0,
+        'fO2_shift_IW': DIW_ANCHOR,
+        'fO2_model': FO2_MODEL,
+    }
     for sp in volatile_species:
         ddict[f'{sp}_included'] = 1
         ddict[f'{sp}_initial_bar'] = 0.0

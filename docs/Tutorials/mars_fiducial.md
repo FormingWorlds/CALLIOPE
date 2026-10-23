@@ -61,12 +61,14 @@ print(f'Earth: P_surf = {earth_out["P_surf"]:6.1f} bar, M_atm = {earth_out["M_at
 print(f'Mars : P_surf = {mars_out["P_surf"]:6.1f} bar, M_atm = {mars_out["M_atm"]:.2e} kg')
 ```
 
-You should see (current default Fischer 2011 buffer):
+You should see (default Hirschmann 2021 IW buffer):
 
 ```
-Earth: P_surf = 1449.4 bar, M_atm = 7.54e+21 kg
-Mars : P_surf =  225.9 bar, M_atm = 8.79e+20 kg
+Earth: P_surf = 1448.5 bar, M_atm = 7.53e+21 kg
+Mars : P_surf =  225.7 bar, M_atm = 8.79e+20 kg
 ```
+
+With `'fO2_model': 'fischer'` added to `ddict` you get $1449.4$ and $225.9$ bar instead; at $T = 2500$ K the two buffers differ by only $0.01$ dex.
 
 Two things are worth noticing:
 
