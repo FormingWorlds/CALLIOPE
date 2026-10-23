@@ -639,11 +639,11 @@ def test_clipped_root_must_close_each_noble_gas(monkeypatch, caplog):
 @pytest.mark.physics_invariant
 @pytest.mark.parametrize('seed', [0, 1, 2])
 def test_trace_sulfur_with_absent_nitrogen_returns_through_the_fallback(caplog, seed):
-    """An S budget below the scalar mass gate with no N: no root keeps S, so every
-    root that passes the gate is refused. FALLBACK_ATTEMPTS after the first of
-    them the best returns through the fallback, well before the 1000 attempts
-    run out, and its warning names S. pN2 and pS2 are reported clipped to zero
-    and H, C close. Which refused state ranks best depends on the seed, and the
+    """An S budget below the scalar mass gate with no N. A root that keeps S
+    exists (pS2 2.5e-17 bar), but the restarts do not reach it: every root they
+    find empties S and is refused. FALLBACK_ATTEMPTS after the first of them the
+    best returns through the fallback, well before the 1000 attempts run out,
+    and its warning names S. pN2 is reported as zero and H, C close. Which refused state ranks best depends on the seed, and the
     states differ within rtol (1e-4): over seeds 0 to 7, P_surf spans 25.1335
     to 25.1352 bar, so it is pinned to rel 1e-4."""
     np.random.seed(seed)
@@ -652,7 +652,8 @@ def test_trace_sulfur_with_absent_nitrogen_returns_through_the_fallback(caplog, 
     attempts = _fallback_attempts(caplog)
     assert solve_mod.FALLBACK_ATTEMPTS < attempts < _COLD['nguess']
     assert 'tolerance for S (1e+14 kg, tolerance 1e+10 kg, budget 1e+14 kg)' in caplog.text
-    np.testing.assert_array_equal([r['N2_bar'], r['S2_bar'], r['S_kg_total']], 0.0)
+    assert r['N2_bar'] == 0.0
+    assert r['fallback'] is True
     assert r['P_surf'] == pytest.approx(25.1349, rel=1e-4)
     assert abs(r['P_surf'] - 25.318) > 0.05  # O'Neill 2002 buffer
     for e in 'HC':
@@ -1214,9 +1215,9 @@ _LIBRARY = dict(xtol=1e-8, rtol=1e-5, atol=1e10, nguess=50, nsolve=3000, print_r
     ids=['H1e12_N0', 'H1e12_N1e14'],
 )
 def test_trace_hydrogen_falls_back_to_the_clipped_root(caplog, target, seed):
-    """At library tolerances, a 1e12 kg H budget is closed only by roots whose
-    negative pH2O carries the H in CH4 and H2S (H 1e13 kg is not used: a root
-    that closes every element exists there). Clipping such a
+    """At library tolerances the restarts close a 1e12 kg H budget only with roots
+    whose negative pH2O carries the H in CH4 and H2S; the root with pH2O 1.8e-17
+    bar that closes every element is out of their reach. Clipping such a
     root empties the H budget, far beyond the H tolerance, so it is rejected, and
     the dropped phantom H2S takes S beyond its tolerance (1.59e13 kg against
     1e13 kg for 1e12 kg of H). The solve returns the best of them clipped and
@@ -1246,7 +1247,7 @@ def test_trace_hydrogen_falls_back_to_the_clipped_root(caplog, target, seed):
 @pytest.mark.physics_invariant
 def test_library_defaults_warn_for_every_element_a_trace_state_misses(caplog):
     """With the library defaults (opt_solver on) and a 1e12 kg H budget at
-    1500 K and IW+2, no root keeps H, and a returned state can miss a trace
+    1500 K and IW+2, no root the restarts reach keeps H, and a returned state can miss a trace
     element by orders of magnitude while passing the scalar mass gate
     (5e14 kg). Such a state is never returned silently: it is flagged, and the
     warning names every element whose residual exceeds its own tolerance and no
