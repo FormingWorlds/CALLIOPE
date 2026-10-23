@@ -257,6 +257,27 @@ def test_fo2_model_argument_sets_the_buffer_of_the_whole_solve():
 
 
 @pytest.mark.physics_invariant
+def test_solve_reports_the_buffer_it_used():
+    """The result names the IW buffer of the solve, so a caller that set it by
+    the fO2_model argument can pass it on: get_partial_pressures with that
+    buffer gives the solve's O2 pressure, and without it the default buffer
+    gives a pressure 0.160 dex (IW_Hirschmann - IW_ONeill at 1800 K) higher."""
+    ddict = _earth_ddict(T=1800.0, dIW=2.0)
+    kw = dict(print_result=False, nguess=200)
+    np.random.seed(0)
+    default = equilibrium_atmosphere(_earth_target_HCNS(), ddict, **kw)
+    np.random.seed(0)
+    r = equilibrium_atmosphere(_earth_target_HCNS(), ddict, fO2_model='oneill', **kw)
+    assert default.get('fO2_model') == 'hirschmann'
+    assert r.get('fO2_model') == 'oneill'
+    pin = {s: r[s + '_bar'] for s in ('H2O', 'CO2', 'N2', 'S2')}
+    passed_on = solve_mod.get_partial_pressures(pin, dict(ddict, fO2_model=r['fO2_model']))
+    assert passed_on['O2'] == pytest.approx(r['O2_bar'], rel=1e-12)
+    dropped = solve_mod.get_partial_pressures(pin, ddict)
+    assert np.log10(dropped['O2'] / r['O2_bar']) == pytest.approx(0.160, abs=2e-3)
+
+
+@pytest.mark.physics_invariant
 def test_authoritative_o_reports_the_shift_against_the_chosen_buffer():
     """The authoritative-O solve recovers an absolute fO2, and fO2_model sets
     the buffer the shift is reported against. An O budget made on O'Neill at
@@ -287,6 +308,7 @@ def test_authoritative_o_reports_the_shift_against_the_chosen_buffer():
     )
     on_oneill = equilibrium_atmosphere_authoritative_O(tgt, ddict, fO2_model='oneill', **kw)
     on_default = equilibrium_atmosphere_authoritative_O(tgt, ddict, **kw)
+    assert (on_oneill.get('fO2_model'), on_default.get('fO2_model')) == ('oneill', 'hirschmann')
 
     offset = OxygenFugacity()(T) - OxygenFugacity('oneill')(T)
     assert on_oneill['fO2_shift_derived'] == pytest.approx(dIW, abs=1e-4)
