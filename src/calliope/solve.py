@@ -888,7 +888,8 @@ def equilibrium_atmosphere(
         diagnostics (P_surf, M_atm, atm_kg_per_mol, ratios). ``fallback`` is
         True when the returned state misses the tolerance of an element and was
         returned with a warning; a polished state that closes every element is
-        returned with ``fallback`` False.
+        returned with ``fallback`` False. ``fO2_model`` names the IW buffer of the
+        solve.
     """
 
     ddict = _with_fO2_model(ddict, fO2_model)
@@ -1211,6 +1212,7 @@ def equilibrium_atmosphere(
     for i, gas in enumerate(active):
         outdict[gas + '_res'] = res_l[4 + i]
     outdict['fallback'] = fell_back
+    outdict['fO2_model'] = ddict['fO2_model']
 
     return outdict
 
@@ -1326,6 +1328,9 @@ def equilibrium_atmosphere_authoritative_O(
         - ``O_res`` : float
             5th residual (O mass-balance), in kg. Pairs with the
             existing ``H_res``/``C_res``/``N_res``/``S_res`` keys.
+
+        As in ``equilibrium_atmosphere``, ``fO2_model`` names the IW buffer
+        that ``fO2_shift_derived`` is referenced to.
 
     Raises
     ------
@@ -1809,6 +1814,7 @@ def equilibrium_atmosphere_authoritative_O(
     for i, gas in enumerate(active):
         outdict[gas + '_res'] = res_l[5 + i]
     outdict['fO2_shift_derived'] = fO2_derived
+    outdict['fO2_model'] = ddict['fO2_model']
 
     if print_result:
         log.info('    Derived fO2_shift = %.4f (hint was %.4f)', fO2_derived, fO2_hint)
