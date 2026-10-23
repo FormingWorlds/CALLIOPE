@@ -660,6 +660,27 @@ def test_trace_sulfur_with_absent_nitrogen_returns_through_the_fallback(caplog, 
 
 
 @pytest.mark.physics_invariant
+def test_polished_fallback_that_closes_every_element_is_a_success(caplog):
+    """No H and no N: the 3 attempts end on a refused root, and the polish of
+    its positive primaries closes every element (C 8.2e3 kg, S 7.7e5 kg against
+    tolerances of 5e15 and 1e14 kg). That state is returned as a success, with
+    no fallback flag and no warning, not as a fallback that names no element."""
+    np.random.seed(0)
+    target = {'H': 0.0, 'C': 5.0e19, 'N': 0.0, 'S': 1.0e18}
+    r = equilibrium_atmosphere(
+        target,
+        _earth_ddict(T=1500.0, dIW=2.0),
+        p_guess=_NEG_H2O_GUESS_NO_H,
+        **{**_COLD, 'nguess': 3},
+    )
+    assert 'No root closes' not in caplog.text
+    assert r['fallback'] is False
+    for e in 'HCNS':
+        assert abs(r[e + '_res']) <= max(target[e] * _COLD['rtol'], solve_mod.TRUNC_MASS), e
+    assert r['S2_bar'] > 0.0 and r['CO2_bar'] > 0.0
+
+
+@pytest.mark.physics_invariant
 @pytest.mark.parametrize(
     ('seed', 'p_surf', 'h2o'),
     [(0, 9.397713354566907, 0.4022191760949055), (7, 9.397713513933748, 0.4022193071737796)],
