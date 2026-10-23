@@ -54,7 +54,7 @@ The `result` dictionary contains, for every species `s` in `volatile_species`:
 - `s_kg_solid`: 0.0 (solid partitioning is handled by the caller, not CALLIOPE)
 - `s_kg_total`: sum of atmosphere + liquid
 
-and per-element totals `H_kg_atm`, `C_kg_atm`, ..., `S_res` (mass-balance residual in kg).
+and per-element totals `H_kg_atm`, `C_kg_atm`, ..., `S_res` (mass-balance residual in kg). `fO2_model` names the IW buffer the solve used (a string); set it as `ddict['fO2_model']` to evaluate a state with `get_partial_pressures`, `atmosphere_mass` or `dissolved_mass` on the same buffer.
 
 ## Pattern 2 - solve from initial partial pressures
 
