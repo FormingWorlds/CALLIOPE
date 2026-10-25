@@ -1756,9 +1756,13 @@ def _with_metal(solve, target_d, ddict, kwargs):
 
     Each pass evaluates the mass-basis D of H, C, N and S on the current metal and melt
     (``metal.mass_D``), solves at those fixed D, and takes the new metal H, C, N and S
-    from the core masses. O and Si in the metal are fixed (``O_mode_core``,
-    ``Si_mode_core`` = 'fixed', mass fractions ``w_O_core``, ``w_Si_core``). The passes
+    from the core masses. O and Si in the metal are fixed mass fractions
+    (``O_mode_core``, ``Si_mode_core`` = 'fixed'; ``w_O_core``, ``w_Si_core``) or follow
+    their exchange K_D at the dIW of the pass ('partition', ideal activities). The passes
     stop when no metal mass fraction moves by more than ``tol_w_core`` (default 1e-6).
+    The closure check uses the root tolerance of the solve (relative ``rtol``, default
+    1e-5, plus ``atol``, default 1e10 kg). ``<e>_kg_total`` stays gas plus melt and
+    excludes the core; the bulk inventory is ``<e>_kg_total + <e>_kg_core``.
 
     Raises
     ------
@@ -1767,18 +1771,25 @@ def _with_metal(solve, target_d, ddict, kwargs):
     ValueError
         An unknown mode, or dIW_eq_mode other than 'parameter' and 'from_FeO'.
     """
-    from .metal import KLB1, load_partition_table, mass_D, out_of_range
+    from .metal import (
+        KLB1,
+        _metal_moles,
+        exchange_metal,
+        load_partition_table,
+        mass_D,
+        out_of_range,
+    )
 
     table = ddict.get('partition_table') or load_partition_table()
     m_metal, m_melt = ddict['metal_mass'], ddict['M_mantle'] * ddict['Phi_global']
     oxides = ddict.get('silicate_oxides', KLB1)
     nbo_t = ddict.get('silicate_nbo_t', 2.6)
     p_eq, t_eq = ddict['P_eq'], ddict['T_eq']
-    fixed = {}
+    fixed, modes = {}, {}
     for el in ('O', 'Si'):
-        mode = ddict.get(f'{el}_mode_core', 'fixed')
-        if mode != 'fixed':
-            raise ValueError(f'{el}_mode_core {mode!r} is not available; use fixed')
+        modes[el] = ddict.get(f'{el}_mode_core', 'fixed')
+        if modes[el] not in ('fixed', 'partition'):
+            raise ValueError(f"{el}_mode_core {modes[el]!r}: use 'fixed' or 'partition'")
         fixed[el] = float(ddict.get(f'w_{el}_core', 0.0))
     w = {**fixed, 'H': 0.0, 'C': 0.0, 'N': 0.0, 'S': 0.0}
     w_melt = {'H': 0.0, 'C': 0.0}
@@ -1786,6 +1797,12 @@ def _with_metal(solve, target_d, ddict, kwargs):
     out = None
     for _ in range(30):
         d_iw = _metal_diw(ddict, w, oxides)
+        if 'partition' in modes.values():
+            x_ex = exchange_metal(table, p_eq, t_eq, d_iw, oxides)
+            n_total = _metal_moles(w)[0]
+            for el in ('O', 'Si'):
+                if modes[el] == 'partition':
+                    fixed[el] = x_ex[el] * n_total * (molar_mass_rock.get(el) or molar_mass[el])
         d_mass = {
             el: mass_D(table[el], p_eq, t_eq, d_iw, w, w_melt, oxides, nbo_t)
             for el in ('H', 'C', 'N', 'S')
