@@ -406,6 +406,7 @@ class TestLaw:
         one = log10_D(entry, 20.0, 3000.0, -2.0)
         two = log10_D(dict(entry, dIW_factor=2.0), 20.0, 3000.0, -2.0)
         assert two - one == pytest.approx(entry['d'] * -2.0, rel=1e-12)
+        assert log10_D(dict(entry, dIW_factor=1.0), 20.0, 3000.0, -2.0) == one
 
     def test_out_of_range_flags_each_axis_and_unknown_ranges(self):
         """A point outside any range, or on an axis whose range is unknown, is flagged."""
@@ -606,6 +607,9 @@ class TestMassD:
             mass_D(table['H'], 50.0, 3500.0, -2000.0, {}, {})
         with pytest.raises(ValueError, match='dIW'):
             exchange_metal(table, 50.0, 3500.0, 2000.0)
+        # each factor of x_O stays below 1e308, their product does not
+        with pytest.raises(ValueError, match='no iron'):
+            exchange_metal(table, 50.0, 5000.0, 615.9, elements=('O',), check=False)
 
     def test_metal_with_no_iron_raises(self):
         """Light elements that sum to 1 leave no iron for the metal basis."""

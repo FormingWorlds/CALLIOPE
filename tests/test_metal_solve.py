@@ -701,7 +701,39 @@ def test_si_partition_with_diw_from_feo_settles(monkeypatch):
     n_free = (1 - sum(w.values())) / 0.055845 + sum(w[el] / m[el] for el in m)
     assert w['Si'] / m['Si'] / n_free == pytest.approx(x_si['Si'], rel=1e-4)
     assert -2.3 < out['dIW_eq'] < -2.0
-    assert passes[0] <= 10
+    assert 1 <= passes[0] <= 10
+
+
+@pytest.mark.parametrize(
+    'extra',
+    [
+        {'Si_mode_core': 'partition', 'dIW_eq': -6.0},
+        {'O_mode_core': 'partition', 'dIW_eq_mode': 'from_FeO', 'T_eq': 5000.0, 'feo': 17.9},
+        {'O_mode_core': 'partition', 'dIW_eq': 615.9, 'T_eq': 5000.0},
+    ],
+    ids=['si-at-iw-minus-6', 'o-from-feo-rich-melt', 'o-exchange-overflows'],
+)
+def test_exchange_without_iron_raises_the_named_error(extra):
+    """An exchange that leaves no iron after the first pass, or is not finite, raises ValueError."""
+    from calliope.metal import KLB1
+
+    extra = dict(extra)
+    ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'partition_table': load_partition_table()}
+    if 'feo' in extra:
+        feo = extra.pop('feo')
+        ddict['silicate_oxides'] = {
+            **KLB1,
+            'FeO': feo,
+            'MgO': KLB1['MgO'] - (feo - KLB1['FeO']),
+        }
+    ddict.update(extra)
+    try:
+        _solve(ddict)
+        raised = None
+    except Exception as err:
+        raised = err
+    assert isinstance(raised, ValueError), raised
+    assert 'no iron' in str(raised)
 
 
 @pytest.mark.physics_invariant
