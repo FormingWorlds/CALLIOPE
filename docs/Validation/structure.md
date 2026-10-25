@@ -25,6 +25,13 @@ land at ~3e18 kg, six orders of magnitude below the correct value. The
 test's scale guard `1e24 < mantle < 1e25` brackets the correct order and
 fails on any factor-of-10 unit slip.
 
+`calculate_mantle_mass` serves standalone runs. Inside PROTEUS the core mass comes from
+the interior structure: with Zalmoxis it is the mass enclosed at the core-mantle boundary
+(`zalmoxis_solver` in `proteus.interior_struct.zalmoxis`), the mantle mass is the rest of the
+interior mass, and the outgassing step passes `hf_row['M_mantle']` to CALLIOPE
+(`construct_options` in `proteus.outgas.calliope`). PROTEUS does not call
+`calculate_mantle_mass`.
+
 ## Anchor type
 
 Published benchmark + analytical limit. The Wang+2018 cite is the

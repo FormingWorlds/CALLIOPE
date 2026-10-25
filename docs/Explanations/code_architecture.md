@@ -78,7 +78,7 @@ Plus the inner-loop residual functions `func` (four-vector for buffered) and `fu
 
 ### `structure.py`
 
-Single function `calculate_mantle_mass(radius, mass, core_frac)` that returns `M_mantle = M_planet - M_core` assuming Earth-like core density. This is a fallback for use cases where a full structure solve (Zalmoxis, SPIDER) is not warranted. The PROTEUS coupling does *not* go through this function; it gets `M_mantle` directly from Zalmoxis or SPIDER via `hf_row`.
+Single function `calculate_mantle_mass(radius, mass, core_frac)` that returns `M_mantle = M_planet - M_core` assuming Earth-like core density. It serves standalone runs. PROTEUS does not call it: its outgassing step passes `hf_row['M_mantle']` from the interior structure (`construct_options` in `proteus.outgas.calliope`). With Zalmoxis the core mass is the mass enclosed at the core-mantle boundary (`zalmoxis_solver` in `proteus.interior_struct.zalmoxis`), and `M_mantle` is the rest of the interior mass.
 
 ## Call graph
 

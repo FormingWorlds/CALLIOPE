@@ -23,6 +23,8 @@ Every key is checked before the first solve: a value of the wrong type, NaN, inf
 
 The metal O comes from the silicate FeO, not from the volatile O budget: in the authoritative-O solve gas and melt O close on the O budget, and `O_kg_core` is reported apart. CALLIOPE does not hold the silicate FeO reservoir; the caller applies the exchange from `n_FeO_exchange`. `metal_mass` is held fixed while Fe moves into or out of the metal.
 
+`M_mantle` and `metal_mass` come from the caller. Inside PROTEUS `M_mantle` is the mantle mass of the interior structure; with Zalmoxis the core mass is the mass enclosed at the core-mantle boundary and `M_mantle` is the rest of the interior mass. PROTEUS does not pass `metal_mass`, so its runs have no metal reservoir. A caller that takes `M_mantle` from a structure model takes the metal from the same model: `metal_mass` is the part of its core that equilibrates with the present melt.
+
 ## Outputs
 
 | Key | Unit | Meaning |
