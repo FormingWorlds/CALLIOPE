@@ -138,3 +138,29 @@ def test_partition_mode_puts_exchange_o_and_si_in_the_metal():
         assert w[el] / masses[el] / n_total == pytest.approx(x[el], rel=1e-4)
     assert 0 < w['O'] < 0.2 and 0 < w['Si'] < 0.2
     assert out['O_kg_core'] == pytest.approx(w['O'] * 1.9e24, rel=1e-12)
+
+
+@pytest.mark.physics_invariant
+def test_diw_from_feo_matches_the_melt_and_metal():
+    """dIW_eq_mode 'from_FeO': dIW = 2 log10(x_FeO / x_Fe) on the KLB-1 melt and the final metal."""
+    from calliope.metal import KLB1, molar_mass_rock, oxide_mole_fraction
+
+    ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'dIW_eq_mode': 'from_FeO', 'w_Si_core': 0.05}
+    out = _solve(ddict)
+    w = {el: out['w_' + el + '_core'] for el in ('H', 'C', 'N', 'S', 'O', 'Si')}
+    m = {'H': 0.001008, 'C': 0.012011, 'N': 0.014007, 'S': 0.03206, 'O': 0.015999}
+    m['Si'] = molar_mass_rock['Si']
+    n_fe = (1 - sum(w.values())) / molar_mass_rock['Fe']
+    x_fe = n_fe / (n_fe + sum(w[el] / m[el] for el in w))
+    expected = 2 * math.log10(oxide_mole_fraction(KLB1, 'FeO') / x_fe)
+    assert out['dIW_eq'] == pytest.approx(expected, abs=1e-4)
+    # KLB-1 with 8.1 wt% FeO sits near IW-2.3 against nearly pure Fe metal
+    assert -2.6 < out['dIW_eq'] < -2.0
+
+
+def test_unknown_metal_modes_raise():
+    """An O or Si mode or a dIW mode outside the known ones is refused before solving."""
+    for key, value in (('O_mode_core', 'free'), ('Si_mode_core', 1), ('dIW_eq_mode', 'buffer')):
+        with pytest.raises(ValueError) as exc:
+            _solve({**_ddict(), **_metal(30.0, 1.9e24), key: value})
+        assert key in str(exc.value) or repr(value) in str(exc.value)
