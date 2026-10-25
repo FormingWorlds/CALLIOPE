@@ -562,8 +562,11 @@ def test_feo_exchange_balances_o_and_si_atoms(w_o, w_si, flag, caplog, monkeypat
     monkeypatch.setattr(solve_mod, '_METAL_WARNED', set())
     ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'w_O_core': w_o, 'w_Si_core': w_si}
     with caplog.at_level('WARNING', logger='fwl.calliope.solve'):
-        out = _solve(ddict)
-        _solve(ddict)
+        try:
+            out = _solve(ddict)
+            _solve(ddict)
+        except Exception as exc:
+            pytest.fail(f'metal solve raised {type(exc).__name__}: {exc}')
     n_ex = w_o * 1.9e24 / _M_O - 2 * w_si * 1.9e24 / _M_SI
     assert out['n_FeO_exchange'] == pytest.approx(n_ex, rel=1e-4)
     assert out['FeO_kg_exchange'] == pytest.approx(n_ex * (_M_FE + _M_O), rel=1e-4)
