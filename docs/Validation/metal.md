@@ -17,7 +17,7 @@ A metal reservoir is on when `metal_mass` is above zero.
 The partition coefficient $D_i$ of element $i$ is the ratio of its mass fraction in the metal to its mass fraction in the melt.
 The element balance of H, C, N and S then gains a core term $D_i M_\mathrm{metal} w_i^\mathrm{melt}$.
 Here $M_\mathrm{metal}$ is the metal mass and $w_i^\mathrm{melt}$ the mass fraction of the element in the melt.
-The values of $D_i$ come from the partition file (`src/calliope/metal.py`); the laws that CALLIOPE ships in it are placeholders.
+The values of $D_i$ come from the partition file (`src/calliope/metal.py`); the packaged laws are placeholders.
 The metal O comes from the FeO of the silicate and stays out of the volatile O budget.
 `<e>_kg_total` stays gas plus melt and excludes the core; the bulk inventory of an element is `<e>_kg_total + <e>_kg_core`.
 Inputs, outputs and the placeholder laws are on the [metal reservoir page](../Reference/partition_file.md).
@@ -130,7 +130,7 @@ Inputs, outputs and the placeholder laws are on the [metal reservoir page](../Re
 ![Core H and C of the Tsutsumi single-stage cases](../assets/validation/metal_tsutsumi2025_core_h_c.svg#only-light){ width="80%" }
 ![Core H and C of the Tsutsumi single-stage cases](../assets/validation/metal_tsutsumi2025_core_h_c_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** The x-axis has the 3 cases and the y-axis is the mass fraction of H and C in the core in wt%. The open markers are the table values and the filled markers are the values of the code. A pass means that each filled marker sits inside its open marker.
+**How to read the plot.** The x-axis has the 3 cases and the y-axis is the mass fraction of H and C in the core in wt%. The open markers are the table values and the filled markers are the values of the code. A pass means that each filled marker lies inside its open marker.
 
 ??? info "Test details"
     - Reference: Tsutsumi et al. (2025), SI Table 1 (published table).
