@@ -1805,7 +1805,9 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
     partitioned element moves by ``1 / (1 - s)`` of its exchange step, with ``s`` the
     secant slope of the exchange value against the metal value of the last 2 passes when
     ``s < 0`` (1 otherwise): with dIW from FeO, more metal Si raises dIW and lowers the
-    exchange Si, and the undamped passes alternate. The passes stop when each metal mass
+    exchange Si, and the undamped passes alternate. With O and Si both partitioned each
+    secant also holds the move of the other element. The moves of a pass are halved until
+    they take at most half of the iron left in the metal. The passes stop when each metal mass
     fraction, or exchange step, is at most ``tol_w_core`` (default 1e-6) of its value,
     plus 1e-15. The metal O comes from the silicate FeO and never enters the
     volatile O budget; with ``o_budget`` (the authoritative-O solve) gas and melt O close
@@ -1861,15 +1863,21 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
     for _ in range(30):
         d_iw = _metal_diw(ddict, w, oxides)
         if partitioned:
-            x_ex = exchange_metal(table, p_eq, t_eq, d_iw, oxides, partitioned)
+            x_ex = exchange_metal(table, p_eq, t_eq, d_iw, oxides, partitioned, check=False)
             n_total = _metal_moles(w, ('H', 'C'))[0]
+            move = {}
             for el in partitioned:
                 target, lam = x_ex[el] * n_total * _mass(el), 1.0
                 if el in last and fixed[el] != last[el][0]:
                     slope = (target - last[el][1]) / (fixed[el] - last[el][0])
                     lam = 1.0 / (1.0 - min(slope, 0.0))
                 last[el], resid[el] = (fixed[el], target), target - fixed[el]
-                fixed[el] += lam * resid[el]
+                move[el] = lam * resid[el]
+            # a pass takes at most half of the iron left in the metal
+            while sum(w.values()) + sum(move.values()) >= 0.5 * (1.0 + sum(w.values())):
+                move = {el: 0.5 * v for el, v in move.items()}
+            for el in partitioned:
+                fixed[el] += move[el]
         d_mass = {
             el: mass_D(table[el], p_eq, t_eq, d_iw, {**w, **fixed}, w_melt, oxides, nbo_t)
             for el in ('H', 'C', 'N', 'S')
@@ -2011,11 +2019,7 @@ def check_metal_fields(ddict):
         if field not in ddict:
             continue
         v = ddict[field]
-        try:
-            finite = _is_number(v) and math.isfinite(v)
-        except OverflowError:  # an int beyond the float range
-            finite = False
-        if not finite:
+        if not _finite_number(v):
             raise ValueError(f'{field} must be a finite number, got {v!r}')
         if v < lo or v > hi or (v == lo and not lo_ok) or (v == hi and not hi_ok):
             raise ValueError(f'{field} = {v!r} is outside its range ({lo}, {hi})')
@@ -2029,7 +2033,7 @@ def check_metal_fields(ddict):
                 f'silicate_oxides has unknown oxides {unknown}; known: {list(_OXIDES)}'
             )
         for k, v in ox.items():
-            if not _is_number(v) or not (math.isfinite(v) and v >= 0):
+            if not (_finite_number(v) and v >= 0):
                 raise ValueError(f'silicate_oxides[{k!r}] must be finite and >= 0, got {v!r}')
         if not 95.0 <= sum(ox.values()) <= 101.0:
             raise ValueError(f'silicate_oxides sum to {sum(ox.values())!r} wt%, not 95-101')
@@ -2051,6 +2055,11 @@ def check_metal_fields(ddict):
         raise ValueError(f'silicate_oxides needs {oxide} above 0 for the selected mode')
 
 
-def _is_number(v):
-    """A real number that is not a boolean (Python or numpy)."""
-    return isinstance(v, numbers.Real) and not isinstance(v, bool | np.bool_)
+def _finite_number(v):
+    """A finite real number that is not a boolean (Python or numpy)."""
+    if not isinstance(v, numbers.Real) or isinstance(v, bool | np.bool_):
+        return False
+    try:
+        return math.isfinite(v)
+    except OverflowError:  # an int beyond the float range
+        return False

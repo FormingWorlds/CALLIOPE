@@ -182,7 +182,9 @@ def load_partition_table(path=None):
         raise PartitionTableError(f'schema_version must be {SCHEMA_VERSION}, got {version!r}')
     meta = raw.pop('meta', None)
     name = meta.get('name') if isinstance(meta, dict) else None
-    if not (isinstance(name, str) and name.strip() and isinstance(meta['placeholder'], bool)):
+    if not (
+        isinstance(name, str) and name.strip() and isinstance(meta.get('placeholder'), bool)
+    ):
         raise PartitionTableError(
             'the file needs a [meta] table with a non-empty name and a boolean placeholder'
         )
@@ -436,7 +438,7 @@ def cation_fraction(oxides, name):
     )
 
 
-def exchange_metal(table, p_gpa, t_k, d_iw, oxides=KLB1, elements=('O', 'Si')):
+def exchange_metal(table, p_gpa, t_k, d_iw, oxides=KLB1, elements=('O', 'Si'), check=True):
     """Metal mole fractions of O and Si from their exchange K_D, ideal activities.
 
     ``FeO = Fe + O``: ``x_O = K_D x_FeO / x_Fe = K_D 10^(dIW/2)``; ``SiO2 + 2 Fe = Si +
@@ -446,12 +448,13 @@ def exchange_metal(table, p_gpa, t_k, d_iw, oxides=KLB1, elements=('O', 'Si')):
     Activity coefficients are 1; the fits of Siebert et al. come with activity terms
     that this release does not use.
 
-    Only the laws of ``elements`` are evaluated.
+    Only the laws of ``elements`` are evaluated. ``check=False`` returns fractions that
+    leave no iron as they are, for a fixed-point pass that shortens its step.
 
     Raises
     ------
     ValueError
-        O and Si that leave no iron in the metal.
+        O and Si that leave no iron in the metal, with ``check``.
     """
     for el in elements:
         _need_form(table[el], 'exchange_KD')
@@ -463,6 +466,6 @@ def exchange_metal(table, p_gpa, t_k, d_iw, oxides=KLB1, elements=('O', 'Si')):
         x_sio2 = cation_fraction(oxides, 'SiO2')
         k_d = _pow10(log10_D(table['Si'], p_gpa, t_k, 0.0), p_gpa, t_k, d_iw)
         x['Si'] = k_d * x_sio2 * _pow10(-d_iw, p_gpa, t_k, d_iw)
-    if sum(x.values()) >= 1.0:
+    if check and sum(x.values()) >= 1.0:
         raise ValueError(f'O and Si leave the metal with no iron: {x}')
     return x
