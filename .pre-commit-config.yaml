@@ -1,6 +1,9 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
 ---
+# Matplotlib SVGs carry trailing spaces in their text; the rewriting hooks would
+# change files the validation plots write.
+exclude: \.svg$
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
