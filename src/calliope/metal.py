@@ -381,3 +381,28 @@ def oxide_mole_fraction(oxides, name):
         cat, n_cat, n_o = _OXIDES[ox]
         n[ox] = wt / (n_cat * molar_mass_rock[cat] + n_o * molar_mass['O'])
     return n[name] / sum(n.values())
+
+
+def exchange_metal(table, p_gpa, t_k, d_iw, oxides=KLB1):
+    """Metal mole fractions of O and Si from their exchange K_D, ideal activities.
+
+    ``FeO = Fe + O``: ``x_O = K_D x_FeO / x_Fe = K_D 10^(dIW/2)``; ``SiO2 + 2 Fe = Si +
+    2 FeO``: ``x_Si = K_D x_SiO2 (x_Fe / x_FeO)^2 = K_D x_SiO2 10^(-dIW)``, with
+    ``dIW = 2 log10(x_FeO / x_Fe)`` and ``x_SiO2`` on the single-cation basis of the melt.
+    Activity coefficients are 1; the fits of Siebert et al. come with activity terms
+    that this release does not use.
+
+    Raises
+    ------
+    ValueError
+        O and Si that leave no iron in the metal.
+    """
+    n_si = oxides['SiO2'] / 100.0 / (molar_mass_rock['Si'] + 2 * molar_mass['O'])
+    x_sio2 = n_si / silicate_units_per_kg(oxides)
+    x = {
+        'O': 10.0 ** log10_D(table['O'], p_gpa, t_k, 0.0) * 10.0 ** (d_iw / 2.0),
+        'Si': 10.0 ** log10_D(table['Si'], p_gpa, t_k, 0.0) * x_sio2 * 10.0 ** (-d_iw),
+    }
+    if x['O'] + x['Si'] >= 1.0:
+        raise ValueError(f'O and Si leave the metal with no iron: {x}')
+    return x
