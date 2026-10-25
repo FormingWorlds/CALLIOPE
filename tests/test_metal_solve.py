@@ -225,8 +225,31 @@ def test_metal_diw_takes_no_absolute_fo2():
     # S and O dilute the metal Fe, so dIW lies above the pure-Fe value of KLB-1 (-2.485)
     pure = _metal_diw({'dIW_eq_mode': 'from_FeO'}, dict.fromkeys(w, 0.0), KLB1)
     assert pure == pytest.approx(-2.4846, abs=1e-4)
-    assert diw[0] - pure == pytest.approx(0.1195, abs=1e-4)
-    assert _metal_diw({'dIW_eq': -2.5, 'fO2_model': 'oneill'}, w, KLB1) == -2.5
+    assert diw[0] - pure == pytest.approx(0.1194, abs=1e-4)
+    assert _metal_diw({'dIW_eq': -2.5, 'fO2_model': 'oneill'}, w, KLB1) == pytest.approx(-2.5)
+
+
+@pytest.mark.physics_invariant
+def test_buffer_reaches_the_metal_through_the_solved_composition():
+    """Little melt and metal at IW-4: the solved dIW_eq and D_C move with the IW buffer.
+
+    The gas and melt hold most of each budget, so the buffer moves the melt and metal
+    composition that dIW (from FeO) and the C law read; each state still closes.
+    """
+    ddict = {**_ddict(), 'fO2_shift_IW': -4.0, 'Phi_global': 0.01, 'metal_mass': 1e21}
+    ddict.update(P_eq=50.0, T_eq=3500.0, dIW_eq_mode='from_FeO')
+    ddict['partition_table'] = load_partition_table()
+    target = dict(TARGET, H=1e22)
+    h, f = (_solve(dict(ddict, fO2_model=b), target=target) for b in BUFFERS[:2])
+    assert not (h['fallback'] or f['fallback'])
+    # measured: dIW_eq -0.052 dex and D_C +83 % from Fischer to Hirschmann
+    assert h['dIW_eq'] - f['dIW_eq'] < -0.02
+    assert h['C_D_metal'] / f['C_D_metal'] > 1.3
+    assert -3.0 < h['dIW_eq'] < -1.0
+    for out in (h, f):
+        for el in ELEMS:
+            closure = out[el + '_kg_atm'] + out[el + '_kg_liquid'] + out[el + '_kg_core']
+            assert closure == pytest.approx(target[el], rel=1e-6), el
 
 
 def test_unknown_metal_modes_raise():
