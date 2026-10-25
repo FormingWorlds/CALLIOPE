@@ -254,7 +254,7 @@ def test_authoritative_o_budget_excludes_the_metal_o():
     for el in ELEMS:
         closure = out[el + '_kg_atm'] + out[el + '_kg_liquid'] + out[el + '_kg_core']
         assert abs(closure - target[el]) <= target[el] * 1e-10 + 10.0, el
-    # metal O (1.9e21 kg) is 22 times gas and melt O (8.75e19 kg): charged to the budget it
+    # metal O (1.9e21 kg) is 22 times gas and melt O (8.76e19 kg): charged to the budget it
     # would move fO2 far from IW+2
     assert out['O_kg_core'] > 10 * buffered['O_kg_total']
     assert out['H_kg_core'] > 0.5 * TARGET['H']
@@ -290,7 +290,7 @@ def test_authoritative_o_with_equal_d_is_a_larger_melt():
 
 @pytest.mark.physics_invariant
 def test_partition_o_far_above_the_o_budget_solves():
-    """Partition-mode metal O (3.6 wt%) is 800 times the volatile O budget and still solves."""
+    """Partition-mode metal O (3.6 wt%) is about 800 times the volatile O budget and solves."""
     ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'partition_table': load_partition_table()}
     ddict.update(O_mode_core='partition', Si_mode_core='partition')
     buffered = _solve(ddict)
