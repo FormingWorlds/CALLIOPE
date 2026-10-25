@@ -1,6 +1,6 @@
 # Metal reservoir and partition file
 
-With `metal_mass` above zero, `equilibrium_atmosphere` and `equilibrium_atmosphere_authoritative_O` add a metal reservoir in equilibrium with the melt. The element balance of H, C, N and S gains a core term $D_i M_\mathrm{metal} w_i^\mathrm{melt}$, with $D_i$ the mass-basis metal over melt partition coefficient. O and Si in the metal are set by a mass fraction or by their exchange reaction. The partition laws come from a TOML file; CALLIOPE ships a placeholder file. The validation cases are on the [solve validation page](../Validation/solve.md#metal-reservoir).
+With `metal_mass` above zero, `equilibrium_atmosphere` and `equilibrium_atmosphere_authoritative_O` add a metal reservoir in equilibrium with the melt. The element balance of H, C, N and S gains a core term $D_i M_\mathrm{metal} w_i^\mathrm{melt}$, with $D_i$ the mass-basis metal over melt partition coefficient. O and Si in the metal are set by a mass fraction or by their exchange reaction. The partition laws come from a TOML file; CALLIOPE ships a placeholder file. The validation cases are on the [metal reservoir validation page](../Validation/metal.md).
 
 ## Inputs in `ddict`
 

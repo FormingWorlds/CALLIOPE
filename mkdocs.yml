@@ -46,6 +46,7 @@ nav:
       - Oxygen fugacity: Validation/oxygen_fugacity.md
       - Solubility: Validation/solubility.md
       - Solve: Validation/solve.md
+      - Metal reservoir: Validation/metal.md
       - Structure: Validation/structure.md
 
   - Reference:
