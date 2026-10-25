@@ -291,8 +291,9 @@ class TestMalformedFile:
             ('', 'schema_version'),
             ('schema_version = 2', 'schema_version'),
             ('schema_version = true', 'schema_version'),
+            ('schema_version = 1.0', 'schema_version'),
         ],
-        ids=['missing_version', 'future_version', 'bool_version'],
+        ids=['missing_version', 'future_version', 'bool_version', 'float_version'],
     )
     def test_schema_version_must_be_one(self, tmp_path, header, message):
         """Only schema version 1 (an integer, not a boolean) is read."""
@@ -307,6 +308,32 @@ class TestMalformedFile:
             load_partition_table(_write(tmp_path, _text({'Xe': _H})))
         with pytest.raises(PartitionTableError, match='meta'):
             load_partition_table(_write(tmp_path, 'schema_version = 1\n[H]\na = 1.0\n'))
+
+    def test_meta_needs_a_name(self, tmp_path):
+        """A [meta] table without a non-empty name is refused."""
+        text = _text().replace('name = "test"\n', '')
+        with pytest.raises(PartitionTableError, match='name'):
+            load_partition_table(_write(tmp_path, text))
+
+    @pytest.mark.parametrize('key', ['esp', 'f'])
+    def test_unknown_key_in_an_entry_is_refused(self, tmp_path, key):
+        """A key outside the schema (a misspelt eps, an extra coefficient) is refused."""
+        entry = dict(_H, **{key: '{ O = 1.0 }' if key == 'esp' else '7.0'})
+        with pytest.raises(PartitionTableError) as exc:
+            load_partition_table(_write(tmp_path, _text({'H': entry})))
+        assert repr(key) in str(exc.value) and "'H'" in str(exc.value)
+
+    @pytest.mark.parametrize(
+        'field, pair', [('P_range_GPa', '[-30.0, 60.0]'), ('T_range_K', '[-5.0, 4560.0]')]
+    )
+    def test_negative_pressure_or_temperature_range_is_refused(self, tmp_path, field, pair):
+        """P and T ranges start at 0 or above; a negative dIW range is valid."""
+        with pytest.raises(PartitionTableError, match=field):
+            load_partition_table(_write(tmp_path, _text({'H': _with(**{field: pair})})))
+        table = load_partition_table(
+            _write(tmp_path, _text({'H': _with(dIW_range='[-3.0, -1.0]')}))
+        )
+        assert table['H']['dIW_range'] == (-3.0, -1.0)
 
     def test_missing_file_raises_file_not_found(self, tmp_path):
         """A path that does not exist is an OSError, not a malformed table."""
@@ -495,6 +522,9 @@ class TestMetalReservoir:
         ddict.update(Phi_global=0.5)
         with pytest.raises(ValueError, match='D'):
             metal_masses({'H': 1e20}, ddict, {'H': -1.0})
+        for bad in (-1.0, math.nan):
+            with pytest.raises(ValueError, match='metal_mass'):
+                metal_masses({'H': 1e20}, {**ddict, 'metal_mass': bad}, {'H': 50.0})
 
 
 class TestMassD:
@@ -559,6 +589,22 @@ class TestMassD:
         )
         assert ratio == pytest.approx((free + w['H'] / molar_mass['H']) / free, rel=1e-12)
         assert ratio > 1.1
+
+    def test_nbo_t_defaults_to_the_documented_2_6(self):
+        """mass_D and log10_D without NBO/T use 2.6, the solve default."""
+        c = load_partition_table()['C']
+        args = (50.0, 3500.0, -2.0)
+        assert log10_D(c, *args) == log10_D(c, *args, nbo_t=2.6)
+        w = {'O': 0.05, 'S': 0.02}
+        assert mass_D(c, *args, w, {}) == mass_D(c, *args, w, {}, nbo_t=2.6)
+
+    def test_law_that_overflows_raises_a_named_value_error(self):
+        """A D or K_D beyond the float range raises ValueError with the conditions."""
+        table = load_partition_table()
+        with pytest.raises(ValueError, match='dIW'):
+            mass_D(table['H'], 50.0, 3500.0, -2000.0, {}, {})
+        with pytest.raises(ValueError, match='dIW'):
+            exchange_metal(table, 50.0, 3500.0, 2000.0)
 
     def test_metal_with_no_iron_raises(self):
         """Light elements that sum to 1 leave no iron for the metal basis."""

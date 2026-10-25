@@ -36,13 +36,14 @@ GOOD = {
 # field -> values that must raise; bounds: P_eq, T_eq > 0, metal_mass >= 0, w in [0, 1)
 BAD = {
     'metal_mass': [True, 'x', math.nan, math.inf, -1.0],
-    'P_eq': [True, math.nan, math.inf, 0.0, -5.0],
+    'P_eq': [True, math.nan, math.inf, 0.0, -5.0, 10**400],
     'T_eq': [False, math.nan, -math.inf, 0.0, -1.0],
     'dIW_eq': [True, 'IW-2', math.nan, math.inf],
     'silicate_nbo_t': [True, math.nan, math.inf, -0.1],
     'w_O_core': [True, math.nan, -0.01, 1.0],
     'w_Si_core': [math.inf, -1e-9, 1.5],
-    'tol_w_core': [True, math.nan, 0.0, -1e-6],
+    # from 1 on, the relative stop holds on the first pass
+    'tol_w_core': [True, math.nan, 0.0, -1e-6, 1.0, 5.0],
 }
 
 
@@ -55,7 +56,9 @@ class TestMetalFields:
         assert sum(KLB1.values()) == pytest.approx(99.29, abs=1e-9)
 
     @pytest.mark.parametrize(
-        'field, value', [(f, v) for f, vals in BAD.items() for v in vals], ids=repr
+        'field, value',
+        [(f, v) for f, vals in BAD.items() for v in vals],
+        ids=lambda v: repr(v)[:24],
     )
     def test_bad_value_raises_naming_the_field(self, field, value):
         """Each wrong type or out-of-range value raises ValueError with the field name."""
@@ -128,6 +131,18 @@ class TestMetalFields:
             check_metal_fields({**GOOD, field: value})
         assert field in str(exc.value)
         assert repr(value) in str(exc.value)
+
+    def test_array_valued_mode_is_refused_by_name(self):
+        """A mode given as an array is refused with its field name."""
+        with pytest.raises(ValueError, match='O_mode_core'):
+            check_metal_fields({**GOOD, 'O_mode_core': np.array(['fixed', 'partition'])})
+
+    def test_fixed_o_and_si_that_leave_no_iron_are_refused(self):
+        """w_O_core + w_Si_core of 1 or more leaves no iron in the metal."""
+        with pytest.raises(ValueError) as exc:
+            check_metal_fields({**GOOD, 'w_O_core': 0.6, 'w_Si_core': 0.5})
+        assert 'w_O_core' in str(exc.value) and 'w_Si_core' in str(exc.value)
+        assert check_metal_fields({**GOOD, 'w_O_core': 0.5, 'w_Si_core': 0.4}) is None
 
     def test_numpy_scalars_pass_and_numpy_bool_fails(self):
         """numpy float32 and int64 values are numbers; a numpy bool is not."""
