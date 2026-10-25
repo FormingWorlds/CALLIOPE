@@ -1798,8 +1798,9 @@ def equilibrium_atmosphere_authoritative_O(
 def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
     """Solve with a metal reservoir: fixed point on the metal composition.
 
-    Each pass evaluates the mass-basis D of H, C, N and S on the current metal and melt
-    (``metal.mass_D``), solves at those fixed D, and takes the new metal H, C, N and S
+    Each pass evaluates the mass-basis D of H, C, N and S on the metal and melt of the
+    previous pass with the O and Si of this pass (``metal.mass_D``), solves at those fixed
+    D, and takes the new metal H, C, N and S
     from the core masses. O and Si in the metal are fixed mass fractions
     (``O_mode_core``, ``Si_mode_core`` = 'fixed'; ``w_O_core``, ``w_Si_core``) or follow
     their exchange K_D at the dIW of the pass ('partition', ideal activities). The passes
@@ -1860,7 +1861,7 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
             for el in partitioned:
                 fixed[el] = x_ex[el] * n_total * _mass(el)
         d_mass = {
-            el: mass_D(table[el], p_eq, t_eq, d_iw, w, w_melt, oxides, nbo_t)
+            el: mass_D(table[el], p_eq, t_eq, d_iw, {**w, **fixed}, w_melt, oxides, nbo_t)
             for el in ('H', 'C', 'N', 'S')
         }
         inner = {**ddict, '_metal_D': d_mass}
@@ -1918,20 +1919,11 @@ def _feo_exchange(o_kg, si_kg, m_melt, oxides):
     """Silicate FeO taken by the metal O and Si, against the FeO of the melt.
 
     FeO = Fe + O takes 1 FeO per metal O; SiO2 + 2 Fe = Si + 2 FeO gives back 2 per metal
-    Si, so ``n_FeO_exchange = n_O - 2 n_Si`` [mol]. The O and Si atoms taken from the
-    silicate (1 per FeO, 2 per SiO2) must equal the metal O. ``FeO_exchange_out_of_range``
-    is 1 when the exchange is more than 10 % of the melt FeO, in either sign.
-
-    Raises
-    ------
-    RuntimeError
-        The O atoms of the exchanged oxides differ from the metal O.
+    Si, so ``n_FeO_exchange = n_O - 2 n_Si`` [mol]. ``FeO_exchange_out_of_range`` is 1
+    when the exchange is more than 10 % of the melt FeO, in either sign.
     """
     m_feo = _mass('Fe') + molar_mass['O']
-    n_o, n_si = o_kg / molar_mass['O'], si_kg / _mass('Si')
-    n_ex = n_o - 2.0 * n_si
-    if abs(n_ex + 2.0 * n_si - n_o) > 1e-12 * max(n_o, 1.0):
-        raise RuntimeError(f'exchange O {n_ex + 2.0 * n_si} mol differs from metal O {n_o} mol')
+    n_ex = o_kg / molar_mass['O'] - 2.0 * si_kg / _mass('Si')
     n_sil = m_melt * oxides.get('FeO', 0.0) / 100.0 / m_feo
     ratio = abs(n_ex) / n_sil if n_sil > 0 else (math.inf if n_ex else 0.0)
     if ratio > 0.1:
