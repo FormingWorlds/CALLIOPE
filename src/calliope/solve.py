@@ -560,8 +560,6 @@ def func_authoritative_O(x_arr, ddict, mass_target_d):
     mass_atm_d = _atmosphere_mass(pin_dict, fO2_shift, ddict)
     mass_int_d = _dissolved_mass(pin_dict, fO2_shift, ddict)
     mass_core_d = _core_masses(mass_int_d, ddict)
-    if mass_core_d:  # the O of the metal is a reservoir of the O budget
-        mass_core_d['O'] = ddict.get('_metal_O_kg', 0.0)
 
     elems = ['H', 'C', 'N', 'S', 'O'] + list(active)
     res_l = [0.0] * len(elems)
@@ -1805,9 +1803,10 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
     from the core masses. O and Si in the metal are fixed mass fractions
     (``O_mode_core``, ``Si_mode_core`` = 'fixed'; ``w_O_core``, ``w_Si_core``) or follow
     their exchange K_D at the dIW of the pass ('partition', ideal activities). The passes
-    stop when no metal mass fraction moves by more than ``tol_w_core`` (default 1e-6).
-    With ``o_budget`` (the authoritative-O solve) the metal O is a reservoir of the O
-    budget ``target_d['O']``, and O joins the closure check.
+    stop when each metal mass fraction moves by at most ``tol_w_core`` (default 1e-6) of
+    its value, plus 1e-15. The metal O comes from the silicate FeO and never enters the
+    volatile O budget; with ``o_budget`` (the authoritative-O solve) gas and melt O close
+    on ``target_d['O']``.
     The closure check uses the acceptance gate of the solve: the largest H, C, N, S
     budget times ``rtol`` plus ``atol`` for ``equilibrium_atmosphere``, each budget
     times ``rtol`` (at least 10 kg) with ``o_budget``. ``<e>_kg_total`` stays gas plus
@@ -1821,12 +1820,15 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
     RuntimeError
         No convergence in 30 passes, or a solved state that breaks the element closure.
     ValueError
-        An unknown mode, dIW_eq_mode other than 'parameter' and 'from_FeO', or a metal
-        O at or above the O budget.
+        A metal field that breaks its rule, or metal with no melt (Phi_global 0).
     """
     check_metal_fields(ddict)
     table = ddict.get('partition_table') or load_partition_table()
     m_metal, m_melt = ddict['metal_mass'], ddict['M_mantle'] * ddict['Phi_global']
+    if not m_melt > 0:
+        raise ValueError(
+            f'metal_mass {m_metal!r} kg needs melt, but M_mantle * Phi_global is {m_melt!r}'
+        )
     oxides = ddict.get('silicate_oxides', KLB1)
     nbo_t = ddict.get('silicate_nbo_t', 2.6)
     p_eq, t_eq = ddict['P_eq'], ddict['T_eq']
@@ -1861,18 +1863,16 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
             el: mass_D(table[el], p_eq, t_eq, d_iw, w, w_melt, oxides, nbo_t)
             for el in ('H', 'C', 'N', 'S')
         }
-        if o_budget:
-            _check_metal_o(fixed['O'] * m_metal, target_d)
-        inner = {**ddict, '_metal_D': d_mass, '_metal_O_kg': fixed['O'] * m_metal}
+        inner = {**ddict, '_metal_D': d_mass}
         out = solve(target_d, inner, **kwargs)
         kwargs['p_guess'] = {s: out[s + '_bar'] for s in ('H2O', 'CO2', 'N2', 'S2') + active}
         if o_budget:
             kwargs['p_guess']['fO2_shift_IW'] = out['fO2_shift_derived']
         new = {**fixed, **{el: out[el + '_kg_core'] / m_metal for el in ('H', 'C', 'N', 'S')}}
         w_melt = {el: out[el + '_kg_liquid'] / m_melt for el in ('H', 'C')}
-        moved = max(abs(new[el] - w[el]) for el in new)
+        settled = all(abs(new[el] - w[el]) <= tol * abs(new[el]) + 1e-15 for el in new)
         w = new
-        if moved < tol:
+        if settled:
             break
     else:
         raise RuntimeError(f'metal composition did not converge in 30 passes: {w}')
@@ -1894,12 +1894,13 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
     rtol = kwargs['rtol']
     gate = max(target_d[el] for el in ('H', 'C', 'N', 'S')) * rtol + kwargs['atol'] + TRUNC_MASS
     for el in ('H', 'C', 'N', 'S') + (('O',) if o_budget else ()):
-        closure = out[el + '_kg_atm'] + out[el + '_kg_liquid'] + out[el + '_kg_core']
+        core = out[el + '_kg_core'] if el != 'O' else 0.0  # metal O is rock O, not budget O
+        closure = out[el + '_kg_atm'] + out[el + '_kg_liquid'] + core
         # the 1e-12 relative term covers round-off of the 3-term sum
         tol_kg = (max(target_d[el] * rtol, TRUNC_MASS) if o_budget else gate) + 1e-12 * (
             target_d[el]
         )
-        if not 0.0 <= out[el + '_kg_core'] <= target_d[el] + tol_kg:
+        if not 0.0 <= core <= target_d[el] + tol_kg:
             raise RuntimeError(
                 f'{el} core mass {out[el + "_kg_core"]:.4g} kg is outside [0, budget '
                 f'{target_d[el]:.4g} kg]'
@@ -1917,15 +1918,6 @@ def _warn_metal_once(el, kind, message):
     if (el, kind) not in _METAL_WARNED:
         _METAL_WARNED.add((el, kind))
         log.warning(message)
-
-
-def _check_metal_o(metal_o_kg, target_d):
-    """Refuse a metal O [kg] at or above the O budget, which leaves no O for gas and melt."""
-    if metal_o_kg >= target_d['O']:
-        raise ValueError(
-            f'metal O {metal_o_kg:.4g} kg is at or above the O budget {target_d["O"]:.4g} kg; '
-            'lower w_O_core (or the metal O of partition mode) or metal_mass'
-        )
 
 
 def _metal_diw(ddict, w_metal, oxides):

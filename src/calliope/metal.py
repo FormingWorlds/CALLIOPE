@@ -24,6 +24,7 @@ import numpy as np
 from .constants import molar_mass, molar_mass_rock
 
 ELEMENTS = ('H', 'C', 'N', 'S', 'O', 'Si')
+EXCHANGE_ELEMENTS = ('O', 'Si')
 SCHEMA_VERSION = 1
 FORMS = ('log10_linear', 'exchange_KD')
 QUANTITIES = ('D', 'K_D')
@@ -91,7 +92,35 @@ def _entry(el, raw):
         if not isinstance(raw.get(field), str) or not raw[field].strip():
             raise PartitionTableError(f'{el!r}: {field!r} must be a non-empty string')
         out[field] = raw[field]
+    _check_read_values(el, out)
     return out
+
+
+def _need_form(entry, form):
+    """Refuse an entry whose form is not the one the evaluator implements."""
+    if entry['form'] != form:
+        raise PartitionTableError(f'{"form"!r} must be {form!r} here, got {entry["form"]!r}')
+
+
+def _check_read_values(el, entry):
+    """Refuse a value that the evaluator of the element does not read.
+
+    H, C, N and S use :func:`mass_D` (``log10_linear``, every basis); O and Si use
+    :func:`exchange_metal` (``exchange_KD``, ``K_D`` on the mole basis, with only the
+    a, b and c terms).
+    """
+    if el in EXCHANGE_ELEMENTS:
+        need = {'form': 'exchange_KD', 'quantity': 'K_D', 'basis': 'mole', 'dIW_factor': 1.0}
+        need.update(d=0.0, e=0.0)
+    else:
+        need = {'form': 'log10_linear'}
+    for field, value in need.items():
+        if entry[field] != value:
+            raise PartitionTableError(
+                f'{el!r}: {field!r} must be {value!r} for this element, got {entry[field]!r}'
+            )
+    if el in EXCHANGE_ELEMENTS and entry['eps']:
+        raise PartitionTableError(f'{el!r}: {"eps"!r} must be empty for an exchange law')
 
 
 def _covariance(cov, size, el):
@@ -365,6 +394,7 @@ def mass_D(entry, p_gpa, t_k, d_iw, w_metal, w_melt, oxides=KLB1, nbo_t=0.0):
         metal (without H and C for ``mole_xprime_noHC``) and of the melt units; ``D``
         for the mass basis.
     """
+    _need_form(entry, 'log10_linear')
     total, n = _metal_moles(w_metal)
     x_metal = {el: v / total for el, v in n.items()}
     d = 10.0 ** log10_D(entry, p_gpa, t_k, d_iw, x_metal, nbo_t)
@@ -398,6 +428,8 @@ def exchange_metal(table, p_gpa, t_k, d_iw, oxides=KLB1, elements=('O', 'Si')):
     ValueError
         O and Si that leave no iron in the metal.
     """
+    for el in elements:
+        _need_form(table[el], 'exchange_KD')
     x = {}
     if 'O' in elements:
         x['O'] = 10.0 ** log10_D(table['O'], p_gpa, t_k, 0.0) * 10.0 ** (d_iw / 2.0)
