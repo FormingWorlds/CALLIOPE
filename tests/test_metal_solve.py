@@ -6,9 +6,9 @@ in the metal and dIW a parameter, the solve equals the solve without metal and a
 melt mass larger by D M_metal (an identity of the element balance); the gas
 reservoir matters, so the gas-free core fraction Dx/(1 + Dx) misses the result.
 Every element closes over gas, melt and core, and metal_mass 0 is the solve
-without metal. In the authoritative-O solve the O of the metal is a reservoir of
-the O budget: gas, melt and metal O close on the budget, and a metal O above the
-budget is refused before the solve.
+without metal. The O of the metal comes from the silicate FeO and never enters the
+volatile O budget: in the authoritative-O solve gas and melt O close on the budget
+with metal O present, in 'fixed' and 'partition' mode alike.
 """
 
 from __future__ import annotations
@@ -192,25 +192,28 @@ def _solve_auth(ddict, target, p_guess=None):
 
 @pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
-def test_authoritative_o_closes_the_o_budget_with_metal():
+def test_authoritative_o_budget_excludes_the_metal_o():
     """Authoritative-O with 0.1 wt% O in the metal returns the fO2 of the buffered solve.
 
-    The O budget is gas and melt O of the metal solve at IW+2 plus the metal O, so the
-    derived fO2 must be IW+2 and gas + melt + metal O must equal the budget.
+    The O budget is the gas and melt O of the buffered metal solve at IW+2; the metal O is
+    rock O from FeO, so the derived fO2 must be IW+2 and gas + melt O must equal the budget.
     """
     m_metal, w_o = 1.9e24, 1e-3
     buffered = _solve({**_ddict(), **_metal(30.0, m_metal)})
-    target = dict(TARGET, O=buffered['O_kg_total'] + w_o * m_metal)
+    target = dict(TARGET, O=buffered['O_kg_total'])
     out = _solve_auth({**_ddict(), **_metal(30.0, m_metal), 'w_O_core': w_o}, target)
     assert out['fO2_shift_derived'] == pytest.approx(2.0, abs=1e-6)
     for sp in ('H2O', 'CO2', 'N2', 'S2', 'H2', 'CO'):
         assert out[sp + '_bar'] == pytest.approx(buffered[sp + '_bar'], rel=1e-6)
+    assert out['O_kg_core'] > 0
     assert out['O_kg_core'] == pytest.approx(w_o * m_metal, rel=1e-12)
-    assert out['w_O_core'] == pytest.approx(w_o, rel=1e-12)
-    for el in ('H', 'C', 'N', 'S', 'O'):
+    gas_melt_o = out['O_kg_atm'] + out['O_kg_liquid']
+    assert abs(gas_melt_o - target['O']) <= target['O'] * 1e-10 + 10.0
+    for el in ELEMS:
         closure = out[el + '_kg_atm'] + out[el + '_kg_liquid'] + out[el + '_kg_core']
         assert abs(closure - target[el]) <= target[el] * 1e-10 + 10.0, el
-    # metal O (1.9e21 kg) is 22 times gas and melt O (8.75e19 kg): without it fO2 moves far
+    # metal O (1.9e21 kg) is 22 times gas and melt O (8.75e19 kg): charged to the budget it
+    # would move fO2 far from IW+2
     assert out['O_kg_core'] > 10 * buffered['O_kg_total']
     assert out['H_kg_core'] > 0.5 * TARGET['H']
 
@@ -243,25 +246,56 @@ def test_authoritative_o_with_equal_d_is_a_larger_melt():
     assert with_metal['H_kg_core'] > 0.5 * TARGET['H']
 
 
-def test_metal_o_above_the_o_budget_is_refused():
-    """A metal O larger than the O budget leaves no O for gas and melt: refused before solving."""
-    from calliope.solve import _check_metal_o, equilibrium_atmosphere_authoritative_O
+@pytest.mark.physics_invariant
+def test_partition_o_far_above_the_o_budget_solves():
+    """Partition-mode metal O (3.6 wt%) is 800 times the volatile O budget and still solves."""
+    ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'partition_table': load_partition_table()}
+    ddict.update(O_mode_core='partition', Si_mode_core='partition')
+    buffered = _solve(ddict)
+    target = dict(TARGET, O=buffered['O_kg_total'])
+    out = _solve_auth(ddict, target)
+    assert out['fO2_shift_derived'] == pytest.approx(2.0, abs=1e-6)
+    assert out['O_kg_core'] > 100 * target['O']
+    assert out['O_kg_core'] == pytest.approx(buffered['O_kg_core'], rel=1e-6)
+    assert abs(out['O_kg_atm'] + out['O_kg_liquid'] - target['O']) <= target['O'] * 1e-10 + 10
 
-    ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'w_O_core': 0.01}
-    with pytest.raises(Exception) as exc:
-        equilibrium_atmosphere_authoritative_O(
-            dict(TARGET, O=1.2e21), ddict, print_result=False, nguess=3, random_seed=0
-        )
-    assert exc.type is ValueError
-    assert 'O budget' in str(exc.value)
-    # the edge: 1 kg of O left for gas and melt passes, none left is refused
-    _check_metal_o(999.0, {'O': 1000.0})
+
+@pytest.mark.parametrize('authoritative', [False, True])
+def test_metal_without_melt_is_refused_by_name(authoritative):
+    """metal_mass > 0 with Phi_global 0 raises the named melt error before any solve."""
+    from calliope.solve import equilibrium_atmosphere_authoritative_O
+
+    ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'Phi_global': 0.0}
     try:
-        _check_metal_o(1000.0, {'O': 1000.0})
+        if authoritative:
+            equilibrium_atmosphere_authoritative_O(
+                dict(TARGET, O=1e21), ddict, print_result=False, nguess=3
+            )
+        else:
+            equilibrium_atmosphere(TARGET, ddict, print_result=False, nguess=3)
         raised = None
     except Exception as err:
         raised = err
-    assert isinstance(raised, ValueError) and 'O budget' in str(raised), raised
+    assert type(raised) is ValueError, raised
+    assert 'needs melt' in str(raised) and 'Phi_global' in str(raised)
+
+
+@pytest.mark.physics_invariant
+def test_trace_element_converges_to_the_relative_stop():
+    """C at w about 1e-6 in the metal: the relative stop holds it to the tol 1e-12 result.
+
+    The absolute stop of 1e-6 in mass fraction left the C core mass 2.0e-5 off.
+    """
+    ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'partition_table': load_partition_table()}
+    ddict.update(O_mode_core='partition', Si_mode_core='partition')
+    kw = dict(p_guess=P_GUESS, print_result=False, nguess=200, opt_solver=False, rtol=1e-5)
+    np.random.seed(0)
+    loose = equilibrium_atmosphere(TARGET, ddict, **kw)
+    np.random.seed(0)
+    tight = equilibrium_atmosphere(TARGET, {**ddict, 'tol_w_core': 1e-12}, **kw)
+    assert 1e-7 < loose['w_C_core'] < 1e-5
+    for el in ELEMS:
+        assert loose[el + '_kg_core'] == pytest.approx(tight[el + '_kg_core'], rel=3e-6), el
 
 
 @pytest.mark.physics_invariant
@@ -335,7 +369,6 @@ def _offset_solve(miss):
             out[el + '_kg_core'] = 0.0
             out[el + '_kg_liquid'] = 1e18
             out[el + '_kg_atm'] = target_d.get(el, 0.0) - 1e18 + miss.get(el, 0.0)
-        out['O_kg_atm'] -= ddict['_metal_O_kg']
         out['fO2_shift_derived'] = 2.0
         return out
 
@@ -360,7 +393,7 @@ def _offset_solve(miss):
         'O-in',
         'O-out',
         'O-budget-N-out',
-        'metal-O-left-out',
+        'metal-O-charged-to-budget',
     ],
 )
 def test_closure_check_uses_the_gate_of_the_solve(o_budget, miss, closes):

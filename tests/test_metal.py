@@ -186,6 +186,52 @@ class TestMalformedFile:
         assert "'H'" in str(exc.value) and f"'{field}'" in str(exc.value)
         assert isinstance(exc.value, ValueError)
 
+    @pytest.mark.parametrize(
+        'el, changes, field',
+        [
+            ('H', {'form': '"exchange_KD"'}, 'form'),
+            ('O', {'form': '"log10_linear"', 'quantity': '"D"', 'basis': '"mass"'}, 'form'),
+            ('O', {'quantity': '"D"'}, 'quantity'),
+            ('Si', {'basis': '"mass"'}, 'basis'),
+            ('Si', {'basis': '"mole_xprime_noHC"'}, 'basis'),
+            ('O', {'d': '0.5'}, 'd'),
+            ('O', {'e': '-0.1'}, 'e'),
+            ('Si', {'eps': '{ O = -5.0 }'}, 'eps'),
+            ('O', {'dIW_factor': '2.0'}, 'dIW_factor'),
+        ],
+        ids=[
+            'H_exchange_form',
+            'O_linear_form',
+            'exchange_quantity_D',
+            'exchange_basis_mass',
+            'exchange_basis_xprime',
+            'exchange_d_term',
+            'exchange_e_term',
+            'exchange_eps_term',
+            'exchange_diw_factor',
+        ],
+    )
+    def test_unread_field_values_are_refused(self, tmp_path, el, changes, field):
+        """A value the evaluator of the element does not read is refused, naming the field."""
+        exchange = {
+            **_H,
+            'form': '"exchange_KD"',
+            'quantity': '"K_D"',
+            'basis': '"mole"',
+            'a': '0.986',
+            'b': '-3275.0',
+            'c': '0.0',
+            'd': '0.0',
+        }
+        entry = dict(_H if el == 'H' else exchange)
+        entry.update(changes)
+        with pytest.raises(PartitionTableError) as exc:
+            load_partition_table(_write(tmp_path, _text({el: entry})))
+        assert f"'{el}'" in str(exc.value) and f"'{field}'" in str(exc.value)
+        # the unchanged entry of the same element loads
+        base = _H if el == 'H' else exchange
+        assert load_partition_table(_write(tmp_path, _text({el: base})))[el]['form']
+
     def test_element_entry_must_be_a_table(self, tmp_path):
         """An element given as a value instead of a table is refused with its name."""
         text = 'schema_version = 1\nH = 3.0\n[meta]\nname = "x"\nplaceholder = true\n'
