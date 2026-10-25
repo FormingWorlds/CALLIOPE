@@ -109,6 +109,8 @@ TRUNC_MASS = 1e1
 
 # Elements whose emptied budget has been warned about in this process.
 _EMPTIED_WARNED = set()
+# (element, kind) of the metal-reservoir warnings given in this process
+_METAL_WARNED = set()
 
 # Solver bounds, in one place so the cold-start guess range, the trust-constr
 # box, and the fO2-hint validation cannot drift apart.
@@ -1789,6 +1791,9 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
     budget times ``rtol`` plus ``atol`` for ``equilibrium_atmosphere``, each budget
     times ``rtol`` (at least 10 kg) with ``o_budget``. ``<e>_kg_total`` stays gas plus
     melt and excludes the core; the bulk inventory is ``<e>_kg_total + <e>_kg_core``.
+    ``<e>_D_out_of_range`` is 1 for each element whose law runs outside its (P, T, dIW)
+    range or on an unknown range (O and Si only in 'partition' mode); such a law and the
+    ideal activities of 'partition' mode each warn once per process.
 
     Raises
     ------
@@ -1819,6 +1824,13 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
         if modes[el] not in ('fixed', 'partition'):
             raise ValueError(f"{el}_mode_core {modes[el]!r}: use 'fixed' or 'partition'")
         fixed[el] = float(ddict.get(f'w_{el}_core', 0.0))
+        if modes[el] == 'partition':
+            _warn_metal_once(
+                el,
+                'ideal',
+                f"{el}_mode_core 'partition' uses ideal activities in metal and melt; "
+                'activity coefficients are not included',
+            )
     w = {**fixed, 'H': 0.0, 'C': 0.0, 'N': 0.0, 'S': 0.0}
     w_melt = {'H': 0.0, 'C': 0.0}
     tol = ddict.get('tol_w_core', 1e-6)
@@ -1853,8 +1865,18 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
         raise RuntimeError(f'metal composition did not converge in 30 passes: {w}')
     for el in ('H', 'C', 'N', 'S'):
         out[el + '_D_metal'] = d_mass[el]
-        out[el + '_D_out_of_range'] = int(out_of_range(table[el], p_eq, t_eq, d_iw))
         out['w_' + el + '_core'] = w[el]
+    for el in ('H', 'C', 'N', 'S') + tuple(
+        el for el in ('O', 'Si') if modes[el] == 'partition'
+    ):
+        out[el + '_D_out_of_range'] = int(out_of_range(table[el], p_eq, t_eq, d_iw))
+        if out[el + '_D_out_of_range']:
+            _warn_metal_once(
+                el,
+                'range',
+                f'{el} partition law evaluated outside its range or on an unknown range: '
+                f'P_eq {p_eq:g} GPa, T_eq {t_eq:g} K, dIW_eq {d_iw:.3g}',
+            )
     for el in ('O', 'Si'):
         out['w_' + el + '_core'] = fixed[el]
         out[el + '_kg_core'] = fixed[el] * m_metal
@@ -1875,6 +1897,13 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
             )
     out['dIW_eq'] = d_iw
     return out
+
+
+def _warn_metal_once(el, kind, message):
+    """Log a metal-reservoir warning once per process for each (element, kind)."""
+    if (el, kind) not in _METAL_WARNED:
+        _METAL_WARNED.add((el, kind))
+        log.warning(message)
 
 
 def _check_metal_o(metal_o_kg, target_d):
