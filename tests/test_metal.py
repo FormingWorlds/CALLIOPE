@@ -406,7 +406,8 @@ class TestLaw:
         one = log10_D(entry, 20.0, 3000.0, -2.0)
         two = log10_D(dict(entry, dIW_factor=2.0), 20.0, 3000.0, -2.0)
         assert two - one == pytest.approx(entry['d'] * -2.0, rel=1e-12)
-        assert log10_D(dict(entry, dIW_factor=1.0), 20.0, 3000.0, -2.0) == one
+        zero = log10_D(dict(entry, dIW_factor=0.0), 20.0, 3000.0, -2.0)
+        assert zero == pytest.approx(one + 2.0 * entry['d'], rel=1e-12)
 
     def test_out_of_range_flags_each_axis_and_unknown_ranges(self):
         """A point outside any range, or on an axis whose range is unknown, is flagged."""

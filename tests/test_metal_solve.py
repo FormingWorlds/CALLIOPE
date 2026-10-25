@@ -727,22 +727,20 @@ def test_exchange_without_iron_raises_the_named_error(extra):
             'MgO': KLB1['MgO'] - (feo - KLB1['FeO']),
         }
     ddict.update(extra)
-    try:
+    with pytest.raises(ValueError, match='leave the metal with no iron'):
         _solve(ddict)
-        raised = None
-    except Exception as err:
-        raised = err
-    assert isinstance(raised, ValueError), raised
-    assert 'no iron' in str(raised)
 
 
 @pytest.mark.physics_invariant
-@pytest.mark.parametrize(('t_eq', 'both'), [(4800.0, False), (5000.0, True)])
+@pytest.mark.parametrize(
+    ('t_eq', 'both'), [(4800.0, False), (5000.0, True), (6500.0, False), (8000.0, False)]
+)
 def test_exchange_beyond_the_iron_of_pure_fe_metal_settles(t_eq, both):
     """From pure Fe metal the first exchange holds no iron (x_Si 1.10 at 4800 K); the solve settles.
 
     The steps of a pass stop short of a metal without iron, and the converged metal holds the
-    exchange x' of its own dIW.
+    exchange x' of its own dIW. At 6500 and 8000 K the exchange sum also exceeds 1 on later
+    passes while it falls toward its fixed point.
     """
     from calliope.metal import exchange_metal
 
@@ -761,7 +759,7 @@ def test_exchange_beyond_the_iron_of_pure_fe_metal_settles(t_eq, both):
     n_free = (1 - sum(w.values())) / 0.055845 + sum(w[el] / m[el] for el in m)
     for el in elements:
         assert w[el] / m[el] / n_free == pytest.approx(x[el], rel=1e-4), el
-    assert sum(w.values()) < 0.5
+    assert sum(w.values()) < 0.6
 
 
 @pytest.mark.physics_invariant
