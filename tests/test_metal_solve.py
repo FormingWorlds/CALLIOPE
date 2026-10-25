@@ -131,10 +131,11 @@ def test_partition_mode_puts_exchange_o_and_si_in_the_metal():
     w = {el: out['w_' + el + '_core'] for el in ('H', 'C', 'N', 'S', 'O', 'Si')}
     x = exchange_metal(ddict['partition_table'], 50.0, 3500.0, -2.0)
     masses = {'O': 0.015999, 'Si': molar_mass_rock['Si']}
+    # x' of Tagawa et al. 2021 Eq. 4: mole fractions over the metal without H and C
     n_total = (1 - sum(w.values())) / molar_mass_rock['Fe'] + sum(
-        w[el]
-        / (masses.get(el) or {'H': 0.001008, 'C': 0.012011, 'N': 0.014007, 'S': 0.03206}[el])
+        w[el] / (masses.get(el) or {'N': 0.014007, 'S': 0.03206}[el])
         for el in w
+        if el not in ('H', 'C')
     )
     for el in ('O', 'Si'):
         assert w[el] / masses[el] / n_total == pytest.approx(x[el], rel=1e-4)
@@ -144,18 +145,22 @@ def test_partition_mode_puts_exchange_o_and_si_in_the_metal():
 
 @pytest.mark.physics_invariant
 def test_diw_from_feo_matches_the_melt_and_metal():
-    """dIW_eq_mode 'from_FeO': dIW = 2 log10(x_FeO / x_Fe) on the KLB-1 melt and the final metal."""
-    from calliope.metal import KLB1, molar_mass_rock, oxide_mole_fraction
+    """dIW_eq_mode 'from_FeO': dIW = 2 log10(x_FeO / x'_Fe) on the KLB-1 melt and the final metal.
+
+    x_FeO is on the single-cation basis of the melt and x'_Fe over the metal without H and C
+    (Tagawa et al. 2021 Eq. 4); the oxide-molecule x_FeO would give -2.3763.
+    """
+    from calliope.metal import KLB1, molar_mass_rock, silicate_units_per_kg
 
     ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'dIW_eq_mode': 'from_FeO', 'w_Si_core': 0.05}
     out = _solve(ddict)
     w = {el: out['w_' + el + '_core'] for el in ('H', 'C', 'N', 'S', 'O', 'Si')}
-    m = {'H': 0.001008, 'C': 0.012011, 'N': 0.014007, 'S': 0.03206, 'O': 0.015999}
-    m['Si'] = molar_mass_rock['Si']
+    m = {'N': 0.014007, 'S': 0.03206, 'O': 0.015999, 'Si': molar_mass_rock['Si']}
     n_fe = (1 - sum(w.values())) / molar_mass_rock['Fe']
-    x_fe = n_fe / (n_fe + sum(w[el] / m[el] for el in w))
-    expected = 2 * math.log10(oxide_mole_fraction(KLB1, 'FeO') / x_fe)
-    assert out['dIW_eq'] == pytest.approx(expected, abs=1e-4)
+    x_fe = n_fe / (n_fe + sum(w[el] / m[el] for el in m))
+    x_feo = 0.081 / (molar_mass_rock['Fe'] + 0.015999) / silicate_units_per_kg(KLB1)
+    assert out['dIW_eq'] == pytest.approx(2 * math.log10(x_feo / x_fe), abs=1e-4)
+    assert out['dIW_eq'] == pytest.approx(-2.3975, abs=1e-4)
     # KLB-1 with 8.1 wt% FeO sits near IW-2.3 against nearly pure Fe metal
     assert -2.6 < out['dIW_eq'] < -2.0
 

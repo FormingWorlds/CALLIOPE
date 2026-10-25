@@ -508,6 +508,39 @@ class TestMassD:
         assert d_w == pytest.approx(10**1.5, rel=1e-15)
         assert mass_D(entry, 45.0, 3750.0, -2.3, {}, {}) == pytest.approx(d_w, rel=1e-15)
 
+    @pytest.mark.physics_invariant
+    def test_eps_terms_take_x_over_the_h_and_c_free_metal(self):
+        """X_O, X_S of the C law are mole fractions over the metal without H and C (x')."""
+        from calliope.constants import molar_mass, molar_mass_rock
+        from calliope.metal import KLB1
+
+        c = load_partition_table()['C']
+        w = {'H': 0.003, 'C': 1e-4, 'O': 0.05, 'S': 0.02}
+        n = {el: w[el] / molar_mass[el] for el in w}
+        free = (1 - sum(w.values())) / molar_mass_rock['Fe'] + n['O'] + n['S']
+        x = {el: n[el] / free for el in ('O', 'S')}
+        expected = 10 ** log10_D(c, 50.0, 3500.0, -2.0, x, 2.6)
+        got = mass_D(c, 50.0, 3500.0, -2.0, w, {}, KLB1, 2.6)
+        assert got == pytest.approx(expected, rel=1e-12)
+        # H and C in the denominator dilute X_O, and eps_O = -19.5 then lowers D_C
+        every = free + n['H'] + n['C']
+        diluted = 10 ** log10_D(c, 50.0, 3500.0, -2.0, {el: n[el] / every for el in x}, 2.6)
+        assert got / diluted > 1.3
+
+    def test_mole_basis_counts_every_metal_element(self):
+        """A 'mole' entry converts with the moles of the whole metal, H included."""
+        from calliope.constants import molar_mass, molar_mass_rock
+
+        w = {'H': 0.003, 'O': 0.05}
+        n_fe = (1 - sum(w.values())) / molar_mass_rock['Fe']
+        free = n_fe + w['O'] / molar_mass['O']
+        args = (45.0, 3750.0, -2.3, w, {'H': 1e-4})
+        ratio = mass_D(self._const(1.0, 'mole'), *args) / mass_D(
+            self._const(1.0, 'mole_xprime_noHC'), *args
+        )
+        assert ratio == pytest.approx((free + w['H'] / molar_mass['H']) / free, rel=1e-12)
+        assert ratio > 1.1
+
     def test_metal_with_no_iron_raises(self):
         """Light elements that sum to 1 leave no iron for the metal basis."""
         entry = self._const(1.0, 'mole_xprime_noHC')
