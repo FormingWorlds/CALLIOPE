@@ -1809,10 +1809,13 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
     secant also holds the move of the other element. The moves of a pass are halved until
     they take at most half of the iron left in the metal; an exchange that leaves no iron
     and does not fall from the previous pass raises ``ValueError``. That is a stop rule, not
-    a proof that no fixed point with iron exists; O and Si both partitioned with dIW from
-    FeO do not converge at 6000-7000 K (P_eq 50 GPa, KLB-1). The passes stop when
+    a proof that no fixed point with iron exists: in 'partition' mode ``w_O_core`` and
+    ``w_Si_core`` are the start metal, and another start can reach one. O and Si both
+    partitioned with dIW from FeO do not converge at 6000-7000 K (P_eq 50 GPa, KLB-1); O
+    alone with dIW from FeO stalls near K_D(O) x_FeO = 1/4. The passes stop when
     each metal mass fraction, or exchange step, is at most ``tol_w_core`` (default 1e-6)
-    of its value, plus 1e-15. The metal O comes from the silicate FeO and never enters the
+    of its value, plus 1e-15; that bounds the last step, not the error. The dIW of a pass
+    uses the metal before its O and Si move. The metal O comes from the silicate FeO and never enters the
     volatile O budget; with ``o_budget`` (the authoritative-O solve) gas and melt O close
     on ``target_d['O']``.
     The closure check uses the acceptance gate of the solve: the largest H, C, N, S
@@ -1869,7 +1872,13 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
             x_ex = exchange_metal(table, p_eq, t_eq, d_iw, oxides, partitioned, check=False)
             x_sum, x_prev = sum(x_ex.values()), x_sum
             if x_sum >= max(1.0, x_prev):  # an exchange without iron that does not fall
-                raise ValueError(f'O and Si leave the metal with no iron: {x_ex}')
+                raise ValueError(
+                    ', '.join(f"{el}_mode_core 'partition'" for el in partitioned)
+                    + f': the exchange holds no iron and does not fall ({x_ex}); no fixed '
+                    'point was reached from the start metal ('
+                    + ', '.join(f'w_{el}_core' for el in partitioned)
+                    + ')'
+                )
             n_total = _metal_moles(w, ('H', 'C'))[0]
             move = {}
             for el in partitioned:

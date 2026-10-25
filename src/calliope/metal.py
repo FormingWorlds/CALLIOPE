@@ -67,6 +67,7 @@ def _entry(el, raw):
     if unknown:
         raise PartitionTableError(f'{el!r}: unknown keys {unknown}')
     out = {
+        'element': el,
         'form': _choice(raw, el, 'form', FORMS),
         'quantity': _choice(raw, el, 'quantity', QUANTITIES),
         'basis': _choice(raw, el, 'basis', BASES),
@@ -241,10 +242,12 @@ def log10_D(entry, p_gpa, t_k, d_iw, x_metal=None, nbo_t=2.6):
     return val
 
 
-def _pow10(x, p_gpa, t_k, d_iw):
-    """10**x, or ValueError naming the conditions when it is beyond the float range."""
+def _pow10(x, label, p_gpa, t_k, d_iw):
+    """10**x, or ValueError naming ``label`` and the conditions beyond the float range."""
     if not x < 308.0:
-        raise ValueError(f'10**{x:.4g} at P {p_gpa:g} GPa, T {t_k:g} K, dIW {d_iw:g} overflows')
+        raise ValueError(
+            f'{label}: 10**{x:.4g} at P {p_gpa:g} GPa, T {t_k:g} K, dIW {d_iw:g} overflows'
+        )
     return 10.0**x
 
 
@@ -419,7 +422,8 @@ def mass_D(entry, p_gpa, t_k, d_iw, w_metal, w_melt, oxides=KLB1, nbo_t=2.6):
     total, n = _metal_moles(w_metal)
     free = total - n.get('H', 0.0) - n.get('C', 0.0)
     x_metal = {el: v / free for el, v in n.items()}
-    d = _pow10(log10_D(entry, p_gpa, t_k, d_iw, x_metal, nbo_t), p_gpa, t_k, d_iw)
+    label = f'{entry["element"]} law'
+    d = _pow10(log10_D(entry, p_gpa, t_k, d_iw, x_metal, nbo_t), label, p_gpa, t_k, d_iw)
     if entry['basis'] == 'mass':
         return d
     n_metal = free if entry['basis'] == 'mole_xprime_noHC' else total
@@ -460,13 +464,18 @@ def exchange_metal(table, p_gpa, t_k, d_iw, oxides=KLB1, elements=('O', 'Si'), c
         _need_form(table[el], 'exchange_KD')
     x = {}
     if 'O' in elements:
-        k_d = _pow10(log10_D(table['O'], p_gpa, t_k, 0.0), p_gpa, t_k, d_iw)
-        x['O'] = k_d * _pow10(d_iw / 2.0, p_gpa, t_k, d_iw)
+        k_d = _pow10(log10_D(table['O'], p_gpa, t_k, 0.0), 'O law', p_gpa, t_k, d_iw)
+        x['O'] = k_d * _pow10(d_iw / 2.0, 'O exchange', p_gpa, t_k, d_iw)
     if 'Si' in elements:
         x_sio2 = cation_fraction(oxides, 'SiO2')
-        k_d = _pow10(log10_D(table['Si'], p_gpa, t_k, 0.0), p_gpa, t_k, d_iw)
-        x['Si'] = k_d * x_sio2 * _pow10(-d_iw, p_gpa, t_k, d_iw)
+        k_d = _pow10(log10_D(table['Si'], p_gpa, t_k, 0.0), 'Si law', p_gpa, t_k, d_iw)
+        x['Si'] = k_d * x_sio2 * _pow10(-d_iw, 'Si exchange', p_gpa, t_k, d_iw)
     total = sum(x.values())
-    if not math.isfinite(total) or (check and total >= 1.0):
+    if not math.isfinite(total):
+        raise ValueError(
+            f'the O and Si exchange is not finite ({x}) at P {p_gpa:g} GPa, T {t_k:g} K, '
+            f'dIW {d_iw:g}'
+        )
+    if check and total >= 1.0:
         raise ValueError(f'O and Si leave the metal with no iron: {x}')
     return x
