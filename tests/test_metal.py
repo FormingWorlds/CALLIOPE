@@ -151,6 +151,7 @@ class TestMalformedFile:
             (_with(covariance='[[1.0, 0.0], [0.0, 1.0]]'), 'covariance'),
             (_with(covariance='[[1.0, 2.0, 0.0, 0.0, 0.0]]'), 'covariance'),
             (_with(covariance='[1.0, 2.0]'), 'covariance'),
+            (_with(covariance='[[1.0, 0.0], [0.0]]'), 'covariance'),
             (_with(source='""'), 'source'),
         ],
         ids=[
@@ -174,6 +175,7 @@ class TestMalformedFile:
             'covariance_wrong_size',
             'covariance_not_square',
             'covariance_flat_list',
+            'covariance_ragged',
             'empty_source',
         ],
     )
@@ -478,14 +480,24 @@ class TestExchange:
     def test_more_oxidised_metal_takes_more_o_and_less_si(self):
         """Raising dIW by 1 multiplies x_O by 10^0.5 and x_Si by 10^-1; too much raises."""
         table = load_partition_table()
-        lo, hi = (
-            exchange_metal(table, 50.0, 4000.0, -2.0),
-            exchange_metal(table, 50.0, 4000.0, -1.0),
-        )
+        lo = exchange_metal(table, 50.0, 4000.0, -2.0)
+        hi = exchange_metal(table, 50.0, 4000.0, -1.0)
         assert hi['O'] / lo['O'] == pytest.approx(10**0.5, rel=1e-12)
         assert hi['Si'] / lo['Si'] == pytest.approx(0.1, rel=1e-12)
         with pytest.raises(ValueError, match='no iron'):
             exchange_metal(table, 50.0, 4000.0, -6.0)
+
+    def test_one_partitioned_element_ignores_the_other_law(self):
+        """With only O partitioned the Si law is not evaluated, so a reduced dIW passes."""
+        table = load_partition_table()
+        both = exchange_metal(table, 50.0, 4000.0, -2.0)
+        only_o = exchange_metal(table, 50.0, 4000.0, -2.0, elements=('O',))
+        assert set(only_o) == {'O'}
+        assert only_o['O'] == pytest.approx(both['O'], rel=1e-15)
+        # at dIW -8 the Si law alone exceeds 1, the O law gives a small x_O
+        assert exchange_metal(table, 50.0, 4000.0, -8.0, elements=('O',))['O'] < 1e-3
+        with pytest.raises(ValueError, match='no iron'):
+            exchange_metal(table, 50.0, 4000.0, -8.0, elements=('Si',))
 
 
 # Tagawa et al. 2021 SI Table 1: P [GPa], T [K], dIW, measured log10 K_D and its 1 sigma
@@ -510,6 +522,9 @@ def test_tagawa_runs_lie_within_one_sigma_of_eq2(validation_plot):
     # Tagawa Eq. 10 (fit with the multi-anvil data) misses every run by more than 2 sigma
     eq10 = [0.692 - 4590 / t + 141 * p / t for p, t, _, _, _ in TAGAWA_RUNS]
     assert min(abs(m - e) / s for (_, _, _, m, s), e in zip(TAGAWA_RUNS, eq10)) > 2.0
+    # the ranges of the H entry are those of the 6 runs, so every run is in range
+    assert not any(out_of_range(h, p, t, d) for p, t, d, _, _ in TAGAWA_RUNS)
+    assert out_of_range(h, 30.0, 3079.0, -1.33) and out_of_range(h, 60.0, 4561.0, -1.17)
 
     def figure():
         import matplotlib.pyplot as plt

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import pytest
 
 from calliope.metal import KLB1
@@ -87,6 +88,56 @@ class TestMetalFields:
         with pytest.raises(ValueError) as exc:
             check_metal_fields({**GOOD, 'silicate_oxides': oxides})
         assert 'silicate_oxides' in str(exc.value) and reason in str(exc.value)
+
+    @pytest.mark.parametrize('field', ['P_eq', 'T_eq', 'dIW_eq'])
+    def test_required_fields_are_named_when_absent(self, field):
+        """With metal, P_eq, T_eq and (parameter mode) dIW_eq are required; without, not."""
+        missing = {k: v for k, v in GOOD.items() if k != field}
+        with pytest.raises(ValueError) as exc:
+            check_metal_fields(missing)
+        assert field in str(exc.value) and 'required' in str(exc.value)
+        assert check_metal_fields({**missing, 'metal_mass': 0.0}) is None
+        if field == 'dIW_eq':
+            assert check_metal_fields({**missing, 'dIW_eq_mode': 'from_FeO'}) is None
+
+    @pytest.mark.parametrize(
+        'extra, oxide',
+        [
+            ({'dIW_eq_mode': 'from_FeO'}, 'FeO'),
+            ({'Si_mode_core': 'partition'}, 'SiO2'),
+        ],
+        ids=['from_FeO_needs_FeO', 'Si_partition_needs_SiO2'],
+    )
+    def test_mode_needs_its_oxide(self, extra, oxide):
+        """from_FeO needs FeO above 0 in the melt, Si partition needs SiO2 above 0."""
+        rest = {k: v for k, v in KLB1.items() if k != oxide}
+        rest['MgO'] += KLB1[oxide]
+        for oxides in (rest, {**rest, oxide: 0.0}):
+            with pytest.raises(ValueError) as exc:
+                check_metal_fields({**GOOD, **extra, 'silicate_oxides': oxides})
+            assert oxide in str(exc.value)
+        assert check_metal_fields({**GOOD, **extra}) is None
+
+    @pytest.mark.parametrize(
+        'field, value',
+        [('O_mode_core', 'free'), ('Si_mode_core', 1), ('dIW_eq_mode', 'buffer')],
+    )
+    def test_unknown_mode_raises(self, field, value):
+        """A mode outside the known ones is refused with its field name."""
+        with pytest.raises(ValueError) as exc:
+            check_metal_fields({**GOOD, field: value})
+        assert field in str(exc.value)
+        assert repr(value) in str(exc.value)
+
+    def test_numpy_scalars_pass_and_numpy_bool_fails(self):
+        """numpy float32 and int64 values are numbers; a numpy bool is not."""
+        ok = {**GOOD, 'P_eq': np.float32(50.0), 'dIW_eq': np.int64(-2)}
+        ok['silicate_oxides'] = {k: np.float32(v) for k, v in KLB1.items()}
+        assert check_metal_fields(ok) is None
+        with pytest.raises(ValueError, match='T_eq'):
+            check_metal_fields({**GOOD, 'T_eq': np.bool_(True)})
+        with pytest.raises(ValueError, match='finite'):
+            check_metal_fields({**GOOD, 'P_eq': np.float64('nan')})
 
     @settings(derandomize=True, max_examples=200, deadline=None)
     @given(st.floats(allow_nan=True, allow_infinity=True))

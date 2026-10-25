@@ -411,7 +411,7 @@ def test_out_of_range_and_ideal_activities_are_flagged_and_warned_once(caplog, m
     monkeypatch.setattr(solve_mod, '_METAL_WARNED', set())
     ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'partition_table': load_partition_table()}
     ddict.update(O_mode_core='partition', Si_mode_core='partition')
-    with caplog.at_level('WARNING', logger='calliope.solve'):
+    with caplog.at_level('WARNING', logger='fwl.calliope.solve'):
         out = _solve(ddict)
         first = [r.getMessage() for r in caplog.records]
         caplog.clear()
@@ -427,3 +427,97 @@ def test_out_of_range_and_ideal_activities_are_flagged_and_warned_once(caplog, m
     # fixed O and Si use no law, so they carry no flag
     fixed = _solve({**_ddict(), **_metal(30.0, 1.9e24)})
     assert 'O_D_out_of_range' not in fixed and 'Si_D_out_of_range' not in fixed
+
+
+@pytest.mark.parametrize('value', [math.nan, -1.9e24, 'x', None], ids=repr)
+@pytest.mark.parametrize('authoritative', [False, True])
+def test_bad_metal_mass_is_refused_by_both_solves(value, authoritative):
+    """A NaN, negative or non-number metal_mass raises ValueError; it never solves without metal."""
+    from calliope.solve import equilibrium_atmosphere_authoritative_O
+
+    ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'metal_mass': value}
+    try:
+        if authoritative:
+            equilibrium_atmosphere_authoritative_O(
+                dict(TARGET, O=1e21), ddict, print_result=False, nguess=3
+            )
+        else:
+            equilibrium_atmosphere(TARGET, ddict, print_result=False, nguess=3)
+        raised = None
+    except Exception as err:
+        raised = err
+    assert isinstance(raised, ValueError), raised
+    assert 'metal_mass' in str(raised)
+
+
+def test_table_without_a_needed_element_is_refused():
+    """The solve needs laws for H, C, N, S and for each partitioned element of O and Si."""
+    from calliope.metal import PartitionTableError
+
+    table = {k: v for k, v in load_partition_table().items() if k != 'C'}
+    for extra in ({}, {'Si_mode_core': 'partition'}):
+        t = table if not extra else {k: v for k, v in table.items() if k != 'Si'} | {'C': 1}
+        try:
+            _solve({**_ddict(), **_metal(30.0, 1.9e24), 'partition_table': t, **extra})
+            raised = None
+        except Exception as err:
+            raised = err
+        assert isinstance(raised, PartitionTableError), raised
+        assert ("'C'" if not extra else "'Si'") in str(raised)
+
+
+@pytest.mark.physics_invariant
+def test_placeholder_laws_are_evaluated_on_the_converged_metal_and_melt():
+    """Real placeholder laws, half-molten mantle, own melt and NBO/T: D matches its inputs.
+
+    At convergence each reported D equals the law on the reported metal and melt
+    compositions, and each core mass equals D M_metal w_melt with the melt of
+    Phi_global M_mantle; P and T swapped, NBO/T 2.6, the KLB-1 melt or a melt
+    without its volatiles each give a D outside the tolerance.
+    """
+    from calliope.metal import KLB1, mass_D
+
+    oxides = {**KLB1, 'FeO': 10.0, 'MgO': KLB1['MgO'] - 1.9}
+    m_metal, m_melt, nbo_t = 1.9e24, 0.5 * 4.03e24, 1.5
+    ddict = {**_ddict(), **_metal(30.0, m_metal), 'Phi_global': 0.5}
+    ddict.update(
+        partition_table=load_partition_table(),
+        silicate_oxides=oxides,
+        silicate_nbo_t=nbo_t,
+        w_O_core=0.02,
+        w_Si_core=0.03,
+        tol_w_core=1e-12,
+    )
+    out = _solve(ddict)
+    table = ddict['partition_table']
+    w = {el: out['w_' + el + '_core'] for el in ('H', 'C', 'N', 'S', 'O', 'Si')}
+    w_melt = {el: out[el + '_kg_liquid'] / m_melt for el in ('H', 'C')}
+    for el in ELEMS:
+        d = mass_D(table[el], 50.0, 3500.0, -2.0, w, w_melt, oxides, nbo_t)
+        assert out[el + '_D_metal'] == pytest.approx(d, rel=1e-6), el
+        core = d * m_metal * out[el + '_kg_liquid'] / m_melt
+        assert out[el + '_kg_core'] == pytest.approx(core, rel=1e-6), el
+    wrong = {
+        'P_T_swapped': mass_D(table['C'], 3500.0, 50.0, -2.0, w, w_melt, oxides, nbo_t),
+        'nbo_t_default': mass_D(table['C'], 50.0, 3500.0, -2.0, w, w_melt, oxides, 2.6),
+        'klb1_melt': mass_D(table['H'], 50.0, 3500.0, -2.0, w, w_melt, KLB1, nbo_t),
+        'no_melt_volatiles': mass_D(table['H'], 50.0, 3500.0, -2.0, w, {}, oxides, nbo_t),
+    }
+    for name, d in wrong.items():
+        el = 'C' if name in ('P_T_swapped', 'nbo_t_default') else 'H'
+        assert abs(d / out[el + '_D_metal'] - 1) > 1e-5, name
+
+
+def test_negative_core_mass_names_the_core_in_the_error():
+    """A returned negative core mass fails the check with the core mass in the message."""
+    from calliope.solve import _with_metal
+
+    solve, _ = _stub_solve(lambda n: -1e6)
+    kwargs = {'rtol': 1e-5, 'atol': 1e10, 'p_guess': None}
+    try:
+        _with_metal(solve, TARGET, {**_ddict(), **_metal(30.0, 1.9e24)}, kwargs)
+        raised = None
+    except Exception as err:
+        raised = err
+    assert isinstance(raised, RuntimeError), raised
+    assert 'core' in str(raised) and '-1e+06' in str(raised)
