@@ -310,10 +310,13 @@ class TestMalformedFile:
             load_partition_table(_write(tmp_path, 'schema_version = 1\n[H]\na = 1.0\n'))
 
     def test_meta_needs_a_name(self, tmp_path):
-        """A [meta] table without a non-empty name is refused."""
+        """A [meta] table without a non-empty name or without its placeholder flag is refused."""
         text = _text().replace('name = "test"\n', '')
         with pytest.raises(PartitionTableError, match='name'):
             load_partition_table(_write(tmp_path, text))
+        no_flag = _text().replace('placeholder = true\n', '')
+        with pytest.raises(PartitionTableError, match='placeholder'):
+            load_partition_table(_write(tmp_path, no_flag))
 
     @pytest.mark.parametrize('key', ['esp', 'f'])
     def test_unknown_key_in_an_entry_is_refused(self, tmp_path, key):

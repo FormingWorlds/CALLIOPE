@@ -72,6 +72,7 @@ class TestMetalFields:
         [
             ({**KLB1, 'FeO': math.nan}, 'finite'),
             ({**KLB1, 'FeO': -1.0}, 'finite'),
+            ({**KLB1, 'SiO2': 10**400}, 'finite'),
             ({**KLB1, 'Cr2O3': 0.3}, 'unknown'),
             ({'SiO2': 44.48, 'MgO': 39.22}, 'sum'),
             ({**KLB1, 'SiO2': 60.0}, 'sum'),
@@ -80,6 +81,7 @@ class TestMetalFields:
         ids=[
             'nan_oxide',
             'negative_oxide',
+            'int_beyond_float_oxide',
             'unknown_oxide',
             'sum_low',
             'sum_high',
