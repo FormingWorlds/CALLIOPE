@@ -108,7 +108,7 @@ P_range_GPa = [35.0, 74.0]
 T_range_K = []
 dIW_range = []
 P_unit = "GPa"
-source = "Tagawa et al. 2021, Nat. Commun., SI Table 3, K_D(O) for the partitioning data of Siebert et al. 2012 and 2013; P range of the Siebert et al. 2013 diamond anvil cell runs (main text), data range not yet checked against their supplementary Table S4"
+source = "Tagawa et al. 2021, Nat. Commun., SI Table 3, K_D(O) for the partitioning data of Siebert et al. 2012 and 2013; P range of the Siebert et al. 2013 diamond anvil cell runs (main text), data range and basis not checked against Siebert et al., which are not read"
 doi = "10.1038/s41467-021-22035-0"
 
 [Si]
@@ -128,5 +128,5 @@ P_range_GPa = [35.0, 74.0]
 T_range_K = []
 dIW_range = []
 P_unit = "GPa"
-source = "Tagawa et al. 2021, Nat. Commun., SI Table 3, K_D(Si) for the partitioning data of Siebert et al. 2012 and 2013; P range of the Siebert et al. 2013 diamond anvil cell runs (main text), data range not yet checked against their supplementary Table S4"
+source = "Tagawa et al. 2021, Nat. Commun., SI Table 3, K_D(Si) for the partitioning data of Siebert et al. 2012 and 2013; P range of the Siebert et al. 2013 diamond anvil cell runs (main text), data range and basis not checked against Siebert et al., which are not read"
 doi = "10.1038/s41467-021-22035-0"

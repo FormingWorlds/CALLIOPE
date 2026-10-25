@@ -8,7 +8,7 @@ With `metal_mass` above zero, `equilibrium_atmosphere` and `equilibrium_atmosphe
 |---|---|---|---|
 | `metal_mass` | kg | absent (no metal) | Mass of the metal that equilibrates with the present melt; 0 is the solve without metal; above 0 needs melt (`Phi_global` above 0) |
 | `P_eq`, `T_eq` | GPa, K | required | Pressure and temperature of the metal-melt equilibrium |
-| `dIW_eq_mode` | | `'parameter'` | `'parameter'` reads `dIW_eq`; `'from_FeO'` uses $2\log_{10}(x_\mathrm{FeO}/x_\mathrm{Fe})$ with ideal activities, $x_\mathrm{FeO}$ on the oxide-molecule basis of the melt (needs FeO above 0) |
+| `dIW_eq_mode` | | `'parameter'` | `'parameter'` reads `dIW_eq`; `'from_FeO'` uses $2\log_{10}(x_\mathrm{FeO}/x'_\mathrm{Fe})$ with ideal activities, $x_\mathrm{FeO}$ on the single-cation basis of the melt and $x'_\mathrm{Fe}$ over the metal without H and C (needs FeO above 0) |
 | `dIW_eq` | log10 units | required for `'parameter'` | Oxygen fugacity of the equilibrium relative to the iron-wustite buffer |
 | `O_mode_core`, `Si_mode_core` | | `'fixed'` | `'fixed'` reads `w_O_core`, `w_Si_core`; `'partition'` uses the exchange $K_D$ of the file at the dIW of each pass |
 | `w_O_core`, `w_Si_core` | mass fraction | 0 | Metal O and Si in `'fixed'` mode, at least 0 and below 1 |
@@ -44,7 +44,7 @@ $$
 \log_{10} D = a + \frac{b}{T} + c\,\frac{P}{T} + d \cdot \mathrm{dIW\_factor} \cdot \Delta\mathrm{IW} + e\,(\mathrm{NBO/T}) + \sum_j \varepsilon_j \log_{10}(1 - X_j)
 $$
 
-with $T$ in K, $P$ in GPa, NBO/T the ratio of non-bridging O to tetrahedral cations of the melt, and $X_j$ the mole fraction of element $j$ in the metal.
+with $T$ in K, $P$ in GPa, NBO/T the ratio of non-bridging O to tetrahedral cations of the melt, and $X_j$ the mole fraction of element $j$ over the metal without H and C, $x'_j = N_j / \sum_{k \ne \mathrm{H,C}} N_k$ (Tagawa et al. 2021, Methods Eq. 4, p. 5). Fischer et al. (2020, p. 8744) fit $X_\mathrm{O}$ and $X_\mathrm{S}$ as mole fractions in metal without H and do not name the elements of the denominator; $x'$ is the choice of CALLIOPE, the metal basis of the H law. The O and Si exchange uses the same $x'$ in the metal and the single-cation basis in the melt, as the fO2 path of the Tagawa et al. (2021) multi-stage model (p. 6).
 
 | Field | Values | Meaning |
 |---|---|---|
@@ -71,7 +71,7 @@ The packaged file `src/calliope/data/partition_coefficients_placeholder.toml` ha
 | C | [Fischer et al. (2020)](https://doi.org/10.1073/pnas.1919930117) Eq. 1, mass basis, with O and S interaction terms | 1-59 GPa, 1618-5200 K, dIW -3.9 to -0.53 | |
 | N | Line in dIW through $D_N$ = 1 at dIW -4 and 39 at dIW -1, the 20 GPa, 3000 K column of [Suer et al. (2023)](https://doi.org/10.3389/feart.2023.1159412) Table 1 | 20 GPa, 3000 K, dIW -4 to -1 | The 5 GPa, 2000 K column gives 5 and 265 at the same dIW; Table 1 has no N value at 60 GPa |
 | S | Line in dIW through $D_S$ = 10 at dIW -4 and 173 at dIW -1, the 60 GPa, 4000 K column of Suer et al. (2023) Table 1 | 60 GPa, 4000 K, dIW -4 to -1 | The oxidized column spans dIW -1 to about +1.3; the line uses -1 |
-| O | Exchange $K_D$ of Tagawa et al. (2021) SI Table 3 for the data of Siebert et al. (2012, 2013) | 35-74 GPa; T and dIW unknown | Always flagged out of range |
+| O | Exchange $K_D$ of Tagawa et al. (2021) SI Table 3 for the data of Siebert et al. (2012, 2013) | 35-74 GPa; T and dIW unknown | Always flagged out of range; SI Table 3 states no basis, and the Siebert et al. papers are not read for it |
 | Si | As O | 35-74 GPa; T and dIW unknown | Always flagged out of range |
 
 Suer et al. (2023) give an uncertainty of up to 20 % on their Table 1 values. In `'partition'` mode O and Si use ideal activities in metal and melt. Badro et al. (2015) fit their Si law together with activity coefficients from interaction parameters; leaving those terms out changes $D_\mathrm{Si}$ by about an order of magnitude at the end of their accretion paths, so the Si mode gives a first estimate, not a calibrated value.

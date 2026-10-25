@@ -23,12 +23,12 @@ from .metal import (
     PartitionTableError,
     _mass,
     _metal_moles,
+    cation_fraction,
     exchange_metal,
     load_partition_table,
     mass_D,
     metal_masses,
     out_of_range,
-    oxide_mole_fraction,
 )
 from .oxygen_fugacity import OxygenFugacity
 from .solubility import (
@@ -1857,7 +1857,7 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
         d_iw = _metal_diw(ddict, w, oxides)
         if partitioned:
             x_ex = exchange_metal(table, p_eq, t_eq, d_iw, oxides, partitioned)
-            n_total = _metal_moles(w)[0]
+            n_total = _metal_moles(w, ('H', 'C'))[0]
             for el in partitioned:
                 fixed[el] = x_ex[el] * n_total * _mass(el)
         d_mass = {
@@ -1949,15 +1949,19 @@ def _warn_metal_once(el, kind, message):
 
 
 def _metal_diw(ddict, w_metal, oxides):
-    """dIW of the metal-melt equilibrium: the parameter, or 2 log10(x_FeO / x_Fe) (ideal)."""
+    """dIW of the metal-melt equilibrium: the parameter, or 2 log10(x_FeO / x'_Fe) (ideal).
+
+    x_FeO is on the single-cation basis of the melt, x'_Fe over the metal without H and C
+    (Tagawa et al. 2021, Methods Eq. 4 and the fO2 path of their multi-stage model).
+    """
     mode = ddict.get('dIW_eq_mode', 'parameter')
     if mode == 'parameter':
         return float(ddict['dIW_eq'])
     if mode != 'from_FeO':
         raise ValueError(f"dIW_eq_mode {mode!r}: use 'parameter' or 'from_FeO'")
-    total, _ = _metal_moles(w_metal)
+    total, _ = _metal_moles(w_metal, ('H', 'C'))
     x_fe = (1.0 - sum(w_metal.values())) / molar_mass_rock['Fe'] / total
-    return 2.0 * np.log10(oxide_mole_fraction(oxides, 'FeO') / x_fe)
+    return 2.0 * np.log10(cation_fraction(oxides, 'FeO') / x_fe)
 
 
 _METAL_MODES = {
