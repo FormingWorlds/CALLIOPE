@@ -49,7 +49,7 @@ _H = {
     'eps': '{}',
     'covariance': '[]',
     'P_range_GPa': '[30.0, 60.0]',
-    'T_range_K': '[3100.0, 4600.0]',
+    'T_range_K': '[3080.0, 4560.0]',
     'dIW_range': '[-1.33, -0.88]',
     'P_unit': '"GPa"',
     'source': '"Tagawa et al. 2021, Nat. Commun. 12, 2588, Eq. 2"',
@@ -382,7 +382,7 @@ class TestLaw:
         # Suer SA prints the dIW coefficient as 0.328: that law lands far outside
         wrong = 10 ** (log10_D(c, 54.0, 4100.0, -2.2, {'O': 0.06, 'S': 0.03}, 2.6) + 0.09 * 2.2)
         assert abs(wrong - d_c) > 0.1
-        # without the O and S terms D_C is 0.447 (derivation section B)
+        # without the O and S terms D_C is 0.447
         assert 10 ** log10_D(c, 54.0, 4100.0, -2.2, nbo_t=0.0) == pytest.approx(0.447, abs=2e-3)
 
     @pytest.mark.physics_invariant

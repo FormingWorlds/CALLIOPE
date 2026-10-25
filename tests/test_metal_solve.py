@@ -561,6 +561,27 @@ def test_user_silicate_oxides_set_the_exchange_feo_and_diw():
         assert w[el] / m[el] / n_free == pytest.approx(x[el], rel=1e-4), el
 
 
+def test_placeholder_table_warns_once(caplog, monkeypatch):
+    """A table whose meta says placeholder warns once per process; a real table does not."""
+    import calliope.solve as solve_mod
+
+    monkeypatch.setattr(solve_mod, '_METAL_WARNED', set())
+    ddict = {**_ddict(), **_metal(30.0, 1.9e24)}
+    real = dict(
+        ddict,
+        partition_table={
+            **ddict['partition_table'],
+            'meta': {'name': 'x', 'placeholder': False},
+        },
+    )
+    with caplog.at_level('WARNING', logger='fwl.calliope.solve'):
+        _solve(real)
+        assert not [m for m in caplog.messages if 'placeholder' in m]
+        _solve(ddict)
+        _solve(ddict)
+    assert len([m for m in caplog.messages if 'placeholder' in m]) == 1
+
+
 def test_negative_core_mass_names_the_core_in_the_error():
     """A returned negative core mass fails the check with the core mass in the message."""
     from calliope.solve import _with_metal
