@@ -175,3 +175,42 @@ def test_authoritative_o_refuses_a_metal_reservoir():
         equilibrium_atmosphere_authoritative_O(dict(TARGET, O=1e21), ddict, print_result=False)
     assert 'metal_mass' in str(exc.value)
     assert 'authoritative' in str(exc.value)
+
+
+def _stub_solve(core_of_call, close=True):
+    """A solve stand-in whose H core mass follows core_of_call(n) on its n-th call."""
+    calls = []
+
+    def solve(target_d, ddict, **kwargs):
+        calls.append(1)
+        out = {s + '_bar': 1.0 for s in ('H2O', 'CO2', 'N2', 'S2')}
+        for el in ELEMS:
+            core = core_of_call(len(calls)) if el == 'H' else 0.0
+            out[el + '_kg_core'] = core
+            out[el + '_kg_liquid'] = 1e18
+            out[el + '_kg_atm'] = target_d[el] - 1e18 - core if close else 0.0
+        return out
+
+    return solve, calls
+
+
+def test_fixed_point_that_does_not_settle_raises():
+    """A metal H that alternates between 2 values never settles: RuntimeError after 30 passes."""
+    from calliope.solve import _with_metal
+
+    solve, calls = _stub_solve(lambda n: 1e19 * (n % 2))
+    kwargs = {'rtol': 1e-5, 'atol': 1e10, 'p_guess': None}
+    with pytest.raises(RuntimeError, match='did not converge'):
+        _with_metal(solve, TARGET, {**_ddict(), **_metal(30.0, 1.9e24)}, kwargs)
+    assert len(calls) == 30
+
+
+def test_state_that_breaks_closure_raises():
+    """A returned state whose gas, melt and core miss a budget fails the closure check."""
+    from calliope.solve import _with_metal
+
+    solve, calls = _stub_solve(lambda n: 1e19, close=False)
+    kwargs = {'rtol': 1e-5, 'atol': 1e10, 'p_guess': None}
+    with pytest.raises(RuntimeError, match='closure'):
+        _with_metal(solve, TARGET, {**_ddict(), **_metal(30.0, 1.9e24)}, kwargs)
+    assert len(calls) == 2
