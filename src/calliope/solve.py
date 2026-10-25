@@ -1303,10 +1303,23 @@ def equilibrium_atmosphere_authoritative_O(
     >>> abs(out_new['fO2_shift_derived'] - 4.0) < 0.01  # round-trip
     True
     """
-    if ddict.get('metal_mass', 0.0) > 0:
-        raise ValueError(
-            'metal_mass > 0 needs equilibrium_atmosphere; the authoritative-O solve has no '
-            'metal reservoir yet'
+    if ddict.get('metal_mass', 0.0) > 0 and '_metal_D' not in ddict:
+        kwargs = dict(
+            fO2_hint=fO2_hint,
+            hide_warnings=hide_warnings,
+            rtol=rtol,
+            atol=atol,
+            xtol=xtol,
+            p_guess=p_guess,
+            nsolve=nsolve,
+            nguess=nguess,
+            print_result=print_result,
+            opt_solver=opt_solver,
+            random_seed=random_seed,
+            p_guess_max=p_guess_max,
+        )
+        return _with_metal(
+            equilibrium_atmosphere_authoritative_O, target_d, ddict, kwargs, o_budget=True
         )
 
     # Active noble gases are appended after the O residual, so the residual
@@ -1750,6 +1763,10 @@ def equilibrium_atmosphere_authoritative_O(
     for i, gas in enumerate(active):
         outdict[gas + '_res'] = res_l[5 + i]
     outdict['fO2_shift_derived'] = fO2_derived
+    if 'metal_mass' in ddict:
+        mass_core_d = _core_masses(mass_int_d, ddict)
+        for el in ('H', 'C', 'N', 'S'):
+            outdict[el + '_kg_core'] = mass_core_d.get(el, 0.0)
 
     if print_result:
         log.info('    Derived fO2_shift = %.4f (hint was %.4f)', fO2_derived, fO2_hint)
@@ -1757,7 +1774,7 @@ def equilibrium_atmosphere_authoritative_O(
     return outdict
 
 
-def _with_metal(solve, target_d, ddict, kwargs):
+def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
     """Solve with a metal reservoir: fixed point on the metal composition.
 
     Each pass evaluates the mass-basis D of H, C, N and S on the current metal and melt
@@ -1766,16 +1783,20 @@ def _with_metal(solve, target_d, ddict, kwargs):
     (``O_mode_core``, ``Si_mode_core`` = 'fixed'; ``w_O_core``, ``w_Si_core``) or follow
     their exchange K_D at the dIW of the pass ('partition', ideal activities). The passes
     stop when no metal mass fraction moves by more than ``tol_w_core`` (default 1e-6).
-    The closure check uses the root tolerance of the solve (relative ``rtol``, default
-    1e-5, plus ``atol``, default 1e10 kg). ``<e>_kg_total`` stays gas plus melt and
-    excludes the core; the bulk inventory is ``<e>_kg_total + <e>_kg_core``.
+    With ``o_budget`` (the authoritative-O solve) the metal O is a reservoir of the O
+    budget ``target_d['O']``, and O joins the closure check.
+    The closure check uses the acceptance gate of the solve: the largest H, C, N, S
+    budget times ``rtol`` plus ``atol`` for ``equilibrium_atmosphere``, each budget
+    times ``rtol`` (at least 10 kg) with ``o_budget``. ``<e>_kg_total`` stays gas plus
+    melt and excludes the core; the bulk inventory is ``<e>_kg_total + <e>_kg_core``.
 
     Raises
     ------
     RuntimeError
         No convergence in 30 passes, or a solved state that breaks the element closure.
     ValueError
-        An unknown mode, or dIW_eq_mode other than 'parameter' and 'from_FeO'.
+        An unknown mode, dIW_eq_mode other than 'parameter' and 'from_FeO', or a metal
+        O at or above the O budget.
     """
     from .metal import (
         KLB1,
@@ -1801,6 +1822,7 @@ def _with_metal(solve, target_d, ddict, kwargs):
     w = {**fixed, 'H': 0.0, 'C': 0.0, 'N': 0.0, 'S': 0.0}
     w_melt = {'H': 0.0, 'C': 0.0}
     tol = ddict.get('tol_w_core', 1e-6)
+    active = _active_noble(ddict)
     out = None
     for _ in range(30):
         d_iw = _metal_diw(ddict, w, oxides)
@@ -1814,9 +1836,13 @@ def _with_metal(solve, target_d, ddict, kwargs):
             el: mass_D(table[el], p_eq, t_eq, d_iw, w, w_melt, oxides, nbo_t)
             for el in ('H', 'C', 'N', 'S')
         }
+        if o_budget:
+            _check_metal_o(fixed['O'] * m_metal, target_d)
         inner = {**ddict, '_metal_D': d_mass, '_metal_O_kg': fixed['O'] * m_metal}
         out = solve(target_d, inner, **kwargs)
-        kwargs['p_guess'] = {s: out[s + '_bar'] for s in ('H2O', 'CO2', 'N2', 'S2')}
+        kwargs['p_guess'] = {s: out[s + '_bar'] for s in ('H2O', 'CO2', 'N2', 'S2') + active}
+        if o_budget:
+            kwargs['p_guess']['fO2_shift_IW'] = out['fO2_shift_derived']
         new = {**fixed, **{el: out[el + '_kg_core'] / m_metal for el in ('H', 'C', 'N', 'S')}}
         w_melt = {el: out[el + '_kg_liquid'] / m_melt for el in ('H', 'C')}
         moved = max(abs(new[el] - w[el]) for el in new)
@@ -1829,19 +1855,35 @@ def _with_metal(solve, target_d, ddict, kwargs):
         out[el + '_D_metal'] = d_mass[el]
         out[el + '_D_out_of_range'] = int(out_of_range(table[el], p_eq, t_eq, d_iw))
         out['w_' + el + '_core'] = w[el]
-        closure = out[el + '_kg_atm'] + out[el + '_kg_liquid'] + out[el + '_kg_core']
-        tol_kg = target_d[el] * kwargs['rtol'] + kwargs['atol'] + TRUNC_MASS
-        if not (0.0 <= out[el + '_kg_core'] <= target_d[el] + tol_kg) or abs(
-            closure - target_d[el]
-        ) > max(tol_kg, 1e-4 * target_d[el]):
-            raise RuntimeError(
-                f'{el} closure over gas, melt and core fails: {closure} vs {target_d[el]}'
-            )
     for el in ('O', 'Si'):
         out['w_' + el + '_core'] = fixed[el]
         out[el + '_kg_core'] = fixed[el] * m_metal
+    rtol = kwargs['rtol']
+    gate = max(target_d[el] for el in ('H', 'C', 'N', 'S')) * rtol + kwargs['atol'] + TRUNC_MASS
+    for el in ('H', 'C', 'N', 'S') + (('O',) if o_budget else ()):
+        closure = out[el + '_kg_atm'] + out[el + '_kg_liquid'] + out[el + '_kg_core']
+        # the 1e-12 relative term covers round-off of the 3-term sum
+        tol_kg = (max(target_d[el] * rtol, TRUNC_MASS) if o_budget else gate) + 1e-12 * (
+            target_d[el]
+        )
+        if (
+            not (0.0 <= out[el + '_kg_core'] <= target_d[el] + tol_kg)
+            or abs(closure - target_d[el]) > tol_kg
+        ):
+            raise RuntimeError(
+                f'{el} closure over gas, melt and core fails: {closure} vs {target_d[el]}'
+            )
     out['dIW_eq'] = d_iw
     return out
+
+
+def _check_metal_o(metal_o_kg, target_d):
+    """Refuse a metal O [kg] at or above the O budget, which leaves no O for gas and melt."""
+    if metal_o_kg >= target_d['O']:
+        raise ValueError(
+            f'metal O {metal_o_kg:.4g} kg is at or above the O budget {target_d["O"]:.4g} kg; '
+            'lower w_O_core or metal_mass'
+        )
 
 
 def _metal_diw(ddict, w_metal, oxides):
