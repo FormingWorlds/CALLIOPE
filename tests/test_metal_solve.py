@@ -614,6 +614,32 @@ def test_partition_o_budget_round_trip_on_a_partial_melt():
 
 
 @pytest.mark.physics_invariant
+def test_si_partition_with_diw_from_feo_settles():
+    """Si 'partition' with dIW from FeO, 34 % melt, 4487 K: the metal Si settles in 30 passes.
+
+    More metal Si lowers x'_Fe, raises dIW and lowers the exchange x_Si; undamped, the Si
+    of successive passes alternates about the fixed point with a ratio of about -0.6.
+    """
+    from calliope.metal import exchange_metal
+
+    ddict = {**_ddict(), **_metal(30.0, 1.6166e24), 'partition_table': load_partition_table()}
+    ddict.update(P_eq=52.64, T_eq=4487.46, Phi_global=0.3386, silicate_nbo_t=3.105)
+    ddict.update(Si_mode_core='partition', dIW_eq_mode='from_FeO', w_O_core=0.00534)
+    try:
+        out = _solve(ddict)
+    except Exception as exc:
+        pytest.fail(f'metal solve raised {type(exc).__name__}: {exc}')
+    x_si = exchange_metal(
+        ddict['partition_table'], 52.64, 4487.46, out['dIW_eq'], elements=('Si',)
+    )
+    w = {el: out['w_' + el + '_core'] for el in ('H', 'C', 'N', 'S', 'O', 'Si')}
+    m = {'N': 0.014007, 'S': 0.03206, 'O': 0.015999, 'Si': 0.028085}
+    n_free = (1 - sum(w.values())) / 0.055845 + sum(w[el] / m[el] for el in m)
+    assert w['Si'] / m['Si'] / n_free == pytest.approx(x_si['Si'], rel=1e-4)
+    assert -2.3 < out['dIW_eq'] < -2.0
+
+
+@pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
 def test_equal_d_identity_plot(validation_plot):
     """Equal D: partial pressures with metal against a melt larger by D M_metal, both solves.
