@@ -1,0 +1,132 @@
+# Placeholder metal-silicate partition laws for release 1 of the core reservoir.
+# log10 D = a + b/T + c P/T + d dIW_factor dIW + e NBO/T + sum_j eps_j log10(1 - X_j)
+schema_version = 1
+
+[meta]
+name = "placeholder-2026-10"
+placeholder = true
+
+[H]
+form = "log10_linear"
+quantity = "K_D"
+basis = "mole_xprime_noHC"
+silicate_basis = "single_cation"
+a = 2.42
+b = -2892.0
+c = -32.0
+d = -0.25
+e = 0.0
+dIW_factor = 1.0
+eps = {}
+covariance = []
+P_range_GPa = [30.0, 60.0]
+T_range_K = [3100.0, 4600.0]
+dIW_range = [-1.33, -0.88]
+P_unit = "GPa"
+source = "Tagawa et al. 2021, Nat. Commun., Eq. 2; ranges of their laser-heated diamond anvil cell runs (SI Table 1)"
+doi = "10.1038/s41467-021-22035-0"
+
+[C]
+form = "log10_linear"
+quantity = "D"
+basis = "mass"
+a = 1.49
+b = 3000.0
+c = -235.0
+d = -0.238
+e = -0.118
+dIW_factor = 1.0
+eps = { O = -19.5, S = 9.6 }
+covariance = [
+    [0.49, -749.0, -23.1, 0.0272, -0.0155, -0.855, 0.134],
+    [-749.0, 1234000.0, 35170.0, -22.2, 20.9, 999.0, -133.0],
+    [-23.1, 35170.0, 3565.0, 0.506, 0.669, 384.0, -0.149],
+    [0.0272, -22.2, 0.506, 0.00848, -0.00073, 0.229, 0.0178],
+    [-0.0155, 20.9, 0.669, -0.00073, 0.0018, 0.172, -0.0053],
+    [-0.855, 999.0, 384.0, 0.229, 0.172, 79.0, 0.675],
+    [0.134, -133.0, -0.149, 0.0178, -0.0053, 0.675, 1.98],
+]
+P_range_GPa = [1.0, 59.0]
+T_range_K = [1618.0, 5200.0]
+dIW_range = [-3.9, -0.53]
+P_unit = "GPa"
+source = "Fischer et al. 2020, PNAS, Eq. 1 (nanoSIMS), covariance SI Appendix Table S3; ranges of Dataset S1 and their 5 runs (dIW of the runs from SI Tables S1 and S2, ideal mixing)"
+doi = "10.1073/pnas.1919930117"
+
+[N]
+form = "log10_linear"
+quantity = "D"
+basis = "mass"
+a = 2.121419
+b = 0.0
+c = 0.0
+d = 0.530355
+e = 0.0
+dIW_factor = 1.0
+eps = {}
+covariance = []
+P_range_GPa = [20.0, 20.0]
+T_range_K = [3000.0, 3000.0]
+dIW_range = [-4.0, -1.0]
+P_unit = "GPa"
+source = "Suer et al. 2023, Front. Earth Sci., Table 1, embryo column (20 GPa, 3000 K): line through D_N = 1 at dIW -4 and 39 at dIW -1"
+doi = "10.3389/feart.2023.1159412"
+
+[S]
+form = "log10_linear"
+quantity = "D"
+basis = "mass"
+a = 2.650728
+b = 0.0
+c = 0.0
+d = 0.412682
+e = 0.0
+dIW_factor = 1.0
+eps = {}
+covariance = []
+P_range_GPa = [60.0, 60.0]
+T_range_K = [4000.0, 4000.0]
+dIW_range = [-4.0, -1.0]
+P_unit = "GPa"
+source = "Suer et al. 2023, Front. Earth Sci., Table 1, deep magma ocean column (60 GPa, 4000 K): line through D_S = 10 at dIW -4 and 173 at dIW -1"
+doi = "10.3389/feart.2023.1159412"
+
+[O]
+form = "exchange_KD"
+quantity = "K_D"
+basis = "mole"
+silicate_basis = "single_cation"
+a = 0.986
+b = -3275.0
+c = 0.0
+d = 0.0
+e = 0.0
+dIW_factor = 1.0
+eps = {}
+covariance = []
+P_range_GPa = [35.0, 74.0]
+T_range_K = []
+dIW_range = []
+P_unit = "GPa"
+source = "Tagawa et al. 2021, Nat. Commun., SI Table 3, K_D(O) for the partitioning data of Siebert et al. 2012 and 2013; P range of the Siebert et al. 2013 diamond anvil cell runs (main text), data range not yet checked against their supplementary Table S4"
+doi = "10.1038/s41467-021-22035-0"
+
+[Si]
+form = "exchange_KD"
+quantity = "K_D"
+basis = "mole"
+silicate_basis = "single_cation"
+a = 0.549
+b = -12324.0
+c = 0.0
+d = 0.0
+e = 0.0
+dIW_factor = 1.0
+eps = {}
+covariance = []
+P_range_GPa = [35.0, 74.0]
+T_range_K = []
+dIW_range = []
+P_unit = "GPa"
+source = "Tagawa et al. 2021, Nat. Commun., SI Table 3, K_D(Si) for the partitioning data of Siebert et al. 2012 and 2013; P range of the Siebert et al. 2013 diamond anvil cell runs (main text), data range not yet checked against their supplementary Table S4"
+doi = "10.1038/s41467-021-22035-0"
