@@ -22,6 +22,7 @@ from calliope.metal import (
     core_light_elements,
     load_partition_table,
     log10_D,
+    metal_masses,
     out_of_range,
 )
 
@@ -348,3 +349,43 @@ class TestBasis:
         assert loaded['H'] / clean['H'] == pytest.approx(loaded['C'] / clean['C'], rel=1e-3)
         with pytest.raises(ValueError, match='no iron'):
             core_light_elements({'H': 50, 'C': 50}, w_melt, {'O': 0.6, 'Si': 0.5})
+
+
+class TestMetalReservoir:
+    """The metal term of the element balance: core_i = D_i M_metal w_i(melt)."""
+
+    @pytest.mark.physics_invariant
+    @pytest.mark.reference_pinned
+    @pytest.mark.parametrize('d', [0.1, 1.0, 10.0, 30.0, 100.0])
+    def test_gas_free_core_fraction_is_dx_over_one_plus_dx(self, d):
+        """Melt and metal alone: the core holds f = Dx/(1 + Dx) of an element, x = 0.325/0.675."""
+        m_planet, x = 6e24, 0.325 / 0.675
+        ddict = {
+            'M_mantle': 0.675 * m_planet,
+            'Phi_global': 1.0,
+            'metal_mass': 0.325 * m_planet,
+        }
+        total = 1e20
+        melt = total / (1 + d * x)  # the gas-free balance melt + core = total
+        core = metal_masses({'H': melt}, ddict, {'H': d})['H']
+        f = core / (melt + core)
+        assert f == pytest.approx(d * x / (1 + d * x), rel=1e-12)
+        assert melt + core == pytest.approx(total, rel=1e-12)
+        if (
+            d >= 1.0
+        ):  # f = Dx (no melt back-reaction) would exceed the right value by a factor 1 + Dx
+            assert abs(f - d * x) > 0.3 * f
+
+    def test_no_metal_gives_no_core_term_and_no_melt_raises(self):
+        """metal_mass 0 gives zero core masses; metal with Phi_global 0 has no melt to equilibrate."""
+        ddict = {'M_mantle': 4e24, 'Phi_global': 1.0, 'metal_mass': 0.0}
+        assert metal_masses({'H': 1e20, 'C': 1e19}, ddict, {'H': 50.0, 'C': 5.0}) == {
+            'H': 0.0,
+            'C': 0.0,
+        }
+        ddict.update(metal_mass=2e24, Phi_global=0.0)
+        with pytest.raises(ValueError, match='melt'):
+            metal_masses({'H': 1e20}, ddict, {'H': 50.0})
+        ddict.update(Phi_global=0.5)
+        with pytest.raises(ValueError, match='D'):
+            metal_masses({'H': 1e20}, ddict, {'H': -1.0})
