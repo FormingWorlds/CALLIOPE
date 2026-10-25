@@ -19,6 +19,7 @@ import pytest
 from calliope.metal import (
     ELEMENTS,
     PartitionTableError,
+    core_light_elements,
     load_partition_table,
     log10_D,
     out_of_range,
@@ -304,3 +305,44 @@ class TestLaw:
                 log10_D(c, *args)
         with pytest.raises(ValueError, match='X_O'):
             log10_D(c, 50.0, 4000.0, -2.0, x_metal={'O': 1.0})
+
+
+class TestBasis:
+    """Molar D on the H- and C-free metal basis converted to core mass fractions."""
+
+    @pytest.mark.physics_invariant
+    @pytest.mark.reference_pinned
+    @pytest.mark.parametrize(
+        'd_h, d_c, w_o, w_si, w_s, core_h, core_c',
+        [
+            (92, 67, 0.00, 3.43, 2.00, 0.68, 0.75),
+            (56, 96, 2.52, 4.42, 2.00, 0.45, 1.15),
+            (44, 107, 1.49, 7.78, 2.00, 0.35, 1.29),
+        ],
+        ids=['wade_wood_40gpa', 'siebert_50gpa', 'fischer_54gpa'],
+    )
+    def test_tsutsumi_single_stage_core(self, d_h, d_c, w_o, w_si, w_s, core_h, core_c):
+        """Tsutsumi et al. 2025 SI Table 1: BSE 710 ppm H2O, 120 ppm C, KLB-1 melt (Takahashi 1986)."""
+        w_melt = {'H': 710e-6 * 2 * 1.008 / 18.01528, 'C': 120e-6}
+        fixed = {'O': w_o / 100, 'Si': w_si / 100, 'S': w_s / 100}
+        w = core_light_elements({'H': d_h, 'C': d_c}, w_melt, fixed)
+        assert round(100 * w['H'], 2) == pytest.approx(core_h, abs=1e-9)
+        assert round(100 * w['C'], 2) == pytest.approx(core_c, abs=1e-9)
+        assert 0 < w['H'] < 0.01 and 0 < w['C'] < 0.02
+
+    def test_plain_mass_d_misses_the_wade_wood_case(self):
+        """Without the basis conversion, D times the melt H gives 0.73 wt%, not 0.68 (40 GPa case)."""
+        w_melt = {'H': 710e-6 * 2 * 1.008 / 18.01528, 'C': 120e-6}
+        plain = 92 * w_melt['H'] * 100
+        w = core_light_elements({'H': 92, 'C': 67}, w_melt, {'Si': 0.0343, 'S': 0.02})
+        assert round(plain, 2) != pytest.approx(0.68, abs=1e-9)
+        assert abs(plain / (100 * w['H']) - 1) > 0.06
+
+    def test_more_metal_light_elements_lower_the_h_and_c_uptake(self):
+        """O, Si and S in the metal take moles from the H- and C-free basis, so core H falls."""
+        w_melt = {'H': 7.94e-5, 'C': 1.2e-4}
+        clean = core_light_elements({'H': 50, 'C': 50}, w_melt, {})
+        loaded = core_light_elements({'H': 50, 'C': 50}, w_melt, {'O': 0.05, 'Si': 0.05})
+        assert loaded['H'] < clean['H'] and loaded['C'] < clean['C']
+        with pytest.raises(ValueError, match='no iron'):
+            core_light_elements({'H': 50, 'C': 50}, w_melt, {'O': 0.6, 'Si': 0.5})
