@@ -54,7 +54,7 @@ The `result` dictionary contains, for every species `s` in `volatile_species`:
 - `s_kg_solid`: 0.0 (solid partitioning is handled by the caller, not CALLIOPE)
 - `s_kg_total`: sum of atmosphere + liquid (it excludes the core when a metal reservoir is on)
 
-and per-element totals `H_kg_atm`, `C_kg_atm`, ..., `S_res` (mass-balance residual in kg). With `metal_mass` above zero in `ddict` the result also carries the metal reservoir keys `<e>_kg_core`, `w_<e>_core`, `<e>_D_metal`, `<e>_D_out_of_range` and `dIW_eq` ([metal reservoir](../Reference/partition_file.md)).
+and per-element totals `H_kg_atm`, `C_kg_atm`, ..., `S_res` (mass-balance residual in kg). `fallback` (a bool) is True when the returned state misses the tolerance of an element and a warning was logged. `fO2_model` names the IW buffer the solve used (a string); set it as `ddict['fO2_model']` to evaluate a state with `get_partial_pressures`, `atmosphere_mass` or `dissolved_mass` on the same buffer. With `metal_mass` above zero in `ddict` the result also carries the metal reservoir keys `<e>_kg_core`, `w_<e>_core`, `<e>_D_metal`, `<e>_D_out_of_range` and `dIW_eq` ([metal reservoir](../Reference/partition_file.md)).
 
 ## Pattern 2 - solve from initial partial pressures
 

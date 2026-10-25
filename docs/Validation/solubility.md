@@ -6,7 +6,7 @@ behaviour of `calliope.solubility` against published sources.
 | Test id | Reference | Source page | Scope |
 |---|---|---|---|
 | `tests/test_solubility.py::TestSolubilityH2O::test_peridotite_default_matches_sossi_2023_fit` | Sossi et al. (2023) [^cite-sossi2023] peridotite H2O fit: `ppmw = 524 * p^0.5` | `src/calliope/solubility.py:39-41` (`peridotite`) | Pins the default H2O parameterization at p = 100 bar against the Sossi 2023 constant; includes wrong-law (Dixon et al. 1995 [^cite-dixon1995] basalt) and wrong-exponent (1.0 vs 0.5) discrimination guards. |
-| `tests/test_solubility.py::TestSolubilityS2_xFeO::test_default_call_matches_gaillard_2022_earth_mantle_value` | Gaillard et al. (2022) [^cite-gaillard2022], EPSL 117255, S2 solubility law with `x_FeO = 10 wt%` Earth-mantle default | [doi:10.1016/j.epsl.2021.117255](https://doi.org/10.1016/j.epsl.2021.117255), `src/calliope/solubility.py:75-93` | Pins S2 ppmw at (p = 1 bar, T = 2500 K, fO2_shift = 0) against the closed-form Gaillard expression; couples to the Fischer 2011 [^cite-fischer2011] IW buffer default. |
+| `tests/test_solubility.py::TestSolubilityS2_xFeO::test_default_call_matches_gaillard_2022_earth_mantle_value` | Gaillard et al. (2022) [^cite-gaillard2022], EPSL 117255, S2 solubility law with `x_FeO = 10 wt%` Earth-mantle default | [doi:10.1016/j.epsl.2021.117255](https://doi.org/10.1016/j.epsl.2021.117255), `src/calliope/solubility.py:75-93` | Pins S2 ppmw at (p = 1 bar, T = 2500 K, fO2_shift = 0) against the closed-form Gaillard expression; couples to the Hirschmann 2021 [^cite-hirschmann2021] IW buffer default, with a wrong-buffer guard against the Fischer 2011 [^cite-fischer2011] buffer. |
 | `tests/test_solubility.py::TestSolubilityNobleGas::test_every_gas_constant_pinned_to_independent_literal` | Jambon, Weill & Braun (1986) [^cite-jambon1986] noble gas Henry constants in tholeiitic basalt | [doi:10.1016/0016-7037(86)90193-6](https://doi.org/10.1016/0016-7037(86)90193-6), `src/calliope/solubility.py` (`jambon86_ppmw_per_bar`, `SolubilityNobleGas`) | Pins each of the five noble gas Henry constants [ppmw/bar] to a hand-computed literal with cross-gas discrimination guards, so a mistyped constant fails on a CI image without atmodeller. |
 | `tests/test_solubility.py::TestSolubilityNobleGas::test_noble_constants_cross_check_against_atmodeller` | Cross-implementation cross-check against atmodeller | `src/calliope/solubility.py` | Confirms CALLIOPE and atmodeller derive identical Jambon et al. (1986) constants from the same primitives (skips when atmodeller is not installed). |
 
@@ -34,24 +34,26 @@ Closed form from Gaillard et al. (2022):
 ln(X_S^melt) = 13.8426 - 26476/T + 0.124*x_FeO + 0.5*ln(p_S2/fO2)
 ```
 
-At T = 2500 K, p_S2 = 1 bar, x_FeO = 10 wt%, fO2 from the Fischer 2011 IW
-buffer:
+At T = 2500 K, p_S2 = 1 bar, x_FeO = 10 wt%, fO2 from the default
+Hirschmann 2021 IW buffer at 1 bar:
 
 ```
-log10(fO2) = -4.3317 (Fischer at T=2500 K, dIW=0)
-fO2 = 10^-4.3317 = 4.659e-5 bar
-ln(p_S2/fO2) = ln(1 / 4.659e-5) = 9.9742
-ln(X) = 13.8426 - 10.5904 + 1.24 + 0.5 * 9.9742
-      = 3.2522 + 1.24 + 4.9871
-      = 9.4793
-ppmw = exp(9.4793) ~ 13086
+log10(fO2) = -4.34247 (Hirschmann at T=2500 K, P=1 bar, dIW=0)
+fO2 = 10^-4.34247 = 4.545e-5 bar
+ln(p_S2/fO2) = ln(1 / 4.545e-5) = 9.9989
+ln(X) = 13.8426 - 10.5904 + 1.24 + 0.5 * 9.9989
+      = 3.2522 + 1.24 + 4.9995
+      = 9.4917
+ppmw = exp(9.4917) ~ 13249
 ```
 
-Hidden coupling: the pin depends on the Fischer 2011 IW buffer; any change
-to the buffer coefficients in `oxygen_fugacity.py` requires regenerating this
-number. The test docstring flags this coupling explicitly. The reference
-value in the test (13085.87) matches the closed-form ppmw above to the
-4-significant-figure precision of the Fischer coefficients.
+Hidden coupling: the pin depends on the default IW buffer; any change to
+the default or to the buffer coefficients in `oxygen_fugacity.py` requires
+regenerating this number. The test docstring flags this coupling
+explicitly. The reference value in the test (13248.67) matches the
+closed-form ppmw above. The Fischer 2011 buffer (log10(fO2) =
+-4.3317 at 2500 K) gives 13085.87, 1.2% lower; the test keeps this as a
+wrong-buffer guard.
 
 ## Anchor types
 
@@ -76,6 +78,7 @@ value in the test (13085.87) matches the closed-form ppmw above to the
  [^cite-dixon1995]: J. E. Dixon, E. M. Stolper, J. R. Holloway, *[An experimental study of water and carbon dioxide solubilities in mid-ocean ridge basaltic liquids. Part I: Calibration and solubility models](https://doi.org/10.1093/oxfordjournals.petrology.a037267)*, Journal of Petrology, 36(6), 1607-1631, 1995. [SciX](https://scixplorer.org/abs/1995JPet...36.1607D/abstract).
  [^cite-fischer2011]: R. A. Fischer, A. J. Campbell, G. A. Shofner, O. T. Lord, P. Dera, V. B. Prakapenka, *[Equation of state and phase diagram of FeO](https://doi.org/10.1016/j.epsl.2011.02.025)*, Earth and Planetary Science Letters, 304, 496-502, 2011. [SciX](https://scixplorer.org/abs/2011E%26PSL.304..496F/abstract).
  [^cite-gaillard2022]: F. Gaillard, F. Bernadou, M. Roskosz, M. A. Bouhifd, Y. Marrocchi, G. Iacono-Marziano, M. Moreira, B. Scaillet, G. Rogerie, *[Redox controls during magma ocean degassing](https://doi.org/10.1016/j.epsl.2021.117255)*, Earth and Planetary Science Letters, 577, 117255, 2022. [SciX](https://scixplorer.org/abs/2022E%26PSL.57717255G/abstract).
+ [^cite-hirschmann2021]: M. M. Hirschmann, *[Iron-wüstite revisited: A revised calibration accounting for variable stoichiometry and the effects of pressure](https://doi.org/10.1016/j.gca.2021.08.039)*, Geochimica et Cosmochimica Acta, 313, 74-84, 2021.
  [^cite-jambon1986]: A. Jambon, H. Weill, J. Braun, *[Solubility of He, Ne, Ar, Kr and Xe in a basalt melt in the range 1250-1600 C. Geochemical implications](https://doi.org/10.1016/0016-7037(86)90193-6)*, Geochimica et Cosmochimica Acta, 50(3), 401-408, 1986. [SciX](https://scixplorer.org/abs/1986GeCoA..50..401J/abstract).
  [^cite-libourel2003]: G. Libourel, B. Marty, F. Humbert, *[Nitrogen solubility in basaltic melt. Part I. Effect of oxygen fugacity](https://doi.org/10.1016/S0016-7037(03)00259-X)*, Geochimica et Cosmochimica Acta, 67(21), 4123-4135, 2003. [SciX](https://scixplorer.org/abs/2003GeCoA..67.4123L/abstract).
  [^cite-sossi2023]: P. A. Sossi, P. M. E. Tollan, J. Badro, D. J. Bower, *[Solubility of water in peridotite liquids and the prevalence of steam atmospheres on rocky planets](https://doi.org/10.1016/j.epsl.2022.117894)*, Earth and Planetary Science Letters, 601, 117894, 2023. [SciX](https://scixplorer.org/abs/2023E%26PSL.60117894S/abstract).

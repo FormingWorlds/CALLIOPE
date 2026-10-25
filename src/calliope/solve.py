@@ -30,7 +30,7 @@ from .metal import (
     metal_masses,
     out_of_range,
 )
-from .oxygen_fugacity import OxygenFugacity
+from .oxygen_fugacity import DEFAULT_FO2_MODEL, FO2_MODELS, OxygenFugacity
 from .solubility import (
     SolubilityCH4,
     SolubilityCO,
@@ -120,10 +120,52 @@ def _noble_henry_seed(core_out, active, target_d, ddict):
 # not rejected for sub-10-kg mass-balance noise.
 TRUNC_MASS = 1e1
 
-# Elements whose emptied budget has been warned about in this process.
-_EMPTIED_WARNED = set()
 # (element, kind) of the metal-reservoir warnings given in this process
 _METAL_WARNED = set()
+
+# Attempts allowed after the first fallback is stored, before the best one is returned. A
+# solvable trace budget (H 1e15 kg) reaches its root within 100 of them for ~85% of seeds.
+FALLBACK_ATTEMPTS = 100
+
+
+def _fallback_rank(resid_abs, elem_tol):
+    """Rank of a state that misses closure: elements over tolerance, then worst |res| / tol."""
+    ratio = np.asarray(resid_abs) / elem_tol
+    return int(np.count_nonzero(ratio > 1.0)), float(np.amax(ratio))
+
+
+def _polish_fallback(state, resid, ddict, target_d, elem_tol, tolerance, xtol, nsolve):
+    """Re-solve the positive primaries of a fallback state with its zero ones held at 0.
+
+    A clipped root misses what its phantom species carried (the S of the H2S formed by a
+    negative pH2O). The polished state is kept only if it is non-negative, passes the mass
+    gates and ranks better; otherwise the fallback is returned as it is.
+    """
+    free = np.flatnonzero(state > 0.0)
+    if free.size in (0, state.size):
+        return state, resid
+
+    def _free_resid(y):
+        x = state.copy()
+        x[free] = y
+        return np.asarray(func(x, ddict, target_d))[free]
+
+    # opt.root (MINPACK hybrd, as fsolve) keeps this solve out of the restart loop's count.
+    result = opt.root(
+        _free_resid, state[free], method='hybr', options={'xtol': xtol, 'maxfev': nsolve}
+    )
+    polished = state.copy()
+    polished[free] = result.x
+    if np.any(polished < 0.0):
+        return state, resid
+    polished_resid = np.abs(np.asarray(func(polished, ddict, target_d)))
+    in_gate = np.amax(polished_resid[:4]) <= tolerance and np.all(
+        polished_resid[4:] <= elem_tol[4:]
+    )
+    if in_gate and _fallback_rank(polished_resid, elem_tol) < _fallback_rank(resid, elem_tol):
+        return polished, polished_resid
+    return state, resid
+
 
 # Solver bounds, in one place so the cold-start guess range, the trust-constr
 # box, and the fO2-hint validation cannot drift apart.
@@ -164,6 +206,39 @@ def is_included(gas, ddict):
     return bool(ddict[gas + '_included'] > 0)
 
 
+def _fO2_model(ddict):
+    """IW buffer name for a solve: ``ddict['fO2_model']``, else the default."""
+    return ddict.get('fO2_model', DEFAULT_FO2_MODEL)
+
+
+def _with_fO2_model(ddict, fO2_model):
+    """Copy of ``ddict`` carrying the IW buffer of one solve as ``'fO2_model'``.
+
+    Every place that turns ``fO2_shift`` into an absolute fO2 (the O2
+    partial pressure, the modified equilibrium constants, the S2
+    solubility) reads the buffer from this key, so one solve uses one
+    buffer. The Dasgupta N2 solubility takes ``fO2_shift`` itself as its
+    Delta-IW, with no conversion between buffers. ``fO2_model=None`` keeps
+    the buffer already in ``ddict``, or the default. A ``fO2_model`` that
+    contradicts ``ddict['fO2_model']`` raises ``ValueError`` rather than
+    picking one silently, as does an unknown buffer name. The caller's
+    ``ddict`` is not modified.
+    """
+    in_ddict = ddict.get('fO2_model')
+    if fO2_model is None:
+        fO2_model = DEFAULT_FO2_MODEL if in_ddict is None else in_ddict
+    elif in_ddict is not None and in_ddict != fO2_model:
+        raise ValueError(
+            f'fO2_model={fO2_model!r} contradicts ddict["fO2_model"]={in_ddict!r}; '
+            'set the IW buffer in one place.'
+        )
+    if fO2_model not in FO2_MODELS:
+        raise ValueError(
+            f'Unknown IW buffer fO2_model={fO2_model!r}; expected one of {FO2_MODELS}.'
+        )
+    return {**ddict, 'fO2_model': fO2_model}
+
+
 def _get_partial_pressures(pin, fO2_shift, ddict):
     """Partial pressures [bar] of all 11 species from the 4 primaries.
 
@@ -175,52 +250,53 @@ def _get_partial_pressures(pin, fO2_shift, ddict):
     than a config input.
 
     `pin` provides H2O, CO2, N2, S2; the other 7 species are derived
-    via equilibrium constants and the fO2 buffer.
+    via equilibrium constants and the fO2 buffer ``ddict['fO2_model']``
+    (default ``DEFAULT_FO2_MODEL``).
     """
 
     p_d = {s: 0.0 for s in volatile_species}
+    buffer = _fO2_model(ddict)
 
     p_d['H2O'] = pin['H2O']
 
     if is_included('H2', ddict):
-        gamma = ModifiedKeq('janaf_H2')
+        gamma = ModifiedKeq('janaf_H2', buffer)
         gamma = gamma(ddict['T_magma'], fO2_shift)
         p_d['H2'] = gamma * pin['H2O']
 
     p_d['CO2'] = pin['CO2']
 
     if is_included('CO', ddict):
-        gamma = ModifiedKeq('janaf_CO')
+        gamma = ModifiedKeq('janaf_CO', buffer)
         gamma = gamma(ddict['T_magma'], fO2_shift)
         p_d['CO'] = gamma * pin['CO2']
 
     if is_included('H2', ddict) and is_included('CH4', ddict):
-        gamma = ModifiedKeq('schaefer_CH4')
+        gamma = ModifiedKeq('schaefer_CH4', buffer)
         gamma = gamma(ddict['T_magma'], fO2_shift)
         p_d['CH4'] = gamma * pin['CO2'] * p_d['H2'] ** 2.0
 
     p_d['N2'] = pin['N2']
 
     if is_included('NH3', ddict):
-        gamma = ModifiedKeq('janaf_NH3')
+        gamma = ModifiedKeq('janaf_NH3', buffer)
         gamma = gamma(ddict['T_magma'], fO2_shift)
         p_d['NH3'] = (gamma * pin['N2'] * p_d['H2'] ** 3) ** 0.5
 
     # O2 is set unconditionally from the fO2 buffer regardless of the
     # `O2_included` flag, because every sulfur and carbon equilibrium
     # below reads p_O2 (SO2 reaction, CO2-CO couple, CH4 couple).
-    fO2_model = OxygenFugacity()
-    p_d['O2'] = 10.0 ** fO2_model(ddict['T_magma'], fO2_shift)
+    p_d['O2'] = 10.0 ** OxygenFugacity(buffer)(ddict['T_magma'], fO2_shift)
 
     p_d['S2'] = pin['S2']
 
     if is_included('SO2', ddict):
-        gamma = ModifiedKeq('janaf_SO2')
+        gamma = ModifiedKeq('janaf_SO2', buffer)
         gamma = gamma(ddict['T_magma'], fO2_shift)
         p_d['SO2'] = (gamma * pin['S2'] * p_d['O2'] ** 2) ** 0.5
 
     if is_included('H2S', ddict) and is_included('H2', ddict):
-        gamma = ModifiedKeq('janaf_H2S')
+        gamma = ModifiedKeq('janaf_H2S', buffer)
         gamma = gamma(ddict['T_magma'], fO2_shift)
         p_d['H2S'] = (gamma * pin['S2'] * p_d['H2'] ** 2) ** 0.5
 
@@ -417,12 +493,13 @@ def _dissolved_mass(pin, fO2_shift, ddict):
         mass_int_d['CH4'] = 0.0
 
     # Override class default 'libourel'; dasgupta carries fO2 + p_total
-    # dependence which the linear Libourel law does not.
+    # dependence which the linear Libourel law does not. It reads the raw
+    # shift on the solve's buffer; see SolubilityN2.
     sol_N2 = SolubilityN2('dasgupta')
     ppmw_N2 = sol_N2(p_d['N2'], ptot, ddict['T_magma'], fO2_shift)
     mass_int_d['N2'] = prefactor * ppmw_N2
 
-    sol_S2 = SolubilityS2()
+    sol_S2 = SolubilityS2(fO2_model=_fO2_model(ddict))
     ppmw_S2 = sol_S2(p_d['S2'], ddict['T_magma'], fO2_shift)
     mass_int_d['S2'] = prefactor * ppmw_S2
 
@@ -784,6 +861,7 @@ def equilibrium_atmosphere(
     print_result=True,
     opt_solver=True,
     p_guess_max=P_GUESS_MAX_BAR,
+    fO2_model=None,
 ):
     """Solve for surface partial pressures assuming melt-vapour equilibrium.
 
@@ -798,9 +876,12 @@ def equilibrium_atmosphere(
     hide_warnings : bool, default True
         Hide floating point runtime warnings raised by `scipy` for poor guesses.
     rtol : float, default 1e-5
-        Relative tolerance for mass conservation.
+        Relative tolerance for mass conservation. An accepted state closes
+        every element to ``max(rtol * budget, TRUNC_MASS)``.
     atol : float, default 1e10
-        Absolute tolerance for mass conservation [kg].
+        Absolute tolerance [kg] of the scalar mass gate,
+        ``rtol * max(budget) + atol + TRUNC_MASS``, that a state returned
+        through the warned fallback must pass.
     xtol : float, default 1e-8
         Relative tolerance for fsolve.
     p_guess : dict or None, default None
@@ -823,14 +904,29 @@ def equilibrium_atmosphere(
         box; it does not raise the maximum pressure the solver can accept, so a
         surface pressure above the box stays out of reach. Must be finite and
         >= ``P_GUESS_MIN_BAR``.
+    fO2_model : str or None, default None
+        IW buffer the shift is referenced to: one of ``FO2_MODELS``
+        ('hirschmann', 'fischer', 'oneill'). Sets the O2 partial pressure,
+        the modified equilibrium constants and the S2 solubility. The
+        Dasgupta N2 solubility takes the shift itself as its Delta-IW on
+        any buffer, so it is not converted. ``None`` uses
+        ``ddict['fO2_model']`` if present, else ``DEFAULT_FO2_MODEL``. A
+        value that contradicts ``ddict['fO2_model']``, or an unknown name,
+        raises ValueError.
 
     Returns
     -------
     partial_pressures : dict
         Volatile partial pressures [bar] keyed `<species>_bar`, plus per-species
         reservoir masses [kg], elemental totals, residuals, and atmospheric
-        diagnostics (P_surf, M_atm, atm_kg_per_mol, ratios).
+        diagnostics (P_surf, M_atm, atm_kg_per_mol, ratios). ``fallback`` is
+        True when the returned state misses the tolerance of an element and was
+        returned with a warning; a polished state that closes every element is
+        returned with ``fallback`` False. ``fO2_model`` names the IW buffer of the
+        solve.
     """
+
+    ddict = _with_fO2_model(ddict, fO2_model)
 
     if 'metal_mass' in ddict and '_metal_D' not in ddict:
         check_metal_fields(ddict)
@@ -938,11 +1034,9 @@ def equilibrium_atmosphere(
 
     bounds = opt.Bounds(lb=lb, ub=ub)
 
-    # Scalar CHNOS acceptance gate, keyed to the largest CHNOS budget only.
-    # Noble gas budgets are deliberately excluded from this maximum: a large
-    # noble inventory would otherwise inflate the tolerance and loosen the
-    # closure demanded of the trace CHNOS elements. The noble gases are held
-    # to their own per-gas gate below.
+    # Scalar CHNOS mass gate, keyed to the largest CHNOS budget only: a large noble inventory
+    # would inflate it and loosen the closure of the trace CHNOS elements, so the noble
+    # gases are held to their own per-gas gate below.
     tolerance = np.amax([target_d[e] for e in ('H', 'C', 'N', 'S')]) * rtol + atol + TRUNC_MASS
     elements = ('H', 'C', 'N', 'S') + active
     elem_tol = np.maximum(np.array([target_d[e] for e in elements]) * rtol, TRUNC_MASS)
@@ -957,7 +1051,7 @@ def equilibrium_atmosphere(
             warnings.filterwarnings('ignore', category=UserWarning)
 
         solver: int = 0
-        fallback = None
+        fallback = fallback_rank = fallback_count = None
         for count in range(nguess):
             if solver == 0:
                 sol, _, ier, _ = opt.fsolve(
@@ -987,7 +1081,7 @@ def equilibrium_atmosphere(
             # the noble gases are held to their own per-gas gate below.
             chnos_resid = np.abs(np.asarray(this_resid[:4]))
             loss = np.amax(chnos_resid)
-            if loss > tolerance:
+            if not loss <= tolerance:
                 if success:
                     log.debug('Solution rejected by CHNOS residual')
                     log.debug('    d(i=%d) = %.2e kg' % (np.argmax(chnos_resid), loss))
@@ -1001,28 +1095,41 @@ def equilibrium_atmosphere(
             # authoritative-O path already uses.
             if success and active:
                 noble_resid = np.abs(np.asarray(this_resid[4:]))
-                if np.any(noble_resid > elem_tol[4:]):
+                if not np.all(noble_resid <= elem_tol[4:]):
                     log.debug('Solution rejected by noble gas residual')
                     success = False
 
             # Species form from pH2 before any clip, so a negative pH2O still forms CH4 and
-            # H2S. Judge and report a root with a negative primary in its clipped form; see
-            # docs/Explanations/mass_balance.md (sign check) for the acceptance rule.
+            # H2S. A root with a negative primary is judged in its clipped form; see
+            # docs/Explanations/mass_balance.md (sign check).
+            state, state_resid = sol, np.abs(np.asarray(this_resid))
             if success and np.any(sol < 0.0):
-                clipped = np.maximum(sol, 0.0)
-                clipped_resid = np.abs(func(clipped, ddict, target_d))
-                in_gate = np.amax(clipped_resid[:4]) <= tolerance and np.all(
-                    clipped_resid[4:] <= elem_tol[4:]
-                )
-                if in_gate and np.all(clipped_resid - np.abs(this_resid) <= elem_tol):
-                    sol = clipped
-                else:
+                state = np.maximum(sol, 0.0)
+                state_resid = np.abs(np.asarray(func(state, ddict, target_d)))
+                if not (
+                    np.amax(state_resid[:4]) <= tolerance
+                    and np.all(state_resid[4:] <= elem_tol[4:])
+                ):
                     log.debug('Solution rejected: a negative primary carries mass, %s bar', sol)
                     success = False
-                    if in_gate:
-                        fallback = (clipped, clipped_resid)
+
+            # The mass gate does not bound a budget below it, so each element must close to
+            # its own tolerance, as in the authoritative-O path. A state that misses one is
+            # refused; the best such state is kept as the warned fallback.
+            if success and not np.all(state_resid <= elem_tol):
+                success = False
+                rank = _fallback_rank(state_resid, elem_tol)
+                log.debug(
+                    'Solution rejected: %d element(s) over tolerance, %s bar', rank[0], sol
+                )
+                if fallback is None or rank < fallback_rank:
+                    fallback, fallback_rank = (state, state_resid), rank
+                    fallback_count = count if fallback_count is None else fallback_count
 
             if success:
+                sol = state
+                break
+            if fallback is not None and count - fallback_count >= FALLBACK_ATTEMPTS:
                 break
 
             x0 = get_initial_pressures(target_d, p_guess_max=p_guess_max, n_extra=len(active))
@@ -1033,22 +1140,26 @@ def equilibrium_atmosphere(
             if opt_solver:
                 solver = 1 - solver
 
-    # Out of attempts: fall back to the last clipped root that passes the mass gates.
-    fell_back = not success and fallback is not None
+    # Out of attempts: return the best refused state that passes the mass gates, polished
+    # with its emptied primaries held at zero; it is a fallback, warned, unless the polish
+    # closes every element.
+    fell_back = False
+    if not success and fallback is not None:
+        sol, fallback_resid = _polish_fallback(
+            *fallback, ddict, target_d, elem_tol, tolerance, xtol, nsolve
+        )
+        fell_back, success = not np.all(fallback_resid <= elem_tol), True
     if fell_back:
-        sol, clipped_resid = fallback
         log.warning(
-            'No root closes every element once clipped at 0 after %d attempts; returning '
-            'the last clipped root that passes the mass gate, with |residual| over '
-            'tolerance for %s',
+            'No root closes every element after %d attempts; returning the closest root that '
+            'passes the mass gate, with |residual| over tolerance for %s',
             count + 1,
             ', '.join(
-                f'{elements[i]} ({clipped_resid[i]:.3g} kg, tolerance {elem_tol[i]:.3g} kg, '
+                f'{elements[i]} ({fallback_resid[i]:.3g} kg, tolerance {elem_tol[i]:.3g} kg, '
                 f'budget {target_d[elements[i]]:.3g} kg)'
-                for i in np.flatnonzero(clipped_resid > elem_tol)
+                for i in np.flatnonzero(fallback_resid > elem_tol)
             ),
         )
-        success = True
 
     if not success:
         raise RuntimeError(
@@ -1058,25 +1169,6 @@ def equilibrium_atmosphere(
     log.debug('    Initial guess attempt number = %d' % count)
 
     res_l = func(sol, ddict, target_d)
-    # A returned state that empties a nonzero budget is warned once per process and element;
-    # repeats go to debug, and a fallback is covered by its own warning.
-    budgets = np.array([target_d[e] for e in elements])
-    emptied = [
-        elements[i]
-        for i in np.flatnonzero(
-            (budgets > 0.0) & (np.asarray(res_l) <= -(1.0 - rtol) * budgets)
-        )
-    ]
-    if emptied and not fell_back:
-        new = [e for e in emptied if e not in _EMPTIED_WARNED]
-        _EMPTIED_WARNED.update(new)
-        (log.warning if new else log.debug)(
-            'The returned state leaves these budgets empty: %s',
-            ', '.join(
-                f'{e} (residual {res_l[elements.index(e)]:.3g} kg, budget {target_d[e]:.3g} kg)'
-                for e in emptied
-            ),
-        )
     log.debug('    Residuals: %s' % res_l)
 
     sol_dict = {'H2O': sol[0], 'CO2': sol[1], 'N2': sol[2], 'S2': sol[3]}
@@ -1171,6 +1263,8 @@ def equilibrium_atmosphere(
     outdict['S_res'] = res_l[3]
     for i, gas in enumerate(active):
         outdict[gas + '_res'] = res_l[4 + i]
+    outdict['fallback'] = fell_back
+    outdict['fO2_model'] = ddict['fO2_model']
     if 'metal_mass' in ddict:
         for el in ('H', 'C', 'N', 'S'):
             outdict[el + '_kg_core'] = mass_core_d.get(el, 0.0)
@@ -1193,6 +1287,7 @@ def equilibrium_atmosphere_authoritative_O(
     opt_solver=True,
     random_seed=None,
     p_guess_max=P_GUESS_MAX_BAR,
+    fO2_model=None,
 ):
     """Solve for partial pressures AND fO2 given total elemental masses including O.
 
@@ -1265,13 +1360,23 @@ def equilibrium_atmosphere_authoritative_O(
         box; it does not raise the maximum pressure the solver can accept, so a
         surface pressure above the box stays out of reach. Must be finite and
         >= ``P_GUESS_MIN_BAR``.
+    fO2_model : str or None, default None
+        IW buffer that ``fO2_shift_derived`` is referenced to: one of ``FO2_MODELS``
+        ('hirschmann', 'fischer', 'oneill'). Sets the O2 partial pressure,
+        the modified equilibrium constants and the S2 solubility. The
+        Dasgupta N2 solubility takes the shift itself as its Delta-IW on
+        any buffer, so it is not converted. ``None`` uses
+        ``ddict['fO2_model']`` if present, else ``DEFAULT_FO2_MODEL``. A
+        value that contradicts ``ddict['fO2_model']``, or an unknown name,
+        raises ValueError.
 
     Returns
     -------
     partial_pressures : dict
         Volatile partial pressures [bar] keyed ``<species>_bar``, plus
         per-species reservoir masses [kg], elemental totals, residuals,
-        and atmospheric diagnostics. Two additions relative to
+        and atmospheric diagnostics, as ``equilibrium_atmosphere`` returns
+        except ``fallback``. Two additions relative to
         ``equilibrium_atmosphere``:
 
         - ``fO2_shift_derived`` : float
@@ -1281,6 +1386,9 @@ def equilibrium_atmosphere_authoritative_O(
         - ``O_res`` : float
             5th residual (O mass-balance), in kg. Pairs with the
             existing ``H_res``/``C_res``/``N_res``/``S_res`` keys.
+
+        As in ``equilibrium_atmosphere``, ``fO2_model`` names the IW buffer
+        that ``fO2_shift_derived`` is referenced to.
 
     Raises
     ------
@@ -1363,6 +1471,8 @@ def equilibrium_atmosphere_authoritative_O(
             raise ValueError('target_d[%r] must be a finite real number [kg], got %r.' % (e, v))
         if v < 0:
             raise ValueError('target_d[%r] must be non-negative [kg], got %r.' % (e, v))
+
+    ddict = _with_fO2_model(ddict, fO2_model)
 
     # Validate fO2_hint and the planet/state parameters consumed from
     # ddict by the residual chain. The solver evaluates the residual at
@@ -1782,6 +1892,7 @@ def equilibrium_atmosphere_authoritative_O(
     for i, gas in enumerate(active):
         outdict[gas + '_res'] = res_l[5 + i]
     outdict['fO2_shift_derived'] = fO2_derived
+    outdict['fO2_model'] = ddict['fO2_model']
     if 'metal_mass' in ddict:
         mass_core_d = _core_masses(mass_int_d, ddict)
         for el in ('H', 'C', 'N', 'S'):

@@ -150,6 +150,41 @@ class TestSolubilityH2O:
 # ---------------------------------------------------------------------------
 
 
+class TestSolubilityS2_buffer:
+    """The Gaillard et al. (2022) law depends on the absolute fO2 through
+    0.5*ln(p/fO2), so the IW buffer that turns fO2_shift into fO2 scales the
+    solubility by 10**(0.5 * (IW_default - IW_other)) at a fixed shift.
+    """
+
+    @pytest.mark.physics_invariant
+    def test_buffer_argument_sets_the_absolute_fo2(self):
+        """At T = 2500 K, p_S2 = 1 bar and fO2_shift = 0, O'Neill & Eggins
+        (2002) sits 0.713 dex below Hirschmann (2021), so the O'Neill
+        solubility is 10**(0.5 * 0.713) ~ 2.27 times the default one, and
+        equals the default evaluated at a shift lower by that offset. Below
+        the 1e-20 bar threshold the law returns zero on any buffer, and an
+        unknown buffer name is refused at construction.
+        """
+        from calliope.oxygen_fugacity import OxygenFugacity
+
+        T = 2500.0
+        default = SolubilityS2()(1.0, T, 0.0)
+        oneill = SolubilityS2(fO2_model='oneill')(1.0, T, 0.0)
+        offset = OxygenFugacity('hirschmann')(T) - OxygenFugacity('oneill')(T)
+        assert offset == pytest.approx(0.713, abs=2e-3)
+        assert oneill / default == pytest.approx(10 ** (0.5 * offset), rel=1e-10)
+        assert oneill / default == pytest.approx(2.27, abs=0.01)
+        # The buffer and the shift trade one for one.
+        assert oneill == pytest.approx(SolubilityS2()(1.0, T, -offset), rel=1e-10)
+        # Naming the default explicitly changes nothing.
+        assert SolubilityS2(fO2_model='hirschmann')(1.0, T, 0.0) == pytest.approx(
+            default, rel=1e-14
+        )
+        assert SolubilityS2(fO2_model='oneill')(1.0e-21, T, 0.0) == pytest.approx(0, abs=1e-300)
+        with pytest.raises(ValueError, match='Unknown IW buffer'):
+            SolubilityS2(fO2_model='typo')
+
+
 class TestSolubilityS2_xFeO:
     """The Gaillard et al. (2022) law has form
         ln(X_S^melt) = 13.8426 - 26476/T + 0.124*x_FeO + 0.5*ln(p/fO2)
@@ -179,23 +214,25 @@ class TestSolubilityS2_xFeO:
         """Pin S2 ppmw under Gaillard et al. (2022) Earth-mantle defaults.
 
         At p_S2 = 1 bar, T = 2500 K, fO2_shift = 0, x_FeO = 10 wt%, and
-        the default Fischer 2011 IW buffer:
+        the default Hirschmann (2021) IW buffer (IW(2500) = -4.342 at 1 bar):
 
         ln(X) = 13.8426 - 26476/2500 + 0.124*10 + 0.5*ln(1/fO2_bar)
-              = 13.8426 - 10.5904 + 1.24 + 0.5*ln(10^-IW(2500))
-              ~ 9.479
-        ppmw = exp(9.479) ~ 13086
+              = 13.8426 - 10.5904 + 1.24 + 0.5*ln(10^4.342)
+              ~ 9.491
+        ppmw = exp(9.491) ~ 13249
 
         Hidden coupling: the pin depends on the default IW buffer
-        (Fischer 2011 since 2026-05). Any change to the IW buffer
+        (Hirschmann 2021). Any change to the default or to the IW buffer
         coefficients in oxygen_fugacity.py will require regenerating
         this number; the failure surfaces here, not in
         test_oxygen_fugacity.
         """
         s = SolubilityS2()
         out = s(1.0, 2500.0, 0.0)
-        # Regression pin: computed at default x_FeO=10.0 with Fischer 2011.
-        assert out == pytest.approx(13085.87, rel=1e-5)
+        # Regression pin: computed at default x_FeO=10.0 with Hirschmann 2021.
+        assert out == pytest.approx(13248.67, rel=1e-5)
+        # Wrong-buffer guard: the Fischer 2011 buffer gives 13085.87.
+        assert abs(out - 13085.87) > 100.0
         # Sign and scale guards: positive ppmw, order 1e4 at these conditions.
         assert out > 0
         assert 1e3 < out < 1e5
@@ -449,6 +486,51 @@ class TestSolubilityN2_meltComposition:
         assert out == pytest.approx(0.0611 * 50.0, rel=1e-12)
 
 
+class TestSolubilityN2_shift:
+    """The Dasgupta et al. (2022) law takes fO2_shift as its Delta-IW directly.
+    Their Eq. 2 defines Delta-IW by the Fe-FeO activity ratio of the melt and
+    names no IW buffer curve, so the law has no buffer to convert to.
+    """
+
+    @pytest.mark.physics_invariant
+    def test_shift_is_the_delta_iw_of_the_law(self):
+        """At T = 2500 K, p_N2 = 1 bar and p_tot = 10 bar, the law is the closed
+        form of Eq. 10: the reduced-N term sqrt(p_GPa) exp(5908 sqrt(p_tot_GPa)
+        / T - 1.6 dIW) plus the molecular term p_GPa * dasfac_2, giving 0.05146
+        ppmw at dIW = 0. Lowering the shift by the 0.713 dex between the
+        Hirschmann (2021) and O'Neill & Eggins (2002) buffers, which is what
+        converting an O'Neill shift onto Hirschmann would do, gives 0.07438
+        ppmw, so the raw and converted readings are distinguishable. The law
+        takes no buffer argument, and zero N2 pressure dissolves nothing.
+        """
+        from calliope.oxygen_fugacity import OxygenFugacity
+
+        T, p_N2, p_tot = 2500.0, 1.0, 10.0
+        law = SolubilityN2('dasgupta')
+        raw = law(p_N2, p_tot, T, 0.0)
+        reduced = math.sqrt(p_N2 * 1e-4) * math.exp(5908.0 * math.sqrt(p_tot * 1e-4) / T)
+        molecular = p_N2 * 1e-4 * law.dasfac_2
+        assert raw == pytest.approx(reduced + molecular, rel=1e-12)
+        assert raw == pytest.approx(0.05146, rel=1e-3)
+
+        # Wrong-law guard: the buffer-converted reading at the same shift.
+        offset = OxygenFugacity('hirschmann')(T) - OxygenFugacity('oneill')(T)
+        assert offset == pytest.approx(0.713, abs=2e-3)
+        converted = law(p_N2, p_tot, T, -offset)
+        assert converted == pytest.approx(
+            reduced * math.exp(1.6 * offset) + molecular, rel=1e-12
+        )
+        assert converted == pytest.approx(0.07438, rel=1e-3)
+        assert converted / raw == pytest.approx(1.4456, rel=1e-3)
+
+        # More reducing means more dissolved N, through the reduced term only.
+        assert law(p_N2, p_tot, T, -1.0) > raw > law(p_N2, p_tot, T, 1.0)
+        assert law(p_N2, p_tot, T, 50.0) == pytest.approx(molecular, rel=1e-12)
+        assert law(0.0, p_tot, T, 0.0) == pytest.approx(0.0, abs=1e-300)
+        with pytest.raises(TypeError):
+            SolubilityN2('dasgupta', fO2_model='oneill')
+
+
 # ---------------------------------------------------------------------------
 # Backward-compatibility regression tests (PROTEUS callers)
 # ---------------------------------------------------------------------------
@@ -468,13 +550,13 @@ class TestBackwardCompatibility:
         broke PROTEUS-side runs.
 
         Hidden coupling: the S2 pin below couples to the default IW
-        buffer (Fischer et al. 2011). A change to the IW-buffer
+        buffer (Hirschmann 2021). A change to the IW-buffer
         coefficients will require regenerating these numbers.
         """
         # SolubilityS2 default at (p_S2, T, dIW)
         s2 = SolubilityS2()
         ppmw_S2 = s2(1.0, 2500.0, 0.0)
-        assert ppmw_S2 == pytest.approx(13085.87, rel=1e-5)
+        assert ppmw_S2 == pytest.approx(13248.67, rel=1e-5)
 
         # SolubilityN2('dasgupta') default at (p_N2, p_tot, T, dIW)
         n2 = SolubilityN2('dasgupta')

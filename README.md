@@ -8,7 +8,7 @@
 
 **CALLIOPE** is the equilibrium outgassing solver of the [PROTEUS](https://proteus-framework.org/PROTEUS) coupled atmosphere-interior evolution framework. It computes the partitioning of volatile elements (H, C, N, O, S) between a partially molten silicate mantle and an overlying gas-phase atmosphere, assuming both reservoirs are in thermochemical equilibrium at the planetary surface.
 
-Given an elemental inventory, a magma ocean temperature, a melt fraction, and an oxygen fugacity (specified as a log<sub>10</sub> shift from the iron-wüstite buffer, defaulting to the Fischer et al. 2011 parameterisation), CALLIOPE returns the surface partial pressures of eleven volatile species, the dissolved volatile masses, and the atmospheric mass.
+Given an elemental inventory, a magma ocean temperature, a melt fraction, and an oxygen fugacity (specified as a log<sub>10</sub> shift from the iron-wüstite buffer, defaulting to the Hirschmann 2021 parameterisation), CALLIOPE returns the surface partial pressures of eleven volatile species, the dissolved volatile masses, and the atmospheric mass.
 
 Two solver modes are available: `equilibrium_atmosphere` takes fO<sub>2</sub> as a control variable and derives O from the buffered chemistry, while `equilibrium_atmosphere_authoritative_O` takes total O mass as input and inverts to recover fO<sub>2</sub>. The buffered mode remains the default for standalone use; the authoritative-O mode is the chemistry side of whole-planet oxygen accounting on the PROTEUS side.
 

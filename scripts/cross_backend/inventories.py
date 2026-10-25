@@ -62,8 +62,8 @@ EARTH_HCNS_KRIJT23 = {
 
 # Earth's volatile O at the Sossi 2020 Delta-IW = +3.5, T = 2000 K state.
 # Computed by `derive_earth_volatile_O()` from CALLIOPE's buffered-mode
-# solver with EARTH_HCNS_KRIJT23 as the H/C/N/S target and the current
-# default Fischer 2011 IW buffer. Hard-coded here so the harness does
+# solver with EARTH_HCNS_KRIJT23 as the H/C/N/S target and the Fischer
+# 2011 IW buffer. Hard-coded here so the harness does
 # not have to recompute it on every invocation; the provenance script
 # `derive_earth_volatile_O()` re-derives it on demand to confirm the
 # constant has not drifted. The legacy O'Neill 2002 buffer gives a
@@ -117,6 +117,7 @@ def derive_earth_volatile_O(T_magma: float = 2000.0, dIW: float = 3.5) -> float:
             ddict,
             hide_warnings=True,
             print_result=False,
+            fO2_model='fischer',
         )
     return float(out['O_kg_total'])
 

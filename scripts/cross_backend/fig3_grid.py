@@ -5,11 +5,11 @@ budget with H/C/N/S fixed and the volatile O reference set by a
 buffered-mode call at Delta-IW = +3.5 (Sossi 2020). For each T_magma
 in the grid the two backends produce a converged Delta-IW; the figure
 shows them side by side together with the analytical buffer offsets
-(Hirschmann minus Fischer for the current default; Hirschmann minus
+(Hirschmann minus Fischer for the Fischer runs; Hirschmann minus
 O'Neill for the legacy buffer).
 
-CALLIOPE is run twice at every grid point: once with the current
-default Fischer 2011 buffer and once with the legacy O'Neill 2002
+CALLIOPE is run twice at every grid point: once with the
+Fischer 2011 buffer and once with the legacy O'Neill 2002
 buffer. The Fischer trace is much closer to atmodeller because
 Fischer 2011 is closer to Hirschmann than O'Neill 2002 is across the
 magma-ocean range (~0.1 dex residual at 2000 K vs ~0.95 dex).
@@ -177,7 +177,7 @@ def make_figure(data: dict | None = None) -> dict:
         dIW_cal_fis,
         marker='o',
         color=COLOR_CAL,
-        label='CALLIOPE (Fischer 2011, default)',
+        label='CALLIOPE (Fischer 2011)',
     )
     ax_top.plot(
         T_GRID,
@@ -229,7 +229,7 @@ def make_figure(data: dict | None = None) -> dict:
         raw_gap_fis,
         marker='o',
         color='#7a7a7a',
-        label='raw, Fischer default ($\\Delta$IW$_\\mathrm{atm}-\\Delta$IW$_\\mathrm{cal,F}$)',
+        label='raw, Fischer ($\\Delta$IW$_\\mathrm{atm}-\\Delta$IW$_\\mathrm{cal,F}$)',
     )
     ax_bot.plot(
         T_GRID,

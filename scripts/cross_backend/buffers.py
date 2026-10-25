@@ -4,7 +4,7 @@ The buffer divergence is the single largest cross-backend systematic
 and can be evaluated without any chemistry solver, so the harness
 computes it from the published formulae directly.
 
-- Fischer et al. (2011): 1-bar reference, used by CALLIOPE by default.
+- Fischer et al. (2011): 1-bar reference, the CALLIOPE buffer of the comparison figures.
 - O'Neill & Eggins (2002): monolithic fit, CALLIOPE legacy / alternative.
 - Hirschmann composite: Hirschmann (2008) below 1000 K, Hirschmann
   (2021) above 1000 K. Used by atmodeller by default. The H21 branch is
@@ -68,8 +68,8 @@ def hirschmann_minus_oneill_offset(T: np.ndarray, P_bar: float = 1.0) -> np.ndar
 def hirschmann_minus_fischer_offset(T: np.ndarray, P_bar: float = 1.0) -> np.ndarray:
     """log10(fO2_Hirschmann) - log10(fO2_Fischer) at the buffer (no shift).
 
-    The analogue of `hirschmann_minus_oneill_offset` for CALLIOPE's
-    current default buffer (Fischer 2011). Fischer is much closer to
+    The analogue of `hirschmann_minus_oneill_offset` for the Fischer 2011
+    buffer the comparison figures run CALLIOPE on. Fischer is much closer to
     Hirschmann than O'Neill across the magma-ocean range, so this
     offset is sub-0.2 dex everywhere on the figure-3 sweep.
     """

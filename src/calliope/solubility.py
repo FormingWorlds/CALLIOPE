@@ -6,7 +6,7 @@ import logging
 import numpy as np
 
 from .constants import molar_mass, noble_gases
-from .oxygen_fugacity import OxygenFugacity
+from .oxygen_fugacity import DEFAULT_FO2_MODEL, OxygenFugacity
 
 log = logging.getLogger('fwl.' + __name__)
 
@@ -92,10 +92,13 @@ class SolubilityS2(Solubility):
         The default value matches the Earth-mantle reference adopted in
         prior CALLIOPE releases; override for non-Earth bulk
         compositions.
+    fO2_model : str, default ``DEFAULT_FO2_MODEL``
+        IW buffer that converts ``fO2_shift`` into the absolute fO2 of the
+        Gaillard law. Must match the buffer of the rest of the solve.
     """
 
-    def __init__(self, composition='gaillard', x_FeO=10.0):
-        self.fO2_model = OxygenFugacity()
+    def __init__(self, composition='gaillard', x_FeO=10.0, fO2_model=DEFAULT_FO2_MODEL):
+        self.fO2_model = OxygenFugacity(fO2_model)
         self.x_FeO = x_FeO
         super().__init__(composition)
 
@@ -148,6 +151,14 @@ class SolubilityN2(Solubility):
         (0.56, 0.11, 0.01) match the Earth-mantle reference adopted in
         prior CALLIOPE releases; override for non-Earth compositions.
         These kwargs have no effect when `composition='libourel'`.
+
+    Notes
+    -----
+    The Dasgupta law takes ``fO2_shift`` as its Delta-IW directly, on
+    whichever IW buffer the solve uses. Dasgupta et al. (2022) Eq. 2 defines
+    Delta-IW by the Fe-FeO activity ratio of the melt and names no IW buffer
+    curve, so no conversion to a reference buffer is applied. At a fixed
+    absolute fO2 the dissolved N therefore depends on the buffer choice.
     """
 
     def __init__(self, composition='libourel', x_SiO2=0.56, x_Al2O3=0.11, x_TiO2=0.01):

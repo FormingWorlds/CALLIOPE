@@ -101,7 +101,7 @@ def make_figure(data: dict | None = None) -> dict:
         color=COLOR_CAL,
         linewidth=2.0,
         zorder=2,
-        label=rf'CALLIOPE (Fischer, default): $\Delta\mathrm{{IW}} = {data["cal_fischer_dIW"]:+.2f}$',
+        label=rf'CALLIOPE (Fischer): $\Delta\mathrm{{IW}} = {data["cal_fischer_dIW"]:+.2f}$',
     )
     # The O'Neill-buffer CALLIOPE result lands at ~+3.50 here by near-
     # coincidence (the canonical Earth O budget was derived under

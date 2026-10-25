@@ -400,7 +400,7 @@ class TestEquilibriumChemistry:
         at the canonical T = 2000 K, dIW = 0 evaluation.
 
         Hidden coupling: the modified Keq folds fO2 in, so this pin
-        depends on the default IW buffer (Fischer et al. 2011).
+        depends on the default IW buffer (Hirschmann 2021).
         """
         T = 2000.0
         mk_h2 = ModifiedKeq('janaf_H2')
@@ -409,9 +409,11 @@ class TestEquilibriumChemistry:
         g_h2 = mk_h2(T, 0.0)
         g_co = mk_co(T, 0.0)
 
-        # Values computed at the default IW buffer (Fischer 2011).
-        assert g_h2 == pytest.approx(1.0896, rel=1e-3)
-        assert g_co == pytest.approx(4.8897, rel=1e-3)
+        # Values computed at the default IW buffer (Hirschmann 2021).
+        assert g_h2 == pytest.approx(0.97534, rel=1e-3)
+        assert g_co == pytest.approx(4.3771, rel=1e-3)
+        # Wrong-buffer guard: the Fischer 2011 buffer gives 1.0896.
+        assert abs(g_h2 - 1.0896) > 0.05
 
     def test_get_partial_pressures_end_to_end(self):
         """End-to-end test: get_partial_pressures should produce positive,
