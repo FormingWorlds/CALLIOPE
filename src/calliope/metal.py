@@ -448,13 +448,13 @@ def exchange_metal(table, p_gpa, t_k, d_iw, oxides=KLB1, elements=('O', 'Si'), c
     Activity coefficients are 1; the fits of Siebert et al. come with activity terms
     that this release does not use.
 
-    Only the laws of ``elements`` are evaluated. ``check=False`` returns fractions that
-    leave no iron as they are, for a fixed-point pass that shortens its step.
+    Only the laws of ``elements`` are evaluated. ``check=False`` returns finite fractions
+    that leave no iron as they are, for a fixed-point pass that shortens its step.
 
     Raises
     ------
     ValueError
-        O and Si that leave no iron in the metal, with ``check``.
+        O and Si that leave no iron in the metal (with ``check``) or are not finite.
     """
     for el in elements:
         _need_form(table[el], 'exchange_KD')
@@ -466,6 +466,7 @@ def exchange_metal(table, p_gpa, t_k, d_iw, oxides=KLB1, elements=('O', 'Si'), c
         x_sio2 = cation_fraction(oxides, 'SiO2')
         k_d = _pow10(log10_D(table['Si'], p_gpa, t_k, 0.0), p_gpa, t_k, d_iw)
         x['Si'] = k_d * x_sio2 * _pow10(-d_iw, p_gpa, t_k, d_iw)
-    if check and sum(x.values()) >= 1.0:
+    total = sum(x.values())
+    if not math.isfinite(total) or (check and total >= 1.0):
         raise ValueError(f'O and Si leave the metal with no iron: {x}')
     return x

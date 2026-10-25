@@ -1807,7 +1807,8 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
     ``s < 0`` (1 otherwise): with dIW from FeO, more metal Si raises dIW and lowers the
     exchange Si, and the undamped passes alternate. With O and Si both partitioned each
     secant also holds the move of the other element. The moves of a pass are halved until
-    they take at most half of the iron left in the metal. The passes stop when each metal mass
+    they take at most half of the iron left in the metal; an exchange that leaves no iron
+    after the first pass raises ``ValueError``. The passes stop when each metal mass
     fraction, or exchange step, is at most ``tol_w_core`` (default 1e-6) of its value,
     plus 1e-15. The metal O comes from the silicate FeO and never enters the
     volatile O budget; with ``o_budget`` (the authoritative-O solve) gas and melt O close
@@ -1860,10 +1861,12 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
     tol = ddict.get('tol_w_core', 1e-6)
     active = _active_noble(ddict)
     out, last, resid = None, {}, {}
-    for _ in range(30):
+    for n_pass in range(30):
         d_iw = _metal_diw(ddict, w, oxides)
         if partitioned:
             x_ex = exchange_metal(table, p_eq, t_eq, d_iw, oxides, partitioned, check=False)
+            if n_pass and sum(x_ex.values()) >= 1.0:  # pass 1 starts from the given metal
+                raise ValueError(f'O and Si leave the metal with no iron: {x_ex}')
             n_total = _metal_moles(w, ('H', 'C'))[0]
             move = {}
             for el in partitioned:
