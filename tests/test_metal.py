@@ -150,6 +150,7 @@ class TestMalformedFile:
             (_with(eps='{ S = true }'), 'eps'),
             (_with(covariance='[[1.0, 0.0], [0.0, 1.0]]'), 'covariance'),
             (_with(covariance='[[1.0, 2.0, 0.0, 0.0, 0.0]]'), 'covariance'),
+            (_with(covariance='[1.0, 2.0]'), 'covariance'),
             (_with(source='""'), 'source'),
         ],
         ids=[
@@ -172,6 +173,7 @@ class TestMalformedFile:
             'eps_bool',
             'covariance_wrong_size',
             'covariance_not_square',
+            'covariance_flat_list',
             'empty_source',
         ],
     )
@@ -180,6 +182,14 @@ class TestMalformedFile:
         with pytest.raises(PartitionTableError) as exc:
             load_partition_table(_write(tmp_path, _text(entry)))
         assert "'H'" in str(exc.value) and f"'{field}'" in str(exc.value)
+        assert isinstance(exc.value, ValueError)
+
+    def test_element_entry_must_be_a_table(self, tmp_path):
+        """An element given as a value instead of a table is refused with its name."""
+        text = 'schema_version = 1\nH = 3.0\n[meta]\nname = "x"\nplaceholder = true\n'
+        with pytest.raises(PartitionTableError) as exc:
+            load_partition_table(_write(tmp_path, text))
+        assert "'H'" in str(exc.value) and 'table' in str(exc.value)
         assert isinstance(exc.value, ValueError)
 
     @pytest.mark.parametrize(
@@ -340,6 +350,22 @@ class TestBasis:
         w = core_light_elements({'H': 92, 'C': 67}, w_melt, {'Si': 0.0343, 'S': 0.02})
         assert round(plain, 2) != pytest.approx(0.68, abs=1e-9)
         assert abs(plain / (100 * w['H']) - 1) > 0.06
+
+    def test_elements_outside_their_roles_are_refused(self):
+        """D_x is for H and C, the fixed fractions for O, Si, S and N; anything else raises."""
+        w_melt = {'H': 7.94e-5, 'C': 1.2e-4}
+        for d_x, fixed in (
+            ({'H': 50, 'N': 5}, {}),
+            ({'H': 50}, {'C': 0.01}),
+            ({}, {'H': 0.01}),
+        ):
+            with pytest.raises(ValueError, match='d_x takes H and C'):
+                core_light_elements(d_x, w_melt, fixed)
+        # the edge: every allowed role filled is accepted and leaves iron
+        w = core_light_elements(
+            {'H': 50, 'C': 50}, w_melt, {'O': 0.01, 'Si': 0.01, 'S': 0.01, 'N': 0.01}
+        )
+        assert 0 < w['H'] < 0.01 and 0 < w['C'] < 0.01
 
     def test_lighter_metal_holds_more_h_and_c_at_fixed_mole_ratio(self):
         """O and Si are lighter than Fe: a kg of metal holds more H- and C-free moles, so more H."""
@@ -552,7 +578,10 @@ def test_tsutsumi_core_values_plot(validation_plot):
         )
         got.append((100 * w['H'], 100 * w['C']))
     for (_, _, paper), (h, c) in zip(cases, got):
-        assert abs(h - paper[0]) <= 0.005 + 1e-9 and abs(c - paper[1]) <= 0.005 + 1e-9
+        assert abs(h - paper[0]) <= 0.005 + 1e-9
+        assert abs(c - paper[1]) <= 0.005 + 1e-9
+    # D times the melt H without the basis conversion misses the 40 GPa case (0.73 wt%)
+    assert abs(100 * 92 * w_melt['H'] - cases[0][2][0]) > 0.005
 
     def figure():
         import matplotlib.pyplot as plt
