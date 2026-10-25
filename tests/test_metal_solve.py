@@ -714,7 +714,10 @@ def test_si_partition_with_diw_from_feo_settles(monkeypatch):
     ids=['si-at-iw-minus-6', 'o-from-feo-rich-melt', 'o-exchange-overflows'],
 )
 def test_exchange_without_iron_raises_the_named_error(extra):
-    """An exchange that leaves no iron after the first pass, or is not finite, raises ValueError."""
+    """An exchange without iron that does not fall, or one that is not finite, raises ValueError.
+
+    The message names the partitioned element and its mode field only.
+    """
     from calliope.metal import KLB1
 
     extra = dict(extra)
@@ -727,8 +730,41 @@ def test_exchange_without_iron_raises_the_named_error(extra):
             'MgO': KLB1['MgO'] - (feo - KLB1['FeO']),
         }
     ddict.update(extra)
-    with pytest.raises(ValueError, match='leave the metal with no iron'):
+    el = 'Si' if 'Si_mode_core' in extra else 'O'
+    message = 'exchange is not finite' if extra.get('dIW_eq') == 615.9 else 'does not fall'
+    with pytest.raises(ValueError, match=message) as exc:
         _solve(ddict)
+    if message == 'does not fall':
+        assert f"{el}_mode_core 'partition'" in str(exc.value)
+        assert 'no fixed point was reached from the start metal' in str(exc.value)
+        assert ({'O', 'Si'} - {el}).pop() + '_mode_core' not in str(exc.value)
+
+
+def test_stop_reads_the_whole_exchange_step(monkeypatch):
+    """A damped step below tol_w_core with a whole step 500 times above it does not stop.
+
+    The stub exchange is linear in w_Si with slope -1000 (lam 1/1001): pass 2 moves w_Si by
+    0.4 tol w_Si onto the fixed point while its whole step is 400 tol w_Si, so the solve stops
+    on pass 3.
+    """
+    import calliope.solve as solve_mod
+    from calliope.metal import molar_mass_rock
+
+    w0, tol, s = 0.05, 1e-6, -1000.0
+    a = 0.4 * tol * w0
+    w_star = w0 + a / (1 - s)
+    targets = iter([w0 + a, w0 + a + s * a] + [w_star] * 28)
+    monkeypatch.setattr(solve_mod, 'exchange_metal', lambda *args, **kw: {'Si': next(targets)})
+    m_si = molar_mass_rock['Si']
+    monkeypatch.setattr(solve_mod, '_metal_moles', lambda w, exclude=(): (1.0 / m_si, {}))
+    solve, calls = _stub_solve(lambda n: 1e19)
+    ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'Si_mode_core': 'partition', 'w_Si_core': w0}
+    ddict['tol_w_core'] = tol
+    out = solve_mod._with_metal(
+        solve, TARGET, ddict, {'rtol': 1e-5, 'atol': 1e10, 'p_guess': None}
+    )
+    assert len(calls) == 3
+    assert out['w_Si_core'] == pytest.approx(w_star, rel=1e-12)
 
 
 @pytest.mark.physics_invariant

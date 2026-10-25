@@ -604,12 +604,15 @@ class TestMassD:
     def test_law_that_overflows_raises_a_named_value_error(self):
         """A D or K_D beyond the float range raises ValueError with the conditions."""
         table = load_partition_table()
-        with pytest.raises(ValueError, match='dIW'):
+        with pytest.raises(ValueError, match='H law: .* dIW -2000 overflows'):
             mass_D(table['H'], 50.0, 3500.0, -2000.0, {}, {})
-        with pytest.raises(ValueError, match='dIW'):
+        # log10 D_N = 2.12 + 0.530 dIW = 310.3, just above the float range
+        with pytest.raises(ValueError, match='N law: 10\\*\\*310'):
+            mass_D(table['N'], 20.0, 3000.0, 581.0, {}, {})
+        with pytest.raises(ValueError, match='O exchange: .* overflows'):
             exchange_metal(table, 50.0, 3500.0, 2000.0)
         # each factor of x_O stays below 1e308, their product does not
-        with pytest.raises(ValueError, match='no iron'):
+        with pytest.raises(ValueError, match='exchange is not finite .* dIW 615.9'):
             exchange_metal(table, 50.0, 5000.0, 615.9, elements=('O',), check=False)
 
     def test_metal_with_no_iron_raises(self):
