@@ -151,3 +151,58 @@ def load_partition_table(path=None):
     table = {'schema_version': version, 'meta': dict(meta)}
     table.update({el: _entry(el, entry) for el, entry in raw.items()})
     return table
+
+
+def _finite(name, value, positive=False):
+    if not math.isfinite(value) or (positive and value <= 0):
+        raise ValueError(
+            f'{name} must be finite{" and positive" if positive else ""}, got {value!r}'
+        )
+
+
+def log10_D(entry, p_gpa, t_k, d_iw, x_metal=None, nbo_t=0.0):
+    """log10 of the partition coefficient of one entry, in the entry's basis.
+
+    Parameters
+    ----------
+    entry : dict
+        One element entry of :func:`load_partition_table`.
+    p_gpa : float
+        Equilibration pressure in GPa.
+    t_k : float
+        Equilibration temperature in K.
+    d_iw : float
+        Oxygen fugacity relative to the iron-wustite buffer, log10 units.
+    x_metal : dict or None
+        Mole fractions of the elements of the eps terms in the metal; absent is 0.
+    nbo_t : float
+        NBO/T of the silicate melt.
+
+    Returns
+    -------
+    float
+        ``a + b/T + c P/T + d dIW_factor dIW + e NBO/T + sum_j eps_j log10(1 - X_j)``.
+    """
+    _finite('P [GPa]', p_gpa)
+    _finite('T [K]', t_k, positive=True)
+    _finite('dIW', d_iw)
+    _finite('NBO/T', nbo_t)
+    x_metal = x_metal or {}
+    val = entry['a'] + entry['b'] / t_k + entry['c'] * p_gpa / t_k
+    val += entry['d'] * entry['dIW_factor'] * d_iw + entry['e'] * nbo_t
+    for el, eps in entry['eps'].items():
+        x = x_metal.get(el, 0.0)
+        if not 0.0 <= x < 1.0:
+            raise ValueError(f'X_{el} in the metal must be in [0, 1), got {x!r}')
+        val += eps * math.log10(1.0 - x)
+    return val
+
+
+def out_of_range(entry, p_gpa, t_k, d_iw):
+    """True when (P, T, dIW) lies outside a range of the entry or on an unknown range."""
+    for value, rng in zip(
+        (p_gpa, t_k, d_iw), (entry['P_range_GPa'], entry['T_range_K'], entry['dIW_range'])
+    ):
+        if rng is None or not rng[0] <= value <= rng[1]:
+            return True
+    return False
