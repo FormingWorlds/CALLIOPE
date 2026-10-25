@@ -329,10 +329,8 @@ class TestMalformedFile:
     def test_negative_pressure_or_temperature_range_is_refused(self, tmp_path, field, pair):
         """P and T ranges start at 0 or above; a negative dIW range is valid."""
         with pytest.raises(PartitionTableError, match=field):
-            load_partition_table(_write(tmp_path, _text({'H': _with(**{field: pair})})))
-        table = load_partition_table(
-            _write(tmp_path, _text({'H': _with(dIW_range='[-3.0, -1.0]')}))
-        )
+            load_partition_table(_write(tmp_path, _text(_with(**{field: pair}))))
+        table = load_partition_table(_write(tmp_path, _text(_with(dIW_range='[-3.0, -1.0]'))))
         assert table['H']['dIW_range'] == (-3.0, -1.0)
 
     def test_missing_file_raises_file_not_found(self, tmp_path):
