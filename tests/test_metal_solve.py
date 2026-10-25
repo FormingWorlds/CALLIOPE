@@ -233,14 +233,13 @@ def test_metal_diw_takes_no_absolute_fo2():
 def test_buffer_reaches_the_metal_through_the_solved_composition():
     """Little melt and metal at IW-4: the solved dIW_eq and D_C move with the IW buffer.
 
-    The gas and melt hold most of each budget, so the buffer moves the melt and metal
-    composition that dIW (from FeO) and the C law read; each state still closes.
+    The buffer moves the melt volatiles and so the metal S and C that dIW (from FeO) and
+    the C law read; each state still closes. The placeholder laws run out of range here.
     """
-    ddict = {**_ddict(), 'fO2_shift_IW': -4.0, 'Phi_global': 0.01, 'metal_mass': 1e21}
-    ddict.update(P_eq=50.0, T_eq=3500.0, dIW_eq_mode='from_FeO')
-    ddict['partition_table'] = load_partition_table()
+    ddict = {**_ddict(), **_metal(30.0, 1e21), 'partition_table': load_partition_table()}
+    ddict.update(fO2_shift_IW=-4.0, Phi_global=0.01, dIW_eq_mode='from_FeO')
     target = dict(TARGET, H=1e22)
-    h, f = (_solve(dict(ddict, fO2_model=b), target=target) for b in BUFFERS[:2])
+    h, f = (_solve(dict(ddict, fO2_model=b), target=target) for b in ('hirschmann', 'fischer'))
     assert not (h['fallback'] or f['fallback'])
     # measured: dIW_eq -0.052 dex and D_C +83 % from Fischer to Hirschmann
     assert h['dIW_eq'] - f['dIW_eq'] < -0.02

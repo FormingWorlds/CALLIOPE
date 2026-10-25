@@ -11,7 +11,7 @@ PROTEUS runs an iterative loop in which structure, outgassing, atmosphere radiat
    │  while not done:                                                         │
    │                                                                          │
    │      # 1. Static structure (Zalmoxis or SPIDER)                          │
-   │      run_structure(config, hf_row)            # writes R_int, M_mantle,  │
+   │      run_structure(config, hf_row)            # writes R_int, M_core,    │
    │                                               # gravity, R_cmb, P_cmb    │
    │                                                                          │
    │      # 2. Outgassing (this is CALLIOPE)                                  │
@@ -27,7 +27,7 @@ PROTEUS runs an iterative loop in which structure, outgassing, atmosphere radiat
    │      # 4. Interior thermal evolution (Aragog or SPIDER)                  │
    │      run_interior(config, hf_row)             # writes T_magma, S_mantle,│
    │                                               # Phi_global, T_core,      │
-   │                                               # F_int                    │
+   │                                               # F_int, M_mantle          │
    │                                                                          │
    │      # 5. Atmospheric escape (ZEPHYRUS)                                  │
    │      run_escape(dirs, config, hf_row)         # writes esc_kg_*,         │
