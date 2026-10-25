@@ -71,7 +71,7 @@ def _metal(d, m_metal):
 TARGET = {'H': 1.5e20, 'C': 1.5e19, 'N': 8.0e18, 'S': 8.0e20}
 
 
-def _solve(ddict, target=TARGET, p_guess=P_GUESS):
+def _solve(ddict, target=TARGET, p_guess=P_GUESS, **kw):
     """One seeded solve, so a restart draws the same pressures for both runs compared."""
     np.random.seed(0)
     return equilibrium_atmosphere(
@@ -84,6 +84,7 @@ def _solve(ddict, target=TARGET, p_guess=P_GUESS):
         rtol=1e-10,
         atol=1.0,
         opt_solver=False,
+        **kw,
     )
 
 
@@ -126,6 +127,33 @@ def test_zero_metal_mass_is_the_solve_without_metal(authoritative):
     nan = [k for k in plain if plain[k] != plain[k]]
     assert all(zero[k] != zero[k] for k in nan)
     assert [k for k in plain if k not in nan and zero[k] != plain[k]] == []
+
+
+@pytest.mark.parametrize('authoritative', [False, True])
+def test_fo2_model_argument_reaches_every_metal_pass(authoritative):
+    """fO2_model='fischer' as an argument equals ddict['fO2_model'] = 'fischer' with metal.
+
+    The passes of the metal fixed point call the solve again; a buffer given only as an
+    argument must reach them, or they run on the default buffer.
+    """
+    ddict = {**_ddict(), **_metal(30.0, 1.9e24)}
+    if authoritative:
+        target = dict(TARGET, O=_solve(dict(ddict, fO2_model='fischer'))['O_kg_total'])
+        by_arg = _solve_auth(ddict, target, fO2_model='fischer')
+        by_ddict = _solve_auth(dict(ddict, fO2_model='fischer'), target)
+        default = _solve_auth(ddict, target)
+        key = 'fO2_shift_derived'
+    else:
+        by_arg = _solve(ddict, fO2_model='fischer')
+        by_ddict = _solve(dict(ddict, fO2_model='fischer'))
+        default = _solve(ddict)
+        key = 'H2_bar'
+    assert by_arg['fO2_model'] == by_ddict['fO2_model'] == 'fischer'
+    assert default['fO2_model'] == 'hirschmann'
+    for k in (key, 'H2_bar', 'O_kg_total', 'H_kg_core', 'C_kg_core'):
+        assert by_arg[k] == pytest.approx(by_ddict[k], rel=1e-9), k
+    # the 2 buffers differ by ~0.2 dex at 1800 K: H2 moves by ~18 %, the derived shift by ~0.2
+    assert abs(default[key] / by_ddict[key] - 1.0) > 0.05
 
 
 @pytest.mark.physics_invariant
@@ -181,7 +209,7 @@ def test_unknown_metal_modes_raise():
         assert key in str(exc.value) or repr(value) in str(exc.value)
 
 
-def _solve_auth(ddict, target, p_guess=None):
+def _solve_auth(ddict, target, p_guess=None, **kw):
     """One seeded authoritative-O solve at the tight acceptance of `_solve`."""
     from calliope.solve import equilibrium_atmosphere_authoritative_O
 
@@ -198,6 +226,7 @@ def _solve_auth(ddict, target, p_guess=None):
             atol=1.0,
             opt_solver=False,
             random_seed=0,
+            **kw,
         )
     except Exception as exc:
         pytest.fail(f'authoritative-O solve with metal raised {type(exc).__name__}: {exc}')
