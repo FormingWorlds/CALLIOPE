@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import warnings
 
 import numpy as np
@@ -1780,6 +1781,7 @@ def _with_metal(solve, target_d, ddict, kwargs):
         out_of_range,
     )
 
+    check_metal_fields(ddict)
     table = ddict.get('partition_table') or load_partition_table()
     m_metal, m_melt = ddict['metal_mass'], ddict['M_mantle'] * ddict['Phi_global']
     oxides = ddict.get('silicate_oxides', KLB1)
@@ -1849,3 +1851,59 @@ def _metal_diw(ddict, w_metal, oxides):
     total, _ = _metal_moles(w_metal)
     x_fe = (1.0 - sum(w_metal.values())) / molar_mass_rock['Fe'] / total
     return 2.0 * np.log10(oxide_mole_fraction(oxides, 'FeO') / x_fe)
+
+
+# field -> (lowest value, highest value, low end allowed, high end allowed)
+_METAL_FIELDS = {
+    'metal_mass': (0.0, math.inf, True, False),
+    'P_eq': (0.0, math.inf, False, False),
+    'T_eq': (0.0, math.inf, False, False),
+    'dIW_eq': (-math.inf, math.inf, False, False),
+    'silicate_nbo_t': (0.0, math.inf, True, False),
+    'w_O_core': (0.0, 1.0, True, False),
+    'w_Si_core': (0.0, 1.0, True, False),
+    'tol_w_core': (0.0, math.inf, False, False),
+}
+
+
+def check_metal_fields(ddict):
+    """Check the metal-reservoir fields of ``ddict`` that are present.
+
+    Each must be a finite real number (not a boolean) in its range: ``metal_mass`` [kg]
+    and ``silicate_nbo_t`` >= 0, ``P_eq`` [GPa], ``T_eq`` [K] and ``tol_w_core`` > 0,
+    ``w_O_core`` and ``w_Si_core`` in [0, 1). ``silicate_oxides`` is a dict of known
+    oxides in wt%, finite and >= 0, that sums to 95-101.
+
+    Raises
+    ------
+    ValueError
+        Names the first field that breaks its rule.
+    """
+    from .metal import _OXIDES
+
+    for field, (lo, hi, lo_ok, hi_ok) in _METAL_FIELDS.items():
+        if field not in ddict:
+            continue
+        v = ddict[field]
+        if isinstance(v, bool) or not isinstance(v, int | float) or not math.isfinite(v):
+            raise ValueError(f'{field} must be a finite number, got {v!r}')
+        if v < lo or v > hi or (v == lo and not lo_ok) or (v == hi and not hi_ok):
+            raise ValueError(f'{field} = {v!r} is outside its range ({lo}, {hi})')
+    if 'silicate_oxides' in ddict:
+        ox = ddict['silicate_oxides']
+        if not isinstance(ox, dict):
+            raise ValueError(f'silicate_oxides must be a dict of oxide wt%, got {ox!r}')
+        unknown = [k for k in ox if k not in _OXIDES]
+        if unknown:
+            raise ValueError(
+                f'silicate_oxides has unknown oxides {unknown}; known: {list(_OXIDES)}'
+            )
+        for k, v in ox.items():
+            if (
+                isinstance(v, bool)
+                or not isinstance(v, int | float)
+                or not (math.isfinite(v) and v >= 0)
+            ):
+                raise ValueError(f'silicate_oxides[{k!r}] must be finite and >= 0, got {v!r}')
+        if not 95.0 <= sum(ox.values()) <= 101.0:
+            raise ValueError(f'silicate_oxides sum to {sum(ox.values())!r} wt%, not 95-101')
