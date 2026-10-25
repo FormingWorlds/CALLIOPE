@@ -52,6 +52,7 @@ develop = [
     "pytest-cov",
     "pytest-timeout",
     "pre-commit",
+    "proteus-mpl >= 1.5.0",
     "pyyaml",
     "ruff",
 ]

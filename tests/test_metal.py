@@ -460,3 +460,41 @@ class TestExchange:
         assert hi['Si'] / lo['Si'] == pytest.approx(0.1, rel=1e-12)
         with pytest.raises(ValueError, match='no iron'):
             exchange_metal(table, 50.0, 4000.0, -6.0)
+
+
+# Tagawa et al. 2021 SI Table 1: P [GPa], T [K], dIW, measured log10 K_D and its 1 sigma
+TAGAWA_RUNS = [
+    (46.0, 3920.0, -0.88, 1.32, 0.06),
+    (48.0, 3450.0, -0.99, 1.10, 0.06),
+    (57.0, 3860.0, -1.08, 1.22, 0.05),
+    (60.0, 4560.0, -1.17, 1.37, 0.05),
+    (47.0, 4230.0, -1.27, 1.35, 0.06),
+    (30.0, 3080.0, -1.33, 1.18, 0.06),
+]
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.reference_pinned
+def test_tagawa_runs_lie_within_one_sigma_of_eq2(validation_plot):
+    """Tagawa et al. 2021 SI Table 1: each of the 6 runs within its 1 sigma of the H law."""
+    h = load_partition_table()['H']
+    fit = [log10_D(h, p, t, 0.0) for p, t, _, _, _ in TAGAWA_RUNS]
+    ratio = [(m - f) / s for (_, _, _, m, s), f in zip(TAGAWA_RUNS, fit)]
+    assert max(abs(r) for r in ratio) <= 1.0
+    # Tagawa Eq. 10 (fit with the multi-anvil data) misses every run by more than 2 sigma
+    eq10 = [0.692 - 4590 / t + 141 * p / t for p, t, _, _, _ in TAGAWA_RUNS]
+    assert min(abs(m - e) / s for (_, _, _, m, s), e in zip(TAGAWA_RUNS, eq10)) > 2.0
+
+    def figure():
+        import matplotlib.pyplot as plt
+
+        meas = [r[3] for r in TAGAWA_RUNS]
+        fig, ax = plt.subplots()
+        ax.errorbar(fit, meas, yerr=[r[4] for r in TAGAWA_RUNS], fmt='o', label='runs #1-#6')
+        ax.plot([1.0, 1.5], [1.0, 1.5], ls='--', color=plt.rcParams['text.color'], label='1:1')
+        ax.set(xlabel=r'Eq. 2 $\log_{10} K_D$', ylabel=r'measured $\log_{10} K_D$')
+        ax.legend()
+        fig.tight_layout()
+        return fig
+
+    validation_plot(figure, 'metal_tagawa2021_h_runs')
