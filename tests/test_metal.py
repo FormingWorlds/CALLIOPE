@@ -360,6 +360,25 @@ class TestLaw:
         # without the O and S terms D_C is 0.447 (derivation section B)
         assert 10 ** log10_D(c, 54.0, 4100.0, -2.2, nbo_t=0.0) == pytest.approx(0.447, abs=2e-3)
 
+    @pytest.mark.physics_invariant
+    @pytest.mark.reference_pinned
+    @pytest.mark.parametrize(
+        'el, p_gpa, t_k, d_lo, d_hi',
+        [('N', 20.0, 3000.0, 1.0, 39.0), ('S', 60.0, 4000.0, 10.0, 173.0)],
+    )
+    def test_suer_lines(self, el, p_gpa, t_k, d_lo, d_hi):
+        """Suer et al. 2023 Table 1: D_N 1 and 39, D_S 10 and 173 at dIW -4 and -1."""
+        entry = load_partition_table()[el]
+        assert 10 ** log10_D(entry, p_gpa, t_k, -4.0) == pytest.approx(d_lo, rel=1e-5)
+        assert 10 ** log10_D(entry, p_gpa, t_k, -1.0) == pytest.approx(d_hi, rel=1e-5)
+
+    def test_diw_factor_multiplies_the_diw_term(self):
+        """dIW_factor 2 doubles the d dIW term."""
+        entry = load_partition_table()['N']
+        one = log10_D(entry, 20.0, 3000.0, -2.0)
+        two = log10_D(dict(entry, dIW_factor=2.0), 20.0, 3000.0, -2.0)
+        assert two - one == pytest.approx(entry['d'] * -2.0, rel=1e-12)
+
     def test_out_of_range_flags_each_axis_and_unknown_ranges(self):
         """A point outside any range, or on an axis whose range is unknown, is flagged."""
         table = load_partition_table()

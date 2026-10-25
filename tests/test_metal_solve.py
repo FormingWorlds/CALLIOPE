@@ -111,13 +111,21 @@ def test_metal_with_equal_d_is_a_larger_melt(d):
     assert gas_share > 0
 
 
-def test_zero_metal_mass_is_the_solve_without_metal():
-    """metal_mass 0 gives the solve without metal, bit for bit, and zero core masses."""
-    plain = _solve(_ddict())
-    zero = _solve({**_ddict(), **_metal(30.0, 0.0)})
-    for sp in ('H2O', 'CO2', 'N2', 'S2'):
-        assert zero[sp + '_bar'] == plain[sp + '_bar']
+@pytest.mark.parametrize('authoritative', [False, True])
+def test_zero_metal_mass_is_the_solve_without_metal(authoritative):
+    """metal_mass 0 gives the solve without metal bit for bit, plus 4 zero core masses."""
+    if authoritative:
+        target = dict(TARGET, O=_solve(_ddict())['O_kg_total'])
+        plain = _solve_auth(_ddict(), target)
+        zero = _solve_auth({**_ddict(), **_metal(30.0, 0.0)}, target)
+    else:
+        plain = _solve(_ddict())
+        zero = _solve({**_ddict(), **_metal(30.0, 0.0)})
+    assert set(zero) - set(plain) == {el + '_kg_core' for el in ELEMS}
     assert all(zero[el + '_kg_core'] == 0 for el in ELEMS)
+    nan = [k for k in plain if plain[k] != plain[k]]
+    assert all(zero[k] != zero[k] for k in nan)
+    assert [k for k in plain if k not in nan and zero[k] != plain[k]] == []
 
 
 @pytest.mark.physics_invariant
@@ -528,6 +536,29 @@ def test_placeholder_laws_are_evaluated_on_the_converged_metal_and_melt():
     for name, d in wrong.items():
         el = 'C' if name in ('P_T_swapped', 'nbo_t_default') else 'H'
         assert abs(d / out[el + '_D_metal'] - 1) > 1e-5, name
+
+
+@pytest.mark.physics_invariant
+def test_user_silicate_oxides_set_the_exchange_feo_and_diw():
+    """The melt oxides of the caller, not KLB-1, set x_SiO2, x_FeO of dIW and the melt FeO."""
+    from calliope.metal import KLB1, exchange_metal, molar_mass_rock, silicate_units_per_kg
+
+    oxides = {**KLB1, 'FeO': 10.0, 'SiO2': KLB1['SiO2'] + 2.0, 'MgO': KLB1['MgO'] - 3.9}
+    ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'partition_table': load_partition_table()}
+    ddict.update(O_mode_core='partition', Si_mode_core='partition', dIW_eq_mode='from_FeO')
+    ddict.update(silicate_oxides=oxides)
+    out = _solve(ddict)
+    m_feo = molar_mass_rock['Fe'] + 0.015999
+    assert out['n_FeO_silicate'] == pytest.approx(4.03e24 * 0.10 / m_feo, rel=1e-4)
+    w = {el: out['w_' + el + '_core'] for el in ('H', 'C', 'N', 'S', 'O', 'Si')}
+    m = {'N': 0.014007, 'S': 0.03206, 'O': 0.015999, 'Si': molar_mass_rock['Si']}
+    n_fe = (1 - sum(w.values())) / molar_mass_rock['Fe']
+    n_free = n_fe + sum(w[el] / m[el] for el in m)
+    x_feo = 0.10 / m_feo / silicate_units_per_kg(oxides)
+    assert out['dIW_eq'] == pytest.approx(2 * math.log10(x_feo / (n_fe / n_free)), abs=1e-4)
+    x = exchange_metal(ddict['partition_table'], 50.0, 3500.0, out['dIW_eq'], oxides)
+    for el in ('O', 'Si'):
+        assert w[el] / m[el] / n_free == pytest.approx(x[el], rel=1e-4), el
 
 
 def test_negative_core_mass_names_the_core_in_the_error():
