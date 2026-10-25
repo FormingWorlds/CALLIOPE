@@ -1817,8 +1817,9 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
     times ``rtol`` (at least 10 kg) with ``o_budget``. ``<e>_kg_total`` stays gas plus
     melt and excludes the core; the bulk inventory is ``<e>_kg_total + <e>_kg_core``.
     ``<e>_D_out_of_range`` is 1 for each element whose law runs outside its (P, T, dIW)
-    range or on an unknown range (O and Si only in 'partition' mode); such a law and the
-    ideal activities of 'partition' mode each warn once per process.
+    range or on an unknown range (O and Si only in 'partition' mode); such a law, the
+    ideal activities of 'partition' mode and a table marked placeholder each warn once
+    per process.
 
     Raises
     ------
@@ -1848,6 +1849,8 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
                 f"{el}_mode_core 'partition' uses ideal activities in metal and melt; "
                 'activity coefficients are not included',
             )
+    if table['meta']['placeholder']:
+        _warn_metal_once('table', 'placeholder', 'the metal partition laws are placeholders')
     partitioned = tuple(el for el in ('O', 'Si') if modes[el] == 'partition')
     missing = [el for el in ('H', 'C', 'N', 'S') + partitioned if el not in table]
     if missing:

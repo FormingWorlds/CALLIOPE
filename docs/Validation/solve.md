@@ -135,6 +135,15 @@ With `metal_mass` above zero the element balance of H, C, N and S gains a core t
 ![Core H and C of the Tsutsumi single-stage cases](../assets/validation/metal_tsutsumi2025_core_h_c.svg#only-light){ width="80%" }
 ![Core H and C of the Tsutsumi single-stage cases](../assets/validation/metal_tsutsumi2025_core_h_c_dark.svg#only-dark){ width="80%" }
 
+### Published law values
+
+**What it tests:** the placeholder laws against the values their sources print: Tagawa et al. (2021) Eq. 2 at 3 (P, T) points; Fischer et al. (2020) Eq. 1, $D_\mathrm{C}$ = 0.550 for their single-stage case (54 GPa, 4100 K, NBO/T 2.6, IW-2.2, $X_\mathrm{O}$ 0.06, $X_\mathrm{S}$ 0.03; p. 8745); the Suer et al. (2023) Table 1 lines, $D_\mathrm{N}$ 1 and 39 and $D_\mathrm{S}$ 10 and 173 at dIW -4 and -1; and the ideal exchange of O and Si with the Tagawa et al. (2021) SI Table 3 $K_D$.
+
+- Reference: the published equations and tables (published values).
+- Tolerance: Eq. 2 at its 4 printed decimals; $D_\mathrm{C}$ 5e-4; the Suer lines relative 1e-5; the O exchange relative 1e-12 and the Si exchange relative 1e-3 (the KLB-1 single-cation units by hand).
+- Test id: `tests/test_metal.py::TestLaw::test_tagawa_eq2_values`, `tests/test_metal.py::TestLaw::test_fischer_eq1_single_stage_value`, `tests/test_metal.py::TestLaw::test_suer_lines`, `tests/test_metal.py::TestExchange::test_ideal_exchange_mole_fractions` (unit tier)
+- Command: `pytest tests/test_metal.py -k "eq2_values or eq1_single or suer_lines or ideal_exchange"`
+
 ## Anchor types
 
 - Self-consistency cross-implementation (round-trip forward vs inverse).

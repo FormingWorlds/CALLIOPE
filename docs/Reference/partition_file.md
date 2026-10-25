@@ -63,7 +63,7 @@ with $T$ in K, $P$ in GPa, NBO/T the ratio of non-bridging O to tetrahedral cati
 
 ## Placeholder laws
 
-The packaged file `src/calliope/data/partition_coefficients_placeholder.toml` has `placeholder = true`.
+The packaged file `src/calliope/data/partition_coefficients_placeholder.toml` has `placeholder = true`; a solve with a table marked placeholder logs one warning per process.
 
 | Element | Law | Range of the source data | Note |
 |---|---|---|---|
