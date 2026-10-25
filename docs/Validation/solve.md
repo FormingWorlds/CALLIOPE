@@ -65,6 +65,55 @@ This is a documented exception to the strict 1:1 source-to-test
 mirroring rule for sources >500 LOC where the test topics are
 independent enough that consolidation would hurt readability.
 
+## Metal reservoir
+
+With `metal_mass` above zero the element balance of H, C, N and S gains a core term $D_i M_\mathrm{metal} w_i^\mathrm{melt}$, where $D_i$ is the mass-basis metal over melt partition coefficient from the partition file (`src/calliope/metal.py`). `<e>_kg_total` stays gas plus melt and excludes the core; the bulk inventory of an element is `<e>_kg_total + <e>_kg_core`.
+
+### Gas-free core fraction
+
+**What it tests:** with melt and metal alone the core holds $f = Dx/(1 + Dx)$ of an element, $x = M_\mathrm{metal}/M_\mathrm{melt}$ (0.325/0.675).
+
+- Reference: the mass balance of melt and metal (analytical).
+- Tolerance: relative 1e-12; $f = Dx$, the law without the melt back-reaction, lies more than 10 % above it from $D = 0.3$ on.
+- Test id: `tests/test_metal.py::test_gas_free_core_fraction_curve`, `tests/test_metal.py::TestMetalReservoir` (unit tier)
+- Command: `pytest tests/test_metal.py -k "gas_free"`
+
+![Core fraction of an element against D](../assets/validation/metal_gas_free_core_fraction.svg#only-light){ width="80%" }
+![Core fraction of an element against D](../assets/validation/metal_gas_free_core_fraction_dark.svg#only-dark){ width="80%" }
+
+### Equal D is a larger melt
+
+**What it tests:** with the same mass-basis $D$ for H, C, N and S, no O or Si in the metal and $\Delta\mathrm{IW}$ a parameter, the solve with metal equals the solve without metal and a melt mass larger by $D M_\mathrm{metal}$, for $D$ = 1 and 30. The gas holds the rest of each budget, so the core mass is $(M - M_\mathrm{gas})\,Dx/(1 + Dx)$.
+
+- Reference: the identity of the element balance (analytical).
+- Tolerance: partial pressures and melt plus core masses relative 1e-6, with both solves from the same random state and the root accepted at relative 1e-10 plus 1 kg; core over gas-free core equals $1 - M_\mathrm{gas}/M$ to 2e-5.
+- Test id: `tests/test_metal_solve.py::test_metal_with_equal_d_is_a_larger_melt` (smoke tier)
+- Command: `pytest tests/test_metal_solve.py`
+
+### Tagawa et al. (2021) H runs
+
+**What it tests:** the placeholder H law, [Tagawa et al. (2021)](https://doi.org/10.1038/s41467-021-22035-0) Eq. 2, against the 6 laser-heated diamond anvil cell runs of their SI Table 1.
+
+- Reference: Tagawa et al. (2021), SI Table 1 (published table).
+- Tolerance: each run inside its 1 sigma (largest 0.61 sigma); their Eq. 10 misses every run by more than 2 sigma.
+- Test id: `tests/test_metal.py::test_tagawa_runs_lie_within_one_sigma_of_eq2` (unit tier)
+- Command: `pytest tests/test_metal.py -k tagawa`
+
+![Measured against fitted log10 K_D of the Tagawa runs](../assets/validation/metal_tagawa2021_h_runs.svg#only-light){ width="80%" }
+![Measured against fitted log10 K_D of the Tagawa runs](../assets/validation/metal_tagawa2021_h_runs_dark.svg#only-dark){ width="80%" }
+
+### Tsutsumi et al. (2025) single-stage cores
+
+**What it tests:** the molar D of [Tsutsumi et al. (2025)](https://doi.org/10.1038/s41467-025-65729-5) on the H- and C-free metal basis, converted with the KLB-1 melt of Takahashi (1986), for their 3 single-stage cases (40 GPa and 3750 K, 50 GPa and 3500 K, 54 GPa and 3350 K; 710 ppm H$_2$O and 120 ppm C in the bulk silicate Earth).
+
+- Reference: Tsutsumi et al. (2025), SI Table 1 (published table).
+- Tolerance: core H and C equal to the table at its rounding, 0.005 wt%; D times the melt mass fraction without the basis conversion misses the 40 GPa case.
+- Test id: `tests/test_metal.py::TestBasis`, `tests/test_metal.py::test_tsutsumi_core_values_plot` (unit tier)
+- Command: `pytest tests/test_metal.py -k "tsutsumi or Basis"`
+
+![Core H and C of the Tsutsumi single-stage cases](../assets/validation/metal_tsutsumi2025_core_h_c.svg#only-light){ width="80%" }
+![Core H and C of the Tsutsumi single-stage cases](../assets/validation/metal_tsutsumi2025_core_h_c_dark.svg#only-dark){ width="80%" }
+
 ## Anchor types
 
 - Self-consistency cross-implementation (round-trip forward vs inverse).
