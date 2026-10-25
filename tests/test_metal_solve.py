@@ -20,11 +20,12 @@ import pytest
 
 from calliope.constants import volatile_species
 from calliope.metal import load_partition_table
-from calliope.solve import equilibrium_atmosphere
+from calliope.solve import equilibrium_atmosphere, equilibrium_atmosphere_authoritative_O
 
 pytestmark = [pytest.mark.smoke, pytest.mark.timeout(60)]
 
 ELEMS = ('H', 'C', 'N', 'S')
+BUFFERS = ('hirschmann', 'fischer', 'oneill')
 P_GUESS = {'H2O': 50.0, 'CO2': 20.0, 'N2': 1.0, 'S2': 1.0}
 
 
@@ -134,7 +135,8 @@ def test_fo2_model_argument_reaches_every_metal_pass(authoritative):
     """fO2_model='fischer' as an argument equals ddict['fO2_model'] = 'fischer' with metal.
 
     The passes of the metal fixed point call the solve again; a buffer given only as an
-    argument must reach them, or they run on the default buffer.
+    argument must reach them, or they run on the default buffer. The authoritative-O case
+    guards the order of the buffer and the metal branch in that entry point.
     """
     ddict = {**_ddict(), **_metal(30.0, 1.9e24)}
     if authoritative:
@@ -152,8 +154,14 @@ def test_fo2_model_argument_reaches_every_metal_pass(authoritative):
     assert default['fO2_model'] == 'hirschmann'
     for k in (key, 'H2_bar', 'O_kg_total', 'H_kg_core', 'C_kg_core'):
         assert by_arg[k] == pytest.approx(by_ddict[k], rel=1e-9), k
-    # the 2 buffers differ by ~0.2 dex at 1800 K: H2 moves by ~18 %, the derived shift by ~0.2
-    assert abs(default[key] / by_ddict[key] - 1.0) > 0.05
+    # Hirschmann is 0.144 dex above Fischer at 1800 K: the shift moves by that, H2 by 15 %
+    gap = 0.1 if authoritative else 0.1 * by_ddict[key]
+    assert abs(default[key] - by_ddict[key]) > gap
+    # a contradicting argument is refused before the metal branch, by name
+    solve = equilibrium_atmosphere_authoritative_O if authoritative else equilibrium_atmosphere
+    args = (dict(TARGET, O=1e20),) if authoritative else (TARGET,)
+    with pytest.raises(ValueError, match='contradicts'):
+        solve(*args, dict(ddict, fO2_model='oneill'), fO2_model='fischer')
 
 
 @pytest.mark.physics_invariant
@@ -202,23 +210,23 @@ def test_diw_from_feo_matches_the_melt_and_metal():
 
 
 @pytest.mark.physics_invariant
-def test_metal_diw_and_d_do_not_depend_on_the_iw_buffer():
-    """dIW_eq from FeO, the D of the laws and the exchange O match on 2 IW buffers.
+def test_metal_diw_takes_no_absolute_fo2():
+    """The metal dIW reads dIW_eq or the melt and metal composition, never the IW buffer.
 
-    The buffer sets the absolute fO2 of the gas and melt chemistry only; the metal dIW is
-    an activity ratio that is never converted to an absolute fO2.
+    The buffer reaches a solved dIW_eq and the D only through the composition the solve
+    returns; with the same composition every buffer gives the same dIW.
     """
-    ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'partition_table': load_partition_table()}
-    ddict.update(dIW_eq_mode='from_FeO', O_mode_core='partition')
-    h, f = (_solve(dict(ddict, fO2_model=b)) for b in ('hirschmann', 'fischer'))
-    # the fixed point stops at tol_w_core = 1e-6 of each metal mass fraction
-    assert h['dIW_eq'] == pytest.approx(f['dIW_eq'], abs=1e-6)
-    assert h['w_O_core'] == pytest.approx(f['w_O_core'], rel=1e-6)
-    for el in ELEMS:
-        assert h[el + '_D_metal'] == pytest.approx(f[el + '_D_metal'], rel=1e-5), el
-    assert -3.0 < h['dIW_eq'] < -2.0  # KLB-1 melt against metal with exchange O: -2.42
-    # the gas does see the buffer: H2 moves by ~15 %
-    assert abs(h['H2_bar'] / f['H2_bar'] - 1.0) > 0.05
+    from calliope.metal import KLB1
+    from calliope.solve import _metal_diw
+
+    w = {'H': 2e-3, 'C': 1e-3, 'N': 1e-5, 'S': 2e-2, 'O': 3e-2, 'Si': 0.0}
+    diw = [_metal_diw({'dIW_eq_mode': 'from_FeO', 'fO2_model': b}, w, KLB1) for b in BUFFERS]
+    assert diw[0] == diw[1] == diw[2]
+    # S and O dilute the metal Fe, so dIW lies above the pure-Fe value of KLB-1 (-2.485)
+    pure = _metal_diw({'dIW_eq_mode': 'from_FeO'}, dict.fromkeys(w, 0.0), KLB1)
+    assert pure == pytest.approx(-2.4846, abs=1e-4)
+    assert diw[0] - pure == pytest.approx(0.1195, abs=1e-4)
+    assert _metal_diw({'dIW_eq': -2.5, 'fO2_model': 'oneill'}, w, KLB1) == -2.5
 
 
 def test_unknown_metal_modes_raise():
