@@ -401,9 +401,8 @@ class TestMetalReservoir:
         f = core / (melt + core)
         assert f == pytest.approx(d * x / (1 + d * x), rel=1e-12)
         assert melt + core == pytest.approx(total, rel=1e-12)
-        if (
-            d >= 1.0
-        ):  # f = Dx (no melt back-reaction) would exceed the right value by a factor 1 + Dx
+        # f = Dx (no melt back-reaction) would exceed the right value by a factor 1 + Dx
+        if d >= 1.0:
             assert abs(f - d * x) > 0.3 * f
 
     def test_no_metal_gives_no_core_term_and_no_melt_raises(self):

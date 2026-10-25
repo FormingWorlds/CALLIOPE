@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import math
+import numbers
 import warnings
 
 import numpy as np
@@ -16,7 +17,19 @@ from .constants import (
     ocean_moles,
     volatile_species,
 )
-from .metal import metal_masses
+from .metal import (
+    _OXIDES,
+    KLB1,
+    PartitionTableError,
+    _mass,
+    _metal_moles,
+    exchange_metal,
+    load_partition_table,
+    mass_D,
+    metal_masses,
+    out_of_range,
+    oxide_mole_fraction,
+)
 from .oxygen_fugacity import OxygenFugacity
 from .solubility import (
     SolubilityCH4,
@@ -823,6 +836,8 @@ def equilibrium_atmosphere(
         diagnostics (P_surf, M_atm, atm_kg_per_mol, ratios).
     """
 
+    if 'metal_mass' in ddict and '_metal_D' not in ddict:
+        check_metal_fields(ddict)
     if ddict.get('metal_mass', 0.0) > 0 and '_metal_D' not in ddict:
         kwargs = dict(
             hide_warnings=hide_warnings,
@@ -1309,6 +1324,8 @@ def equilibrium_atmosphere_authoritative_O(
     >>> abs(out_new['fO2_shift_derived'] - 4.0) < 0.01  # round-trip
     True
     """
+    if 'metal_mass' in ddict and '_metal_D' not in ddict:
+        check_metal_fields(ddict)
     if ddict.get('metal_mass', 0.0) > 0 and '_metal_D' not in ddict:
         kwargs = dict(
             fO2_hint=fO2_hint,
@@ -1807,15 +1824,6 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
         An unknown mode, dIW_eq_mode other than 'parameter' and 'from_FeO', or a metal
         O at or above the O budget.
     """
-    from .metal import (
-        KLB1,
-        _metal_moles,
-        exchange_metal,
-        load_partition_table,
-        mass_D,
-        out_of_range,
-    )
-
     check_metal_fields(ddict)
     table = ddict.get('partition_table') or load_partition_table()
     m_metal, m_melt = ddict['metal_mass'], ddict['M_mantle'] * ddict['Phi_global']
@@ -1825,8 +1833,6 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
     fixed, modes = {}, {}
     for el in ('O', 'Si'):
         modes[el] = ddict.get(f'{el}_mode_core', 'fixed')
-        if modes[el] not in ('fixed', 'partition'):
-            raise ValueError(f"{el}_mode_core {modes[el]!r}: use 'fixed' or 'partition'")
         fixed[el] = float(ddict.get(f'w_{el}_core', 0.0))
         if modes[el] == 'partition':
             _warn_metal_once(
@@ -1835,6 +1841,10 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
                 f"{el}_mode_core 'partition' uses ideal activities in metal and melt; "
                 'activity coefficients are not included',
             )
+    partitioned = tuple(el for el in ('O', 'Si') if modes[el] == 'partition')
+    missing = [el for el in ('H', 'C', 'N', 'S') + partitioned if el not in table]
+    if missing:
+        raise PartitionTableError(f'the partition table has no law for {missing}')
     w = {**fixed, 'H': 0.0, 'C': 0.0, 'N': 0.0, 'S': 0.0}
     w_melt = {'H': 0.0, 'C': 0.0}
     tol = ddict.get('tol_w_core', 1e-6)
@@ -1842,12 +1852,11 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
     out = None
     for _ in range(30):
         d_iw = _metal_diw(ddict, w, oxides)
-        if 'partition' in modes.values():
-            x_ex = exchange_metal(table, p_eq, t_eq, d_iw, oxides)
+        if partitioned:
+            x_ex = exchange_metal(table, p_eq, t_eq, d_iw, oxides, partitioned)
             n_total = _metal_moles(w)[0]
-            for el in ('O', 'Si'):
-                if modes[el] == 'partition':
-                    fixed[el] = x_ex[el] * n_total * (molar_mass_rock.get(el) or molar_mass[el])
+            for el in partitioned:
+                fixed[el] = x_ex[el] * n_total * _mass(el)
         d_mass = {
             el: mass_D(table[el], p_eq, t_eq, d_iw, w, w_melt, oxides, nbo_t)
             for el in ('H', 'C', 'N', 'S')
@@ -1870,9 +1879,7 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
     for el in ('H', 'C', 'N', 'S'):
         out[el + '_D_metal'] = d_mass[el]
         out['w_' + el + '_core'] = w[el]
-    for el in ('H', 'C', 'N', 'S') + tuple(
-        el for el in ('O', 'Si') if modes[el] == 'partition'
-    ):
+    for el in ('H', 'C', 'N', 'S') + partitioned:
         out[el + '_D_out_of_range'] = int(out_of_range(table[el], p_eq, t_eq, d_iw))
         if out[el + '_D_out_of_range']:
             _warn_metal_once(
@@ -1892,10 +1899,12 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
         tol_kg = (max(target_d[el] * rtol, TRUNC_MASS) if o_budget else gate) + 1e-12 * (
             target_d[el]
         )
-        if (
-            not (0.0 <= out[el + '_kg_core'] <= target_d[el] + tol_kg)
-            or abs(closure - target_d[el]) > tol_kg
-        ):
+        if not 0.0 <= out[el + '_kg_core'] <= target_d[el] + tol_kg:
+            raise RuntimeError(
+                f'{el} core mass {out[el + "_kg_core"]:.4g} kg is outside [0, budget '
+                f'{target_d[el]:.4g} kg]'
+            )
+        if abs(closure - target_d[el]) > tol_kg:
             raise RuntimeError(
                 f'{el} closure over gas, melt and core fails: {closure} vs {target_d[el]}'
             )
@@ -1915,7 +1924,7 @@ def _check_metal_o(metal_o_kg, target_d):
     if metal_o_kg >= target_d['O']:
         raise ValueError(
             f'metal O {metal_o_kg:.4g} kg is at or above the O budget {target_d["O"]:.4g} kg; '
-            'lower w_O_core or metal_mass'
+            'lower w_O_core (or the metal O of partition mode) or metal_mass'
         )
 
 
@@ -1926,13 +1935,16 @@ def _metal_diw(ddict, w_metal, oxides):
         return float(ddict['dIW_eq'])
     if mode != 'from_FeO':
         raise ValueError(f"dIW_eq_mode {mode!r}: use 'parameter' or 'from_FeO'")
-    from .metal import _metal_moles, oxide_mole_fraction
-
     total, _ = _metal_moles(w_metal)
     x_fe = (1.0 - sum(w_metal.values())) / molar_mass_rock['Fe'] / total
     return 2.0 * np.log10(oxide_mole_fraction(oxides, 'FeO') / x_fe)
 
 
+_METAL_MODES = {
+    'O_mode_core': ('fixed', 'partition'),
+    'Si_mode_core': ('fixed', 'partition'),
+    'dIW_eq_mode': ('parameter', 'from_FeO'),
+}
 # field -> (lowest value, highest value, low end allowed, high end allowed)
 _METAL_FIELDS = {
     'metal_mass': (0.0, math.inf, True, False),
@@ -1959,13 +1971,11 @@ def check_metal_fields(ddict):
     ValueError
         Names the first field that breaks its rule.
     """
-    from .metal import _OXIDES
-
     for field, (lo, hi, lo_ok, hi_ok) in _METAL_FIELDS.items():
         if field not in ddict:
             continue
         v = ddict[field]
-        if isinstance(v, bool) or not isinstance(v, int | float) or not math.isfinite(v):
+        if not _is_number(v) or not math.isfinite(v):
             raise ValueError(f'{field} must be a finite number, got {v!r}')
         if v < lo or v > hi or (v == lo and not lo_ok) or (v == hi and not hi_ok):
             raise ValueError(f'{field} = {v!r} is outside its range ({lo}, {hi})')
@@ -1979,11 +1989,25 @@ def check_metal_fields(ddict):
                 f'silicate_oxides has unknown oxides {unknown}; known: {list(_OXIDES)}'
             )
         for k, v in ox.items():
-            if (
-                isinstance(v, bool)
-                or not isinstance(v, int | float)
-                or not (math.isfinite(v) and v >= 0)
-            ):
+            if not _is_number(v) or not (math.isfinite(v) and v >= 0):
                 raise ValueError(f'silicate_oxides[{k!r}] must be finite and >= 0, got {v!r}')
         if not 95.0 <= sum(ox.values()) <= 101.0:
             raise ValueError(f'silicate_oxides sum to {sum(ox.values())!r} wt%, not 95-101')
+    for field, options in _METAL_MODES.items():
+        if ddict.get(field, options[0]) not in options:
+            raise ValueError(f'{field} {ddict[field]!r}: use one of {options}')
+    if not ddict.get('metal_mass', 0.0) > 0:
+        return
+    diw_mode = ddict.get('dIW_eq_mode', 'parameter')
+    for field in ('P_eq', 'T_eq') + (('dIW_eq',) if diw_mode == 'parameter' else ()):
+        if field not in ddict:
+            raise ValueError(f'{field} is required with metal_mass > 0')
+    ox = ddict.get('silicate_oxides', KLB1)
+    needs = {'FeO': diw_mode == 'from_FeO', 'SiO2': ddict.get('Si_mode_core') == 'partition'}
+    for oxide in (k for k, need in needs.items() if need and not ox.get(k, 0) > 0):
+        raise ValueError(f'silicate_oxides needs {oxide} above 0 for the selected mode')
+
+
+def _is_number(v):
+    """A real number that is not a boolean (Python or numpy)."""
+    return isinstance(v, numbers.Real) and not isinstance(v, bool | np.bool_)

@@ -72,6 +72,9 @@ docs = [
 package-dir = {"calliope" = "src/calliope" }
 include-package-data = true
 
+[tool.setuptools.package-data]
+calliope = ["data/*.toml"]
+
 [tool.setuptools_scm]
 # CalVer: tags are bare YY.MM.DD dates (no leading 'v', e.g. 26.05.10).
 # setuptools-scm derives the version from the latest git tag.

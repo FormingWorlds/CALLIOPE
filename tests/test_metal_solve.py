@@ -71,13 +71,13 @@ def _metal(d, m_metal):
 TARGET = {'H': 1.5e20, 'C': 1.5e19, 'N': 8.0e18, 'S': 8.0e20}
 
 
-def _solve(ddict):
+def _solve(ddict, target=TARGET, p_guess=P_GUESS):
     """One seeded solve, so a restart draws the same pressures for both runs compared."""
     np.random.seed(0)
     return equilibrium_atmosphere(
-        TARGET,
+        target,
         ddict,
-        p_guess=P_GUESS,
+        p_guess=p_guess,
         print_result=False,
         nguess=200,
         xtol=1e-12,
@@ -271,7 +271,7 @@ def test_metal_solve_with_a_noble_gas(authoritative):
     ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'He_included': 1}
     target = dict(TARGET, He=1e16)
     try:
-        out = _solve_noble(ddict, target)
+        out = _solve(ddict, target, dict(P_GUESS, He=1e-3))
     except Exception as exc:
         pytest.fail(f'metal solve with He raised {type(exc).__name__}: {exc}')
     if authoritative:
@@ -285,22 +285,6 @@ def test_metal_solve_with_a_noble_gas(authoritative):
         closure = out[el + '_kg_atm'] + out[el + '_kg_liquid'] + out[el + '_kg_core']
         assert closure == pytest.approx(target[el], rel=1e-4), el
     assert 'He_kg_core' not in out
-
-
-def _solve_noble(ddict, target):
-    """One seeded solve with He, at the tight acceptance of `_solve`."""
-    np.random.seed(0)
-    return equilibrium_atmosphere(
-        target,
-        ddict,
-        p_guess=dict(P_GUESS, He=1e-3),
-        print_result=False,
-        nguess=200,
-        xtol=1e-12,
-        rtol=1e-10,
-        atol=1.0,
-        opt_solver=False,
-    )
 
 
 def _stub_solve(core_of_call, close=True):

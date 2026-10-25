@@ -102,7 +102,7 @@ def _covariance(cov, size, el):
         mat = np.array(
             [[_number(v, el, 'covariance') for v in row] for row in cov], dtype=float
         )
-    except TypeError as err:
+    except (TypeError, ValueError) as err:
         raise PartitionTableError(f'{el!r}: {"covariance"!r} must be a matrix') from err
     if mat.shape != (size, size):
         raise PartitionTableError(
@@ -230,15 +230,17 @@ _OXIDES = {
     'CaO': ('Ca', 1, 1),
     'Na2O': ('Na', 2, 1),
 }
+_OXIDE_MASS = {
+    ox: n_cat * molar_mass_rock[cat] + n_o * molar_mass['O']
+    for ox, (cat, n_cat, n_o) in _OXIDES.items()
+}
 
 
 def silicate_units_per_kg(oxides=KLB1):
     """Moles of single-cation units (SiO2, TiO2, AlO1.5, FeO, MgO, CaO, NaO0.5) per kg."""
     total = 0.0
     for ox, wt in oxides.items():
-        cat, n_cat, n_o = _OXIDES[ox]
-        m_ox = n_cat * molar_mass_rock[cat] + n_o * molar_mass['O']
-        total += wt / 100.0 * n_cat / m_ox
+        total += wt / 100.0 * _OXIDES[ox][1] / _OXIDE_MASS[ox]
     return total
 
 
@@ -376,14 +378,11 @@ def mass_D(entry, p_gpa, t_k, d_iw, w_metal, w_melt, oxides=KLB1, nbo_t=0.0):
 
 def oxide_mole_fraction(oxides, name):
     """Mole fraction of oxide ``name`` on the oxide-molecule basis (Al2O3, Na2O as one)."""
-    n = {}
-    for ox, wt in oxides.items():
-        cat, n_cat, n_o = _OXIDES[ox]
-        n[ox] = wt / (n_cat * molar_mass_rock[cat] + n_o * molar_mass['O'])
+    n = {ox: wt / _OXIDE_MASS[ox] for ox, wt in oxides.items()}
     return n[name] / sum(n.values())
 
 
-def exchange_metal(table, p_gpa, t_k, d_iw, oxides=KLB1):
+def exchange_metal(table, p_gpa, t_k, d_iw, oxides=KLB1, elements=('O', 'Si')):
     """Metal mole fractions of O and Si from their exchange K_D, ideal activities.
 
     ``FeO = Fe + O``: ``x_O = K_D x_FeO / x_Fe = K_D 10^(dIW/2)``; ``SiO2 + 2 Fe = Si +
@@ -392,17 +391,19 @@ def exchange_metal(table, p_gpa, t_k, d_iw, oxides=KLB1):
     Activity coefficients are 1; the fits of Siebert et al. come with activity terms
     that this release does not use.
 
+    Only the laws of ``elements`` are evaluated.
+
     Raises
     ------
     ValueError
         O and Si that leave no iron in the metal.
     """
-    n_si = oxides['SiO2'] / 100.0 / (molar_mass_rock['Si'] + 2 * molar_mass['O'])
-    x_sio2 = n_si / silicate_units_per_kg(oxides)
-    x = {
-        'O': 10.0 ** log10_D(table['O'], p_gpa, t_k, 0.0) * 10.0 ** (d_iw / 2.0),
-        'Si': 10.0 ** log10_D(table['Si'], p_gpa, t_k, 0.0) * x_sio2 * 10.0 ** (-d_iw),
-    }
-    if x['O'] + x['Si'] >= 1.0:
+    x = {}
+    if 'O' in elements:
+        x['O'] = 10.0 ** log10_D(table['O'], p_gpa, t_k, 0.0) * 10.0 ** (d_iw / 2.0)
+    if 'Si' in elements:
+        x_sio2 = oxides['SiO2'] / 100.0 / _OXIDE_MASS['SiO2'] / silicate_units_per_kg(oxides)
+        x['Si'] = 10.0 ** log10_D(table['Si'], p_gpa, t_k, 0.0) * x_sio2 * 10.0 ** (-d_iw)
+    if sum(x.values()) >= 1.0:
         raise ValueError(f'O and Si leave the metal with no iron: {x}')
     return x
