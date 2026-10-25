@@ -498,3 +498,80 @@ def test_tagawa_runs_lie_within_one_sigma_of_eq2(validation_plot):
         return fig
 
     validation_plot(figure, 'metal_tagawa2021_h_runs')
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.reference_pinned
+def test_gas_free_core_fraction_curve(validation_plot):
+    """The core term on a D grid lies on Dx/(1 + Dx); f = Dx lies more than 10 % above it."""
+    x = 0.325 / 0.675
+    ddict = {'M_mantle': 0.675, 'Phi_global': 1.0, 'metal_mass': 0.325}
+    ds = [0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 100.0]
+    f = []
+    for d in ds:
+        melt = 1.0 / (1 + d * x)
+        core = metal_masses({'H': melt}, ddict, {'H': d})['H']
+        f.append(core / (melt + core))
+    assert f == pytest.approx([d * x / (1 + d * x) for d in ds], rel=1e-12)
+    # f = Dx overshoots by (Dx)^2/(1 + Dx): more than 10 % of f from D = 0.3 on
+    assert all(d * x - fi > 0.1 * fi for fi, d in zip(f[1:], ds[1:]))
+
+    def figure():
+        import matplotlib.pyplot as plt
+
+        grid = [10 ** (k / 20) for k in range(-25, 46)]
+        fig, ax = plt.subplots()
+        ax.plot(grid, [d * x / (1 + d * x) for d in grid], label=r'$Dx/(1+Dx)$')
+        ax.plot(
+            grid, [min(d * x, 1.0) for d in grid], ls='--', label=r'$Dx$ (no back-reaction)'
+        )
+        ax.plot(ds, f, 'o', label='metal_masses')
+        ax.set(xscale='log', xlabel='D (metal / melt, mass)', ylabel='core fraction')
+        ax.minorticks_off()
+        ax.legend()
+        fig.tight_layout()
+        return fig
+
+    validation_plot(figure, 'metal_gas_free_core_fraction')
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.reference_pinned
+def test_tsutsumi_core_values_plot(validation_plot):
+    """Core H and C of the 3 Tsutsumi et al. 2025 single-stage cases against SI Table 1."""
+    cases = [
+        ((92, 67), (0.00, 3.43), (0.68, 0.75)),
+        ((56, 96), (2.52, 4.42), (0.45, 1.15)),
+        ((44, 107), (1.49, 7.78), (0.35, 1.29)),
+    ]
+    w_melt = {'H': 710e-6 * 2 * 1.008 / 18.01528, 'C': 120e-6}
+    got = []
+    for (d_h, d_c), (o, si), _ in cases:
+        w = core_light_elements(
+            {'H': d_h, 'C': d_c}, w_melt, {'O': o / 100, 'Si': si / 100, 'S': 0.02}
+        )
+        got.append((100 * w['H'], 100 * w['C']))
+    for (_, _, paper), (h, c) in zip(cases, got):
+        assert abs(h - paper[0]) <= 0.005 + 1e-9 and abs(c - paper[1]) <= 0.005 + 1e-9
+
+    def figure():
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots()
+        labels = ['40 GPa', '50 GPa', '54 GPa']
+        for k, (name, marker) in enumerate((('H', 'o'), ('C', 's'))):
+            ax.plot(
+                labels,
+                [c[2][k] for c in cases],
+                marker,
+                mfc='none',
+                ms=10,
+                label=f'{name}, SI Table 1',
+            )
+            ax.plot(labels, [g[k] for g in got], marker, ms=4, label=f'{name}, CALLIOPE')
+        ax.set(ylabel='core mass fraction [wt%]')
+        ax.legend(fontsize='small')
+        fig.tight_layout()
+        return fig
+
+    validation_plot(figure, 'metal_tsutsumi2025_core_h_c')
