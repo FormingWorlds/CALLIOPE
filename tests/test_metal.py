@@ -20,6 +20,7 @@ from calliope.metal import (
     ELEMENTS,
     PartitionTableError,
     core_light_elements,
+    exchange_metal,
     load_partition_table,
     log10_D,
     mass_D,
@@ -428,3 +429,34 @@ class TestMassD:
         with pytest.raises(ValueError, match='no iron'):
             mass_D(entry, 45.0, 3750.0, -2.3, {'O': 0.6, 'Si': 0.4}, {'H': 1e-4})
         assert mass_D(entry, 45.0, 3750.0, -2.3, {'O': 0.1}, {'H': 1e-4}) > 0
+
+
+class TestExchange:
+    """O and Si in the metal from the exchange K_D of FeO = Fe + O and SiO2 + 2 Fe = Si + 2 FeO."""
+
+    @pytest.mark.physics_invariant
+    @pytest.mark.reference_pinned
+    def test_ideal_exchange_mole_fractions(self):
+        """x_O = K_D 10^(dIW/2) and x_Si = K_D x_SiO2 10^(-dIW), Tagawa SI Table 3 (refs. 2, 57)."""
+        table = load_partition_table()
+        t_k, d_iw = 4000.0, -2.0
+        x = exchange_metal(table, 50.0, t_k, d_iw)
+        k_o = 10 ** (0.986 - 3275.0 / t_k)
+        k_si = 10 ** (0.549 - 12324.0 / t_k)
+        x_sio2 = (44.48 / 60.083) / 1.96965  # KLB-1 single-cation basis, mol per 100 g
+        assert x['O'] == pytest.approx(k_o * 10 ** (d_iw / 2), rel=1e-12)
+        assert x['Si'] == pytest.approx(k_si * x_sio2 * 10 ** (-d_iw), rel=1e-3)
+        # read as the K of the half reaction, K_D is squared: x_Si about 3e-4, not 0.11
+        assert x['Si'] > 100 * k_si**2 * x_sio2 * 10 ** (-d_iw)
+
+    def test_more_oxidised_metal_takes_more_o_and_less_si(self):
+        """Raising dIW by 1 multiplies x_O by 10^0.5 and x_Si by 10^-1; too much raises."""
+        table = load_partition_table()
+        lo, hi = (
+            exchange_metal(table, 50.0, 4000.0, -2.0),
+            exchange_metal(table, 50.0, 4000.0, -1.0),
+        )
+        assert hi['O'] / lo['O'] == pytest.approx(10**0.5, rel=1e-12)
+        assert hi['Si'] / lo['Si'] == pytest.approx(0.1, rel=1e-12)
+        with pytest.raises(ValueError, match='no iron'):
+            exchange_metal(table, 50.0, 4000.0, -6.0)
