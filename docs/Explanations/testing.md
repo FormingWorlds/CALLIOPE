@@ -89,7 +89,7 @@ The anchor is one of:
 - an **analytical limit** (for example, the ideal-gas limit at low pressure, or the Stefan-Boltzmann black-body limit),
 - a **cross-implementation check** (CALLIOPE vs atmodeller at a shared Earth fiducial).
 
-Each of the five physics sources carries at least one reference-pinned test, recorded on the matching `docs/Validation/<file>.md` page.
+Each of the five physics sources carries at least one reference-pinned test, recorded on the matching `docs/Validation/<file>.md` page; the [Validation overview](../Validation/index.md) lists every case.
 The current anchors:
 
 | Source | Anchor | Test |
@@ -122,7 +122,7 @@ Cross-cutting tests are the documented exception, not the rule:
 - `tests/test_authoritative_O.py`, `tests/test_authoritative_O_validation.py`, `tests/test_authoritative_O_monotonicity.py`: the authoritative-O entry point, which touches `solve.py`, `chemistry.py`, and `oxygen_fugacity.py` together.
 - `tests/test_equilibrium_paths.py`, `tests/test_partial_species.py`, `tests/test_stoichiometry.py`, `tests/test_targets.py`: solver-architecture tests that span the same three files.
 
-When a new physics source is added, its 1:1 test file is created at the same time; the matching `docs/Validation/<file>.md` page is added when the first reference-pinned test for that source lands.
+When a new physics source is added, its 1:1 test file is created at the same time; the matching `docs/Validation/<file>.md` page joins the Validation tab when the first reference-pinned test for that source lands.
 
 ## AST test-quality linter
 

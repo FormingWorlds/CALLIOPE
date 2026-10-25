@@ -164,7 +164,7 @@ The anchor is one of:
 - a **cross-implementation check** (CALLIOPE vs atmodeller at a shared fiducial).
 
 Each of the five physics sources carries at least one reference-pinned test.
-The current anchor list is in the [testing suite](../Explanations/testing.md#reference-pinned-validation) explainer.
+The [Validation overview](../Validation/index.md) lists every case.
 
 When the first reference-pinned test for a new source lands, create the matching `docs/Validation/<source>.md` page with:
 
@@ -172,6 +172,8 @@ When the first reference-pinned test for a new source lands, create the matching
 - the cited paper or analytical limit,
 - the closed-form re-derivation of the pinned value (no skipped algebra),
 - the wrong-formula or wrong-buffer discrimination number.
+
+Add the page to the Validation tab in `mkdocs.yml` and each new case to the table of `docs/Validation/index.md`.
 
 Tests carrying `reference_pinned` typically also carry `physics_invariant` (the published-value pin is itself the invariant).
 
@@ -310,7 +312,7 @@ When a new `src/calliope/<file>.py` lands:
 1. Create the matching `tests/test_<file>.py` with the module-level `pytestmark` (typically `unit` with a 30 s timeout).
 2. Write at least one test that asserts one of the four invariant families and tag it `@pytest.mark.physics_invariant`.
 3. Plan a `@pytest.mark.reference_pinned` test against a published benchmark, analytical limit, or cross-implementation check.
-4. When that test lands, create `docs/Validation/<file>.md` with the anchor, the re-derivation, and the discrimination number. Link it from `mkdocs.yml` if the docs site should surface it.
+4. When that test lands, create `docs/Validation/<file>.md` with the anchor, the re-derivation, and the discrimination number, add it to the Validation tab in `mkdocs.yml`, and add its cases to the table of `docs/Validation/index.md`.
 5. Update `PHYSICS_SOURCES` in `tools/check_test_quality.py` to include the new file name.
 6. Run the full PR checks locally:
 
