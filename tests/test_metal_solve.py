@@ -116,3 +116,25 @@ def test_zero_metal_mass_is_the_solve_without_metal():
     for sp in ('H2O', 'CO2', 'N2', 'S2'):
         assert zero[sp + '_bar'] == plain[sp + '_bar']
     assert all(zero[el + '_kg_core'] == 0 for el in ELEMS)
+
+
+@pytest.mark.physics_invariant
+def test_partition_mode_puts_exchange_o_and_si_in_the_metal():
+    """O and Si 'partition': the converged metal holds the exchange x_O, x_Si of its dIW."""
+    from calliope.metal import exchange_metal, molar_mass_rock
+
+    ddict = {**_ddict(), **_metal(30.0, 1.9e24)}
+    ddict.update(O_mode_core='partition', Si_mode_core='partition', T_eq=3500.0)
+    out = _solve(ddict)
+    w = {el: out['w_' + el + '_core'] for el in ('H', 'C', 'N', 'S', 'O', 'Si')}
+    x = exchange_metal(ddict['partition_table'], 50.0, 3500.0, -2.0)
+    masses = {'O': 0.015999, 'Si': molar_mass_rock['Si']}
+    n_total = (1 - sum(w.values())) / molar_mass_rock['Fe'] + sum(
+        w[el]
+        / (masses.get(el) or {'H': 0.001008, 'C': 0.012011, 'N': 0.014007, 'S': 0.03206}[el])
+        for el in w
+    )
+    for el in ('O', 'Si'):
+        assert w[el] / masses[el] / n_total == pytest.approx(x[el], rel=1e-4)
+    assert 0 < w['O'] < 0.2 and 0 < w['Si'] < 0.2
+    assert out['O_kg_core'] == pytest.approx(w['O'] * 1.9e24, rel=1e-12)
