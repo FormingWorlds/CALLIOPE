@@ -256,8 +256,12 @@ def test_metal_o_above_the_o_budget_is_refused():
     assert 'O budget' in str(exc.value)
     # the edge: 1 kg of O left for gas and melt passes, none left is refused
     _check_metal_o(999.0, {'O': 1000.0})
-    with pytest.raises(ValueError, match='O budget'):
+    try:
         _check_metal_o(1000.0, {'O': 1000.0})
+        raised = None
+    except Exception as err:
+        raised = err
+    assert isinstance(raised, ValueError) and 'O budget' in str(raised), raised
 
 
 @pytest.mark.physics_invariant
