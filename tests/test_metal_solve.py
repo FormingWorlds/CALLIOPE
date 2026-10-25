@@ -397,3 +397,33 @@ def test_closure_check_uses_the_gate_of_the_solve(o_budget, miss, closes):
     else:
         assert isinstance(raised, RuntimeError), raised
         assert f'{next(iter(miss))} closure' in str(raised)
+
+
+def test_out_of_range_and_ideal_activities_are_flagged_and_warned_once(caplog, monkeypatch):
+    """Flags for every partitioned element; one warning per element and process.
+
+    At P_eq 50 GPa, T_eq 3500 K, dIW -2 the H law (dIW -1.33 to -0.88) is outside its
+    range and O and Si have no T or dIW range, so all 3 are flagged; C (dIW -3.9 to -0.53)
+    is inside.
+    """
+    import calliope.solve as solve_mod
+
+    monkeypatch.setattr(solve_mod, '_METAL_WARNED', set())
+    ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'partition_table': load_partition_table()}
+    ddict.update(O_mode_core='partition', Si_mode_core='partition')
+    with caplog.at_level('WARNING', logger='calliope.solve'):
+        out = _solve(ddict)
+        first = [r.getMessage() for r in caplog.records]
+        caplog.clear()
+        _solve(ddict)
+        second = [r.getMessage() for r in caplog.records]
+    flags = {el: out[el + '_D_out_of_range'] for el in ('H', 'C', 'O', 'Si')}
+    assert flags == {'H': 1, 'C': 0, 'O': 1, 'Si': 1}
+    for el in ('H', 'O', 'Si'):
+        assert sum(f'{el} partition law' in m and 'outside' in m for m in first) == 1, el
+    assert not any('C partition law' in m for m in first)
+    assert sum('ideal activities' in m for m in first) == 2
+    assert second == []
+    # fixed O and Si use no law, so they carry no flag
+    fixed = _solve({**_ddict(), **_metal(30.0, 1.9e24)})
+    assert 'O_D_out_of_range' not in fixed and 'Si_D_out_of_range' not in fixed
