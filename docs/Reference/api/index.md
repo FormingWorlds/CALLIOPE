@@ -40,7 +40,7 @@ src/calliope/
 
 ### Structure
 
-- [`calliope.structure`](calliope.structure.md) - `calculate_mantle_mass(radius, mass, core_frac)` simple Earth-density core/mantle split. Provided as a fallback; PROTEUS-coupled runs source `M_mantle` from Zalmoxis or SPIDER instead.
+- [`calliope.structure`](calliope.structure.md) - `calculate_mantle_mass(radius, mass, core_frac)` simple Earth-density core/mantle split. Provided for standalone runs; PROTEUS does not call it and passes the mantle mass of its interior steps ([code architecture](../../Explanations/code_architecture.md#structurepy)).
 
 ### Constants
 

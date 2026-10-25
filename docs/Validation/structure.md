@@ -25,10 +25,9 @@ land at ~3e18 kg, six orders of magnitude below the correct value. The
 test's scale guard `1e24 < mantle < 1e25` brackets the correct order and
 fails on any factor-of-10 unit slip.
 
-`calculate_mantle_mass` serves standalone runs. PROTEUS does not call it: it passes the
-mantle mass of its interior modules, with the core mass from the structure solve (with
-Zalmoxis the mass enclosed at the core-mantle boundary node), as the
-[code architecture](../Explanations/code_architecture.md#structurepy) page describes.
+`calculate_mantle_mass` serves standalone runs. PROTEUS does not call it; the
+[code architecture](../Explanations/code_architecture.md#structurepy) page names the mantle
+mass it passes.
 
 ## Anchor type
 

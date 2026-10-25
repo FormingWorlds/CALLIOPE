@@ -50,7 +50,7 @@ CALLIOPE is the cheapest of the five (a few tens of milliseconds per call vs. se
 
 | `solvevol_inp[…]` | Source |
 |---|---|
-| `M_mantle` | `hf_row['M_mantle']` (set by structure module) |
+| `M_mantle` | `hf_row['M_mantle']` (set by the interior structure and energetics steps) |
 | `gravity` | `hf_row['gravity']` |
 | `radius` | `hf_row['R_int']` |
 | `Phi_global` | `hf_row['Phi_global']` if `config.outgas.calliope.solubility` else `0.0` |
