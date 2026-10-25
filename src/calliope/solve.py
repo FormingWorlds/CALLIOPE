@@ -1428,6 +1428,8 @@ def equilibrium_atmosphere_authoritative_O(
     >>> abs(out_new['fO2_shift_derived'] - 4.0) < 0.01  # round-trip
     True
     """
+    ddict = _with_fO2_model(ddict, fO2_model)
+
     if 'metal_mass' in ddict and '_metal_D' not in ddict:
         check_metal_fields(ddict)
     if ddict.get('metal_mass', 0.0) > 0 and '_metal_D' not in ddict:
@@ -1471,8 +1473,6 @@ def equilibrium_atmosphere_authoritative_O(
             raise ValueError('target_d[%r] must be a finite real number [kg], got %r.' % (e, v))
         if v < 0:
             raise ValueError('target_d[%r] must be non-negative [kg], got %r.' % (e, v))
-
-    ddict = _with_fO2_model(ddict, fO2_model)
 
     # Validate fO2_hint and the planet/state parameters consumed from
     # ddict by the residual chain. The solver evaluates the residual at
