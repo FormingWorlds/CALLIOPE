@@ -16,7 +16,13 @@ import math
 
 import pytest
 
-from calliope.metal import ELEMENTS, PartitionTableError, load_partition_table
+from calliope.metal import (
+    ELEMENTS,
+    PartitionTableError,
+    load_partition_table,
+    log10_D,
+    out_of_range,
+)
 
 hypothesis = pytest.importorskip('hypothesis')
 from hypothesis import given, settings  # noqa: E402
@@ -246,3 +252,55 @@ def test_any_float_coefficient_loads_only_when_finite(tmp_path_factory, value):
     else:
         with pytest.raises(PartitionTableError, match="'a'"):
             load_partition_table(path)
+
+
+class TestLaw:
+    """The log10 D law of an entry and its range flag."""
+
+    @pytest.mark.physics_invariant
+    @pytest.mark.reference_pinned
+    @pytest.mark.parametrize(
+        'p_gpa, t_k, expected',
+        [(20.0, 3000.0, 1.2427), (135.0, 4000.0, 0.6170), (300.0, 5000.0, -0.0784)],
+    )
+    def test_tagawa_eq2_values(self, p_gpa, t_k, expected):
+        """Tagawa et al. 2021 Eq. 2: log10 K_D = 2.42 - 2892/T - 32.0 P/T (dIW 0), 4 decimals."""
+        h = load_partition_table()['H']
+        val = log10_D(h, p_gpa, t_k, 0.0)
+        assert val == pytest.approx(expected, abs=5e-5)
+        # the dIW term is -dIW/4: one log unit more reduced raises log10 D by 0.25
+        assert log10_D(h, p_gpa, t_k, -1.0) - val == pytest.approx(0.25, abs=1e-12)
+        # Tagawa Eq. 10 (0.692 - 4590/T + 141 P/T) differs by more than 0.3 at each point
+        assert abs(val - (0.692 - 4590 / t_k + 141 * p_gpa / t_k)) > 0.3
+
+    @pytest.mark.physics_invariant
+    @pytest.mark.reference_pinned
+    def test_fischer_eq1_single_stage_value(self):
+        """Fischer et al. 2020 p3: Eq. 1 gives D_C = 0.550 at 54 GPa, 4100 K, NBO/T 2.6, IW-2.2, X_O 0.06, X_S 0.03."""
+        c = load_partition_table()['C']
+        d_c = 10 ** log10_D(c, 54.0, 4100.0, -2.2, x_metal={'O': 0.06, 'S': 0.03}, nbo_t=2.6)
+        assert d_c == pytest.approx(0.550, abs=5e-4)
+        # Suer SA prints the dIW coefficient as 0.328: that law lands far outside
+        wrong = 10 ** (log10_D(c, 54.0, 4100.0, -2.2, {'O': 0.06, 'S': 0.03}, 2.6) + 0.09 * 2.2)
+        assert abs(wrong - d_c) > 0.1
+        # without the O and S terms D_C is 0.447 (derivation section B)
+        assert 10 ** log10_D(c, 54.0, 4100.0, -2.2, nbo_t=0.0) == pytest.approx(0.447, abs=2e-3)
+
+    def test_out_of_range_flags_each_axis_and_unknown_ranges(self):
+        """A point outside any range, or on an axis whose range is unknown, is flagged."""
+        table = load_partition_table()
+        h, o = table['H'], table['O']
+        assert not out_of_range(h, 45.0, 4000.0, -1.0)
+        assert out_of_range(h, 135.0, 4000.0, -1.0)
+        assert out_of_range(h, 45.0, 2500.0, -1.0)
+        assert out_of_range(h, 45.0, 4000.0, -2.3)
+        assert out_of_range(o, 50.0, 4000.0, -2.0)
+
+    def test_non_finite_condition_raises(self):
+        """A NaN pressure, a non-positive temperature or a metal fraction of 1 is refused."""
+        c = load_partition_table()['C']
+        for args in ((math.nan, 4000.0, -2.0), (50.0, 0.0, -2.0), (50.0, 4000.0, math.inf)):
+            with pytest.raises(ValueError):
+                log10_D(c, *args)
+        with pytest.raises(ValueError, match='X_O'):
+            log10_D(c, 50.0, 4000.0, -2.0, x_metal={'O': 1.0})
