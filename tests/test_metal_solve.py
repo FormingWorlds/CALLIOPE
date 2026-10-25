@@ -538,3 +538,39 @@ def test_negative_core_mass_names_the_core_in_the_error():
         raised = err
     assert isinstance(raised, RuntimeError), raised
     assert 'core' in str(raised) and '-1e+06' in str(raised)
+
+
+# M_FeO, M_Si from the element masses (kg/mol); KLB-1 FeO 8.10 wt% in 4.03e24 kg of melt
+_M_O, _M_SI, _M_FE = 0.015999, 0.0280855, 0.055845
+_N_FEO_SIL = 4.03e24 * 0.081 / (_M_FE + _M_O)
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.parametrize(
+    ('w_o', 'w_si', 'flag'),
+    [(1e-3, 0.0, 0), (5e-3, 0.0, 1), (0.02, 0.03, 1)],
+    ids=['ratio-0.026', 'ratio-0.13', 'si-returns-feo'],
+)
+def test_feo_exchange_balances_o_and_si_atoms(w_o, w_si, flag, caplog, monkeypatch):
+    """n_FeO_exchange = n_O - 2 n_Si of the metal; above 10 % of the melt FeO it is flagged.
+
+    FeO = Fe + O takes 1 FeO per metal O, SiO2 + 2 Fe = Si + 2 FeO gives back 2 FeO per
+    metal Si; the ratio to the KLB-1 melt FeO is 0.026, 0.13 and -0.37 for the 3 cases.
+    """
+    import calliope.solve as solve_mod
+
+    monkeypatch.setattr(solve_mod, '_METAL_WARNED', set())
+    ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'w_O_core': w_o, 'w_Si_core': w_si}
+    with caplog.at_level('WARNING', logger='fwl.calliope.solve'):
+        out = _solve(ddict)
+        _solve(ddict)
+    n_ex = w_o * 1.9e24 / _M_O - 2 * w_si * 1.9e24 / _M_SI
+    assert out['n_FeO_exchange'] == pytest.approx(n_ex, rel=1e-4)
+    assert out['FeO_kg_exchange'] == pytest.approx(n_ex * (_M_FE + _M_O), rel=1e-4)
+    assert out['n_FeO_silicate'] == pytest.approx(_N_FEO_SIL, rel=1e-4)
+    assert out['FeO_exchange_out_of_range'] == flag
+    warned = [m for m in caplog.messages if '10 % of the silicate FeO' in m]
+    assert len(warned) == flag
+    if w_si:
+        # without the Si term the exchange would be n_O alone, 2.4e24 mol of the other sign
+        assert abs(out['n_FeO_exchange'] - w_o * 1.9e24 / _M_O) > abs(n_ex)
