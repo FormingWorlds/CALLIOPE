@@ -22,6 +22,7 @@ from calliope.metal import (
     core_light_elements,
     load_partition_table,
     log10_D,
+    mass_D,
     metal_masses,
     out_of_range,
 )
@@ -389,3 +390,41 @@ class TestMetalReservoir:
         ddict.update(Phi_global=0.5)
         with pytest.raises(ValueError, match='D'):
             metal_masses({'H': 1e20}, ddict, {'H': -1.0})
+
+
+class TestMassD:
+    """The mass-basis D that the element balance uses."""
+
+    @staticmethod
+    def _const(log10_d, basis):
+        entry = dict(load_partition_table()['H'])
+        entry.update(a=log10_d, b=0.0, c=0.0, d=0.0, e=0.0, eps={}, basis=basis)
+        return entry
+
+    @pytest.mark.physics_invariant
+    def test_xprime_basis_reproduces_the_closed_form_core(self):
+        """On the self-consistent metal, D_w times the melt H equals the closed-form core H."""
+        w_melt = {'H': 710e-6 * 2 * 1.008 / 18.01528, 'C': 120e-6}
+        fixed = {'Si': 0.0343, 'S': 0.02}
+        core = core_light_elements({'H': 92, 'C': 67}, w_melt, fixed)
+        w_metal = {**fixed, **core}
+        d_w = mass_D(
+            self._const(math.log10(92), 'mole_xprime_noHC'), 45.0, 3750.0, -2.3, w_metal, w_melt
+        )
+        assert d_w * w_melt['H'] == pytest.approx(core['H'], rel=1e-12)
+        # the conversion factor is not 1: plain D would put 7 % more H in the core
+        assert abs(92 / d_w - 1) > 0.06
+
+    def test_mass_basis_is_the_law_itself(self):
+        """A mass-basis entry gives 10**log10_D whatever the metal and melt."""
+        entry = self._const(1.5, 'mass')
+        d_w = mass_D(entry, 45.0, 3750.0, -2.3, {'O': 0.05}, {'H': 1e-4})
+        assert d_w == pytest.approx(10**1.5, rel=1e-15)
+        assert mass_D(entry, 45.0, 3750.0, -2.3, {}, {}) == pytest.approx(d_w, rel=1e-15)
+
+    def test_metal_with_no_iron_raises(self):
+        """Light elements that sum to 1 leave no iron for the metal basis."""
+        entry = self._const(1.0, 'mole_xprime_noHC')
+        with pytest.raises(ValueError, match='no iron'):
+            mass_D(entry, 45.0, 3750.0, -2.3, {'O': 0.6, 'Si': 0.4}, {'H': 1e-4})
+        assert mass_D(entry, 45.0, 3750.0, -2.3, {'O': 0.1}, {'H': 1e-4}) > 0
