@@ -548,14 +548,15 @@ _N_FEO_SIL = 4.03e24 * 0.081 / (_M_FE + _M_O)
 @pytest.mark.physics_invariant
 @pytest.mark.parametrize(
     ('w_o', 'w_si', 'flag'),
-    [(1e-3, 0.0, 0), (5e-3, 0.0, 1), (0.02, 0.03, 1)],
-    ids=['ratio-0.026', 'ratio-0.13', 'si-returns-feo'],
+    [(1e-3, 0.0, 0), (5e-3, 0.0, 1), (0.02, 0.03, 1), (1e-6, 0.05, 1)],
+    ids=['ratio-0.026', 'ratio-0.13', 'si-returns-feo', 'trace-o-in-si-rich-metal'],
 )
 def test_feo_exchange_balances_o_and_si_atoms(w_o, w_si, flag, caplog, monkeypatch):
     """n_FeO_exchange = n_O - 2 n_Si of the metal; above 10 % of the melt FeO it is flagged.
 
     FeO = Fe + O takes 1 FeO per metal O, SiO2 + 2 Fe = Si + 2 FeO gives back 2 FeO per
-    metal Si; the ratio to the KLB-1 melt FeO is 0.026, 0.13 and -0.37 for the 3 cases.
+    metal Si; the ratio to the KLB-1 melt FeO is 0.026, 0.13, -0.37 and -1.49 for the 4
+    cases. In the last, n_O is 2e-5 of 2 n_Si.
     """
     import calliope.solve as solve_mod
 
@@ -577,6 +578,34 @@ def test_feo_exchange_balances_o_and_si_atoms(w_o, w_si, flag, caplog, monkeypat
     if w_si:
         # without the Si term the exchange would be n_O alone, 2.4e24 mol of the other sign
         assert abs(out['n_FeO_exchange'] - w_o * 1.9e24 / _M_O) > abs(n_ex)
+
+
+@pytest.mark.physics_invariant
+def test_partition_o_budget_round_trip_on_a_partial_melt():
+    """Partition O and Si, 70 % melt, IW+1: the O-budget solve returns IW+1.
+
+    Each pass evaluates D_C on the O and Si of the same pass (the C law has eps_O = -19.5),
+    and the melt FeO is that of Phi_global M_mantle, not of the whole mantle.
+    """
+    from calliope.metal import KLB1, mass_D
+
+    ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'partition_table': load_partition_table()}
+    ddict.update(O_mode_core='partition', Si_mode_core='partition', P_eq=40.0)
+    ddict.update(Phi_global=0.7, fO2_shift_IW=1.0)
+    buffered = _solve(ddict)
+    target = dict(TARGET, O=buffered['O_kg_total'])
+    out = _solve_auth(ddict, target, dict(P_GUESS, fO2_shift_IW=1.0))
+    assert out['fO2_shift_derived'] == pytest.approx(1.0, abs=1e-6)
+    assert abs(out['O_kg_atm'] + out['O_kg_liquid'] - target['O']) <= target['O'] * 1e-10 + 10
+    assert out['O_kg_core'] == pytest.approx(buffered['O_kg_core'], rel=1e-6)
+    assert out['n_FeO_silicate'] == pytest.approx(0.7 * _N_FEO_SIL, rel=1e-4)
+    w = {el: out['w_' + el + '_core'] for el in ('H', 'C', 'N', 'S', 'O', 'Si')}
+    w_melt = {el: out[el + '_kg_liquid'] / (0.7 * 4.03e24) for el in ('H', 'C')}
+    at = (ddict['partition_table']['C'], 40.0, 3500.0, -2.0)
+    d_c = mass_D(*at, w, w_melt, KLB1, 2.6)
+    no_o = mass_D(*at, {**w, 'O': 0.0, 'Si': 0.0}, w_melt, KLB1, 2.6)
+    assert out['C_D_metal'] == pytest.approx(d_c, rel=1e-5)
+    assert d_c / no_o > 5
 
 
 @pytest.mark.physics_invariant
