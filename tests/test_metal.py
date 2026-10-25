@@ -96,6 +96,15 @@ class TestValidFile:
         assert table['H']['eps'] == {'O': pytest.approx(-19.5), 'S': pytest.approx(9.6)}
         assert len(table['H']['covariance']) == 7
 
+    def test_empty_range_means_an_unknown_range(self, tmp_path):
+        """An empty list is a range the source does not give: it loads as None."""
+        table = load_partition_table(
+            _write(tmp_path, _text(_with(T_range_K='[]', dIW_range='[]')))
+        )
+        assert table['H']['T_range_K'] is None
+        assert table['H']['dIW_range'] is None
+        assert table['H']['P_range_GPa'] == (pytest.approx(30.0), pytest.approx(60.0))
+
     def test_packaged_placeholder_covers_every_element(self):
         """The default file is the placeholder set, flagged as such, with all 6 elements."""
         table = load_partition_table()
