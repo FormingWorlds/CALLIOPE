@@ -32,6 +32,8 @@ BASES = ('mass', 'mole', 'mole_xprime_noHC')
 SILICATE_BASES = ('single_cation',)
 COEFFICIENTS = ('a', 'b', 'c', 'd', 'e', 'dIW_factor')
 RANGES = ('P_range_GPa', 'T_range_K', 'dIW_range')
+KEYS = frozenset(('form', 'quantity', 'basis', 'silicate_basis', 'P_unit', 'eps', 'covariance'))
+KEYS = KEYS | set(COEFFICIENTS) | set(RANGES) | {'source', 'doi'}
 PLACEHOLDER_FILE = 'partition_coefficients_placeholder.toml'
 
 
@@ -61,6 +63,9 @@ def _entry(el, raw):
     """Check and type one element entry."""
     if not isinstance(raw, dict):
         raise PartitionTableError(f'{el!r}: the entry must be a table')
+    unknown = sorted(set(raw) - KEYS)
+    if unknown:
+        raise PartitionTableError(f'{el!r}: unknown keys {unknown}')
     out = {
         'form': _choice(raw, el, 'form', FORMS),
         'quantity': _choice(raw, el, 'quantity', QUANTITIES),
@@ -82,6 +87,8 @@ def _entry(el, raw):
         lo, hi = (_number(v, el, field) for v in pair)
         if lo > hi:
             raise PartitionTableError(f'{el!r}: {field!r} low {lo} above high {hi}')
+        if lo < 0 and field != 'dIW_range':
+            raise PartitionTableError(f'{el!r}: {field!r} must not be negative, got {lo}')
         out[field] = (lo, hi)
     eps = raw.get('eps', {})
     if not isinstance(eps, dict) or any(k not in ELEMENTS for k in eps):
@@ -171,11 +178,14 @@ def load_partition_table(path=None):
         text = Path(path).read_text()
     raw = tomllib.loads(text)
     version = raw.pop('schema_version', None)
-    if isinstance(version, bool) or version != SCHEMA_VERSION:
+    if type(version) is not int or version != SCHEMA_VERSION:
         raise PartitionTableError(f'schema_version must be {SCHEMA_VERSION}, got {version!r}')
     meta = raw.pop('meta', None)
-    if not isinstance(meta, dict) or not isinstance(meta.get('placeholder'), bool):
-        raise PartitionTableError('the file needs a [meta] table with a boolean placeholder')
+    name = meta.get('name') if isinstance(meta, dict) else None
+    if not (isinstance(name, str) and name.strip() and isinstance(meta['placeholder'], bool)):
+        raise PartitionTableError(
+            'the file needs a [meta] table with a non-empty name and a boolean placeholder'
+        )
     unknown = [k for k in raw if k not in ELEMENTS]
     if unknown:
         raise PartitionTableError(f'unknown element sections {unknown!r}; known: {ELEMENTS}')
@@ -191,7 +201,7 @@ def _finite(name, value, positive=False):
         )
 
 
-def log10_D(entry, p_gpa, t_k, d_iw, x_metal=None, nbo_t=0.0):
+def log10_D(entry, p_gpa, t_k, d_iw, x_metal=None, nbo_t=2.6):
     """log10 of the partition coefficient of one entry, in the entry's basis.
 
     Parameters
@@ -227,6 +237,13 @@ def log10_D(entry, p_gpa, t_k, d_iw, x_metal=None, nbo_t=0.0):
             raise ValueError(f'X_{el} in the metal must be in [0, 1), got {x!r}')
         val += eps * math.log10(1.0 - x)
     return val
+
+
+def _pow10(x, p_gpa, t_k, d_iw):
+    """10**x, or ValueError naming the conditions when it is beyond the float range."""
+    if not x < 308.0:
+        raise ValueError(f'10**{x:.4g} at P {p_gpa:g} GPa, T {t_k:g} K, dIW {d_iw:g} overflows')
+    return 10.0**x
 
 
 def out_of_range(entry, p_gpa, t_k, d_iw):
@@ -345,6 +362,8 @@ def metal_masses(mass_int_d, ddict, d_mass):
         Metal with no melt, or a D that is negative or not finite.
     """
     m_metal = ddict.get('metal_mass', 0.0)
+    if not (math.isfinite(m_metal) and m_metal >= 0):
+        raise ValueError(f'metal_mass must be finite and >= 0, got {m_metal!r}')
     if m_metal == 0.0:
         return {el: 0.0 for el in d_mass}
     m_melt = ddict['M_mantle'] * ddict['Phi_global']
@@ -369,7 +388,7 @@ def _metal_moles(w_metal, exclude=()):
     return rest / molar_mass_rock['Fe'] + sum(n.values()), n
 
 
-def mass_D(entry, p_gpa, t_k, d_iw, w_metal, w_melt, oxides=KLB1, nbo_t=0.0):
+def mass_D(entry, p_gpa, t_k, d_iw, w_metal, w_melt, oxides=KLB1, nbo_t=2.6):
     """Mass-basis D (metal over melt mass fraction) of one entry.
 
     Parameters
@@ -404,7 +423,8 @@ def mass_D(entry, p_gpa, t_k, d_iw, w_metal, w_melt, oxides=KLB1, nbo_t=0.0):
     _need_form(entry, 'log10_linear')
     total, n = _metal_moles(w_metal)
     free = total - n.get('H', 0.0) - n.get('C', 0.0)
-    d = 10.0 ** log10_D(entry, p_gpa, t_k, d_iw, {el: v / free for el, v in n.items()}, nbo_t)
+    x_metal = {el: v / free for el, v in n.items()}
+    d = _pow10(log10_D(entry, p_gpa, t_k, d_iw, x_metal, nbo_t), p_gpa, t_k, d_iw)
     if entry['basis'] == 'mass':
         return d
     n_metal = free if entry['basis'] == 'mole_xprime_noHC' else total
@@ -444,10 +464,12 @@ def exchange_metal(table, p_gpa, t_k, d_iw, oxides=KLB1, elements=('O', 'Si')):
         _need_form(table[el], 'exchange_KD')
     x = {}
     if 'O' in elements:
-        x['O'] = 10.0 ** log10_D(table['O'], p_gpa, t_k, 0.0) * 10.0 ** (d_iw / 2.0)
+        k_d = _pow10(log10_D(table['O'], p_gpa, t_k, 0.0), p_gpa, t_k, d_iw)
+        x['O'] = k_d * _pow10(d_iw / 2.0, p_gpa, t_k, d_iw)
     if 'Si' in elements:
         x_sio2 = cation_fraction(oxides, 'SiO2')
-        x['Si'] = 10.0 ** log10_D(table['Si'], p_gpa, t_k, 0.0) * x_sio2 * 10.0 ** (-d_iw)
+        k_d = _pow10(log10_D(table['Si'], p_gpa, t_k, 0.0), p_gpa, t_k, d_iw)
+        x['Si'] = k_d * x_sio2 * _pow10(-d_iw, p_gpa, t_k, d_iw)
     if sum(x.values()) >= 1.0:
         raise ValueError(f'O and Si leave the metal with no iron: {x}')
     return x

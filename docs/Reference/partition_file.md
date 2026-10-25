@@ -11,13 +11,13 @@ With `metal_mass` above zero, `equilibrium_atmosphere` and `equilibrium_atmosphe
 | `dIW_eq_mode` | | `'parameter'` | `'parameter'` reads `dIW_eq`; `'from_FeO'` uses $2\log_{10}(x_\mathrm{FeO}/x'_\mathrm{Fe})$ with ideal activities, $x_\mathrm{FeO}$ on the single-cation basis of the melt and $x'_\mathrm{Fe}$ over the metal without H and C (needs FeO above 0) |
 | `dIW_eq` | log10 units | required for `'parameter'` | Oxygen fugacity of the equilibrium relative to the iron-wustite buffer |
 | `O_mode_core`, `Si_mode_core` | | `'fixed'` | `'fixed'` reads `w_O_core`, `w_Si_core`; `'partition'` uses the exchange $K_D$ of the file at the dIW of each pass |
-| `w_O_core`, `w_Si_core` | mass fraction | 0 | Metal O and Si in `'fixed'` mode, at least 0 and below 1 |
+| `w_O_core`, `w_Si_core` | mass fraction | 0 | Metal O and Si in `'fixed'` mode, at least 0, each and their sum below 1 |
 | `silicate_oxides` | wt% | KLB-1 (7 major oxides, Takahashi 1986) | Melt composition for the mole basis of $D$; sums to 95-101 wt% and is used as given, not normalised; Si `'partition'` needs SiO2 above 0 |
 | `silicate_nbo_t` | | 2.6 | NBO/T of the melt |
 | `partition_table` | | packaged placeholder | A table from `calliope.metal.load_partition_table` |
-| `tol_w_core` | | 1e-6 | Relative stop of the fixed point on each metal mass fraction |
+| `tol_w_core` | | 1e-6 | Relative stop of the fixed point on each metal mass fraction, above 0 and below 1 |
 
-Every key is checked before the first solve: a value of the wrong type, NaN, infinity or a value out of range raises `ValueError` naming the key, and with `metal_mass` above zero `P_eq`, `T_eq` and, in `'parameter'` mode, `dIW_eq` are required. The solve runs a fixed point: it evaluates $D$ on the metal and melt of the previous pass with the O and Si of the present pass, solves at fixed $D$, and stops when each metal mass fraction moves by at most `tol_w_core` of its value plus 1e-15 (at most 30 passes). The metal takes the H, C, N and S of the melt in proportion to `metal_mass`, so the caller sets `metal_mass` to the metal that equilibrates with the present melt.
+Every key is checked before the first solve: a value of the wrong type, NaN, infinity or a value out of range raises `ValueError` naming the key, and with `metal_mass` above zero `P_eq`, `T_eq` and, in `'parameter'` mode, `dIW_eq` are required. The solve runs a fixed point: it evaluates $D$ on the metal and melt of the previous pass with the O and Si of the present pass, solves at fixed $D$, and stops when each metal mass fraction moves by at most `tol_w_core` of its value plus 1e-15 (at most 30 passes). A partitioned O or Si moves by $1/(1 - s)$ of its exchange step, with $s$ the secant slope of the exchange value against the metal value of the last 2 passes when $s < 0$, and 1 otherwise: with dIW from FeO, more metal Si raises dIW and lowers the exchange Si, and whole steps alternate about the solution; for these elements the stop reads the whole step. A law whose $D$ or $K_D$ is beyond the float range raises `ValueError` with its P, T and dIW. The metal takes the H, C, N and S of the melt in proportion to `metal_mass`, so the caller sets `metal_mass` to the metal that equilibrates with the present melt.
 
 The metal O comes from the silicate FeO, not from the volatile O budget: in the authoritative-O solve gas and melt O close on the O budget, and `O_kg_core` is reported apart. CALLIOPE does not hold the silicate FeO reservoir; the caller applies the exchange from `n_FeO_exchange`. `metal_mass` is held fixed while Fe moves into or out of the metal.
 
@@ -38,7 +38,7 @@ With `metal_mass` equal to 0 the result carries only `<e>_kg_core` = 0 for H, C,
 
 ## File schema
 
-The file has `schema_version = 1`, a `[meta]` table with a `name` and a boolean `placeholder`, and one table per element of H, C, N, S, O and Si. A law is
+The file has `schema_version = 1`, a `[meta]` table with a non-empty `name` and a boolean `placeholder`, and one table per element of H, C, N, S, O and Si. A law is
 
 $$
 \log_{10} D = a + \frac{b}{T} + c\,\frac{P}{T} + d \cdot \mathrm{dIW\_factor} \cdot \Delta\mathrm{IW} + e\,(\mathrm{NBO/T}) + \sum_j \varepsilon_j \log_{10}(1 - X_j)
@@ -55,11 +55,11 @@ with $T$ in K, $P$ in GPa, NBO/T the ratio of non-bridging O to tetrahedral cati
 | `a`, `b`, `c`, `d`, `e`, `dIW_factor` | finite numbers | Coefficients of the law; an `exchange_KD` law uses a, b and c only, with d and e 0 and `dIW_factor` 1 |
 | `eps` | table of element to number | The $\varepsilon_j$ terms; empty for `exchange_KD` |
 | `covariance` | empty, or a square matrix | Covariance of a, b, c, d, e and the eps terms in name order; symmetric and positive semidefinite; stored, not used by the solve |
-| `P_range_GPa`, `T_range_K`, `dIW_range` | `[low, high]` | Range of the source data; an empty T or dIW range means unknown, and every use is flagged out of range |
+| `P_range_GPa`, `T_range_K`, `dIW_range` | `[low, high]` | Range of the source data, P and T at 0 or above; an empty T or dIW range means unknown, and every use is flagged out of range |
 | `P_unit` | `GPa` | Pressure unit |
 | `source`, `doi` | non-empty strings | Origin of the law |
 
-`load_partition_table` raises `PartitionTableError` (a `ValueError`) that names the element and field of a value that breaks the schema or that the evaluator of the element does not read.
+`load_partition_table` raises `PartitionTableError` (a `ValueError`) that names the element and field of a value that breaks the schema or that the evaluator of the element does not read, and the keys of an element table outside the fields above.
 
 ## Placeholder laws
 

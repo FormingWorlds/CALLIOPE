@@ -1988,7 +1988,7 @@ _METAL_FIELDS = {
     'silicate_nbo_t': (0.0, math.inf, True, False),
     'w_O_core': (0.0, 1.0, True, False),
     'w_Si_core': (0.0, 1.0, True, False),
-    'tol_w_core': (0.0, math.inf, False, False),
+    'tol_w_core': (0.0, 1.0, False, False),
 }
 
 
@@ -1996,8 +1996,9 @@ def check_metal_fields(ddict):
     """Check the metal-reservoir fields of ``ddict`` that are present.
 
     Each must be a finite real number (not a boolean) in its range: ``metal_mass`` [kg]
-    and ``silicate_nbo_t`` >= 0, ``P_eq`` [GPa], ``T_eq`` [K] and ``tol_w_core`` > 0,
-    ``w_O_core`` and ``w_Si_core`` in [0, 1). ``silicate_oxides`` is a dict of known
+    and ``silicate_nbo_t`` >= 0, ``P_eq`` [GPa] and ``T_eq`` [K] > 0, ``tol_w_core`` in
+    (0, 1), ``w_O_core`` and ``w_Si_core`` in [0, 1) with a sum below 1. A mode is one of
+    its strings. ``silicate_oxides`` is a dict of known
     oxides in wt%, finite and >= 0, that sums to 95-101.
 
     Raises
@@ -2009,7 +2010,11 @@ def check_metal_fields(ddict):
         if field not in ddict:
             continue
         v = ddict[field]
-        if not _is_number(v) or not math.isfinite(v):
+        try:
+            finite = _is_number(v) and math.isfinite(v)
+        except OverflowError:  # an int beyond the float range
+            finite = False
+        if not finite:
             raise ValueError(f'{field} must be a finite number, got {v!r}')
         if v < lo or v > hi or (v == lo and not lo_ok) or (v == hi and not hi_ok):
             raise ValueError(f'{field} = {v!r} is outside its range ({lo}, {hi})')
@@ -2028,8 +2033,11 @@ def check_metal_fields(ddict):
         if not 95.0 <= sum(ox.values()) <= 101.0:
             raise ValueError(f'silicate_oxides sum to {sum(ox.values())!r} wt%, not 95-101')
     for field, options in _METAL_MODES.items():
-        if ddict.get(field, options[0]) not in options:
-            raise ValueError(f'{field} {ddict[field]!r}: use one of {options}')
+        mode = ddict.get(field, options[0])
+        if not isinstance(mode, str) or mode not in options:
+            raise ValueError(f'{field} {mode!r}: use one of {options}')
+    if ddict.get('w_O_core', 0.0) + ddict.get('w_Si_core', 0.0) >= 1.0:
+        raise ValueError('w_O_core + w_Si_core leave no iron in the metal')
     if not ddict.get('metal_mass', 0.0) > 0:
         return
     diw_mode = ddict.get('dIW_eq_mode', 'parameter')
