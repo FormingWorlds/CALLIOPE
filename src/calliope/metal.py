@@ -327,3 +327,48 @@ def metal_masses(mass_int_d, ddict, d_mass):
             raise ValueError(f'D of {el} must be finite and >= 0, got {d!r}')
         out[el] = d * m_metal * mass_int_d[el] / m_melt
     return out
+
+
+def _metal_moles(w_metal, exclude=()):
+    """Moles per kg of metal of the elements outside ``exclude``, the rest being Fe."""
+    rest = 1.0 - sum(w_metal.values())
+    if rest <= 0:
+        raise ValueError(f'the metal has no iron left: {w_metal}')
+    n = {el: w / _mass(el) for el, w in w_metal.items() if el not in exclude}
+    return rest / molar_mass_rock['Fe'] + sum(n.values()), n
+
+
+def mass_D(entry, p_gpa, t_k, d_iw, w_metal, w_melt, oxides=KLB1, nbo_t=0.0):
+    """Mass-basis D (metal over melt mass fraction) of one entry.
+
+    Parameters
+    ----------
+    entry : dict
+        One element entry of :func:`load_partition_table`, form ``log10_linear``.
+    p_gpa, t_k, d_iw : float
+        Equilibration pressure [GPa], temperature [K] and dIW [log10 units].
+    w_metal : dict
+        Light-element mass fractions of the metal (the rest is Fe).
+    w_melt : dict
+        Mass fractions of H and C in the melt, counted as HO0.5 and C units.
+    oxides : dict
+        Melt composition in oxide wt%.
+    nbo_t : float
+        NBO/T of the melt.
+
+    Returns
+    -------
+    float
+        ``D_w = D N_metal / N_melt`` for a mole basis, with N the moles per kg of the
+        metal (without H and C for ``mole_xprime_noHC``) and of the melt units; ``D``
+        for the mass basis.
+    """
+    total, n = _metal_moles(w_metal)
+    x_metal = {el: v / total for el, v in n.items()}
+    d = 10.0 ** log10_D(entry, p_gpa, t_k, d_iw, x_metal, nbo_t)
+    if entry['basis'] == 'mass':
+        return d
+    exclude = ('H', 'C') if entry['basis'] == 'mole_xprime_noHC' else ()
+    n_metal = _metal_moles(w_metal, exclude)[0]
+    n_melt = silicate_units_per_kg(oxides) + sum(w / molar_mass[el] for el, w in w_melt.items())
+    return d * n_metal / n_melt
