@@ -1,5 +1,15 @@
 # Validation: `src/calliope/structure.py`
 
+## What this page checks
+
+This page checks `calculate_mantle_mass` in `src/calliope/structure.py`.
+It splits the mass of a planet into a core and a mantle, from the planet radius, the planet mass and the core radius as a fraction of the planet radius.
+Validation here means that we run the code on a case where another source gives the right answer.
+The test then checks that the code gives that answer within a stated tolerance.
+Here the right answer is the core mass fraction of the Earth from Wang et al. (2018).
+The mantle mass sets how much melt can hold dissolved volatiles in a standalone CALLIOPE run.
+The table below lists the case, and the sections after it derive the expected value.
+
 This page tracks the `@pytest.mark.reference_pinned` tests that anchor the
 behaviour of `calliope.structure` against a published source.
 
@@ -25,9 +35,9 @@ land at ~3e18 kg, six orders of magnitude below the correct value. The
 test's scale guard `1e24 < mantle < 1e25` brackets the correct order and
 fails on any factor-of-10 unit slip.
 
-`calculate_mantle_mass` serves standalone runs. PROTEUS does not call it; the
-[code architecture](../Explanations/code_architecture.md#structurepy) page names the mantle
-mass it passes.
+Only standalone runs use `calculate_mantle_mass`. PROTEUS does not call it: it passes the
+mantle mass of its own interior model, as the
+[code architecture](../Explanations/code_architecture.md#structurepy) page explains.
 
 ## Anchor type
 

@@ -78,7 +78,7 @@ Plus the inner-loop residual functions `func` (four-vector for buffered) and `fu
 
 ### `structure.py`
 
-Single function `calculate_mantle_mass(radius, mass, core_frac)` that returns `M_mantle = M_planet - M_core` assuming Earth-like core density. It serves standalone runs. PROTEUS does not call it: its outgassing step passes `hf_row['M_mantle']`, which the interior structure and energetics steps of PROTEUS set, with the core mass from the structure solve (with Zalmoxis the mass enclosed at the core-mantle boundary node of its mesh). PROTEUS passes no `metal_mass`.
+Single function `calculate_mantle_mass(radius, mass, core_frac)` that returns `M_mantle = M_planet - M_core` assuming Earth-like core density. Only standalone runs use it. PROTEUS does not call it. Its outgassing step passes `hf_row['M_mantle']`, which the interior structure and energetics steps of PROTEUS set. The core mass comes from the structure solve; with Zalmoxis it is the mass enclosed at the core-mantle boundary node of the Zalmoxis mesh. PROTEUS passes no `metal_mass`, so a PROTEUS run has no metal reservoir.
 
 ## Call graph
 
