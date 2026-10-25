@@ -42,6 +42,17 @@ molar_mass = {
     'NH3': 0.017031,
 }
 
+# Molar masses of the rock-forming elements [kg mol-1], for the metal and silicate bases
+molar_mass_rock = {
+    'Fe': 0.055845,
+    'Si': 0.028085,
+    'Mg': 0.024305,
+    'Al': 0.026982,
+    'Ca': 0.040078,
+    'Na': 0.022990,
+    'Ti': 0.047867,
+}
+
 # Noble gases. Each is monatomic and chemically inert: its gas species and
 # its element are the same entity, it takes no part in the CHNOS reaction
 # network, and it partitions between melt and atmosphere by Henry's law

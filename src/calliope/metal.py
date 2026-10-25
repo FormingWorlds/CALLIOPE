@@ -21,6 +21,8 @@ from pathlib import Path
 
 import numpy as np
 
+from .constants import molar_mass, molar_mass_rock
+
 ELEMENTS = ('H', 'C', 'N', 'S', 'O', 'Si')
 SCHEMA_VERSION = 1
 FORMS = ('log10_linear', 'exchange_KD')
@@ -206,3 +208,83 @@ def out_of_range(entry, p_gpa, t_k, d_iw):
         if rng is None or not rng[0] <= value <= rng[1]:
             return True
     return False
+
+
+# Takahashi 1986, JGR 91, 9367, Table 1, KLB-1 bulk: the 7 major oxides [wt%]
+KLB1 = {
+    'SiO2': 44.48,
+    'TiO2': 0.16,
+    'Al2O3': 3.59,
+    'FeO': 8.10,
+    'MgO': 39.22,
+    'CaO': 3.44,
+    'Na2O': 0.30,
+}
+# cation, cations and O atoms per formula unit
+_OXIDES = {
+    'SiO2': ('Si', 1, 2),
+    'TiO2': ('Ti', 1, 2),
+    'Al2O3': ('Al', 2, 3),
+    'FeO': ('Fe', 1, 1),
+    'MgO': ('Mg', 1, 1),
+    'CaO': ('Ca', 1, 1),
+    'Na2O': ('Na', 2, 1),
+}
+
+
+def silicate_units_per_kg(oxides=KLB1):
+    """Moles of single-cation units (SiO2, TiO2, AlO1.5, FeO, MgO, CaO, NaO0.5) per kg."""
+    total = 0.0
+    for ox, wt in oxides.items():
+        cat, n_cat, n_o = _OXIDES[ox]
+        m_ox = n_cat * molar_mass_rock[cat] + n_o * molar_mass['O']
+        total += wt / 100.0 * n_cat / m_ox
+    return total
+
+
+def core_light_elements(d_x, w_melt, w_fixed, oxides=KLB1):
+    """Core H and C mass fractions from molar D on the H- and C-free metal basis.
+
+    ``x'_i = D_i x_i`` with the melt mole fraction ``x_i`` on the single-cation basis,
+    H counted as HO0.5 and C as one unit each, and ``x'_i = N_i / sum_{k != H, C} N_k``
+    in the metal, whose other light elements are fixed and whose rest is Fe. The metal
+    composition depends on H and C only through Fe, so the solve is closed form.
+
+    Parameters
+    ----------
+    d_x : dict
+        Molar D for 'H' and/or 'C'.
+    w_melt : dict
+        Mass fraction of H and C in the melt.
+    w_fixed : dict
+        Mass fractions of O, Si, S and N in the metal.
+    oxides : dict
+        Melt composition in oxide wt%.
+
+    Returns
+    -------
+    dict
+        Mass fraction of each element of ``d_x`` in the metal.
+
+    Raises
+    ------
+    ValueError
+        An element outside H and C in ``d_x``, outside O, Si, S, N in ``w_fixed``, or a
+        metal with no iron left.
+    """
+    if not set(d_x) <= {'H', 'C'} or not set(w_fixed) <= {'O', 'Si', 'S', 'N'}:
+        raise ValueError(f'd_x takes H and C, w_fixed O, Si, S and N; got {d_x}, {w_fixed}')
+    m_fe = molar_mass_rock['Fe']
+    rest = 1.0 - sum(w_fixed.values())
+    n0 = rest / m_fe + sum(w / _mass(el) for el, w in w_fixed.items())
+    n_sil = silicate_units_per_kg(oxides) + sum(w / molar_mass[el] for el, w in w_melt.items())
+    xp = {el: d * (w_melt[el] / molar_mass[el]) / n_sil for el, d in d_x.items()}
+    n_metal = n0 / (1.0 + sum(molar_mass[el] * x for el, x in xp.items()) / m_fe)
+    out = {el: molar_mass[el] * x * n_metal for el, x in xp.items()}
+    if rest - sum(out.values()) <= 0:
+        raise ValueError(f'the metal has no iron left: fixed {w_fixed}, H and C {out}')
+    return out
+
+
+def _mass(el):
+    return molar_mass_rock[el] if el in molar_mass_rock else molar_mass[el]

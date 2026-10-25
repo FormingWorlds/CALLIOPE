@@ -338,11 +338,13 @@ class TestBasis:
         assert round(plain, 2) != pytest.approx(0.68, abs=1e-9)
         assert abs(plain / (100 * w['H']) - 1) > 0.06
 
-    def test_more_metal_light_elements_lower_the_h_and_c_uptake(self):
-        """O, Si and S in the metal take moles from the H- and C-free basis, so core H falls."""
+    def test_lighter_metal_holds_more_h_and_c_at_fixed_mole_ratio(self):
+        """O and Si are lighter than Fe: a kg of metal holds more H- and C-free moles, so more H."""
         w_melt = {'H': 7.94e-5, 'C': 1.2e-4}
         clean = core_light_elements({'H': 50, 'C': 50}, w_melt, {})
         loaded = core_light_elements({'H': 50, 'C': 50}, w_melt, {'O': 0.05, 'Si': 0.05})
-        assert loaded['H'] < clean['H'] and loaded['C'] < clean['C']
+        assert loaded['H'] > clean['H'] and loaded['C'] > clean['C']
+        # the ratio is the moles per kg of the H- and C-free metal, about 1.17 here
+        assert loaded['H'] / clean['H'] == pytest.approx(loaded['C'] / clean['C'], rel=1e-3)
         with pytest.raises(ValueError, match='no iron'):
             core_light_elements({'H': 50, 'C': 50}, w_melt, {'O': 0.6, 'Si': 0.5})
