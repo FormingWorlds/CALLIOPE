@@ -6,14 +6,14 @@ disagreement at the canonical Earth fiducial:
 
 1. Raw, legacy: CALLIOPE with the O'Neill 2002 IW buffer (the legacy
    choice) vs atmodeller default.
-2. Raw, current default: CALLIOPE with the Fischer 2011 IW buffer (the
-   library default since the buffer audit) vs atmodeller default.
+2. Raw, Fischer: CALLIOPE with the Fischer 2011 IW buffer vs atmodeller
+   default.
 3. After analytical buffer correction (Hirschmann - Fischer
    subtracted), residual chemistry gap with default solubility maps.
 4. After also disabling H2 / CO / CH4 solubility in atmodeller
    (matching CALLIOPE's Bower 2022 §2.2.3 convention).
 
-The drop from bar 1 to bar 2 is the buffer-default change alone;
+The drop from bar 1 to bar 2 is the buffer choice alone;
 bars 2-4 are the residuals after successive alignment moves. A
 horizontal line marks 0.1 dex, the per-element solver tolerance.
 
@@ -42,7 +42,7 @@ def collect(T_magma: float = 2000.0) -> dict:
     choices.
     """
     inv = EARTH_BSE_KRIJT23
-    log.info('Step 1: as-shipped defaults (Fischer 2011 buffer)')
+    log.info('Step 1: Fischer 2011 buffer, default solubility maps')
     cal_fis = run_calliope(inv, T_magma=T_magma, fO2_hint=3.5, buffer='fischer')
     cal_one = run_calliope(inv, T_magma=T_magma, fO2_hint=3.5, buffer='oneill')
     atm_def = run_atmodeller(inv, T_magma=T_magma)
@@ -98,7 +98,7 @@ def make_figure(data: dict | None = None) -> dict:
 
     labels = [
         "Raw, O'Neill\n(legacy buffer)",
-        'Raw, Fischer\n(default buffer)',
+        'Raw, Fischer\nbuffer',
         'After buffer\ncorrection',
         'After also matching\nsolubility selection',
     ]
