@@ -1,0 +1,72 @@
+# Metal reservoir and partition file
+
+With `metal_mass` above zero, `equilibrium_atmosphere` and `equilibrium_atmosphere_authoritative_O` add a metal reservoir in equilibrium with the melt. The element balance of H, C, N and S gains a core term $D_i M_\mathrm{metal} w_i^\mathrm{melt}$, with $D_i$ the mass-basis metal over melt partition coefficient. O and Si in the metal are set by a mass fraction or by their exchange reaction. The partition laws come from a TOML file; CALLIOPE ships a placeholder file. The validation cases are on the [solve validation page](../Validation/solve.md#metal-reservoir).
+
+## Inputs in `ddict`
+
+| Key | Unit | Default | Meaning |
+|---|---|---|---|
+| `metal_mass` | kg | absent (no metal) | Mass of the metal in equilibrium with the melt; 0 is the solve without metal |
+| `P_eq`, `T_eq` | GPa, K | required | Pressure and temperature of the metal-melt equilibrium |
+| `dIW_eq_mode` | | `'parameter'` | `'parameter'` reads `dIW_eq`; `'from_FeO'` uses $2\log_{10}(x_\mathrm{FeO}/x_\mathrm{Fe})$ with ideal activities |
+| `dIW_eq` | log10 units | required for `'parameter'` | Oxygen fugacity of the equilibrium relative to the iron-wustite buffer |
+| `O_mode_core`, `Si_mode_core` | | `'fixed'` | `'fixed'` reads `w_O_core`, `w_Si_core`; `'partition'` uses the exchange $K_D$ of the file at the dIW of each pass |
+| `w_O_core`, `w_Si_core` | mass fraction | 0 | Metal O and Si in `'fixed'` mode, at least 0 and below 1 |
+| `silicate_oxides` | wt% | KLB-1 (7 major oxides, Takahashi 1986) | Melt composition for the mole basis of $D$; sums to 95-101 wt% |
+| `silicate_nbo_t` | | 2.6 | NBO/T of the melt |
+| `partition_table` | | packaged placeholder | A table from `calliope.metal.load_partition_table` |
+| `tol_w_core` | mass fraction | 1e-6 | Stop of the fixed point on the metal composition |
+
+The solve runs a fixed point: it evaluates $D$ on the metal and melt of the previous pass, solves at fixed $D$, and stops when no metal mass fraction moves by more than `tol_w_core` (at most 30 passes). In the authoritative-O solve the metal O is a reservoir of the O budget, and a metal O at or above the budget is refused before the solve. The buffered solve has no O balance, so there the metal O is reported only.
+
+## Outputs
+
+| Key | Unit | Meaning |
+|---|---|---|
+| `<e>_kg_core` | kg | Element mass in the metal, for H, C, N, S, O and Si |
+| `w_<e>_core` | mass fraction | Element mass fraction of the metal |
+| `<e>_D_metal` | | Mass-basis $D$ of H, C, N and S in the last pass |
+| `<e>_D_out_of_range` | | 1 when the law of the element runs outside its (P, T, dIW) range or on an unknown range; O and Si only in `'partition'` mode |
+| `dIW_eq` | log10 units | dIW of the equilibrium in the last pass |
+
+`<e>_kg_total` stays gas plus melt and excludes the core; the bulk inventory of an element is `<e>_kg_total + <e>_kg_core`. A law outside its range and the `'partition'` mode each log a warning once per process and element.
+
+## File schema
+
+The file has `schema_version = 1`, a `[meta]` table with a `name` and a boolean `placeholder`, and one table per element of H, C, N, S, O and Si. A law is
+
+$$
+\log_{10} D = a + \frac{b}{T} + c\,\frac{P}{T} + d \cdot \mathrm{dIW\_factor} \cdot \Delta\mathrm{IW} + e\,\frac{\mathrm{NBO}}{T} + \sum_j \varepsilon_j \log_{10}(1 - X_j)
+$$
+
+with $T$ in K, $P$ in GPa and $X_j$ the mole fraction of element $j$ in the metal.
+
+| Field | Values | Meaning |
+|---|---|---|
+| `form` | `log10_linear`, `exchange_KD` | The law above, or the exchange $K_D$ of O and Si |
+| `quantity` | `D`, `K_D` | What the source fits |
+| `basis` | `mass`, `mole`, `mole_xprime_noHC` | Metal basis of $D$; `mole_xprime_noHC` is the mole fraction over the metal without H and C |
+| `silicate_basis` | `single_cation` | Melt basis of a mole-basis law (not read for `mass`) |
+| `a`, `b`, `c`, `d`, `e`, `dIW_factor` | finite numbers | Coefficients of the law |
+| `eps` | table of element to number | The $\varepsilon_j$ terms |
+| `covariance` | empty, or a square matrix | Covariance of a, b, c, d, e and the eps terms in name order; symmetric and positive semidefinite |
+| `P_range_GPa`, `T_range_K`, `dIW_range` | `[low, high]` | Range of the source data; an empty T or dIW range means unknown, and every use is flagged out of range |
+| `P_unit` | `GPa` | Pressure unit |
+| `source`, `doi` | non-empty strings | Origin of the law |
+
+`load_partition_table` raises `PartitionTableError` (a `ValueError`) that names the element and field of a value that breaks the schema.
+
+## Placeholder laws
+
+The packaged file `src/calliope/data/partition_coefficients_placeholder.toml` has `placeholder = true`.
+
+| Element | Law | Range of the source data | Note |
+|---|---|---|---|
+| H | [Tagawa et al. (2021)](https://doi.org/10.1038/s41467-021-22035-0) Eq. 2, $K_D$ on the metal without H and C | 30-60 GPa, 3100-4600 K, dIW -1.33 to -0.88 | |
+| C | [Fischer et al. (2020)](https://doi.org/10.1073/pnas.1919930117) Eq. 1, mass basis, with O and S interaction terms | 1-59 GPa, 1618-5200 K, dIW -3.9 to -0.53 | |
+| N | Line in dIW through $D_N$ = 1 at dIW -4 and 39 at dIW -1, the 20 GPa, 3000 K column of [Suer et al. (2023)](https://doi.org/10.3389/feart.2023.1159412) Table 1 | 20 GPa, 3000 K, dIW -4 to -1 | The 5 GPa, 2000 K column gives 5 and 265 at the same dIW; Table 1 has no N value at 60 GPa |
+| S | Line in dIW through $D_S$ = 10 at dIW -4 and 173 at dIW -1, the 60 GPa, 4000 K column of Suer et al. (2023) Table 1 | 60 GPa, 4000 K, dIW -4 to -1 | The oxidized column spans dIW -1 to about +1.3; the line uses -1 |
+| O | Exchange $K_D$ of Tagawa et al. (2021) SI Table 3 for the data of Siebert et al. (2012, 2013) | 35-74 GPa; T and dIW unknown | Always flagged out of range |
+| Si | As O | 35-74 GPa; T and dIW unknown | Always flagged out of range |
+
+Suer et al. (2023) give an uncertainty of up to 20 % on their Table 1 values. In `'partition'` mode O and Si use ideal activities in metal and melt. Badro et al. (2015) fit their Si law together with activity coefficients from interaction parameters; leaving those terms out changes $D_\mathrm{Si}$ by about an order of magnitude at the end of their accretion paths, so the Si mode gives a first estimate, not a calibrated value.

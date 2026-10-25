@@ -784,6 +784,8 @@ def equilibrium_atmosphere(
         Target elemental mass inventories [kg], with keys 'H', 'C', 'N', 'S'.
     ddict : dict
         Dictionary of coupler options variables (planet, magma state, inclusion flags).
+        With ``metal_mass`` > 0 [kg] the solve adds a metal reservoir in equilibrium with
+        the melt; its keys are listed on the docs page 'Metal reservoir and partition file'.
     hide_warnings : bool, default True
         Hide floating point runtime warnings raised by `scipy` for poor guesses.
     rtol : float, default 1e-5
@@ -1207,7 +1209,9 @@ def equilibrium_atmosphere_authoritative_O(
         Coupler options dict (planet, magma state, inclusion flags).
         ``ddict['fO2_shift_IW']`` is IGNORED by this entry point; the
         value is treated as a solver unknown initialised from
-        ``fO2_hint`` instead.
+        ``fO2_hint`` instead. With ``metal_mass`` > 0 [kg] the solve adds a
+        metal reservoir whose O counts against the O budget (docs page
+        'Metal reservoir and partition file').
     fO2_hint : float, default 4.0
         Initial guess for the IW-buffer offset (log10 units). Provide
         a value close to the expected solution to speed convergence;

@@ -44,6 +44,7 @@ nav:
       - API reference:
           - Overview: Reference/api/index.md
           - Solve: Reference/api/calliope.solve.md
+          - Metal: Reference/api/calliope.metal.md
           - Chemistry: Reference/api/calliope.chemistry.md
           - Solubility: Reference/api/calliope.solubility.md
           - Oxygen fugacity: Reference/api/calliope.oxygen_fugacity.md
@@ -55,6 +56,7 @@ nav:
           - Solubility: Validation/solubility.md
           - Solve: Validation/solve.md
           - Structure: Validation/structure.md
+      - Metal reservoir and partition file: Reference/partition_file.md
       - Publications: Reference/publications.md
 
   - Community:

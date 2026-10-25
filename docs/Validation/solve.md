@@ -67,7 +67,7 @@ independent enough that consolidation would hurt readability.
 
 ## Metal reservoir
 
-With `metal_mass` above zero the element balance of H, C, N and S gains a core term $D_i M_\mathrm{metal} w_i^\mathrm{melt}$, where $D_i$ is the mass-basis metal over melt partition coefficient from the partition file (`src/calliope/metal.py`). `<e>_kg_total` stays gas plus melt and excludes the core; the bulk inventory of an element is `<e>_kg_total + <e>_kg_core`.
+With `metal_mass` above zero the element balance of H, C, N and S gains a core term $D_i M_\mathrm{metal} w_i^\mathrm{melt}$, where $D_i$ is the mass-basis metal over melt partition coefficient from the partition file (`src/calliope/metal.py`). In the authoritative-O solve the metal O is a reservoir of the O budget. `<e>_kg_total` stays gas plus melt and excludes the core; the bulk inventory of an element is `<e>_kg_total + <e>_kg_core`. Inputs, outputs and the placeholder laws are on the [metal reservoir page](../Reference/partition_file.md).
 
 ### Gas-free core fraction
 
@@ -89,6 +89,24 @@ With `metal_mass` above zero the element balance of H, C, N and S gains a core t
 - Tolerance: partial pressures and melt plus core masses relative 1e-6, with both solves from the same random state and the root accepted at relative 1e-10 plus 1 kg; core over gas-free core equals $1 - M_\mathrm{gas}/M$ to 2e-5.
 - Test id: `tests/test_metal_solve.py::test_metal_with_equal_d_is_a_larger_melt` (smoke tier)
 - Command: `pytest tests/test_metal_solve.py`
+
+### O budget with metal O
+
+**What it tests:** the authoritative-O solve with 0.1 wt% O in a metal of 1.9e24 kg ($D$ = 30 for H, C, N and S, $\Delta\mathrm{IW}$ of the equilibrium -2) returns the fO2 of the buffered solve. Its O budget is the gas and melt O of the buffered metal solve at IW+2 plus the metal O, so the derived offset must be +2 and gas, melt and metal O must close on the budget.
+
+- Reference: round trip between the buffered and the authoritative-O solve (self-consistency).
+- Tolerance: derived $\Delta\mathrm{IW}$ +2 to 1e-6; partial pressures relative 1e-6; gas, melt and core of each of H, C, N, S and O equal the budget to relative 1e-10 plus 10 kg; the metal O (1.9e21 kg) is 22 times the gas and melt O (8.75e19 kg), so leaving it out of the O balance fails the test.
+- Test id: `tests/test_metal_solve.py::test_authoritative_o_closes_the_o_budget_with_metal` (smoke tier)
+- Command: `pytest tests/test_metal_solve.py -k closes_the_o_budget`
+
+### Equal D is a larger melt with an O budget
+
+**What it tests:** the identity of the section above in the authoritative-O solve, for $D$ = 30 and no metal O. The larger melt also holds the O of its dissolved species, so its O budget is larger by $D M_\mathrm{metal}$ times the O mass fraction of the melt of the metal solve.
+
+- Reference: the identity of the element balance (analytical).
+- Tolerance: partial pressures and melt plus core masses relative 1e-6, derived $\Delta\mathrm{IW}$ to 1e-6, roots accepted at relative 1e-10.
+- Test id: `tests/test_metal_solve.py::test_authoritative_o_with_equal_d_is_a_larger_melt` (smoke tier)
+- Command: `pytest tests/test_metal_solve.py -k authoritative_o_with_equal_d`
 
 ### Tagawa et al. (2021) H runs
 

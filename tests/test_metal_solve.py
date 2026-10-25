@@ -210,8 +210,8 @@ def test_authoritative_o_closes_the_o_budget_with_metal():
     for el in ('H', 'C', 'N', 'S', 'O'):
         closure = out[el + '_kg_atm'] + out[el + '_kg_liquid'] + out[el + '_kg_core']
         assert abs(closure - target[el]) <= target[el] * 1e-10 + 10.0, el
-    # metal O is 1.9e21 kg, the same order as gas and melt O: without it fO2 moves far
-    assert out['O_kg_core'] > 0.5 * buffered['O_kg_total']
+    # metal O (1.9e21 kg) is 22 times gas and melt O (8.75e19 kg): without it fO2 moves far
+    assert out['O_kg_core'] > 10 * buffered['O_kg_total']
     assert out['H_kg_core'] > 0.5 * TARGET['H']
 
 
