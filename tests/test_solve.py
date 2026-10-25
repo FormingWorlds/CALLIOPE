@@ -668,7 +668,8 @@ def test_trace_sulfur_with_absent_nitrogen_returns_through_the_fallback(caplog, 
     exists (pS2 2.507e-17 bar), but the restarts do not reach it: every root
     they find empties S and is refused. FALLBACK_ATTEMPTS after the first of
     them the best returns through the fallback, well before the 1000 attempts
-    run out, and its warning names S. pN2 is reported as zero and H, C close.
+    run out, and its warning names S. The returned state holds no S (pS2 and
+    S_kg_total 0, on the Fischer buffer too), pN2 is zero and H, C close.
     Which refused state ranks best depends on the seed, and the states differ
     within rtol (1e-4): over seeds 0 to 7, P_surf spans 25.1335 to 25.1352 bar,
     so it is pinned to rel 1e-4."""
@@ -679,6 +680,8 @@ def test_trace_sulfur_with_absent_nitrogen_returns_through_the_fallback(caplog, 
     assert solve_mod.FALLBACK_ATTEMPTS < attempts < _COLD['nguess']
     assert 'tolerance for S (1e+14 kg, tolerance 1e+10 kg, budget 1e+14 kg)' in caplog.text
     assert r['N2_bar'] == 0.0
+    assert r['S2_bar'] == 0.0
+    assert r['S_kg_total'] == 0.0
     assert r['fallback'] is True
     assert r['P_surf'] == pytest.approx(25.1349, rel=1e-4)
     assert abs(r['P_surf'] - 25.318) > 0.05  # O'Neill 2002 buffer
