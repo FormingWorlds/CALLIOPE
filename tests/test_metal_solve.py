@@ -201,6 +201,26 @@ def test_diw_from_feo_matches_the_melt_and_metal():
     assert -2.6 < out['dIW_eq'] < -2.0
 
 
+@pytest.mark.physics_invariant
+def test_metal_diw_and_d_do_not_depend_on_the_iw_buffer():
+    """dIW_eq from FeO, the D of the laws and the exchange O match on 2 IW buffers.
+
+    The buffer sets the absolute fO2 of the gas and melt chemistry only; the metal dIW is
+    an activity ratio that is never converted to an absolute fO2.
+    """
+    ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'partition_table': load_partition_table()}
+    ddict.update(dIW_eq_mode='from_FeO', O_mode_core='partition')
+    h, f = (_solve(dict(ddict, fO2_model=b)) for b in ('hirschmann', 'fischer'))
+    # the fixed point stops at tol_w_core = 1e-6 of each metal mass fraction
+    assert h['dIW_eq'] == pytest.approx(f['dIW_eq'], abs=1e-6)
+    assert h['w_O_core'] == pytest.approx(f['w_O_core'], rel=1e-6)
+    for el in ELEMS:
+        assert h[el + '_D_metal'] == pytest.approx(f[el + '_D_metal'], rel=1e-5), el
+    assert -3.0 < h['dIW_eq'] < -2.0  # KLB-1 melt against metal with exchange O: -2.42
+    # the gas does see the buffer: H2 moves by ~15 %
+    assert abs(h['H2_bar'] / f['H2_bar'] - 1.0) > 0.05
+
+
 def test_unknown_metal_modes_raise():
     """An O or Si mode or a dIW mode outside the known ones is refused before solving."""
     for key, value in (('O_mode_core', 'free'), ('Si_mode_core', 1), ('dIW_eq_mode', 'buffer')):
