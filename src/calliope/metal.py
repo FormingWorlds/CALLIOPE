@@ -288,3 +288,42 @@ def core_light_elements(d_x, w_melt, w_fixed, oxides=KLB1):
 
 def _mass(el):
     return molar_mass_rock[el] if el in molar_mass_rock else molar_mass[el]
+
+
+def metal_masses(mass_int_d, ddict, d_mass):
+    """Element masses in the equilibrated metal [kg]: D_i M_metal w_i(melt).
+
+    Parameters
+    ----------
+    mass_int_d : dict
+        Element masses dissolved in the melt [kg].
+    ddict : dict
+        Reads ``metal_mass`` [kg] (0 or absent: no metal), ``M_mantle`` [kg] and
+        ``Phi_global``; the melt mass is ``M_mantle * Phi_global``.
+    d_mass : dict
+        Mass-basis D per element (metal over melt mass fraction).
+
+    Returns
+    -------
+    dict
+        Metal mass of each element of ``d_mass``.
+
+    Raises
+    ------
+    ValueError
+        Metal with no melt, or a D that is negative or not finite.
+    """
+    m_metal = ddict.get('metal_mass', 0.0)
+    if m_metal == 0.0:
+        return {el: 0.0 for el in d_mass}
+    m_melt = ddict['M_mantle'] * ddict['Phi_global']
+    if not m_melt > 0:
+        raise ValueError(
+            f'metal_mass {m_metal!r} kg needs melt, but M_mantle * Phi_global is {m_melt!r}'
+        )
+    out = {}
+    for el, d in d_mass.items():
+        if not (math.isfinite(d) and d >= 0):
+            raise ValueError(f'D of {el} must be finite and >= 0, got {d!r}')
+        out[el] = d * m_metal * mass_int_d[el] / m_melt
+    return out
