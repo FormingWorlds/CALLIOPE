@@ -1803,9 +1803,13 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
     D, and takes the new metal H, C, N and S
     from the core masses. O and Si in the metal are fixed mass fractions
     (``O_mode_core``, ``Si_mode_core`` = 'fixed'; ``w_O_core``, ``w_Si_core``) or follow
-    their exchange K_D at the dIW of the pass ('partition', ideal activities). The passes
-    stop when each metal mass fraction moves by at most ``tol_w_core`` (default 1e-6) of
-    its value, plus 1e-15. The metal O comes from the silicate FeO and never enters the
+    their exchange K_D at the dIW of the pass ('partition', ideal activities). A
+    partitioned element moves by ``1 / (1 - s)`` of its exchange step, with ``s`` the
+    secant slope of the exchange value against the metal value of the last 2 passes when
+    ``s < 0`` (1 otherwise): with dIW from FeO, more metal Si raises dIW and lowers the
+    exchange Si, and the undamped passes alternate. The passes stop when each metal mass
+    fraction, or exchange step, is at most ``tol_w_core`` (default 1e-6) of its value,
+    plus 1e-15. The metal O comes from the silicate FeO and never enters the
     volatile O budget; with ``o_budget`` (the authoritative-O solve) gas and melt O close
     on ``target_d['O']``.
     The closure check uses the acceptance gate of the solve: the largest H, C, N, S
@@ -1852,14 +1856,19 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
     w_melt = {'H': 0.0, 'C': 0.0}
     tol = ddict.get('tol_w_core', 1e-6)
     active = _active_noble(ddict)
-    out = None
+    out, last, resid = None, {}, {}
     for _ in range(30):
         d_iw = _metal_diw(ddict, w, oxides)
         if partitioned:
             x_ex = exchange_metal(table, p_eq, t_eq, d_iw, oxides, partitioned)
             n_total = _metal_moles(w, ('H', 'C'))[0]
             for el in partitioned:
-                fixed[el] = x_ex[el] * n_total * _mass(el)
+                target, lam = x_ex[el] * n_total * _mass(el), 1.0
+                if el in last and fixed[el] != last[el][0]:
+                    slope = (target - last[el][1]) / (fixed[el] - last[el][0])
+                    lam = 1.0 / (1.0 - min(slope, 0.0))
+                last[el], resid[el] = (fixed[el], target), target - fixed[el]
+                fixed[el] += lam * resid[el]
         d_mass = {
             el: mass_D(table[el], p_eq, t_eq, d_iw, {**w, **fixed}, w_melt, oxides, nbo_t)
             for el in ('H', 'C', 'N', 'S')
@@ -1871,7 +1880,8 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
             kwargs['p_guess']['fO2_shift_IW'] = out['fO2_shift_derived']
         new = {**fixed, **{el: out[el + '_kg_core'] / m_metal for el in ('H', 'C', 'N', 'S')}}
         w_melt = {el: out[el + '_kg_liquid'] / m_melt for el in ('H', 'C')}
-        settled = all(abs(new[el] - w[el]) <= tol * abs(new[el]) + 1e-15 for el in new)
+        step = {el: new[el] - w[el] for el in new} | resid
+        settled = all(abs(step[el]) <= tol * abs(new[el]) + 1e-15 for el in new)
         w = new
         if settled:
             break
