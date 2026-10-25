@@ -164,3 +164,14 @@ def test_unknown_metal_modes_raise():
         with pytest.raises(ValueError) as exc:
             _solve({**_ddict(), **_metal(30.0, 1.9e24), key: value})
         assert key in str(exc.value) or repr(value) in str(exc.value)
+
+
+def test_authoritative_o_refuses_a_metal_reservoir():
+    """The authoritative-O entry has no metal fixed point yet, so metal_mass > 0 is refused."""
+    from calliope.solve import equilibrium_atmosphere_authoritative_O
+
+    ddict = {**_ddict(), **_metal(30.0, 1.9e24)}
+    with pytest.raises(ValueError) as exc:
+        equilibrium_atmosphere_authoritative_O(dict(TARGET, O=1e21), ddict, print_result=False)
+    assert 'metal_mass' in str(exc.value)
+    assert 'authoritative' in str(exc.value)
