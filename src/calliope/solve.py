@@ -10,10 +10,12 @@ from .chemistry import ModifiedKeq
 from .constants import (
     element_list_chnos,
     molar_mass,
+    molar_mass_rock,
     noble_gases,
     ocean_moles,
     volatile_species,
 )
+from .metal import metal_masses
 from .oxygen_fugacity import OxygenFugacity
 from .solubility import (
     SolubilityCH4,
@@ -473,13 +475,25 @@ def func(pin_arr, ddict, mass_target_d):
 
     mass_atm_d = atmosphere_mass(pin_dict, ddict)
     mass_int_d = dissolved_mass(pin_dict, ddict)
+    mass_core_d = _core_masses(mass_int_d, ddict)
 
     elems = ['H', 'C', 'N', 'S'] + list(active)
     res_l = [0.0] * len(elems)
     for i, vol in enumerate(elems):
         res_l[i] = mass_atm_d[vol] + mass_int_d[vol] - mass_target_d[vol]
+        if vol in mass_core_d:
+            res_l[i] += mass_core_d[vol]
 
     return res_l
+
+
+def _core_masses(mass_int_d, ddict):
+    """Core masses [kg] of H, C, N, S at the mass-basis D in ``ddict['_metal_D']``.
+
+    Without that key (no metal) the result is empty, so the balance is unchanged.
+    """
+    d_mass = ddict.get('_metal_D')
+    return metal_masses(mass_int_d, ddict, d_mass) if d_mass else {}
 
 
 def obj(pin_arr, ddict, mass_target_d):
@@ -529,11 +543,16 @@ def func_authoritative_O(x_arr, ddict, mass_target_d):
 
     mass_atm_d = _atmosphere_mass(pin_dict, fO2_shift, ddict)
     mass_int_d = _dissolved_mass(pin_dict, fO2_shift, ddict)
+    mass_core_d = _core_masses(mass_int_d, ddict)
+    if mass_core_d:  # the O of the metal is a reservoir of the O budget
+        mass_core_d['O'] = ddict.get('_metal_O_kg', 0.0)
 
     elems = ['H', 'C', 'N', 'S', 'O'] + list(active)
     res_l = [0.0] * len(elems)
     for i, elem in enumerate(elems):
         res_l[i] = mass_atm_d[elem] + mass_int_d[elem] - mass_target_d[elem]
+        if elem in mass_core_d:
+            res_l[i] += mass_core_d[elem]
 
     return res_l
 
@@ -799,6 +818,21 @@ def equilibrium_atmosphere(
         diagnostics (P_surf, M_atm, atm_kg_per_mol, ratios).
     """
 
+    if ddict.get('metal_mass', 0.0) > 0 and '_metal_D' not in ddict:
+        kwargs = dict(
+            hide_warnings=hide_warnings,
+            rtol=rtol,
+            atol=atol,
+            xtol=xtol,
+            p_guess=p_guess,
+            nsolve=nsolve,
+            nguess=nguess,
+            print_result=print_result,
+            opt_solver=opt_solver,
+            p_guess_max=p_guess_max,
+        )
+        return _with_metal(equilibrium_atmosphere, target_d, ddict, kwargs)
+
     if print_result:
         log.info('Solving for equilibrium partial pressures at surface')
     log.debug('    target masses: %s' % str(target_d))
@@ -1040,6 +1074,7 @@ def equilibrium_atmosphere(
     # on a dict that already contains the secondaries (read but ignored).
     mass_atm_d = atmosphere_mass(sol_dict, ddict)
     mass_int_d = dissolved_mass(sol_dict, ddict)
+    mass_core_d = _core_masses(mass_int_d, ddict)
 
     # Active noble gases join the reaction-network species and elements in the
     # output schema, so their partial pressures, reservoir masses, mole
@@ -1120,6 +1155,9 @@ def equilibrium_atmosphere(
     outdict['S_res'] = res_l[3]
     for i, gas in enumerate(active):
         outdict[gas + '_res'] = res_l[4 + i]
+    if 'metal_mass' in ddict:
+        for el in ('H', 'C', 'N', 'S'):
+            outdict[el + '_kg_core'] = mass_core_d.get(el, 0.0)
 
     return outdict
 
@@ -1711,3 +1749,86 @@ def equilibrium_atmosphere_authoritative_O(
         log.info('    Derived fO2_shift = %.4f (hint was %.4f)', fO2_derived, fO2_hint)
 
     return outdict
+
+
+def _with_metal(solve, target_d, ddict, kwargs):
+    """Solve with a metal reservoir: fixed point on the metal composition.
+
+    Each pass evaluates the mass-basis D of H, C, N and S on the current metal and melt
+    (``metal.mass_D``), solves at those fixed D, and takes the new metal H, C, N and S
+    from the core masses. O and Si in the metal are fixed (``O_mode_core``,
+    ``Si_mode_core`` = 'fixed', mass fractions ``w_O_core``, ``w_Si_core``). The passes
+    stop when no metal mass fraction moves by more than ``tol_w_core`` (default 1e-6).
+
+    Raises
+    ------
+    RuntimeError
+        No convergence in 30 passes, or a solved state that breaks the element closure.
+    ValueError
+        An unknown mode, or dIW_eq_mode other than 'parameter' and 'from_FeO'.
+    """
+    from .metal import KLB1, load_partition_table, mass_D, out_of_range
+
+    table = ddict.get('partition_table') or load_partition_table()
+    m_metal, m_melt = ddict['metal_mass'], ddict['M_mantle'] * ddict['Phi_global']
+    oxides = ddict.get('silicate_oxides', KLB1)
+    nbo_t = ddict.get('silicate_nbo_t', 2.6)
+    p_eq, t_eq = ddict['P_eq'], ddict['T_eq']
+    fixed = {}
+    for el in ('O', 'Si'):
+        mode = ddict.get(f'{el}_mode_core', 'fixed')
+        if mode != 'fixed':
+            raise ValueError(f'{el}_mode_core {mode!r} is not available; use fixed')
+        fixed[el] = float(ddict.get(f'w_{el}_core', 0.0))
+    w = {**fixed, 'H': 0.0, 'C': 0.0, 'N': 0.0, 'S': 0.0}
+    w_melt = {'H': 0.0, 'C': 0.0}
+    tol = ddict.get('tol_w_core', 1e-6)
+    out = None
+    for _ in range(30):
+        d_iw = _metal_diw(ddict, w, oxides)
+        d_mass = {
+            el: mass_D(table[el], p_eq, t_eq, d_iw, w, w_melt, oxides, nbo_t)
+            for el in ('H', 'C', 'N', 'S')
+        }
+        inner = {**ddict, '_metal_D': d_mass, '_metal_O_kg': fixed['O'] * m_metal}
+        out = solve(target_d, inner, **kwargs)
+        kwargs['p_guess'] = {s: out[s + '_bar'] for s in ('H2O', 'CO2', 'N2', 'S2')}
+        new = {**fixed, **{el: out[el + '_kg_core'] / m_metal for el in ('H', 'C', 'N', 'S')}}
+        w_melt = {el: out[el + '_kg_liquid'] / m_melt for el in ('H', 'C')}
+        moved = max(abs(new[el] - w[el]) for el in new)
+        w = new
+        if moved < tol:
+            break
+    else:
+        raise RuntimeError(f'metal composition did not converge in 30 passes: {w}')
+    for el in ('H', 'C', 'N', 'S'):
+        out[el + '_D_metal'] = d_mass[el]
+        out[el + '_D_out_of_range'] = int(out_of_range(table[el], p_eq, t_eq, d_iw))
+        out['w_' + el + '_core'] = w[el]
+        closure = out[el + '_kg_atm'] + out[el + '_kg_liquid'] + out[el + '_kg_core']
+        tol_kg = target_d[el] * kwargs['rtol'] + kwargs['atol'] + TRUNC_MASS
+        if not (0.0 <= out[el + '_kg_core'] <= target_d[el] + tol_kg) or abs(
+            closure - target_d[el]
+        ) > max(tol_kg, 1e-4 * target_d[el]):
+            raise RuntimeError(
+                f'{el} closure over gas, melt and core fails: {closure} vs {target_d[el]}'
+            )
+    for el in ('O', 'Si'):
+        out['w_' + el + '_core'] = fixed[el]
+        out[el + '_kg_core'] = fixed[el] * m_metal
+    out['dIW_eq'] = d_iw
+    return out
+
+
+def _metal_diw(ddict, w_metal, oxides):
+    """dIW of the metal-melt equilibrium: the parameter, or 2 log10(x_FeO / x_Fe) (ideal)."""
+    mode = ddict.get('dIW_eq_mode', 'parameter')
+    if mode == 'parameter':
+        return float(ddict['dIW_eq'])
+    if mode != 'from_FeO':
+        raise ValueError(f"dIW_eq_mode {mode!r}: use 'parameter' or 'from_FeO'")
+    from .metal import _metal_moles, oxide_mole_fraction
+
+    total, _ = _metal_moles(w_metal)
+    x_fe = (1.0 - sum(w_metal.values())) / molar_mass_rock['Fe'] / total
+    return 2.0 * np.log10(oxide_mole_fraction(oxides, 'FeO') / x_fe)

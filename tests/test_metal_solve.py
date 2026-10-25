@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import pytest
 
 from calliope.constants import volatile_species
@@ -68,22 +69,30 @@ def _metal(d, m_metal):
 TARGET = {'H': 1.5e20, 'C': 1.5e19, 'N': 8.0e18, 'S': 8.0e20}
 
 
+def _solve(ddict):
+    """One seeded solve, so a restart draws the same pressures for both runs compared."""
+    np.random.seed(0)
+    return equilibrium_atmosphere(
+        TARGET,
+        ddict,
+        p_guess=P_GUESS,
+        print_result=False,
+        nguess=200,
+        xtol=1e-12,
+        rtol=1e-10,
+        atol=1.0,
+        opt_solver=False,
+    )
+
+
 @pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
 @pytest.mark.parametrize('d', [1.0, 30.0])
 def test_metal_with_equal_d_is_a_larger_melt(d):
     """Equal D for H, C, N, S: metal solve = no-metal solve with M_melt + D M_metal."""
     m_metal = 1.9e24
-    with_metal = equilibrium_atmosphere(
-        TARGET,
-        {**_ddict(), **_metal(d, m_metal)},
-        p_guess=P_GUESS,
-        print_result=False,
-        nguess=200,
-    )
-    larger = equilibrium_atmosphere(
-        TARGET, _ddict(4.03e24 + d * m_metal), p_guess=P_GUESS, print_result=False, nguess=200
-    )
+    with_metal = _solve({**_ddict(), **_metal(d, m_metal)})
+    larger = _solve(_ddict(4.03e24 + d * m_metal))
     for sp in ('H2O', 'CO2', 'N2', 'S2', 'H2', 'CO', 'CH4'):
         assert with_metal[sp + '_bar'] == pytest.approx(larger[sp + '_bar'], rel=1e-6)
     for el in ELEMS:
@@ -92,18 +101,18 @@ def test_metal_with_equal_d_is_a_larger_melt(d):
         assert melt + core == pytest.approx(larger[el + '_kg_liquid'], rel=1e-6)
         closure = with_metal[el + '_kg_atm'] + melt + core
         assert closure == pytest.approx(TARGET[el], rel=1e-4)
-    # the gas holds mass: the gas-free core fraction Dx/(1 + Dx) misses the H core
+    # the gas holds the rest: core = (budget - gas) Dx/(1 + Dx), short of the gas-free value
     x = m_metal / 4.03e24
     gas_free = TARGET['H'] * d * x / (1 + d * x)
-    assert abs(with_metal['H_kg_core'] / gas_free - 1) > 1e-3
+    gas_share = with_metal['H_kg_atm'] / TARGET['H']
+    assert with_metal['H_kg_core'] / gas_free == pytest.approx(1 - gas_share, abs=2e-5)
+    assert gas_share > 0
 
 
 def test_zero_metal_mass_is_the_solve_without_metal():
     """metal_mass 0 gives the solve without metal, bit for bit, and zero core masses."""
-    plain = equilibrium_atmosphere(TARGET, _ddict(), p_guess=P_GUESS, print_result=False)
-    zero = equilibrium_atmosphere(
-        TARGET, {**_ddict(), **_metal(30.0, 0.0)}, p_guess=P_GUESS, print_result=False
-    )
+    plain = _solve(_ddict())
+    zero = _solve({**_ddict(), **_metal(30.0, 0.0)})
     for sp in ('H2O', 'CO2', 'N2', 'S2'):
         assert zero[sp + '_bar'] == plain[sp + '_bar']
     assert all(zero[el + '_kg_core'] == 0 for el in ELEMS)

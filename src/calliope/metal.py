@@ -372,3 +372,12 @@ def mass_D(entry, p_gpa, t_k, d_iw, w_metal, w_melt, oxides=KLB1, nbo_t=0.0):
     n_metal = _metal_moles(w_metal, exclude)[0]
     n_melt = silicate_units_per_kg(oxides) + sum(w / molar_mass[el] for el, w in w_melt.items())
     return d * n_metal / n_melt
+
+
+def oxide_mole_fraction(oxides, name):
+    """Mole fraction of oxide ``name`` on the oxide-molecule basis (Al2O3, Na2O as one)."""
+    n = {}
+    for ox, wt in oxides.items():
+        cat, n_cat, n_o = _OXIDES[ox]
+        n[ox] = wt / (n_cat * molar_mass_rock[cat] + n_o * molar_mass['O'])
+    return n[name] / sum(n.values())
