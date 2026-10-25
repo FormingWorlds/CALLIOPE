@@ -87,8 +87,11 @@ With `metal_mass` above zero the element balance of H, C, N and S gains a core t
 
 - Reference: the identity of the element balance (analytical).
 - Tolerance: partial pressures and melt plus core masses relative 1e-6, with both solves from the same random state and the root accepted at relative 1e-10 plus 1 kg; core over gas-free core equals $1 - M_\mathrm{gas}/M$ to 2e-5.
-- Test id: `tests/test_metal_solve.py::test_metal_with_equal_d_is_a_larger_melt` (smoke tier)
-- Command: `pytest tests/test_metal_solve.py`
+- Test id: `tests/test_metal_solve.py::test_metal_with_equal_d_is_a_larger_melt`, `tests/test_metal_solve.py::test_equal_d_identity_plot` (smoke tier)
+- Command: `pytest tests/test_metal_solve.py -k "larger_melt or identity_plot"`
+
+![Partial pressures with metal against a melt larger by D M_metal, buffered at D = 1 and 30 and with an O budget at D = 30](../assets/validation/metal_equal_d_larger_melt.svg#only-light){ width="80%" }
+![Partial pressures with metal against a melt larger by D M_metal, buffered at D = 1 and 30 and with an O budget at D = 30](../assets/validation/metal_equal_d_larger_melt_dark.svg#only-dark){ width="80%" }
 
 ### O budget with metal O
 

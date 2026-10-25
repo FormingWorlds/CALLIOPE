@@ -577,3 +577,51 @@ def test_feo_exchange_balances_o_and_si_atoms(w_o, w_si, flag, caplog, monkeypat
     if w_si:
         # without the Si term the exchange would be n_O alone, 2.4e24 mol of the other sign
         assert abs(out['n_FeO_exchange'] - w_o * 1.9e24 / _M_O) > abs(n_ex)
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.reference_pinned
+def test_equal_d_identity_plot(validation_plot):
+    """Equal D: partial pressures with metal against a melt larger by D M_metal, both solves.
+
+    Buffered at D = 1 and 30 and authoritative-O at D = 30 (its O budget raised by the O of
+    the extra melt): every partial pressure agrees to relative 1e-6.
+    """
+    sp = ('H2O', 'CO2', 'N2', 'S2', 'H2', 'CO', 'CH4')
+    pairs = {}
+    for d in (1.0, 30.0):
+        metal = _solve({**_ddict(), **_metal(d, 1.9e24)})
+        larger = _solve(_ddict(4.03e24 + d * 1.9e24))
+        pairs[f'D = {d:g}'] = (larger, metal)
+    metal_dict = {**_ddict(), **_metal(30.0, 1.9e24)}
+    target = dict(TARGET, O=_solve(metal_dict)['O_kg_total'])
+    auth = _solve_auth(metal_dict, target)
+    o_extra = 30.0 * 1.9e24 * auth['O_kg_liquid'] / 4.03e24
+    big = _solve_auth(_ddict(4.03e24 + 30.0 * 1.9e24), dict(target, O=target['O'] + o_extra))
+    pairs['D = 30, O budget'] = (big, auth)
+    for name, (ref, got) in pairs.items():
+        for s in sp:
+            assert got[s + '_bar'] == pytest.approx(ref[s + '_bar'], rel=1e-6), (name, s)
+    # the metal changes the pressures: the solve without metal differs by far more
+    plain = _solve(_ddict())
+    assert abs(plain['H2O_bar'] / pairs['D = 30'][1]['H2O_bar'] - 1) > 0.5
+
+    def figure():
+        import matplotlib.pyplot as plt
+
+        values = [r[s + '_bar'] for pair in pairs.values() for r in pair for s in sp]
+        lo, hi = math.floor(math.log10(min(values))), math.ceil(math.log10(max(values)))
+        edge, ticks = [10.0**lo, 10.0**hi], [10.0**k for k in range(lo, hi + 1, 4)]
+        fig, ax = plt.subplots()
+        for (name, (ref, got)), mk in zip(pairs.items(), ('o', 's', '+')):
+            x = [ref[s + '_bar'] for s in sp]
+            ax.loglog(x, [got[s + '_bar'] for s in sp], mk, mfc='none', ms=9, label=name)
+        ax.plot(edge, edge, ls='--', color=plt.rcParams['text.color'], label='1:1')
+        ax.set(xlabel='p, larger melt [bar]', ylabel='p, with metal [bar]')
+        ax.set(xlim=edge, ylim=edge, xticks=ticks, yticks=ticks)
+        ax.minorticks_off()
+        ax.legend(fontsize='small')
+        fig.tight_layout()
+        return fig
+
+    validation_plot(figure, 'metal_equal_d_larger_melt')
