@@ -497,8 +497,7 @@ def func(pin_arr, ddict, mass_target_d):
     res_l = [0.0] * len(elems)
     for i, vol in enumerate(elems):
         res_l[i] = mass_atm_d[vol] + mass_int_d[vol] - mass_target_d[vol]
-        if vol in mass_core_d:
-            res_l[i] += mass_core_d[vol]
+        res_l[i] += mass_core_d.get(vol, 0.0)
 
     return res_l
 
@@ -565,8 +564,7 @@ def func_authoritative_O(x_arr, ddict, mass_target_d):
     res_l = [0.0] * len(elems)
     for i, elem in enumerate(elems):
         res_l[i] = mass_atm_d[elem] + mass_int_d[elem] - mass_target_d[elem]
-        if elem in mass_core_d:
-            res_l[i] += mass_core_d[elem]
+        res_l[i] += mass_core_d.get(elem, 0.0)
 
     return res_l
 

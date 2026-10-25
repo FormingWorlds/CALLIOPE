@@ -118,7 +118,7 @@ def _check_read_values(el, entry):
     """
     if el in EXCHANGE_ELEMENTS:
         need = {'form': 'exchange_KD', 'quantity': 'K_D', 'basis': 'mole', 'dIW_factor': 1.0}
-        need.update(d=0.0, e=0.0)
+        need |= {'d': 0.0, 'e': 0.0}
     else:
         need = {'form': 'log10_linear'}
     for field, value in need.items():
@@ -248,12 +248,8 @@ def _pow10(x, p_gpa, t_k, d_iw):
 
 def out_of_range(entry, p_gpa, t_k, d_iw):
     """True when (P, T, dIW) lies outside a range of the entry or on an unknown range."""
-    for value, rng in zip(
-        (p_gpa, t_k, d_iw), (entry['P_range_GPa'], entry['T_range_K'], entry['dIW_range'])
-    ):
-        if rng is None or not rng[0] <= value <= rng[1]:
-            return True
-    return False
+    ranges = (entry['P_range_GPa'], entry['T_range_K'], entry['dIW_range'])
+    return any(r is None or not r[0] <= v <= r[1] for v, r in zip((p_gpa, t_k, d_iw), ranges))
 
 
 # Takahashi 1986, JGR 91, 9367, Table 1, KLB-1 bulk: the 7 major oxides [wt%]
@@ -284,10 +280,7 @@ _OXIDE_MASS = {
 
 def silicate_units_per_kg(oxides=KLB1):
     """Moles of single-cation units (SiO2, TiO2, AlO1.5, FeO, MgO, CaO, NaO0.5) per kg."""
-    total = 0.0
-    for ox, wt in oxides.items():
-        total += wt / 100.0 * _OXIDES[ox][1] / _OXIDE_MASS[ox]
-    return total
+    return sum(wt / 100.0 * _OXIDES[ox][1] / _OXIDE_MASS[ox] for ox, wt in oxides.items())
 
 
 def core_light_elements(d_x, w_melt, w_fixed, oxides=KLB1):
