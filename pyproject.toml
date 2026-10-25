@@ -93,12 +93,8 @@ branch = true
 source = ["calliope"]
 
 [tool.coverage.report]
-# Full coverage gate: unit + smoke + integration + slow tests, enforced by
-# the nightly workflow. 90% is the PROTEUS-ecosystem ceiling: the gate does
-# not rise above this value even if real coverage exceeds it. Above 90%
-# the gate tracks pragma usage and style rather than bug-finding signal.
-# Auto-ratcheted by tools/update_coverage_threshold.py; never manually
-# decrease. See tests/AGENTS.md.
+# Full gate (all tiers, nightly), capped at the 90% PROTEUS-ecosystem ceiling.
+# Raised by tools/update_coverage_threshold.py, never lowered; see tests/AGENTS.md.
 fail_under = 90.0
 show_missing = true
 exclude_lines = [
@@ -108,11 +104,8 @@ exclude_lines = [
 ]
 
 [tool.calliope.coverage_fast]
-# Fast PR gate: unit + smoke coverage only, enforced on every PR via
-# .github/workflows/tests.yaml. Capped at the 90% PROTEUS-ecosystem
-# ceiling by tools/update_coverage_threshold.py. Measured unit+smoke
-# coverage exceeds 90, so the gate sits at the ceiling. Never manually
-# decrease. See tests/AGENTS.md.
+# Fast gate (unit and smoke, every pull request in tests.yaml), capped at 90%.
+# Raised by tools/update_coverage_threshold.py, never lowered; see tests/AGENTS.md.
 fail_under = 90.0
 
 [tool.pytest.ini_options]

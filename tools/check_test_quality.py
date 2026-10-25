@@ -70,11 +70,8 @@ OPTIONAL_DEPS = {
     'atmodeller',
 }
 
-# Physics source files. Each one must have a 1:1 test file at
-# ``tests/test_<source>.py`` (tests/AGENTS.md).
-# Each source must have at least one @pytest.mark.physics_invariant test
-# and at least one @pytest.mark.reference_pinned test in its companion
-# test file.
+# Physics sources: each has tests/test_<source>.py with at least one
+# physics_invariant and one reference_pinned test (tests/AGENTS.md).
 PHYSICS_SOURCES = {
     'chemistry.py',
     'metal.py',
