@@ -713,7 +713,7 @@ def test_si_partition_with_diw_from_feo_settles(monkeypatch):
     ],
     ids=['si-at-iw-minus-6', 'o-from-feo-rich-melt', 'o-exchange-overflows'],
 )
-def test_exchange_without_iron_raises_the_named_error(extra):
+def test_exchange_without_iron_raises_the_named_error(extra, request):
     """An exchange without iron that does not fall, or one that is not finite, raises ValueError.
 
     The message names the partitioned element and its mode field only.
@@ -731,7 +731,8 @@ def test_exchange_without_iron_raises_the_named_error(extra):
         }
     ddict.update(extra)
     el = 'Si' if 'Si_mode_core' in extra else 'O'
-    message = 'exchange is not finite' if extra.get('dIW_eq') == 615.9 else 'does not fall'
+    overflow = request.node.callspec.id == 'o-exchange-overflows'
+    message = 'exchange is not finite' if overflow else 'does not fall'
     with pytest.raises(ValueError, match=message) as exc:
         _solve(ddict)
     if message == 'does not fall':
