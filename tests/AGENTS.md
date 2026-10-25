@@ -36,9 +36,9 @@ A module-level constant read from an environment variable at import time does no
 
 ## CALLIOPE specifics
 
-Structure: `src/calliope/<file>.py` is tested in `tests/test_<file>.py`. Three kinds of file do not follow this: cross-cutting tests (`test_invariants_hypothesis.py`, `test_init.py`, `test_element_balance_grid.py`, `test_cross_code_consistency.py`), tests of a repository file or of `tests/conftest.py` (`test_precommit_config.py`, `test_conftest_*.py`), and topical files of a physics source above about 500 lines whose topics are independent, for example `test_authoritative_O*.py`, `test_equilibrium_paths.py`, `test_noble_gases.py` and `test_metal_solve.py` for `solve.py`, and `test_metal_fields.py` for `metal.py`. The primary file `tests/test_<file>.py` still exists and carries at least one `physics_invariant` and one `reference_pinned` test. `bash tools/validate_test_structure.sh` checks that every test carries exactly one of `unit`, `smoke`, `integration`, `slow` and `skip` (module, class or function).
+Structure: `src/calliope/<file>.py` is tested in `tests/test_<file>.py`. Three kinds of file do not follow this: cross-cutting tests (`test_invariants_hypothesis.py`, `test_init.py`, `test_element_balance_grid.py`, `test_cross_code_consistency.py`), tests of a repository file or of `tests/conftest.py` (`test_precommit_config.py`, `test_validation_index.py`, `test_conftest_*.py`), and topical files of a physics source above about 500 lines whose topics are independent, for example `test_authoritative_O*.py`, `test_equilibrium_paths.py`, `test_noble_gases.py`, `test_metal_solve.py` and `test_metal_fields.py` for `solve.py`. The primary file `tests/test_<file>.py` still exists and carries at least one `physics_invariant` and one `reference_pinned` test. `bash tools/validate_test_structure.sh` checks that every test carries exactly one of `unit`, `smoke`, `integration`, `slow` and `skip` (module, class or function).
 
-Tiers: `unit` is Python logic with the solver mocked; `smoke` is the real solver on a minimal composition (aim for < 30 s); `integration` is the multi-species CHNS solve; `slow` is full physics validation. A file whose slowest test takes 7.5 s or more in CI uses four times that duration, rounded up to a full minute, as its timeout; the solver tests vary several fold between runs. pytest-timeout is a required plugin, and a hook in `tests/conftest.py` stops the run when the timeout mark of a test has no positive budget. An autouse fixture seeds the global NumPy generator with 0 before every test, so solver restarts repeat. `docs/How-to/build_tests.md` gives the commands per tier.
+Tiers: `unit` is Python logic with the solver mocked; `smoke` is the real solver on a minimal composition (aim for < 30 s); `integration` is the multi-species CHNS solve; `slow` is full physics validation. A file whose slowest test takes 7.5 s or more in CI uses four times that duration, rounded up to a full minute, as its timeout. pytest-timeout is a required plugin, and a hook in `tests/conftest.py` stops the run when the timeout mark of a test has no positive budget. An autouse fixture seeds the global NumPy generator with 0 before every test, so solver restarts repeat. `docs/How-to/build_tests.md` gives the commands per tier.
 
 ### Physics sources and invariants
 
@@ -49,7 +49,7 @@ The physics sources are listed in `AGENTS.md` and in `PHYSICS_SOURCES` of `tools
 - Monotonicity or symmetry: `log10(fO2)` along an isobaric buffer decreasing with `1/T`; CO2 solubility rising with P at fixed T; partial pressures doubling with the pressure at fixed mole fractions; outputs unchanged when two non-reacting species swap places.
 - A pinned value with a discrimination guard, when a closed-form result or a published table value is the contract.
 
-A property is preferred over a point pin where both are possible. Each physics source has a page in `docs/Validation/` that names the source, the reference, the test ids and the date of the last comparison with the source; the [Validation overview](../docs/Validation/index.md) lists the cases. `python tools/check_test_quality.py --reference-pinned-status` and `--physics-invariant-status` list the gaps (advisory).
+A property is preferred over a point pin where both are possible. Each case has a section on a page in `docs/Validation/` that names the source, the reference and the test ids; the [Validation overview](../docs/Validation/index.md) lists the cases, and `test_validation_index.py` fails on a pinned test missing from it. `python tools/check_test_quality.py --reference-pinned-status` and `--physics-invariant-status` list the gaps (advisory).
 
 ### Edge cases and discriminating values
 
@@ -57,10 +57,7 @@ Edge cases here: `Phi` 0 or 1, T at the solidus, P = 0, `fO2_shift_IW = 0`, `met
 
 The plausible bugs here are a wrong exponent or factor, a wrong sign, a unit slip (Pa against bar, K against Celsius, log10 against ln) and a wrong buffer or law (Fischer or O'Neill, one solubility law or its sibling). A pin with `pytest.approx` adds a guard for each class: a wrong-value distance, an explicit sign (`val < 0` for `log10(fO2)` at IW), a scale window with the unit in the comment (`-10 < val < -3`), and a value that separates the chosen buffer or law from its sibling. When the primary assertion is a conservation closure, the closure covers the exponent class; the sign and scale guards stay.
 
-- IW buffer: two temperatures (1500 and 2500 K), and the difference against the Fischer to O'Neill slope ratio.
-- Henry's law: one dominant species with traces, not equal fractions, so a swapped constant moves the dominant species beyond the tolerance.
-- Equilibrium constant interpolation: an off-grid temperature; at a node every interpolant agrees.
-- Stoichiometric closure: several species at a non-zero `fO2_shift_IW`, so each constant matters.
+Discriminating inputs: the IW buffer at 1500 and 2500 K against the Fischer to O'Neill slope ratio; Henry's law with one dominant species and traces, so a swapped constant moves it beyond the tolerance; an equilibrium constant at an off-grid temperature; stoichiometric closure with several species at a non-zero `fO2_shift_IW`.
 
 A single assertion is accepted only for a hard-fail invariant (mass closure at `1e-12`) that no other test in the file checks. Delete a test that asserts a fixture's implicit default.
 
@@ -69,7 +66,7 @@ A single assertion is accepted only for a hard-fail invariant (mass closure at `
 - State the reason for a tolerance in a comment when it is not obvious ("`rtol=1e-3` because the fit gives four significant figures"). Closed-form algebra holds to `rel=1e-12`; solver output needs a looser tolerance.
 - Unit tests mock atmodeller, file, HTTP and subprocess access with `unittest.mock`, patching one function (`calliope.solve.<helper>`), not a module. A mock returns physically plausible values, not `0.0` or `1.0` everywhere. Never mock the function under test. Smoke, integration and slow tests use the real solver.
 - `hypothesis` and `atmodeller` are the optional dependencies the linter knows (`OPTIONAL_DEPS`, rule `missing_importorskip`); atmodeller is in no extra, so its import is always guarded; a new optional dependency is added there.
-- The default buffer is a module constant: patch `calliope.oxygen_fugacity.DEFAULT_FO2_MODEL` with `monkeypatch.setattr` as well as any environment variable. `_with_calliope_buffer` in `scripts/cross_backend/runners.py` changes `__defaults__` of `OxygenFugacity` and `ModifiedKeq` for the process: use it in one thread only and never in library code.
+- `OxygenFugacity` and `ModifiedKeq` bind `DEFAULT_FO2_MODEL` as their default argument at import, so setting the constant changes nothing: patch `OxygenFugacity.__init__.__defaults__` and `ModifiedKeq.__init__.__defaults__` (the defaults `tests/test_oxygen_fugacity.py` checks), or pass the model. `_with_calliope_buffer` in `scripts/cross_backend/runners.py` changes `__defaults__` of `OxygenFugacity` and `ModifiedKeq` for the process: use it in one thread only and never in library code.
 - Test parameters use SI units unless the function takes config units (bar, K, ppmw), named in a comment; parametrize ids name the physical scenario (Earth-like, Mars-like, high fO2). A hypothesis test uses `@settings(derandomize=True)` or a fixed `--hypothesis-seed`, named in its docstring. Write no large outputs.
 
 ### Docstrings and names
@@ -88,4 +85,3 @@ A pull request that adds or changes more than 50 lines under `tests/` (`git diff
 - A solver test that checks only the final output, while a complex or NaN intermediate was coerced to a plausible float; assert `np.isreal` and `np.isfinite` on the intermediates the defence covers.
 - A helper that turns a failed lookup into `continue`; assert instead.
 - An assertion on a log line where the contract is a value; capture the call argument.
-- An environment variable patched after import, an optional import without `importorskip`, a hypothesis test without a fixed seed, a file renamed without its `pytestmark`, and a test that is true for an implicit `None`.

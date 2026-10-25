@@ -1,6 +1,6 @@
 # Validation
 
-The pages of this tab compare each process in CALLIOPE with a reference outside the code: a published equation, table or value, an analytical limit, or a cross-code check. Each case is a test that carries the `reference_pinned` marker, so the CI fails when the code leaves its tolerance. Each page names the test ids, the references and the tolerances of its process.
+The pages of this tab compare each process in CALLIOPE with a reference outside the code: a published equation, table or value, an analytical limit, or a cross-code check. Each case is a test that carries the `reference_pinned` marker, so the CI fails when the code leaves its tolerance. Each page names the test ids and the references of its process.
 
 This command runs every case:
 

@@ -149,7 +149,7 @@ The four families with one-line examples:
 | Monotonicity / symmetry | `assert log10_fO2(T=2000) < log10_fO2(T=1500)` along an isobaric buffer |
 | Pinned value with discrimination guard | (see the example above) |
 
-The five physics sources (`chemistry.py`, `oxygen_fugacity.py`, `solubility.py`, `solve.py`, `structure.py`) must each carry at least one such test in the matching `tests/test_<source>.py`.
+The six physics sources (`chemistry.py`, `metal.py`, `oxygen_fugacity.py`, `solubility.py`, `solve.py`, `structure.py`) must each carry at least one such test in the matching `tests/test_<source>.py`.
 The utility sources (`__init__.py`, `_version.py`, `constants.py`) are exempt from the invariant requirement but still subject to the anti-happy-path rules above.
 
 Structural tests (ordering, autonomy, mutation-in-place, pass-through assignment) in a physics-source test file should not carry the marker.
@@ -163,17 +163,17 @@ The anchor is one of:
 - an **analytical limit** (the ideal-gas limit at low pressure, the Stefan-Boltzmann black-body limit),
 - a **cross-implementation check** (CALLIOPE vs atmodeller at a shared fiducial).
 
-Each of the five physics sources carries at least one reference-pinned test.
+Each physics source carries at least one reference-pinned test.
 The [Validation overview](../Validation/index.md) lists every case.
 
-When the first reference-pinned test for a new source lands, create the matching `docs/Validation/<source>.md` page with:
+When the first reference-pinned test for a new source lands, add a section for each case to a page in `docs/Validation/` (a new page for a new process) with:
 
 - the source under test,
 - the cited paper or analytical limit,
 - the closed-form re-derivation of the pinned value (no skipped algebra),
 - the wrong-formula or wrong-buffer discrimination number.
 
-Add the page to the Validation tab in `mkdocs.yml` and each new case to the table of `docs/Validation/index.md`.
+Add a new page to the Validation tab in `mkdocs.yml` and each new case to the table of `docs/Validation/index.md`; `tests/test_validation_index.py` fails when a reference-pinned test is missing from that table or the table names a test that is not reference-pinned.
 
 Tests carrying `reference_pinned` typically also carry `physics_invariant` (the published-value pin is itself the invariant).
 
@@ -312,7 +312,7 @@ When a new `src/calliope/<file>.py` lands:
 1. Create the matching `tests/test_<file>.py` with the module-level `pytestmark` (typically `unit` with a 30 s timeout).
 2. Write at least one test that asserts one of the four invariant families and tag it `@pytest.mark.physics_invariant`.
 3. Plan a `@pytest.mark.reference_pinned` test against a published benchmark, analytical limit, or cross-implementation check.
-4. When that test lands, create `docs/Validation/<file>.md` with the anchor, the re-derivation, and the discrimination number, add it to the Validation tab in `mkdocs.yml`, and add its cases to the table of `docs/Validation/index.md`.
+4. When that test lands, add a section for each case to a page in `docs/Validation/` with the anchor, the re-derivation, and the discrimination number, and add the cases to the table of `docs/Validation/index.md`.
 5. Update `PHYSICS_SOURCES` in `tools/check_test_quality.py` to include the new file name.
 6. Run the full PR checks locally:
 
