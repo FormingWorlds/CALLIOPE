@@ -45,7 +45,7 @@ Inputs, outputs and the placeholder laws are on the [metal reservoir page](../Re
 
 ## Equal D is a larger melt
 
-**Why this check exists.** The metal term enters the full solve of gas, melt and metal. An error in that term, for example a wrong factor or a missed element, changes every partial pressure of the gas.
+**Why this check exists.** The metal term enters the full solve of gas, melt and metal. A wrong factor in that term, or an element left out of it, changes the partial pressures of the gas.
 
 **What it tests.** H, C, N and S all get the same $D$, the metal holds no O or Si, and $\Delta\mathrm{IW}$ is a fixed parameter. $\Delta\mathrm{IW}$ is the oxygen fugacity of the metal-melt equilibrium in log10 units relative to the iron-wüstite (IW) buffer. In this case the metal acts exactly like extra melt of mass $D M_\mathrm{metal}$. So the solve with metal must give the same result as the solve without metal and a melt that is larger by $D M_\mathrm{metal}$. The test uses $D$ = 1 and 30. The gas holds the rest of each budget, so the core mass is $(M - M_\mathrm{gas})\,Dx/(1 + Dx)$. Here $M$ is the budget of the element and $M_\mathrm{gas}$ its mass in the gas.
 
@@ -82,7 +82,7 @@ Inputs, outputs and the placeholder laws are on the [metal reservoir page](../Re
 
 ## Equal D is a larger melt with an O budget
 
-**Why this check exists.** The authoritative-O solve has its own path through the code. The metal term must work on that path too.
+**Why this check exists.** The authoritative-O solve has its own path through the code. If that path leaves out the metal term or gives it a wrong factor, its result differs from the solve with the larger melt.
 
 **What it tests.** The same comparison as in [Equal D is a larger melt](#equal-d-is-a-larger-melt), now with the authoritative-O solve, $D$ = 30 and no O in the metal. The larger melt also holds the O of its dissolved species. So its O budget is larger by $D M_\mathrm{metal}$ times the O mass fraction of the melt in the solve with metal.
 
@@ -98,7 +98,7 @@ Inputs, outputs and the placeholder laws are on the [metal reservoir page](../Re
 
 ## Tagawa et al. (2021) H runs
 
-**Why this check exists.** The placeholder law for H is a fit to laboratory data. A typing error in its coefficients, or the wrong equation from the paper, gives a wrong $D$ for H with no other sign.
+**Why this check exists.** The placeholder law for H is a fit to laboratory data, and the paper gives more than one fit. Using the wrong one, for example their Eq. 10 instead of Eq. 2, gives a wrong $D$ for H with no other sign.
 
 **What it tests.** The H law is Eq. 2 of [Tagawa et al. (2021)](https://doi.org/10.1038/s41467-021-22035-0). It gives $K_D$, the exchange coefficient of H between metal and silicate, from pressure and temperature. The test compares it with the 6 runs of their SI Table 1. Each run is an experiment in a laser-heated diamond anvil cell, with a measured $\log_{10} K_D$ and its 1 sigma error.
 
