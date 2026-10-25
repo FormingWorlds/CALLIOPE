@@ -1,6 +1,17 @@
 # Validation
 
-The pages of this tab compare each process in CALLIOPE with a reference outside the code: a published equation, table or value, an analytical limit, or a cross-code check. Each case is a test that carries the `reference_pinned` marker, so the CI fails when the code leaves its tolerance. Each page names the test ids and the references of its process.
+## What this tab checks
+
+Validation means that we run the code on a case where another source gives the right answer, and check that the code gives that answer within a stated tolerance.
+The other source is a published equation, table or measurement, an analytical result, or a second, independent code.
+This tab has one page per process of CALLIOPE, in the menu on the left: chemistry, oxygen fugacity, solubility, the equilibrium solve, the metal reservoir and the mantle mass.
+The table below lists every case once, so you can find a case and open its page.
+
+**How to read the table.** Each row is one case. "Process" links to the page of the case, "Case" says what is checked, and "Test id" names the test that runs it. "Reference" is the source of the right answer, and "Status" says which test tier runs the case and whether it has a plot.
+
+**How the case pages are laid out.** On the metal reservoir page each case says why the check exists, what it tests, how we know the right answer and why it matters, with the test details in a box. The other pages list their cases in a table, with notes that derive the expected values.
+
+Each case is a test that has the `reference_pinned` marker, so the CI fails when the code leaves its tolerance. Each page names the test ids and the references of its process.
 
 This command runs every case:
 
@@ -35,7 +46,7 @@ pytest -m reference_pinned tests
 | [Metal reservoir](metal.md#published-law-values) | Published law values | `tests/test_metal.py::TestLaw::test_tagawa_eq2_values`, `::test_fischer_eq1_single_stage_value`, `::test_suer_lines`, `tests/test_metal.py::TestExchange::test_ideal_exchange_mole_fractions` | Tagawa et al. (2021), Fischer et al. (2020), Suer et al. (2023) | unit tier |
 | [Structure](structure.md) | Earth core mass fraction | `tests/test_structure.py::test_calculate_mantle_mass_recovers_wang_2018_earth_core_fraction` | Wang et al. (2018) | unit tier |
 
-The CI job of the pull requests runs the unit and smoke tiers. The nightly workflow runs all tiers, and its cross-code job installs atmodeller and runs `tests/test_cross_code_consistency.py`. That file also holds `test_required_env_guards`, which carries the marker of the file but checks only the `CHEM_CROSS_CODE_REQUIRED` setting.
+The CI job of the pull requests runs the unit and smoke tiers. The nightly workflow runs all tiers, and its cross-code job installs atmodeller and runs `tests/test_cross_code_consistency.py`. That file also holds `test_required_env_guards`, which has the marker of the file but checks only the `CHEM_CROSS_CODE_REQUIRED` setting.
 
 ## Plots written by the tests
 
