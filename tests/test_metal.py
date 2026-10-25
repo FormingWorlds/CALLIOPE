@@ -232,6 +232,18 @@ class TestMalformedFile:
         base = _H if el == 'H' else exchange
         assert load_partition_table(_write(tmp_path, _text({el: base})))[el]['form']
 
+    def test_evaluators_refuse_an_entry_of_the_other_form(self):
+        """A table built in code bypasses the loader: mass_D and exchange_metal check the form."""
+        table = load_partition_table()
+        exchange_h = dict(table['H'], form='exchange_KD')
+        with pytest.raises(PartitionTableError, match="'form'"):
+            mass_D(exchange_h, 50.0, 3500.0, -2.0, {}, {})
+        linear_o = dict(table, O=dict(table['O'], form='log10_linear'))
+        with pytest.raises(PartitionTableError, match="'form'"):
+            exchange_metal(linear_o, 50.0, 3500.0, -2.0)
+        assert mass_D(table['H'], 50.0, 3500.0, -2.0, {}, {}) > 0
+        assert 0 < exchange_metal(table, 50.0, 3500.0, -2.0, elements=('Si',))['Si'] < 1
+
     def test_element_entry_must_be_a_table(self, tmp_path):
         """An element given as a value instead of a table is refused with its name."""
         text = 'schema_version = 1\nH = 3.0\n[meta]\nname = "x"\nplaceholder = true\n'
