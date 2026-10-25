@@ -1303,6 +1303,11 @@ def equilibrium_atmosphere_authoritative_O(
     >>> abs(out_new['fO2_shift_derived'] - 4.0) < 0.01  # round-trip
     True
     """
+    if ddict.get('metal_mass', 0.0) > 0:
+        raise ValueError(
+            'metal_mass > 0 needs equilibrium_atmosphere; the authoritative-O solve has no '
+            'metal reservoir yet'
+        )
 
     # Active noble gases are appended after the O residual, so the residual
     # (and target) order is H, C, N, S, O, then each active noble gas.
