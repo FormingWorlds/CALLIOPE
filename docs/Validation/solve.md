@@ -67,7 +67,7 @@ independent enough that consolidation would hurt readability.
 
 ## Metal reservoir
 
-With `metal_mass` above zero the element balance of H, C, N and S gains a core term $D_i M_\mathrm{metal} w_i^\mathrm{melt}$, where $D_i$ is the mass-basis metal over melt partition coefficient from the partition file (`src/calliope/metal.py`). In the authoritative-O solve the metal O is a reservoir of the O budget. `<e>_kg_total` stays gas plus melt and excludes the core; the bulk inventory of an element is `<e>_kg_total + <e>_kg_core`. Inputs, outputs and the placeholder laws are on the [metal reservoir page](../Reference/partition_file.md).
+With `metal_mass` above zero the element balance of H, C, N and S gains a core term $D_i M_\mathrm{metal} w_i^\mathrm{melt}$, where $D_i$ is the mass-basis metal over melt partition coefficient from the partition file (`src/calliope/metal.py`). The metal O comes from the silicate FeO and stays out of the volatile O budget. `<e>_kg_total` stays gas plus melt and excludes the core; the bulk inventory of an element is `<e>_kg_total + <e>_kg_core`. Inputs, outputs and the placeholder laws are on the [metal reservoir page](../Reference/partition_file.md).
 
 ### Gas-free core fraction
 
@@ -92,12 +92,12 @@ With `metal_mass` above zero the element balance of H, C, N and S gains a core t
 
 ### O budget with metal O
 
-**What it tests:** the authoritative-O solve with 0.1 wt% O in a metal of 1.9e24 kg ($D$ = 30 for H, C, N and S, $\Delta\mathrm{IW}$ of the equilibrium -2) returns the fO2 of the buffered solve. Its O budget is the gas and melt O of the buffered metal solve at IW+2 plus the metal O, so the derived offset must be +2 and gas, melt and metal O must close on the budget.
+**What it tests:** the authoritative-O solve with 0.1 wt% O in a metal of 1.9e24 kg ($D$ = 30 for H, C, N and S, $\Delta\mathrm{IW}$ of the equilibrium -2) returns the fO2 of the buffered solve. Its O budget is the gas and melt O of the buffered metal solve at IW+2; the metal O comes from the silicate FeO and stays out of the budget, so the derived offset must be +2 and gas and melt O must close on the budget.
 
 - Reference: round trip between the buffered and the authoritative-O solve (self-consistency).
-- Tolerance: derived $\Delta\mathrm{IW}$ +2 to 1e-6; partial pressures relative 1e-6; gas, melt and core of each of H, C, N, S and O equal the budget to relative 1e-10 plus 10 kg; the metal O (1.9e21 kg) is 22 times the gas and melt O (8.75e19 kg), so leaving it out of the O balance fails the test.
-- Test id: `tests/test_metal_solve.py::test_authoritative_o_closes_the_o_budget_with_metal` (smoke tier)
-- Command: `pytest tests/test_metal_solve.py -k closes_the_o_budget`
+- Tolerance: derived $\Delta\mathrm{IW}$ +2 to 1e-6; partial pressures relative 1e-6; gas and melt O equal the budget, and gas, melt and core of each of H, C, N and S equal theirs, to relative 1e-10 plus 10 kg. The metal O (1.9e21 kg) is 22 times the gas and melt O (8.75e19 kg), so charging it to the budget fails the test; partition-mode O (3.6 wt% in the metal, more than 100 times the budget) solves as well.
+- Test id: `tests/test_metal_solve.py::test_authoritative_o_budget_excludes_the_metal_o`, `tests/test_metal_solve.py::test_partition_o_far_above_the_o_budget_solves` (smoke tier)
+- Command: `pytest tests/test_metal_solve.py -k "excludes_the_metal_o or partition_o_far"`
 
 ### Equal D is a larger melt with an O budget
 

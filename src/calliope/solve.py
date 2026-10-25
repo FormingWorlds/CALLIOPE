@@ -1223,8 +1223,8 @@ def equilibrium_atmosphere_authoritative_O(
         ``ddict['fO2_shift_IW']`` is IGNORED by this entry point; the
         value is treated as a solver unknown initialised from
         ``fO2_hint`` instead. With ``metal_mass`` > 0 [kg] the solve adds a
-        metal reservoir whose O counts against the O budget (docs page
-        'Metal reservoir and partition file').
+        metal reservoir; its O comes from the silicate FeO and stays out of
+        the O budget (docs page 'Metal reservoir and partition file').
     fO2_hint : float, default 4.0
         Initial guess for the IW-buffer offset (log10 units). Provide
         a value close to the expected solution to speed convergence;
