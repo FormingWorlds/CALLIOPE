@@ -1808,7 +1808,9 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
     exchange Si, and the undamped passes alternate. With O and Si both partitioned each
     secant also holds the move of the other element. The moves of a pass are halved until
     they take at most half of the iron left in the metal; an exchange that leaves no iron
-    and does not fall from the previous pass raises ``ValueError``. The passes stop when
+    and does not fall from the previous pass raises ``ValueError``. That is a stop rule, not
+    a proof that no fixed point with iron exists; O and Si both partitioned with dIW from
+    FeO do not converge at 6000-7000 K (P_eq 50 GPa, KLB-1). The passes stop when
     each metal mass fraction, or exchange step, is at most ``tol_w_core`` (default 1e-6)
     of its value, plus 1e-15. The metal O comes from the silicate FeO and never enters the
     volatile O budget; with ``o_budget`` (the authoritative-O solve) gas and melt O close
