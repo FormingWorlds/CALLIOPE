@@ -1,4 +1,4 @@
-"""Tests for the metal reservoir in `src/calliope/solve.py` (equilibrium_atmosphere).
+"""Tests for the metal reservoir in `src/calliope/solve.py`.
 
 Contract: with metal_mass > 0 the H, C, N and S balances carry a core term
 D_i M_metal w_i(melt). With the same mass-basis D for all four elements, no O or Si
@@ -6,7 +6,9 @@ in the metal and dIW a parameter, the solve equals the solve without metal and a
 melt mass larger by D M_metal (an identity of the element balance); the gas
 reservoir matters, so the gas-free core fraction Dx/(1 + Dx) misses the result.
 Every element closes over gas, melt and core, and metal_mass 0 is the solve
-without metal.
+without metal. In the authoritative-O solve the O of the metal is a reservoir of
+the O budget: gas, melt and metal O close on the budget, and a metal O above the
+budget is refused before the solve.
 """
 
 from __future__ import annotations
@@ -166,15 +168,134 @@ def test_unknown_metal_modes_raise():
         assert key in str(exc.value) or repr(value) in str(exc.value)
 
 
-def test_authoritative_o_refuses_a_metal_reservoir():
-    """The authoritative-O entry has no metal fixed point yet, so metal_mass > 0 is refused."""
+def _solve_auth(ddict, target):
+    """One seeded authoritative-O solve at the tight acceptance of `_solve`."""
     from calliope.solve import equilibrium_atmosphere_authoritative_O
 
-    ddict = {**_ddict(), **_metal(30.0, 1.9e24)}
-    with pytest.raises(ValueError) as exc:
-        equilibrium_atmosphere_authoritative_O(dict(TARGET, O=1e21), ddict, print_result=False)
-    assert 'metal_mass' in str(exc.value)
-    assert 'authoritative' in str(exc.value)
+    try:
+        return equilibrium_atmosphere_authoritative_O(
+            target,
+            ddict,
+            fO2_hint=2.0,
+            p_guess=dict(P_GUESS, fO2_shift_IW=2.0),
+            print_result=False,
+            nguess=200,
+            xtol=1e-12,
+            rtol=1e-10,
+            atol=1.0,
+            opt_solver=False,
+            random_seed=0,
+        )
+    except (RuntimeError, ValueError) as exc:
+        pytest.fail(f'authoritative-O solve with metal raised {type(exc).__name__}: {exc}')
+
+
+# O of gas and melt in the solve without metal at fO2 IW+2 (TARGET, _ddict) is 1.22e21 kg
+O_GAS_MELT = 1.2e21
+
+
+@pytest.mark.physics_invariant
+def test_authoritative_o_closes_the_o_budget_with_metal():
+    """Authoritative-O with 0.1 wt% O in the metal: gas + melt + metal O equals the O budget."""
+    m_metal, w_o = 1.9e24, 1e-3
+    target = dict(TARGET, O=O_GAS_MELT + w_o * m_metal)
+    out = _solve_auth({**_ddict(), **_metal(30.0, m_metal), 'w_O_core': w_o}, target)
+    assert out['O_kg_core'] == pytest.approx(w_o * m_metal, rel=1e-12)
+    assert out['w_O_core'] == pytest.approx(w_o, rel=1e-12)
+    for el in ('H', 'C', 'N', 'S', 'O'):
+        closure = out[el + '_kg_atm'] + out[el + '_kg_liquid'] + out[el + '_kg_core']
+        assert abs(closure - target[el]) <= target[el] * 1e-10 + 10.0, el
+    # dropping the metal O would leave a gap of 1.9e21 kg, far above the 3.1e11 kg tolerance
+    assert out['O_kg_core'] > 1e6 * target['O'] * 1e-10
+    # gas and melt hold the budget less the metal O
+    assert out['O_kg_atm'] + out['O_kg_liquid'] == pytest.approx(O_GAS_MELT, rel=1e-6)
+    assert -12 < out['fO2_shift_derived'] < 12
+    assert out['H_kg_core'] > 0
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.reference_pinned
+def test_authoritative_o_with_equal_d_is_a_larger_melt():
+    """Authoritative-O, equal D = 30, no metal O: the solve of a melt larger by D M_metal.
+
+    The larger melt also holds the O of its dissolved species, so its O budget is larger
+    by D M_metal times the O mass fraction of the melt of the metal solve.
+    """
+    d, m_metal, m_melt = 30.0, 1.9e24, 4.03e24
+    target = dict(TARGET, O=O_GAS_MELT)
+    with_metal = _solve_auth({**_ddict(), **_metal(d, m_metal)}, target)
+    o_extra = d * m_metal * with_metal['O_kg_liquid'] / m_melt
+    larger = _solve_auth(_ddict(m_melt + d * m_metal), dict(target, O=O_GAS_MELT + o_extra))
+    for sp in ('H2O', 'CO2', 'N2', 'S2', 'H2', 'CO', 'CH4'):
+        assert with_metal[sp + '_bar'] == pytest.approx(larger[sp + '_bar'], rel=1e-6)
+    assert with_metal['fO2_shift_derived'] == pytest.approx(
+        larger['fO2_shift_derived'], abs=1e-6
+    )
+    for el in ELEMS:
+        melt, core = with_metal[el + '_kg_liquid'], with_metal[el + '_kg_core']
+        assert core == pytest.approx(d * m_metal * melt / m_melt, rel=1e-12)
+        assert melt + core == pytest.approx(larger[el + '_kg_liquid'], rel=1e-6)
+    assert with_metal['O_kg_core'] == 0
+    # the core holds a large share of H, so the identity is not the trivial no-metal solve
+    assert with_metal['H_kg_core'] > 0.1 * TARGET['H']
+
+
+def test_metal_o_above_the_o_budget_is_refused():
+    """A metal O larger than the O budget leaves no O for gas and melt: refused before solving."""
+    from calliope.solve import equilibrium_atmosphere_authoritative_O
+
+    ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'w_O_core': 0.01}
+    with pytest.raises(Exception) as exc:
+        equilibrium_atmosphere_authoritative_O(
+            dict(TARGET, O=O_GAS_MELT), ddict, print_result=False, nguess=3, random_seed=0
+        )
+    assert exc.type is ValueError
+    assert 'O budget' in str(exc.value)
+    # the edge: 1 kg of O left for gas and melt is not refused by the check
+    from calliope.solve import _check_metal_o
+
+    _check_metal_o(1.9e22 - 1.0, {'O': 1.9e22})
+    with pytest.raises(ValueError, match='O budget'):
+        _check_metal_o(1.9e22, {'O': 1.9e22})
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.parametrize('authoritative', [False, True])
+def test_metal_solve_with_a_noble_gas(authoritative):
+    """He in the solve: the metal passes keep the He pressure in the warm start; He closes."""
+    ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'He_included': 1}
+    target = dict(TARGET, He=1e16)
+    if authoritative:
+        target['O'] = O_GAS_MELT
+        out = _solve_auth(ddict, target)
+    else:
+        try:
+            out = _solve_noble(ddict, target)
+        except (RuntimeError, ValueError) as exc:
+            pytest.fail(f'metal solve with He raised {type(exc).__name__}: {exc}')
+    he = out['He_kg_atm'] + out['He_kg_liquid']
+    assert abs(he - 1e16) <= 1e16 * 1e-10 + 10.0
+    assert out['He_bar'] > 0
+    for el in ELEMS:
+        closure = out[el + '_kg_atm'] + out[el + '_kg_liquid'] + out[el + '_kg_core']
+        assert closure == pytest.approx(target[el], rel=1e-4), el
+    assert 'He_kg_core' not in out
+
+
+def _solve_noble(ddict, target):
+    """One seeded solve with He, at the tight acceptance of `_solve`."""
+    np.random.seed(0)
+    return equilibrium_atmosphere(
+        target,
+        ddict,
+        p_guess=dict(P_GUESS, He=1e-3),
+        print_result=False,
+        nguess=200,
+        xtol=1e-12,
+        rtol=1e-10,
+        atol=1.0,
+        opt_solver=False,
+    )
 
 
 def _stub_solve(core_of_call, close=True):
@@ -214,3 +335,27 @@ def test_state_that_breaks_closure_raises():
     with pytest.raises(RuntimeError, match='closure'):
         _with_metal(solve, TARGET, {**_ddict(), **_metal(30.0, 1.9e24)}, kwargs)
     assert len(calls) == 2
+
+
+def test_o_budget_state_that_breaks_o_closure_raises():
+    """With an O budget, a returned state whose gas, melt and metal O miss it fails closure."""
+    from calliope.solve import _with_metal
+
+    def solve(target_d, ddict, **kwargs):
+        out = {s + '_bar': 1.0 for s in ('H2O', 'CO2', 'N2', 'S2')}
+        for el in ELEMS:
+            out[el + '_kg_core'] = 0.0
+            out[el + '_kg_liquid'] = 1e18
+            out[el + '_kg_atm'] = target_d[el] - 1e18
+        out['O_kg_liquid'], out['O_kg_atm'] = 1e18, 1e18
+        out['fO2_shift_derived'] = 2.0
+        return out
+
+    kwargs = {'rtol': 1e-5, 'atol': 1e10, 'p_guess': None}
+    ddict = {**_ddict(), **_metal(30.0, 1.9e24), 'w_O_core': 1e-3}
+    with pytest.raises(RuntimeError, match='O closure'):
+        _with_metal(solve, dict(TARGET, O=1e22), ddict, kwargs, o_budget=True)
+    # the same state with an O budget equal to gas, melt and metal O closes
+    out = _with_metal(solve, dict(TARGET, O=2e18 + 1.9e21), ddict, dict(kwargs), o_budget=True)
+    assert out['O_kg_core'] == pytest.approx(1.9e21, rel=1e-12)
+    assert out['w_O_core'] == pytest.approx(1e-3, rel=1e-12)
