@@ -1891,6 +1891,7 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
     for el in ('O', 'Si'):
         out['w_' + el + '_core'] = fixed[el]
         out[el + '_kg_core'] = fixed[el] * m_metal
+    out.update(_feo_exchange(out['O_kg_core'], out['Si_kg_core'], m_melt, oxides))
     rtol = kwargs['rtol']
     gate = max(target_d[el] for el in ('H', 'C', 'N', 'S')) * rtol + kwargs['atol'] + TRUNC_MASS
     for el in ('H', 'C', 'N', 'S') + (('O',) if o_budget else ()):
@@ -1911,6 +1912,41 @@ def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
             )
     out['dIW_eq'] = d_iw
     return out
+
+
+def _feo_exchange(o_kg, si_kg, m_melt, oxides):
+    """Silicate FeO taken by the metal O and Si, against the FeO of the melt.
+
+    FeO = Fe + O takes 1 FeO per metal O; SiO2 + 2 Fe = Si + 2 FeO gives back 2 per metal
+    Si, so ``n_FeO_exchange = n_O - 2 n_Si`` [mol]. The O and Si atoms taken from the
+    silicate (1 per FeO, 2 per SiO2) must equal the metal O. ``FeO_exchange_out_of_range``
+    is 1 when the exchange is more than 10 % of the melt FeO, in either sign.
+
+    Raises
+    ------
+    RuntimeError
+        The O atoms of the exchanged oxides differ from the metal O.
+    """
+    m_feo = _mass('Fe') + molar_mass['O']
+    n_o, n_si = o_kg / molar_mass['O'], si_kg / _mass('Si')
+    n_ex = n_o - 2.0 * n_si
+    if abs(n_ex + 2.0 * n_si - n_o) > 1e-12 * max(n_o, 1.0):
+        raise RuntimeError(f'exchange O {n_ex + 2.0 * n_si} mol differs from metal O {n_o} mol')
+    n_sil = m_melt * oxides.get('FeO', 0.0) / 100.0 / m_feo
+    ratio = abs(n_ex) / n_sil if n_sil > 0 else (math.inf if n_ex else 0.0)
+    if ratio > 0.1:
+        _warn_metal_once(
+            'FeO',
+            'exchange',
+            f'the metal exchange takes more than 10 % of the silicate FeO ({ratio:.3g}); '
+            'the melt FeO and dIW_eq of this solve do not follow it',
+        )
+    return {
+        'n_FeO_exchange': n_ex,
+        'FeO_kg_exchange': n_ex * m_feo,
+        'n_FeO_silicate': n_sil,
+        'FeO_exchange_out_of_range': int(ratio > 0.1),
+    }
 
 
 def _warn_metal_once(el, kind, message):
