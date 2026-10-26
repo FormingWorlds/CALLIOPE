@@ -252,7 +252,26 @@ def _pow10(x, label, p_gpa, t_k, d_iw):
 
 
 def out_of_range(entry, p_gpa, t_k, d_iw):
-    """True when (P, T, dIW) lies outside a range of the entry or on an unknown range."""
+    """True when (P, T, dIW) lies outside a range of the entry or on an unknown range.
+
+    Parameters
+    ----------
+    entry : dict
+        One element entry of :func:`load_partition_table`.
+    p_gpa : float
+        Equilibration pressure in GPa, against ``P_range_GPa``.
+    t_k : float
+        Equilibration temperature in K, against ``T_range_K``.
+    d_iw : float
+        Oxygen fugacity relative to the iron-wustite buffer, log10 units, against
+        ``dIW_range``.
+
+    Returns
+    -------
+    bool
+        True when a value lies outside the closed range ``[low, high]`` of the entry, or
+        when the T or dIW range is unknown (an empty range in the file).
+    """
     ranges = (entry['P_range_GPa'], entry['T_range_K'], entry['dIW_range'])
     return any(r is None or not r[0] <= v <= r[1] for v, r in zip((p_gpa, t_k, d_iw), ranges))
 
@@ -284,7 +303,19 @@ _OXIDE_MASS = {
 
 
 def silicate_units_per_kg(oxides=KLB1):
-    """Moles of single-cation units (SiO2, TiO2, AlO1.5, FeO, MgO, CaO, NaO0.5) per kg."""
+    """Moles of single-cation units (SiO2, TiO2, AlO1.5, FeO, MgO, CaO, NaO0.5) per kg.
+
+    Parameters
+    ----------
+    oxides : dict
+        Melt composition in oxide wt%, keyed by the oxides of :data:`KLB1`; used as
+        given, not normalised.
+
+    Returns
+    -------
+    float
+        Moles of single-cation units per kg of melt [mol/kg].
+    """
     return sum(wt / 100.0 * _OXIDES[ox][1] / _OXIDE_MASS[ox] for ox, wt in oxides.items())
 
 
@@ -432,7 +463,21 @@ def mass_D(entry, p_gpa, t_k, d_iw, w_metal, w_melt, oxides=KLB1, nbo_t=2.6):
 
 
 def cation_fraction(oxides, name):
-    """Mole fraction of oxide ``name`` on the single-cation basis of the melt."""
+    """Mole fraction of oxide ``name`` on the single-cation basis of the melt.
+
+    Parameters
+    ----------
+    oxides : dict
+        Melt composition in oxide wt%, keyed by the oxides of :data:`KLB1`.
+    name : str
+        One oxide of ``oxides``, for example ``'FeO'`` or ``'SiO2'``.
+
+    Returns
+    -------
+    float
+        Cation units of ``name`` over all cation units of the melt, from 0 to 1 (an
+        oxide with 2 cations, such as Al2O3, counts 2 units of AlO1.5).
+    """
     return (
         oxides[name]
         / 100.0
@@ -454,6 +499,31 @@ def exchange_metal(table, p_gpa, t_k, d_iw, oxides=KLB1, elements=('O', 'Si'), c
 
     Only the laws of ``elements`` are evaluated. ``check=False`` returns finite fractions
     that leave no iron as they are, for a fixed-point pass that shortens its step.
+
+    Parameters
+    ----------
+    table : dict
+        Table of :func:`load_partition_table` with an ``exchange_KD`` law (``K_D`` on the
+        mole basis) for each element of ``elements``.
+    p_gpa : float
+        Equilibration pressure in GPa.
+    t_k : float
+        Equilibration temperature in K.
+    d_iw : float
+        Oxygen fugacity of the metal-melt equilibrium relative to the iron-wustite
+        buffer, log10 units.
+    oxides : dict
+        Melt composition in oxide wt%; its SiO2 sets ``x_SiO2`` of the Si exchange.
+    elements : tuple of str
+        The exchanged elements to evaluate, a subset of ('O', 'Si').
+    check : bool
+        Raise when the O and Si fractions sum to 1 or more.
+
+    Returns
+    -------
+    dict
+        Mole fraction of each element of ``elements`` in the metal, on the basis of the
+        metal without H and C (x').
 
     Raises
     ------
