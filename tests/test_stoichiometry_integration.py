@@ -24,7 +24,7 @@ import pytest
 from calliope.constants import volatile_species
 from calliope.solve import FALLBACK_ATTEMPTS, TRUNC_MASS, equilibrium_atmosphere
 
-# 4 x the slowest CI duration of the module (rule in docs/Explanations/testing.md)
+# 4 x the CALLIOPE-nightly duration of the trace-S fallback test (docs/Explanations/testing.md)
 pytestmark = [pytest.mark.integration, pytest.mark.timeout(780)]
 
 
@@ -143,8 +143,10 @@ class TestEquilibriumAtmosphereIntegration:
     def test_full_chns_converges(self):
         """Full C-H-N-S system at S/H 3e-3 converges to a root that closes every element.
 
-        S/H 3e-3 lies well above the ratio below which the restarts may not reach a root
-        that keeps S (between 1e-4 and 3e-4 for this case).
+        Below an edge between S/H 1e-4 and 1e-3, set by the BLAS of the machine, the restarts
+        may not reach a root that keeps S: at 3e-4 seeds 0 to 2 converged with OpenBLAS (macOS
+        and the Linux CI runners), and 3 of 12 seeds fell back with Accelerate on arm64. S/H
+        3e-3 lies 3 to 10 times above that edge.
         """
         target = {'H': 1e20, 'C': 1e17, 'N': 1e17, 'S': 3e17}
         result = self._run_equilibrium(target, T=2500.0, Phi=1.0, dIW=0.0)
