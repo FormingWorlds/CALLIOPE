@@ -1,73 +1,135 @@
 # Validation: `src/calliope/chemistry.py`
 
-This page tracks the `@pytest.mark.reference_pinned` tests that anchor the
-behaviour of `calliope.chemistry` against published sources.
+## What this page checks
 
-| Test id | Reference | Source page | Scope |
-|---|---|---|---|
-| `tests/test_chemistry.py::test_modified_keq_janaf_H2_matches_closed_form_at_2000K_with_oneill` | NIST JANAF Thermochemical Tables [^cite-chase1998] (4th ed.), fits for `H2O = H2 + 0.5 O2` over 1500-3000 K | `src/calliope/chemistry.py` (`ModifiedKeq.janaf_H2`) | Pins `Geq(janaf_H2)` at T = 2000 K under the O'Neill 2002 [^cite-oneilleggins2002] IW buffer against the closed-form `10^(Keq - 0.5 * log10_fO2)`; includes a wrong-reaction discrimination guard against `schaefer_H` [^cite-schaeferfegley2017] at the same conditions. |
-| `tests/test_chemistry.py::test_janaf_constant_matches_janaf_rows_over_fit_range[hydrogen_sulfide]` | NIST JANAF Thermochemical Tables [^cite-chase1998] (4th ed.), log Kf of H2S and S2 in `tools/` | `src/calliope/chemistry.py` (`janaf_H2S`) | Per mole, `0.5 * log10 K` of `S2 + 2 H2 = 2 H2S` lies within 0.025 dex of `log Kf(H2S) - 0.5 log Kf(S2)` at every JANAF row from 700 to 5000 K; the test also requires the discriminating coefficients `DISCRIMINATING_FIT['H2S']` (S2 coefficient 1) to miss the rows by more than 0.075 dex, three times the tolerance. Last compared 2026-10-20. |
-| `tests/test_chemistry.py::test_janaf_coefficients_are_least_squares_fit_of_janaf_rows[hydrogen_sulfide]` | Same JANAF rows | `tools/fit_H2S.ipynb` | The `janaf_H2S` coefficients equal a least-squares `a/T - b` fit of the rows in 700-5000 K to rel 1e-6. Last compared 2026-10-20. |
-| `tests/test_chemistry.py::test_janaf_constant_matches_janaf_rows_over_fit_range[ammonia]` | NIST JANAF Thermochemical Tables [^cite-chase1998] (4th ed.), log Kf of NH3 in `tools/` | `src/calliope/chemistry.py` (`janaf_NH3`) | Per mole, `0.5 * log10 K` of `N2 + 3 H2 = 2 NH3` lies within 0.04 dex of `log Kf(NH3)` at every JANAF row from 700 to 5000 K; the test also requires the discriminating coefficients `DISCRIMINATING_FIT['NH3']` to miss the rows by more than 0.12 dex, three times the tolerance. Last compared 2026-10-20. |
-| `tests/test_chemistry.py::test_janaf_coefficients_are_least_squares_fit_of_janaf_rows[ammonia]` | Same JANAF rows | `tools/fit_NH3.ipynb` | The `janaf_NH3` coefficients equal a least-squares `a/T - b` fit of the rows in 700-5000 K to rel 1e-6. Last compared 2026-10-20. |
+This page checks the equilibrium constants that CALLIOPE uses to split the gas between reduced and oxidised species. An equilibrium constant $K$ of a reaction fixes the ratio of the partial pressures of its products and reactants at a given temperature. CALLIOPE folds the oxygen fugacity into it: `ModifiedKeq` returns $G_\mathrm{eq} = 10^{\log_{10} K - \nu \log_{10} f\mathrm{O_2}}$, where $\nu$ is the number of O$_2$ in the reaction and $f\mathrm{O_2}$ \[bar\] is the oxygen fugacity. For example, the H$_2$ partial pressure of the gas is $G_\mathrm{eq}$ of `janaf_H2` times the H$_2$O partial pressure (`src/calliope/solve.py`). Validation means that a test runs the code on a case where another source gives the right answer, and checks the result within a stated tolerance. If a constant is wrong, the gas has the wrong ratio of H$_2$ to H$_2$O, CO to CO$_2$, or H$_2$S and NH$_3$ to their parents, and the atmosphere that PROTEUS passes to the climate model is wrong. Each case below says why the check exists, what it tests, how we know the right answer and why it matters. A box "Test details" ends each case.
 
-## Re-derivation note
+## H2 to H2O ratio at 2000 K
 
-`ModifiedKeq` returns `Geq = 10^(Keq(T) - fO2_stoich * log10_fO2(T, dIW))`.
-For `janaf_H2` the coefficients `(a = -13152.48, b = 3.038586, stoich = 0.5)`
-fit the JANAF tables for `H2O = H2 + 0.5 O2` over the documented
-1500-3000 K CALLIOPE-use range.
+**Why this check exists.** `ModifiedKeq` picks a reaction by name and combines its constant with the oxygen fugacity of a buffer. A typo in the `janaf_H2` coefficients, a wrong sign of the $f\mathrm{O_2}$ term, a wrong stoichiometric factor, a wrong buffer, or a call to the wrong reaction changes $G_\mathrm{eq}$ without an error message.
 
-At T = 2000 K, `fO2_model='oneill'`, `fO2_shift = 0`:
+**What it tests.** The test evaluates $G_\mathrm{eq}$ of `janaf_H2`, for the reaction H$_2$O = H$_2$ + 0.5 O$_2$, at $T$ = 2000 K and $\Delta\mathrm{IW}$ = 0. $\Delta\mathrm{IW}$ is the shift of the oxygen fugacity from the iron-wüstite (IW) buffer in log10 units; the test uses the buffer of O'Neill and Eggins (2002)[^cite-oneilleggins2002]. The code gives 1.4664. The test computes the same value in closed form, $10^{\log_{10} K - 0.5 \log_{10} f\mathrm{O_2}}$, from the coefficients and the O'Neill and Eggins buffer, and requires agreement to a relative 1e-6. It also requires that `schaefer_H`, the constant of Schaefer and Fegley (2017)[^cite-schaeferfegley2017] for the same reaction, differs by more than 0.2 (it gives 1.2126), and that $G_\mathrm{eq}$ lies between 0.5 and 5.
 
-```
-Keq = 10^(-13152.48 / 2000 + 3.038586)
-    = 10^(-6.5762 + 3.0386)
-    = 10^-3.5376
-    ~ 2.901e-4
-```
+**How we know the right answer.** The closed form uses the published O'Neill and Eggins buffer, which the test writes out itself, and the `janaf_H2` coefficients, which are a fit to the NIST-JANAF tables[^cite-chase1998] for this reaction over 1500 to 3000 K. The test does not compare the coefficients with the JANAF tables; it checks how the code combines them with the buffer.
 
-The O'Neill 2002 IW buffer at the same T:
+**Why it matters.** The H$_2$/H$_2$O ratio of the outgassed gas comes from this constant, and the H$_2$ pressure also enters CH$_4$, NH$_3$ and H$_2$S in the solve.
 
-```
-log10(fO2) = 2 * (-244118 + 115.559 * 2000 - 8.474 * 2000 * ln(2000))
-             / (ln(10) * 8.31441 * 2000)
-           ~ -7.4078
-```
+??? info "Test details"
+    - Reference: NIST-JANAF Thermochemical Tables[^cite-chase1998] (4th ed.), fits for `H2O = H2 + 0.5 O2` over 1500-3000 K; O'Neill and Eggins (2002) IW buffer (closed form).
+    - Tolerance: relative 1e-6; `schaefer_H` must differ by more than 0.2; $0.5 < G_\mathrm{eq} < 5$.
+    - Test id: `tests/test_chemistry.py::test_modified_keq_janaf_H2_matches_closed_form_at_2000K_with_oneill`
+    - Command: `pytest tests/test_chemistry.py -k janaf_H2_matches_closed_form`
+    - Companion test: `test_modified_keq_fO2_model_choice_changes_result` checks that a switch from the O'Neill to the Fischer buffer changes $G_\mathrm{eq}$ by more than a relative 1e-6.
 
-Combining:
+??? note "Worked numbers"
+    `ModifiedKeq` returns `Geq = 10^(Keq(T) - fO2_stoich * log10_fO2(T, dIW))`.
+    For `janaf_H2` the coefficients are `(a = -13152.48, b = 3.038586, stoich = 0.5)`.
 
-```
-log10(Geq) = -3.5376 - 0.5 * (-7.4078) = 0.1663
-Geq = 10^0.1663 ~ 1.467
-```
+    At T = 2000 K, `fO2_model='oneill'`, `fO2_shift = 0`:
 
-The test reconstructs the closed form symbolically (without intermediate
-rounding) and pins to `rel=1e-6` precision.
+    ```
+    Keq = 10^(-13152.48 / 2000 + 3.038586)
+        = 10^(-6.5762 + 3.0386)
+        = 10^-3.5376
+        ~ 2.901e-4
+    ```
 
-Wrong-reaction discrimination guard: `schaefer_H` at the same T:
+    The O'Neill 2002 IW buffer at the same T:
 
-```
-Keq_schaefer = 10^(-12794 / 2000 + 2.7768)
-             = 10^-3.6202 ~ 2.398e-4
-Geq_schaefer = 10^(-3.6202 + 3.7039) = 10^0.0837 ~ 1.213
-```
+    ```
+    log10(fO2) = 2 * (-244118 + 115.559 * 2000 - 8.474 * 2000 * ln(2000))
+                 / (ln(10) * 8.31441 * 2000)
+               ~ -7.4078
+    ```
 
-The 0.25 difference between `Geq_janaf_H2 ~ 1.467` and `Geq_schaefer_H ~ 1.213`
-exceeds the test's discrimination guard threshold (`abs(g - wrong) > 0.2`).
+    Combining:
 
-## Anchor type
+    ```
+    log10(Geq) = -3.5376 - 0.5 * (-7.4078) = 0.1663
+    Geq = 10^0.1663 ~ 1.467
+    ```
 
-Published benchmark (JANAF tables) plus cross-reaction discrimination
-(janaf vs schaefer) plus a separate buffer-flip-propagation test
-(`test_modified_keq_fO2_model_choice_changes_result`) that asserts
-switching from O'Neill to Fischer changes Geq beyond rel=1e-6.
+    The test builds the closed form without intermediate rounding. `schaefer_H` at the same T:
 
-## Cross-references
+    ```
+    Keq_schaefer = 10^(-12794 / 2000 + 2.7768)
+                 = 10^-3.6202 ~ 2.398e-4
+    Geq_schaefer = 10^(-3.6202 + 3.7039) = 10^0.0837 ~ 1.213
+    ```
+
+    The difference of 0.25 between the two is above the 0.2 of the test.
+
+## H2S constant against the JANAF tables
+
+**Why this check exists.** `janaf_H2S` gives the constant of S$_2$ + 2 H$_2$ = 2 H$_2$S as $a/T - b$. A wrong coefficient, the wrong S$_2$ factor (1 in place of 1/2 per mole of H$_2$S), or a fit over the wrong temperature range gives the wrong H$_2$S pressure.
+
+**What it tests.** Per mole of H$_2$S, the code's $\log_{10} K$ must lie within 0.025 dex of the JANAF value at every table row from 700 to 5000 K (44 rows; both ends are rows). The JANAF value per mole is $\log K_f(\mathrm{H_2S}) - 0.5 \log K_f(\mathrm{S_2})$, where $K_f$ is the formation constant of a species. The largest miss of the code is 0.018 dex. The test also requires that the wrong coefficients `DISCRIMINATING_FIT['H2S']`, with S$_2$ coefficient 1, miss the rows by more than 0.075 dex (they miss by up to 1.853 dex), and that $\log_{10} K$ falls with $T$, as for an exothermic reaction.
+
+**How we know the right answer.** The JANAF rows of H$_2$S and S$_2$ are in `tools/janaf_H2S.dat` and `tools/janaf_S2.dat`, taken from the NIST-JANAF tables[^cite-chase1998]. Both tables use the same sulfur reference state, which cancels in the difference.
+
+**Why it matters.** The H$_2$S pressure of the gas is $\sqrt{G_\mathrm{eq}\, p_\mathrm{S_2}\, p_\mathrm{H_2}^2}$ in the solve.
+
+??? info "Test details"
+    - Reference: NIST-JANAF Thermochemical Tables[^cite-chase1998] (4th ed.), log Kf of H2S and S2 in `tools/`.
+    - Tolerance: 0.025 dex at every row from 700 to 5000 K; the discriminating coefficients must miss by more than 0.075 dex (3 times the tolerance). Last compared 2026-10-20.
+    - Test id: `tests/test_chemistry.py::test_janaf_constant_matches_janaf_rows_over_fit_range[hydrogen_sulfide]`
+    - Command: `pytest "tests/test_chemistry.py::test_janaf_constant_matches_janaf_rows_over_fit_range[hydrogen_sulfide]"`
+
+## H2S coefficients are a least-squares fit
+
+**Why this check exists.** The case above allows a miss of 0.025 dex, so coefficients from a different fit could still pass it. This case pins the coefficients to the one fit they come from.
+
+**What it tests.** A least-squares fit of $2 \log_{10} K$ against $1/T$ over the JANAF rows from 700 to 5000 K must give the code's coefficients, to a relative and absolute 1e-6 at every row. The absolute part is needed because the doubled H$_2$S $\log K$ crosses zero near 1830 K.
+
+**How we know the right answer.** The fit of `tools/fit_H2S.ipynb` over the same JANAF rows gives the coefficients; the test repeats it with `numpy.polyfit`.
+
+**Why it matters.** A changed fit range, form or coefficient moves the fit away from the code, and this case then fails even when the change stays inside the 0.025 dex of the row test.
+
+??? info "Test details"
+    - Reference: the JANAF rows of the case above; `tools/fit_H2S.ipynb`.
+    - Tolerance: relative 1e-6 and absolute 1e-6 at every row. Last compared 2026-10-20.
+    - Test id: `tests/test_chemistry.py::test_janaf_coefficients_are_least_squares_fit_of_janaf_rows[hydrogen_sulfide]`
+    - Command: `pytest "tests/test_chemistry.py::test_janaf_coefficients_are_least_squares_fit_of_janaf_rows[hydrogen_sulfide]"`
+
+## NH3 constant against the JANAF tables
+
+**Why this check exists.** `janaf_NH3` gives the constant of N$_2$ + 3 H$_2$ = 2 NH$_3$ as $a/T - b$. A wrong coefficient or fit range gives the wrong NH$_3$ pressure.
+
+**What it tests.** Per mole of NH$_3$, the code's $\log_{10} K$ must lie within 0.04 dex of $\log K_f(\mathrm{NH_3})$ at every JANAF row from 700 to 5000 K (44 rows). The largest miss of the code is 0.034 dex. The wrong coefficients `DISCRIMINATING_FIT['NH3']` must miss the rows by more than 0.12 dex (they miss by up to 0.158 dex), and $\log_{10} K$ must fall with $T$.
+
+**How we know the right answer.** The JANAF rows of NH$_3$ are in `tools/janaf_NH3.dat`, from the NIST-JANAF tables[^cite-chase1998]. N$_2$ and H$_2$ are reference states, so $\log K_f(\mathrm{NH_3})$ is the constant per mole of NH$_3$.
+
+**Why it matters.** The NH$_3$ pressure of the gas is $\sqrt{G_\mathrm{eq}\, p_\mathrm{N_2}\, p_\mathrm{H_2}^3}$ in the solve.
+
+??? info "Test details"
+    - Reference: NIST-JANAF Thermochemical Tables[^cite-chase1998] (4th ed.), log Kf of NH3 in `tools/`.
+    - Tolerance: 0.04 dex at every row from 700 to 5000 K; the discriminating coefficients must miss by more than 0.12 dex (3 times the tolerance). Last compared 2026-10-20.
+    - Test id: `tests/test_chemistry.py::test_janaf_constant_matches_janaf_rows_over_fit_range[ammonia]`
+    - Command: `pytest "tests/test_chemistry.py::test_janaf_constant_matches_janaf_rows_over_fit_range[ammonia]"`
+
+## NH3 coefficients are a least-squares fit
+
+**Why this check exists.** As for H$_2$S, the 0.04 dex of the row test leaves room for coefficients from a different fit.
+
+**What it tests.** A least-squares fit of $2 \log_{10} K$ against $1/T$ over the JANAF rows from 700 to 5000 K must give the code's coefficients, to a relative and absolute 1e-6 at every row.
+
+**How we know the right answer.** The fit of `tools/fit_NH3.ipynb` over the same rows gives the coefficients; the test repeats it with `numpy.polyfit`.
+
+**Why it matters.** A changed fit range, form or coefficient moves the fit away from the code, and this case then fails.
+
+??? info "Test details"
+    - Reference: the JANAF rows of the case above; `tools/fit_NH3.ipynb`.
+    - Tolerance: relative 1e-6 and absolute 1e-6 at every row. Last compared 2026-10-20.
+    - Test id: `tests/test_chemistry.py::test_janaf_coefficients_are_least_squares_fit_of_janaf_rows[ammonia]`
+    - Command: `pytest "tests/test_chemistry.py::test_janaf_coefficients_are_least_squares_fit_of_janaf_rows[ammonia]"`
+
+**Known limit.** The constants of `janaf_CO`, `janaf_SO2`, `schaefer_C` and `schaefer_CH4` have no case on this page.
+
+## Related code and pages
 
 - `src/calliope/chemistry.py` (`ModifiedKeq.__init__`, `ModifiedKeq.__call__`): constructor and modified constant.
 - `src/calliope/chemistry.py` (`ModifiedKeq.schaefer_*`, `ModifiedKeq.janaf_*`): per-reaction coefficient methods.
-- `docs/Explanations/equilibrium_chemistry.md`: user-facing concept page.
+- [Equilibrium chemistry](../Explanations/equilibrium_chemistry.md): the explanation page.
 
 ## References
 

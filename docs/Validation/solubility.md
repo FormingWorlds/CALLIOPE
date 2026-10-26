@@ -1,76 +1,104 @@
 # Validation: `src/calliope/solubility.py`
 
-This page tracks the `@pytest.mark.reference_pinned` tests that anchor the
-behaviour of `calliope.solubility` against published sources.
+## What this page checks
 
-| Test id | Reference | Source page | Scope |
-|---|---|---|---|
-| `tests/test_solubility.py::TestSolubilityH2O::test_peridotite_default_matches_sossi_2023_fit` | Sossi et al. (2023) [^cite-sossi2023] peridotite H2O fit: `ppmw = 524 * p^0.5` | `src/calliope/solubility.py:39-41` (`peridotite`) | Pins the default H2O parameterization at p = 100 bar against the Sossi 2023 constant; includes wrong-law (Dixon et al. 1995 [^cite-dixon1995] basalt) and wrong-exponent (1.0 vs 0.5) discrimination guards. |
-| `tests/test_solubility.py::TestSolubilityS2_xFeO::test_default_call_matches_gaillard_2022_earth_mantle_value` | Gaillard et al. (2022) [^cite-gaillard2022], EPSL 117255, S2 solubility law with `x_FeO = 10 wt%` Earth-mantle default | [doi:10.1016/j.epsl.2021.117255](https://doi.org/10.1016/j.epsl.2021.117255), `src/calliope/solubility.py:75-93` | Pins S2 ppmw at (p = 1 bar, T = 2500 K, fO2_shift = 0) against the closed-form Gaillard expression; couples to the Hirschmann 2021 [^cite-hirschmann2021] IW buffer default, with a wrong-buffer guard against the Fischer 2011 [^cite-fischer2011] buffer. |
-| `tests/test_solubility.py::TestSolubilityNobleGas::test_every_gas_constant_pinned_to_independent_literal` | Jambon, Weill & Braun (1986) [^cite-jambon1986] noble gas Henry constants in tholeiitic basalt | [doi:10.1016/0016-7037(86)90193-6](https://doi.org/10.1016/0016-7037(86)90193-6), `src/calliope/solubility.py` (`jambon86_ppmw_per_bar`, `SolubilityNobleGas`) | Pins each of the five noble gas Henry constants [ppmw/bar] to a hand-computed literal with cross-gas discrimination guards, so a mistyped constant fails on a CI image without atmodeller. |
-| `tests/test_solubility.py::TestSolubilityNobleGas::test_noble_constants_cross_check_against_atmodeller` | Cross-implementation cross-check against atmodeller | `src/calliope/solubility.py` | Confirms CALLIOPE and atmodeller derive identical Jambon et al. (1986) constants from the same primitives (skips when atmodeller is not installed). |
+This page checks the solubility laws of CALLIOPE. A solubility law gives the mass fraction of a gas that dissolves in the silicate melt, in ppmw (parts per million by weight), as a function of the partial pressure of that gas \[bar\] and, for some gases, of the temperature and the oxygen fugacity. Validation means that a test runs the code on a case where another source gives the right answer, and checks the result within a stated tolerance. If a law is wrong, the melt holds the wrong amount of a volatile, so the atmosphere above it gets too much or too little of it. Each case below says why the check exists, what it tests, how we know the right answer and why it matters. A box "Test details" ends each case.
 
-## Re-derivation notes
+## Water in peridotite melt
 
-### H2O (Sossi 2023 peridotite default)
+**Why this check exists.** `SolubilityH2O()` with no argument uses the peridotite law, the default of the package. A wrong constant, the constant of another melt composition, or a wrong exponent changes the dissolved water at every pressure.
 
-Power-law form: `ppmw = const * p^exponent`. Sossi et al. (2023) gives
-`const = 524 ppmw/bar^0.5` for peridotite melt. At p = 100 bar:
+**What it tests.** The law is a power law, $\mathrm{ppmw} = c\,p^{n}$, with $c$ = 524 ppmw bar$^{-0.5}$ and $n$ = 0.5. At $p$ = 100 bar the code must give 5240 ppmw, to a relative 1e-12, and at $p$ = 0 it must give 0. The test also requires that the result differs by more than 1000 ppmw from the basalt law of Dixon et al. (1995)[^cite-dixon1995] ($c$ = 965, 9650 ppmw) and from an exponent of 1 (52400 ppmw), and that it lies between 1e3 and 1e4 ppmw.
 
-```
-ppmw = 524 * sqrt(100) = 5240
-```
+**How we know the right answer.** Sossi et al. (2023)[^cite-sossi2023] fit $c$ = 524 ppmw bar$^{-0.5}$ and $n$ = 0.5 to their experiments on peridotite melt (a published benchmark).
 
-A regression that swapped to the Dixon 1995 basalt constant (`const = 965`)
-would land at 9650, off by 84% at the same pressure. A regression that
-flipped the exponent (0.5 -> 1.0) would land at 52400, off by an order of
-magnitude. Both are caught by the discrimination guards in the test.
+**Why it matters.** The solubility of water decides how much water stays in the magma ocean and how much goes into the atmosphere.
 
-### S2 (Gaillard 2022 Earth-mantle default)
+??? info "Test details"
+    - Reference: Sossi et al. (2023)[^cite-sossi2023] peridotite H2O fit: `ppmw = 524 * p^0.5`.
+    - Tolerance: relative 1e-12 at 100 bar; more than 1000 ppmw from the Dixon et al. (1995) basalt law and from an exponent of 1.
+    - Test id: `tests/test_solubility.py::TestSolubilityH2O::test_peridotite_default_matches_sossi_2023_fit`
+    - Command: `pytest tests/test_solubility.py -k peridotite_default_matches_sossi`
 
-Closed form from Gaillard et al. (2022):
+??? note "Worked numbers"
+    At p = 100 bar:
 
-```
-ln(X_S^melt) = 13.8426 - 26476/T + 0.124*x_FeO + 0.5*ln(p_S2/fO2)
-```
+    ```
+    ppmw = 524 * sqrt(100) = 5240
+    ```
 
-At T = 2500 K, p_S2 = 1 bar, x_FeO = 10 wt%, fO2 from the default
-Hirschmann 2021 IW buffer at 1 bar:
+    The Dixon 1995 basalt constant (`const = 965`) would give 9650, 84 % higher at the same pressure. An exponent of 1.0 would give 52400, 10 times higher.
 
-```
-log10(fO2) = -4.34247 (Hirschmann at T=2500 K, P=1 bar, dIW=0)
-fO2 = 10^-4.34247 = 4.545e-5 bar
-ln(p_S2/fO2) = ln(1 / 4.545e-5) = 9.9989
-ln(X) = 13.8426 - 10.5904 + 1.24 + 0.5 * 9.9989
-      = 3.2522 + 1.24 + 4.9995
-      = 9.4917
-ppmw = exp(9.4917) ~ 13249
-```
+## Sulfur at 2500 K
 
-Hidden coupling: the pin depends on the default IW buffer; any change to
-the default or to the buffer coefficients in `oxygen_fugacity.py` requires
-regenerating this number. The test docstring flags this coupling
-explicitly. The reference value in the test (13248.67) matches the
-closed-form ppmw above. The Fischer 2011 buffer (log10(fO2) =
--4.3317 at 2500 K) gives 13085.87, 1.2% lower; the test keeps this as a
-wrong-buffer guard.
+**Why this check exists.** The S$_2$ law depends on the temperature, the FeO content of the melt and the oxygen fugacity, which comes from the IW buffer. A wrong coefficient, an FeO content in the wrong unit, or a buffer other than the default changes the dissolved sulfur.
 
-## Anchor types
+**What it tests.** `SolubilityS2()` with its defaults, at $p_\mathrm{S_2}$ = 1 bar, $T$ = 2500 K and $\Delta\mathrm{IW}$ = 0, must give 13248.67 ppmw to a relative 1e-5. The default FeO content is $x_\mathrm{FeO}$ = 10 wt%, and the default buffer is that of Hirschmann (2021)[^cite-hirschmann2021]. The test also requires that the result differs by more than 100 ppmw from the value with the Fischer et al. (2011)[^cite-fischer2011] buffer (13085.87 ppmw), and that it lies between 1e3 and 1e5 ppmw.
 
-- H2O: published benchmark (Sossi 2023) plus wrong-law and wrong-exponent
-  discrimination guards.
-- S2: published benchmark (Gaillard 2022) plus closed-form scaling tests
-  for `x_FeO` (parametrized 5/10/15/20 wt%) so the prefactor coefficient
-  0.124 is independently verified.
+**How we know the right answer.** Gaillard et al. (2022)[^cite-gaillard2022] give the closed form $\ln X_\mathrm{S} = 13.8426 - 26476/T + 0.124\,x_\mathrm{FeO} + 0.5 \ln(p_\mathrm{S_2}/f\mathrm{O_2})$, where $X_\mathrm{S}$ is the sulfur content of the melt in ppmw. With the Hirschmann buffer at 2500 K and 1 bar, $\log_{10} f\mathrm{O_2}$ = -4.34247, and the closed form gives 13249 ppmw.
 
-## Cross-references
+**Why it matters.** The dissolved sulfur sets how much S$_2$, SO$_2$ and H$_2$S the atmosphere can hold. The value also depends on the default IW buffer: a change of the default or of its coefficients changes this number, and the test then fails here.
 
-- `src/calliope/solubility.py:30-57`: H2O parameterizations.
-- `src/calliope/solubility.py:60-100`: S2 with the `x_FeO` kwarg.
-- `src/calliope/solubility.py:100+`: N2 with the `x_SiO2`, `x_Al2O3`,
-  `x_TiO2` kwargs (Dasgupta 2022 [^cite-dasgupta2022]) plus Libourel 2003 [^cite-libourel2003] as the no-composition baseline.
-- `docs/Explanations/solubility.md`: user-facing concept page with the
-  validity envelope per parameterization.
+??? info "Test details"
+    - Reference: Gaillard et al. (2022)[^cite-gaillard2022], EPSL 117255, S2 solubility law with `x_FeO = 10 wt%` Earth-mantle default ([doi:10.1016/j.epsl.2021.117255](https://doi.org/10.1016/j.epsl.2021.117255)); Hirschmann (2021)[^cite-hirschmann2021] IW buffer.
+    - Tolerance: relative 1e-5; more than 100 ppmw from the Fischer-buffer value.
+    - Test id: `tests/test_solubility.py::TestSolubilityS2_xFeO::test_default_call_matches_gaillard_2022_earth_mantle_value`
+    - Command: `pytest tests/test_solubility.py -k gaillard_2022_earth_mantle`
+    - Companion tests in `TestSolubilityS2_xFeO` check the closed-form scaling with $x_\mathrm{FeO}$ at 5, 10, 15 and 20 wt%, so the coefficient 0.124 is checked on its own.
+
+??? note "Worked numbers"
+    At T = 2500 K, p_S2 = 1 bar, x_FeO = 10 wt%, fO2 from the default Hirschmann 2021 IW buffer at 1 bar:
+
+    ```
+    log10(fO2) = -4.34247 (Hirschmann at T=2500 K, P=1 bar, dIW=0)
+    fO2 = 10^-4.34247 = 4.545e-5 bar
+    ln(p_S2/fO2) = ln(1 / 4.545e-5) = 9.9989
+    ln(X) = 13.8426 - 10.5904 + 1.24 + 0.5 * 9.9989
+          = 3.2522 + 1.24 + 4.9995
+          = 9.4917
+    ppmw = exp(9.4917) ~ 13249
+    ```
+
+    The test value 13248.67 matches this closed form. The Fischer 2011 buffer (log10(fO2) = -4.3317 at 2500 K) gives 13085.87, 1.2 % lower.
+
+## Noble gas Henry constants
+
+**Why this check exists.** CALLIOPE turns the Henry constants of Jambon et al. (1986)[^cite-jambon1986], given as a volume of gas at standard temperature and pressure (STP) per gram of melt, into ppmw per bar. A mistyped constant, a wrong molar mass, a constant copied from another gas, or a missing kg-to-g factor gives a wrong solubility for that gas.
+
+**What it tests.** For each of He, Ne, Ar, Kr and Xe, `jambon86_ppmw_per_bar` must equal a literal value to a relative 1e-4: He 0.100065, Ne 0.225220, Ar 0.105220, Kr 0.112229 and Xe 0.099642 ppmw bar$^{-1}$. No gas may match the value of another gas, where the two literals differ by more than 0.001. Every constant must lie between 0.01 and 1, which catches a missing kg-to-g factor (1000 times too small).
+
+**How we know the right answer.** Each literal is $(k_\mathrm{STP}/V_\mathrm{STP})\,M \times 10^6$, computed by hand from the constants of Jambon et al. (1986) and the molar masses. Here $k_\mathrm{STP}$ \[cm$^3$ STP g$^{-1}$ bar$^{-1}$\] is the published constant, $V_\mathrm{STP}$ = 2.24e4 cm$^3$ mol$^{-1}$ is the molar volume of an ideal gas at STP, and $M$ \[g mol$^{-1}$\] is the molar mass. The test does not need atmodeller, so it runs on every CI image.
+
+**Why it matters.** The dissolved fraction of each noble gas decides how much of it reaches the atmosphere.
+
+??? info "Test details"
+    - Reference: Jambon, Weill and Braun (1986)[^cite-jambon1986], noble gas Henry constants in tholeiitic basalt ([doi:10.1016/0016-7037(86)90193-6](https://doi.org/10.1016/0016-7037(86)90193-6)); code in `jambon86_ppmw_per_bar` and `SolubilityNobleGas`.
+    - Tolerance: relative 1e-4 per gas; no match with another gas; $0.01 < \mathrm{constant} < 1$ ppmw bar$^{-1}$.
+    - Test id: `tests/test_solubility.py::TestSolubilityNobleGas::test_every_gas_constant_pinned_to_independent_literal`
+    - Command: `pytest tests/test_solubility.py -k every_gas_constant_pinned`
+
+## Noble gas constants against atmodeller
+
+**Why this check exists.** CALLIOPE and atmodeller both compute the Jambon et al. (1986) constants. If the two codes differ, a comparison of the two outgassing codes measures a difference in the constants, not in the physics.
+
+**What it tests.** For each noble gas, the CALLIOPE constant must equal the atmodeller concentration at 1 bar, to a relative 1e-10. The largest constant must be more than 2 times the smallest, so a transcription that used one value for every gas fails. The test is skipped when atmodeller is not installed.
+
+**How we know the right answer.** atmodeller derives its constants from the same primitives, and its law is linear in the fugacity, so its concentration at 1 bar is the constant itself (a cross-code check).
+
+**Why it matters.** The [cross-code comparison](../Explanations/cross_backend_comparison.md) of CALLIOPE and atmodeller relies on the 2 codes using the same constants.
+
+??? info "Test details"
+    - Reference: cross-code check against atmodeller.
+    - Tolerance: relative 1e-10 per gas; the largest constant more than 2 times the smallest.
+    - Test id: `tests/test_solubility.py::TestSolubilityNobleGas::test_noble_constants_cross_check_against_atmodeller`
+    - Command: `pytest tests/test_solubility.py -k noble_constants_cross_check` (skips without atmodeller)
+
+## Related code and pages
+
+- `src/calliope/solubility.py` (`SolubilityH2O`): the H2O laws.
+- `src/calliope/solubility.py` (`SolubilityS2`): the S2 law with the `x_FeO` argument.
+- `src/calliope/solubility.py` (`SolubilityN2`): the N2 law with the `x_SiO2`, `x_Al2O3` and `x_TiO2` arguments (Dasgupta et al. 2022[^cite-dasgupta2022]), and Libourel et al. (2003)[^cite-libourel2003] as the law without composition.
+- [Solubility](../Explanations/solubility.md): the explanation page, with the range of validity of each law.
 
 ## References
 
