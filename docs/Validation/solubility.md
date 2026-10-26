@@ -28,7 +28,7 @@ Each case below says why the check exists, what it tests, how we know the right 
 ![Dissolved water against pressure on log axes, the code law and the Dixon law, with the value and the 2 wrong values at 100 bar](../assets/validation/solubility_h2o_peridotite.svg#only-light){ width="80%" }
 ![Dissolved water against pressure on log axes, the code law and the Dixon law, with the value and the 2 wrong values at 100 bar](../assets/validation/solubility_h2o_peridotite_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** Both axes are logarithmic. The solid line is the code law and the dashed line is the Dixon basalt law of the code; both give context. The test asserts the code value at 100 bar (circle) against $524 \times 100^{0.5}$ = 5240 ppmw (square), to a relative 1e-12, too small to see. The 2 crosses at 100 bar are the wrong values that the test holds: 9650 ppmw from the Dixon constant and 52400 ppmw from an exponent of 1. A pass means that the circle sits in the square and both crosses lie more than 1000 ppmw from it.
+**How to read the plot.** Both axes are logarithmic. The solid line is the code law and the dashed line is the Dixon basalt law of the code; both give context. The test asserts the code value at 100 bar (circle) against $524 \times 100^{0.5}$ = 5240 ppmw (square), to a relative 1e-12, too small to see. The 2 crosses at 100 bar are the wrong values that the test holds. They are 9650 ppmw from the Dixon constant and 52400 ppmw from an exponent of 1. A pass means that the circle sits in the square and both crosses lie more than 1000 ppmw from it.
 
 ??? info "Test details"
     - Reference: Sossi et al. (2023)[^cite-sossi2023] peridotite H2O fit: `ppmw = 524 * p^0.5`.

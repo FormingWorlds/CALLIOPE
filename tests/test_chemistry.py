@@ -225,7 +225,7 @@ def test_janaf_constant_matches_janaf_rows_over_fit_range(
     assert T[-1] == pytest.approx(JANAF_FIT_RANGE_K[1])
     fit = _per_mole_log_k(product, T)
     assert np.max(np.abs(fit - janaf)) < JANAF_FIT_TOL_DEX[product]
-    # Discrimination: the discriminating fits miss the rows by far more.
+    # Discrimination: the wrong fits miss the rows by far more.
     a, b = DISCRIMINATING_FIT[product]
     assert np.max(np.abs(0.5 * (a / T - b) - janaf)) > 3 * JANAF_FIT_TOL_DEX[product]
     # Sign: the formation reactions are exothermic, so log K falls with T.
