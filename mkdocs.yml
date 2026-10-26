@@ -24,6 +24,8 @@ nav:
       - Two-mode round-trip: Tutorials/two_modes.md
       - Speciation phase diagram: Tutorials/phase_diagram.md
       - Coupled-loop driver: Tutorials/coupled_loop.md
+      - Metal reservoir: Tutorials/metal_reservoir.md
+      - Add a new partition law: Tutorials/partition_law.md
       - Reproducing the Earth fiducial: Tutorials/earth_fiducial.md
       - Mars-like atmosphere: Tutorials/mars_fiducial.md
 
@@ -34,6 +36,7 @@ nav:
       - Noble gases: Explanations/noble_gases.md
       - Oxygen fugacity: Explanations/oxygen_fugacity.md
       - Mass balance & solver: Explanations/mass_balance.md
+      - Metal reservoir: Explanations/metal.md
       - Authoritative-oxygen mode: Explanations/authoritative_oxygen.md
       - Coupling to PROTEUS: Explanations/proteus_coupling.md
       - Backend comparison: Explanations/cross_backend_comparison.md

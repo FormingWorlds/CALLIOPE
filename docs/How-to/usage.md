@@ -88,6 +88,24 @@ result = equilibrium_atmosphere(target, ddict, print_result=True)
 
 `get_target_from_pressures()` computes the implied total elemental masses by summing atmospheric column mass (Bower et al. (2019) [^cite-bower2019] Eq. 2) and dissolved mass (Henry's law) across every included species at the prescribed initial pressures.
 
+## Pattern 3 - add a metal reservoir
+
+Start from the `ddict` and `target` of Pattern 1. Add `metal_mass` (kg) above zero and the conditions of the metal-melt equilibrium, and the same call solves gas, melt and metal together:
+
+```python
+ddict_metal = {
+    **ddict,
+    'metal_mass': 1.94e24,  # kg of metal in equilibrium with the present melt
+    'P_eq': 50.0,  # GPa
+    'T_eq': 3500.0,  # K
+    'dIW_eq': -1.0,  # log10 units relative to the IW buffer
+}
+result = equilibrium_atmosphere(target, ddict_metal, print_result=False)
+print(f"H in the metal: {result['H_kg_core']:.3e} kg, D_H = {result['H_D_metal']:.3g}")
+```
+
+The result adds, per element `e`, the mass in the metal `<e>_kg_core` (kg), the mass fraction `w_<e>_core`, the partition coefficient `<e>_D_metal` and the range flag `<e>_D_out_of_range`, plus `dIW_eq` and the FeO exchange keys. `<e>_kg_total` stays the gas plus the melt; the bulk inventory is `<e>_kg_total + <e>_kg_core`. The [partition file reference](../Reference/partition_file.md) lists every key, the [metal reservoir tutorial](../Tutorials/metal_reservoir.md) runs the options step by step, and the [explanation page](../Explanations/metal.md) gives the physics.
+
 ## Warm-starting from a previous solve
 
 For repeated calls (e.g. inside a time-evolution loop), pass the previous solution as the initial guess to dramatically reduce the number of `fsolve` iterations:

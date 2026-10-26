@@ -1,17 +1,19 @@
 # Code architecture
 
-CALLIOPE is a small package: seven Python modules totaling under 1000 raw lines, no compiled extensions, no thread or process pools. This page maps each module to its responsibility and shows how they call each other.
+CALLIOPE is a small package: nine pure Python modules, no compiled extensions, no thread or process pools. This page maps each module to its responsibility and shows how they call each other.
 
 ## Package layout
 
 ```
 src/calliope/
 ├── __init__.py              # version string only
+├── _version.py              # package version
 ├── constants.py             # molar masses, element list, plotting colours
 ├── oxygen_fugacity.py       # IW buffer parameterisations
 ├── chemistry.py             # ModifiedKeq class, six redox couples
 ├── solubility.py            # five solubility classes
 ├── solve.py                 # speciation, mass balance, outer solver
+├── metal.py                 # partition file reader, partition laws, metal reservoir masses
 └── structure.py             # simple core/mantle mass split
 ```
 
@@ -75,6 +77,10 @@ Plus seven shared helpers:
 Plus the inner-loop residual functions `func` (four-vector for buffered) and `func_authoritative_O` (five-vector), the L2-norm objectives `obj` and `obj_authoritative_O`, and three private versions (`_get_partial_pressures`, `_atmosphere_mass`, `_dissolved_mass`) that take `fO2_shift` as a positional argument so both solver modes can share the physics path.
 
 `get_partial_pressures` is *the* call that defines what species CALLIOPE knows about. To add a new species, you add an entry in `volatile_species` (constants.py), an entry in `molar_mass` (constants.py), a `ModifiedKeq` model method (chemistry.py) if it is a derived species, a `Solubility` subclass (solubility.py) if it has dissolved-melt physics, and the speciation step in `get_partial_pressures` plus the atomic-mass tally in `atmosphere_mass`. Tests need the analytical-vs-code consistency check in `tests/test_stoichiometry.py`.
+
+### `metal.py`
+
+The optional metal reservoir ([Metal reservoir](metal.md)). `load_partition_table` reads and checks a partition file; `log10_D` evaluates one law and `mass_D` converts its $D$ to the mass basis; `exchange_metal` gives the O and Si of the metal from their exchange $K_D$; `metal_masses` gives the mass of each element in the metal; `out_of_range` sets the range flags. `solve.py` calls them in 2 places: `_core_masses` (through `metal_masses`) adds the core term to `func` and `func_authoritative_O`, and `_with_metal` runs the fixed point on the metal composition. `equilibrium_atmosphere` and `equilibrium_atmosphere_authoritative_O` call `_with_metal` when `metal_mass` is above zero. The packaged partition file is `src/calliope/data/partition_coefficients_placeholder.toml`.
 
 ### `structure.py`
 

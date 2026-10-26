@@ -123,6 +123,7 @@ Cross-cutting tests are the documented exception, not the rule:
 - `tests/test_invariants.py`, `tests/test_invariants_hypothesis.py`: contract clauses that span multiple sources (mass closure end-to-end, partial-species behaviour, stoichiometry of an arbitrary recipe).
 - `tests/test_authoritative_O.py`, `tests/test_authoritative_O_validation.py`, `tests/test_authoritative_O_monotonicity.py`: the authoritative-O entry point, which touches `solve.py`, `chemistry.py`, and `oxygen_fugacity.py` together.
 - `tests/test_equilibrium_paths.py`, `tests/test_partial_species.py`, `tests/test_stoichiometry.py`, `tests/test_targets.py`: solver-architecture tests that span the same three files.
+- `tests/test_metal_solve.py`, `tests/test_metal_fields.py`: the metal reservoir in the full solve and the checks of its `ddict` keys, which span `metal.py` and `solve.py`.
 
 When a new physics source is added, its 1:1 test file is created at the same time; its cases get a section on a page of the Validation tab when the first reference-pinned test for that source lands.
 

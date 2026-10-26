@@ -161,14 +161,17 @@ For each key in `expected_keys()` (defined in `proteus.outgas.common`), the wrap
 | `<s>_kg_atm` | Atmospheric column mass of `s`, kg |
 | `<s>_kg_liquid` | Mass of `s` dissolved in melt, kg |
 | `<s>_kg_solid` | Always 0.0 (CALLIOPE does not partition into solid) |
-| `<s>_kg_total` | `_kg_atm + _kg_liquid + _kg_solid`; excludes the core when a metal reservoir is on |
+| `<s>_kg_total` | `_kg_atm + _kg_liquid + _kg_solid` |
 | `<s>_mol_atm/liquid/solid/total` | Same in mol |
 | `P_surf` | Total surface pressure, bar |
 | `M_atm` | Total atmospheric mass, kg |
 | `atm_kg_per_mol` | Mean molecular mass, kg/mol |
 | `<e>/<e'>_atm` | Atmospheric elemental mass ratios |
 | `<e>_res` | Mass-balance residual for element `e`, kg |
-| `<e>_kg_core`, `w_<e>_core` | Element mass (kg) and mass fraction in the metal, with `metal_mass` in `ddict` ([metal reservoir](../Reference/partition_file.md)) |
+
+### No metal reservoir in PROTEUS
+
+The wrapper does not pass `metal_mass`, so a PROTEUS run solves gas and melt only: the [metal reservoir](metal.md) is off, and all of the H, C, N and S stays in the gas and the melt. The metal keys of CALLIOPE (`<e>_kg_core`, `w_<e>_core` and the others) are not in `expected_keys()`, so `hf_row` has none of them. The metal reservoir is available in standalone CALLIOPE runs ([tutorial](../Tutorials/metal_reservoir.md)).
 
 After the writeback, `wrapper.run_outgassing` recomputes `M_atm` from the per-species `_kg_atm` sum (defensive: catches any internal inconsistency in the result dict).
 
