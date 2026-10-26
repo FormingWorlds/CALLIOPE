@@ -150,7 +150,20 @@ eps = { xC = 6.69 }: 'H': 'eps' keys must be elements of ('H', 'C', 'N', 'S', 'O
 basis = "molar": 'H': 'basis' must be one of ('mass', 'mole', 'mole_xprime_noHC'), got 'molar'
 ```
 
-A mistake in a number is not a format error: a wrong sign of `d` loads without error and gives a wrong $D$. Check each coefficient against the paper. Where the paper gives $D$ at stated conditions, evaluate the law there with `calliope.metal.log10_D` and compare.
+A mistake in a number is not a format error: a wrong sign of `d` loads without error and gives a wrong $D$. Check each coefficient against the paper. Where the paper gives $D$ at stated conditions, evaluate the law there with `calliope.metal.log10_D` and compare. The call takes the pressure (GPa), the temperature (K), $\Delta\mathrm{IW}$ and the $x'$ mole fractions of the `eps` elements in the metal:
+
+```python
+from calliope.metal import log10_D
+
+value = log10_D(table['H'], 50.0, 3500.0, -1.0, x_metal={'C': 0.0})
+print(f'log10 D_H = {value:.4f}, D_H = {10**value:.2f} (mole basis on x\', metal without C)')
+```
+
+```text
+log10 D_H = 1.5637, D_H = 36.62 (mole basis on x', metal without C)
+```
+
+This $D_\mathrm{H}$ is on the basis of the law (here `mole_xprime_noHC`). The solve converts it to the mass basis with `calliope.metal.mass_D`, so `H_D_metal` in step 6 differs from it.
 
 ### Step 6: use the law in a solve
 
@@ -219,11 +232,10 @@ This part is for developers. A law in the `log10_linear` form for one of H, C, N
     - `func`, `func_authoritative_O` and `_with_metal`: a budget, a residual and a metal term for the element.
     - The element lists of `_with_metal`: the loops over H, C, N and S, and over O and Si.
     - The loops of `equilibrium_atmosphere` and `equilibrium_atmosphere_authoritative_O` that write `<e>_kg_core`: `_with_metal` reads those keys from each inner solve.
-
-    For a law in a new form for an element that CALLIOPE already partitions, `_with_metal` must call the new evaluator: it calls `mass_D` for H, C, N and S and `exchange_metal` for O and Si by name, and `mass_D` refuses a form other than `log10_linear`.
-3. **The packaged file** `src/calliope/data/partition_coefficients_placeholder.toml`: a law for each new element, so the default table stays complete.
-4. **The docs**: the field table and the placeholder table of [Reference/partition_file.md](../Reference/partition_file.md), and the [explanation page](../Explanations/metal.md) if the physics changes.
-5. **The tests** (`tests/test_metal.py` for `metal.py`; `tests/test_metal_solve.py` and `tests/test_metal_fields.py` for `solve.py`; rules in `tests/AGENTS.md`):
+3. **`src/calliope/solve.py`**, for a law in a new form for an element that CALLIOPE already partitions: `_with_metal` must call the new evaluator. It calls `mass_D` for H, C, N and S and `exchange_metal` for O and Si by name, and `mass_D` refuses a form other than `log10_linear`.
+4. **The packaged file** `src/calliope/data/partition_coefficients_placeholder.toml`: a law for each new element, so the default table stays complete.
+5. **The docs**: the field table and the placeholder table of [Reference/partition_file.md](../Reference/partition_file.md), and the [explanation page](../Explanations/metal.md) if the physics changes.
+6. **The tests** (`tests/test_metal.py` for `metal.py`; `tests/test_metal_solve.py` and `tests/test_metal_fields.py` for `solve.py`; rules in `tests/AGENTS.md`):
     - a `reference_pinned` test (a test that runs the real code and compares it with a published value): evaluate the law at the conditions of a value that the source gives (a run of its table, or a value in its text) and assert that value within the error of the source;
     - a format test for each new field: a wrong type, NaN, a missing value and a value out of its range raise `PartitionTableError`;
     - a mutation check, which shows that the test can fail: change one coefficient sign or the basis in the code, run the test, confirm that it fails, and undo the change;
