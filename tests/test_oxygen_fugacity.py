@@ -292,7 +292,8 @@ def test_oxygen_fugacity_hirschmann_value_at_1473K_matches_published_figure(vali
             label='Fig. 5, +-0.05 dex',
         )
         ax.plot([1473.0], [val], 'o', label='code, hirschmann')
-        ax.plot([1473.0, 1473.0], [fischer, oneill], 'x', label='code, fischer and oneill')
+        ax.plot([1473.0], [fischer], 'x', label='code, fischer')
+        ax.plot([1473.0], [oneill], '+', ms=10, label='code, oneill')
         ax.plot([1473.0], [kbar], '^', label='code, hirschmann at 1 kbar')
         ax.set(xlabel='T [K]', ylabel=r'$\log_{10} f\mathrm{O_2}$ at IW')
         ax.legend(fontsize='small')

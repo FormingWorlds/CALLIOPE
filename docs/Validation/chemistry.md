@@ -35,7 +35,7 @@ A box "Test details" ends each case.
 ![Log10 Geq of janaf_H2 and schaefer_H against temperature, with the values at 2000 K](../assets/validation/chemistry_janaf_h2_2000k.svg#only-light){ width="80%" }
 ![Log10 Geq of janaf_H2 and schaefer_H against temperature, with the values at 2000 K](../assets/validation/chemistry_janaf_h2_2000k_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** The x-axis is the temperature and the y-axis is $\log_{10} G_\mathrm{eq}$, with the O'Neill and Eggins buffer at $\Delta\mathrm{IW}$ = 0. The lines come from `ModifiedKeq` and give context; the test asserts the 3 marks at 2000 K: the code value of `janaf_H2` (circle), the closed form (square) and `schaefer_H` (cross). A pass means that the circle sits in the square and the cross lies more than 0.2 below them.
+**How to read the plot.** The x-axis is the temperature and the y-axis is $\log_{10} G_\mathrm{eq}$, with the O'Neill and Eggins buffer at $\Delta\mathrm{IW}$ = 0. The lines come from `ModifiedKeq` and give context; the test asserts the 3 marks at 2000 K: the code value of `janaf_H2` (circle), the closed form (square) and `schaefer_H` (cross). A pass means that the circle agrees with the square to a relative 1e-6, too small to see. The cross lies 0.25 below the circle in $G_\mathrm{eq}$ itself, which is 0.08 on this log axis; the test requires more than 0.2 in $G_\mathrm{eq}$.
 
 ??? info "Test details"
     - Reference: NIST-JANAF Thermochemical Tables[^cite-chase1998] (4th ed.), fits for `H2O = H2 + 0.5 O2` over 1500-3000 K; O'Neill and Eggins (2002) IW buffer (closed form).
@@ -95,11 +95,11 @@ A box "Test details" ends each case.
 ![Log10 K of H2S per mole against temperature, JANAF rows, code and wrong fit, with the residuals](../assets/validation/chemistry_janaf_h2s_rows.svg#only-light){ width="80%" }
 ![Log10 K of H2S per mole against temperature, JANAF rows, code and wrong fit, with the residuals](../assets/validation/chemistry_janaf_h2s_rows_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** The top panel shows $\log_{10} K$ per mole of H$_2$S against temperature: the JANAF rows (points), the code (line) and the wrong coefficients that the test holds (dashed). The bottom panel shows the code minus JANAF at each row, with the tolerance of 0.025 dex as dotted lines. A pass means that every residual lies between the dotted lines and the dashed line stays far from the rows.
+**How to read the plot.** The top panel shows $\log_{10} K$ per mole of H$_2$S against temperature: the JANAF rows (marks), the code (solid line) and the wrong fit (dashed line). The bottom panel shows the code minus JANAF at each row, with the tolerance of 0.025 dex as dotted lines. A pass means that every residual lies between the dotted lines. The wrong fit misses the rows by up to 1.85 dex and crosses them near 1900 K; the test requires only that its worst miss is more than 0.075 dex.
 
 ??? info "Test details"
     - Reference: NIST-JANAF Thermochemical Tables[^cite-chase1998] (4th ed.), log Kf of H2S and S2 in `tools/`.
-    - Tolerance: 0.025 dex at every row from 700 to 5000 K; the discriminating coefficients must miss by more than 0.075 dex (3 times the tolerance).
+    - Tolerance: 0.025 dex at every row from 700 to 5000 K; the wrong-fit coefficients must miss by more than 0.075 dex (3 times the tolerance).
     - Test id: `tests/test_chemistry.py::test_janaf_constant_matches_janaf_rows_over_fit_range[hydrogen_sulfide]`
     - Command: `pytest "tests/test_chemistry.py::test_janaf_constant_matches_janaf_rows_over_fit_range[hydrogen_sulfide]"`
 
@@ -116,7 +116,7 @@ A box "Test details" ends each case.
 ![Twice log10 K of H2S from the code and from the least-squares fit against inverse temperature](../assets/validation/chemistry_janaf_h2s_fit.svg#only-light){ width="80%" }
 ![Twice log10 K of H2S from the code and from the least-squares fit against inverse temperature](../assets/validation/chemistry_janaf_h2s_fit_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** The x-axis is $10^4/T$, so a law $a/T - b$ is a straight line. The line is the least-squares fit of the JANAF rows and the points are the code at each row. The test asserts that they agree to a relative and absolute 1e-6, far below what the plot can show; a pass means that every point sits on the line.
+**How to read the plot.** The x-axis is $10^4/T$, so a law $a/T - b$ is a straight line. The line is the least-squares fit of the JANAF rows and the marks are the code at each row. The test asserts that they agree to a relative and absolute 1e-6, far below what the plot can show; a pass means that every mark sits on the line.
 
 ??? info "Test details"
     - Reference: the JANAF rows of the case above; `tools/fit_H2S.ipynb`.
@@ -137,11 +137,11 @@ A box "Test details" ends each case.
 ![Log10 K of NH3 per mole against temperature, JANAF rows, code and wrong fit, with the residuals](../assets/validation/chemistry_janaf_nh3_rows.svg#only-light){ width="80%" }
 ![Log10 K of NH3 per mole against temperature, JANAF rows, code and wrong fit, with the residuals](../assets/validation/chemistry_janaf_nh3_rows_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** The top panel shows $\log_{10} K$ per mole of NH$_3$ against temperature: the JANAF rows (points), the code (line) and the wrong coefficients (dashed). The bottom panel shows the code minus JANAF, with the tolerance of 0.04 dex as dotted lines. A pass means that every residual lies between the dotted lines.
+**How to read the plot.** The top panel shows $\log_{10} K$ per mole of NH$_3$ against temperature: the JANAF rows (marks), the code (solid line) and the wrong fit (dashed line). The bottom panel shows the code minus JANAF, with the tolerance of 0.04 dex as dotted lines. A pass means that every residual lies between the dotted lines. The wrong fit misses the rows by up to 0.158 dex, so at this scale it lies close to the solid line; the test requires only that its worst miss is more than 0.12 dex.
 
 ??? info "Test details"
     - Reference: NIST-JANAF Thermochemical Tables[^cite-chase1998] (4th ed.), log Kf of NH3 in `tools/`.
-    - Tolerance: 0.04 dex at every row from 700 to 5000 K; the discriminating coefficients must miss by more than 0.12 dex (3 times the tolerance).
+    - Tolerance: 0.04 dex at every row from 700 to 5000 K; the wrong-fit coefficients must miss by more than 0.12 dex (3 times the tolerance).
     - Test id: `tests/test_chemistry.py::test_janaf_constant_matches_janaf_rows_over_fit_range[ammonia]`
     - Command: `pytest "tests/test_chemistry.py::test_janaf_constant_matches_janaf_rows_over_fit_range[ammonia]"`
 
@@ -158,7 +158,7 @@ A box "Test details" ends each case.
 ![Twice log10 K of NH3 from the code and from the least-squares fit against inverse temperature](../assets/validation/chemistry_janaf_nh3_fit.svg#only-light){ width="80%" }
 ![Twice log10 K of NH3 from the code and from the least-squares fit against inverse temperature](../assets/validation/chemistry_janaf_nh3_fit_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** The x-axis is $10^4/T$. The line is the least-squares fit of the JANAF rows and the points are the code at each row; the test asserts agreement to a relative and absolute 1e-6, far below what the plot can show. A pass means that every point sits on the line.
+**How to read the plot.** The x-axis is $10^4/T$. The line is the least-squares fit of the JANAF rows and the marks are the code at each row; the test asserts agreement to a relative and absolute 1e-6, far below what the plot can show. A pass means that every mark sits on the line.
 
 ??? info "Test details"
     - Reference: the JANAF rows of the case above; `tools/fit_NH3.ipynb`.
@@ -184,7 +184,7 @@ A box "Test details" ends each case.
 ![Offset of each reaction quotient from NASA Glenn data against temperature, with the stored offsets and their bounds](../assets/validation/chemistry_nasa_glenn_offsets.svg#only-light){ width="80%" }
 ![Offset of each reaction quotient from NASA Glenn data against temperature, with the stored offsets and their bounds](../assets/validation/chemistry_nasa_glenn_offsets_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** Each colour is one reaction; the x-axis is the temperature and the y-axis the offset of $\log_{10} Q$ from the NASA Glenn value. The bars are the stored offsets with their bound of 0.002 dex, and the points are the offsets measured in the test. A pass means that every point lies inside its bar; the size of the offsets, up to 0.1 dex for CH$_4$, is the known difference between the 2 data sets.
+**How to read the plot.** Each colour is one reaction, named in the legend by its product; the x-axis is the temperature and the y-axis the offset of $\log_{10} Q$ from the NASA Glenn value. The error bars are centred on the stored offsets and have the bound of 0.002 dex, too small to see at this scale. The marks are the offsets measured in the test. A pass means that every mark lies inside its error bar; the size of the offsets, up to 0.1 dex for CH$_4$, is the known difference between the 2 data sets.
 
 **Known limit.** The offsets from NASA Glenn are a regression snapshot: the case fails if an offset moves, but it does not say which data set is right. `schaefer_C` has no case. `schaefer_H` appears only in the first case, as the alternative constant that $G_\mathrm{eq}$ must differ from. The test does not call atmodeller. It sits in the cross-code test file, which is skipped without atmodeller, so it runs in the nightly cross-code job.
 

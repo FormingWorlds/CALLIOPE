@@ -6,7 +6,7 @@
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:description>test: tests/test_oxygen_fugacity.py::test_oxygen_fugacity_hirschmann_value_at_1473K_matches_published_figure; command: pytest tests/test_oxygen_fugacity.py::test_oxygen_fugacity_hirschmann_value_at_1473K_matches_published_figure --validation-plots; summary: {"v": 1, "axes": [{"scales": ["linear", "linear"], "categories": [null, null], "lines": [[25, 1443.0, 1503.0, 1473.0, 10.833333333333261, -12.345354843080798, -11.584245152531292, -11.959800209572016, 0.13740239878214847], [25, 1443.0, 1503.0, 1473.0, 10.833333333333261, -12.588723929313932, -11.809110598802398, -12.193844684263585, 0.14074299734194248], [25, 1443.0, 1503.0, 1473.0, 10.833333333333261, -12.040853616236438, -11.371399279625987, -11.701653297113323, 0.12085544572188556], [1, 1473.0, 1473.0, 1473.0, 0.0, -11.94, -11.94, -11.94, 0.0], [1, 1473.0, 1473.0, 1473.0, 0.0, -11.99, -11.99, -11.99, 0.0], [1, 1473.0, 1473.0, 1473.0, 0.0, -11.889999999999999, -11.889999999999999, -11.889999999999999, 0.0], [1, 1473.0, 1473.0, 1473.0, 0.0, -11.956974885411036, -11.956974885411036, -11.956974885411036, 0.0], [2, 1473.0, 1473.0, 1473.0, 0.0, -12.190978228105909, -11.699125578900738, -11.945051903503323, 0.24592632460258562], [1, 1473.0, 1473.0, 1473.0, 0.0, -11.916947413998178, -11.916947413998178, -11.916947413998178, 0.0]], "collections": [[2, 1473.0, 1473.0, 1473.0, 0.0, -11.99, -11.889999999999999, -11.94, 0.05000000000000049]], "values": [], "value_scales": [], "patches": [], "images": [], "image_scales": [], "extents": []}]}</dc:description>
+    <dc:description>test: tests/test_oxygen_fugacity.py::test_oxygen_fugacity_hirschmann_value_at_1473K_matches_published_figure; command: pytest tests/test_oxygen_fugacity.py::test_oxygen_fugacity_hirschmann_value_at_1473K_matches_published_figure --validation-plots; summary: {"v": 1, "axes": [{"scales": ["linear", "linear"], "categories": [null, null], "lines": [[25, 1443.0, 1503.0, 1473.0, 10.833333333333261, -12.345354843080798, -11.584245152531292, -11.959800209572016, 0.13740239878214847], [25, 1443.0, 1503.0, 1473.0, 10.833333333333261, -12.588723929313932, -11.809110598802398, -12.193844684263585, 0.14074299734194248], [25, 1443.0, 1503.0, 1473.0, 10.833333333333261, -12.040853616236438, -11.371399279625987, -11.701653297113323, 0.12085544572188556], [1, 1473.0, 1473.0, 1473.0, 0.0, -11.94, -11.94, -11.94, 0.0], [1, 1473.0, 1473.0, 1473.0, 0.0, -11.99, -11.99, -11.99, 0.0], [1, 1473.0, 1473.0, 1473.0, 0.0, -11.889999999999999, -11.889999999999999, -11.889999999999999, 0.0], [1, 1473.0, 1473.0, 1473.0, 0.0, -11.956974885411036, -11.956974885411036, -11.956974885411036, 0.0], [1, 1473.0, 1473.0, 1473.0, 0.0, -12.190978228105909, -12.190978228105909, -12.190978228105909, 0.0], [1, 1473.0, 1473.0, 1473.0, 0.0, -11.699125578900738, -11.699125578900738, -11.699125578900738, 0.0], [1, 1473.0, 1473.0, 1473.0, 0.0, -11.916947413998178, -11.916947413998178, -11.916947413998178, 0.0]], "collections": [[2, 1473.0, 1473.0, 1473.0, 0.0, -11.99, -11.889999999999999, -11.94, 0.05000000000000049]], "values": [], "value_scales": [], "patches": [], "images": [], "image_scales": [], "extents": []}]}</dc:description>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -1102,22 +1102,33 @@ L 3.5 3.5
     </defs>
     <g clip-path="url(#pcddd6c3611)">
      <use xlink:href="#mccd97f093b" x="309.346009" y="195.850751" style="fill: #593e74; stroke: #593e74"/>
-     <use xlink:href="#mccd97f093b" x="309.346009" y="90.462734" style="fill: #593e74; stroke: #593e74"/>
     </g>
    </g>
    <g id="line2d_36">
     <defs>
-     <path id="m65e3b4bcc1" d="M 0 -3.5 
-L -3.5 3.5 
-L 3.5 3.5 
-z
-" style="stroke: #a03123; stroke-linejoin: miter"/>
+     <path id="m655de9cfdd" d="M -5 0 
+L 5 0 
+M 0 5 
+L 0 -5 
+" style="stroke: #a03123"/>
     </defs>
     <g clip-path="url(#pcddd6c3611)">
-     <use xlink:href="#m65e3b4bcc1" x="309.346009" y="137.134865" style="fill: #a03123; stroke: #a03123; stroke-linejoin: miter"/>
+     <use xlink:href="#m655de9cfdd" x="309.346009" y="90.462734" style="fill: #a03123; stroke: #a03123"/>
     </g>
    </g>
    <g id="line2d_37">
+    <defs>
+     <path id="m25b20460da" d="M 0 -3.5 
+L -3.5 3.5 
+L 3.5 3.5 
+z
+" style="stroke: #7a8894; stroke-linejoin: miter"/>
+    </defs>
+    <g clip-path="url(#pcddd6c3611)">
+     <use xlink:href="#m25b20460da" x="309.346009" y="137.134865" style="fill: #7a8894; stroke: #7a8894; stroke-linejoin: miter"/>
+    </g>
+   </g>
+   <g id="line2d_38">
     <defs>
      <path id="m681a28e444" d="M -3.5 3.5 
 L 3.5 3.5 
@@ -1141,15 +1152,15 @@ L 548.408736 294.116364
 " style="fill: none; stroke: #10151b; stroke-width: 1.1; stroke-linejoin: miter; stroke-linecap: square"/>
    </g>
    <g id="legend_1">
-    <g id="line2d_38">
-     <path d="M 356.794657 173.029401 
-L 368.873157 173.029401 
-L 380.951657 173.029401 
+    <g id="line2d_39">
+     <path d="M 356.794657 155.817539 
+L 368.873157 155.817539 
+L 380.951657 155.817539 
 " style="fill: none; stroke: #10151b; stroke-width: 2.2; stroke-linecap: square"/>
     </g>
     <g id="text_17">
      <!-- hirschmann -->
-     <g style="fill: #10151b" transform="translate(390.614457 177.256876) scale(0.120785 -0.120785)">
+     <g style="fill: #10151b" transform="translate(390.614457 160.045014) scale(0.120785 -0.120785)">
       <defs>
        <path id="InstrumentSans-Regular-68" d="M 512 0 
 L 512 4608 
@@ -1340,15 +1351,15 @@ z
       <use xlink:href="#InstrumentSans-Regular-6e" transform="translate(487.299896 0)"/>
      </g>
     </g>
-    <g id="line2d_39">
-     <path d="M 356.794657 190.241264 
-L 368.873157 190.241264 
-L 380.951657 190.241264 
+    <g id="line2d_40">
+     <path d="M 356.794657 173.029401 
+L 368.873157 173.029401 
+L 380.951657 173.029401 
 " style="fill: none; stroke-dasharray: 8.14,3.52; stroke-dashoffset: 0; stroke: #e23d28; stroke-width: 2.2"/>
     </g>
     <g id="text_18">
      <!-- fischer -->
-     <g style="fill: #10151b" transform="translate(390.614457 194.468739) scale(0.120785 -0.120785)">
+     <g style="fill: #10151b" transform="translate(390.614457 177.256876) scale(0.120785 -0.120785)">
       <defs>
        <path id="InstrumentSans-Regular-66" d="M 781 0 
 L 781 3725 
@@ -1410,15 +1421,15 @@ z
       <use xlink:href="#InstrumentSans-Regular-72" transform="translate(276.299942 0)"/>
      </g>
     </g>
-    <g id="line2d_40">
-     <path d="M 356.794657 207.453126 
-L 368.873157 207.453126 
-L 380.951657 207.453126 
+    <g id="line2d_41">
+     <path d="M 356.794657 190.241264 
+L 368.873157 190.241264 
+L 380.951657 190.241264 
 " style="fill: none; stroke-dasharray: 2.2,3.63; stroke-dashoffset: 0; stroke: #e0a32e; stroke-width: 2.2"/>
     </g>
     <g id="text_19">
      <!-- oneill -->
-     <g style="fill: #10151b" transform="translate(390.614457 211.680601) scale(0.120785 -0.120785)">
+     <g style="fill: #10151b" transform="translate(390.614457 194.468739) scale(0.120785 -0.120785)">
       <defs>
        <path id="InstrumentSans-Regular-6f" d="M 1869 -64 
 Q 1389 -64 1024 160 
@@ -1463,14 +1474,14 @@ z
       <use xlink:href="#InstrumentSans-Regular-6c" transform="translate(222.699951 0)"/>
      </g>
     </g>
-    <g id="line2d_41">
+    <g id="line2d_42">
      <g>
-      <use xlink:href="#m2b39c7034c" x="368.873157" y="224.664989" style="fill: #1b6fa8; stroke: #1b6fa8"/>
+      <use xlink:href="#m2b39c7034c" x="368.873157" y="207.453126" style="fill: #1b6fa8; stroke: #1b6fa8"/>
      </g>
     </g>
     <g id="text_20">
      <!-- code, hirschmann -->
-     <g style="fill: #10151b" transform="translate(390.614457 228.892464) scale(0.120785 -0.120785)">
+     <g style="fill: #10151b" transform="translate(390.614457 211.680601) scale(0.120785 -0.120785)">
       <defs>
        <path id="InstrumentSans-Regular-64" d="M 2886 0 
 L 2886 762 
@@ -1534,14 +1545,14 @@ z
       <use xlink:href="#InstrumentSans-Regular-6e" transform="translate(761.499832 0)"/>
      </g>
     </g>
-    <g id="line2d_42">
+    <g id="line2d_43">
      <g>
-      <use xlink:href="#mccd97f093b" x="368.873157" y="241.876851" style="fill: #593e74; stroke: #593e74"/>
+      <use xlink:href="#mccd97f093b" x="368.873157" y="224.664989" style="fill: #593e74; stroke: #593e74"/>
      </g>
     </g>
     <g id="text_21">
-     <!-- code, fischer and oneill -->
-     <g style="fill: #10151b" transform="translate(390.614457 246.104326) scale(0.120785 -0.120785)">
+     <!-- code, fischer -->
+     <g style="fill: #10151b" transform="translate(390.614457 228.892464) scale(0.120785 -0.120785)">
       <use xlink:href="#InstrumentSans-Regular-63"/>
       <use xlink:href="#InstrumentSans-Regular-6f" transform="translate(53.299988 0)"/>
       <use xlink:href="#InstrumentSans-Regular-64" transform="translate(111.699982 0)"/>
@@ -1555,25 +1566,36 @@ z
       <use xlink:href="#InstrumentSans-Regular-68" transform="translate(434.19989 0)"/>
       <use xlink:href="#InstrumentSans-Regular-65" transform="translate(494.099884 0)"/>
       <use xlink:href="#InstrumentSans-Regular-72" transform="translate(550.499878 0)"/>
-      <use xlink:href="#InstrumentSans-Regular-20" transform="translate(587.999863 0)"/>
-      <use xlink:href="#InstrumentSans-Regular-61" transform="translate(607.999847 0)"/>
-      <use xlink:href="#InstrumentSans-Regular-6e" transform="translate(661.299835 0)"/>
-      <use xlink:href="#InstrumentSans-Regular-64" transform="translate(721.199829 0)"/>
-      <use xlink:href="#InstrumentSans-Regular-20" transform="translate(781.79982 0)"/>
-      <use xlink:href="#InstrumentSans-Regular-6f" transform="translate(801.799805 0)"/>
-      <use xlink:href="#InstrumentSans-Regular-6e" transform="translate(860.199799 0)"/>
-      <use xlink:href="#InstrumentSans-Regular-65" transform="translate(920.099792 0)"/>
-      <use xlink:href="#InstrumentSans-Regular-69" transform="translate(976.499786 0)"/>
-      <use xlink:href="#InstrumentSans-Regular-6c" transform="translate(1000.499771 0)"/>
-      <use xlink:href="#InstrumentSans-Regular-6c" transform="translate(1024.499756 0)"/>
      </g>
     </g>
-    <g id="line2d_43">
+    <g id="line2d_44">
      <g>
-      <use xlink:href="#m65e3b4bcc1" x="368.873157" y="259.088714" style="fill: #a03123; stroke: #a03123; stroke-linejoin: miter"/>
+      <use xlink:href="#m655de9cfdd" x="368.873157" y="241.876851" style="fill: #a03123; stroke: #a03123"/>
      </g>
     </g>
     <g id="text_22">
+     <!-- code, oneill -->
+     <g style="fill: #10151b" transform="translate(390.614457 246.104326) scale(0.120785 -0.120785)">
+      <use xlink:href="#InstrumentSans-Regular-63"/>
+      <use xlink:href="#InstrumentSans-Regular-6f" transform="translate(53.299988 0)"/>
+      <use xlink:href="#InstrumentSans-Regular-64" transform="translate(111.699982 0)"/>
+      <use xlink:href="#InstrumentSans-Regular-65" transform="translate(172.299973 0)"/>
+      <use xlink:href="#InstrumentSans-Regular-2c" transform="translate(228.699966 0)"/>
+      <use xlink:href="#InstrumentSans-Regular-20" transform="translate(254.199951 0)"/>
+      <use xlink:href="#InstrumentSans-Regular-6f" transform="translate(274.199936 0)"/>
+      <use xlink:href="#InstrumentSans-Regular-6e" transform="translate(332.59993 0)"/>
+      <use xlink:href="#InstrumentSans-Regular-65" transform="translate(392.499924 0)"/>
+      <use xlink:href="#InstrumentSans-Regular-69" transform="translate(448.899918 0)"/>
+      <use xlink:href="#InstrumentSans-Regular-6c" transform="translate(472.899902 0)"/>
+      <use xlink:href="#InstrumentSans-Regular-6c" transform="translate(496.899887 0)"/>
+     </g>
+    </g>
+    <g id="line2d_45">
+     <g>
+      <use xlink:href="#m25b20460da" x="368.873157" y="259.088714" style="fill: #7a8894; stroke: #7a8894; stroke-linejoin: miter"/>
+     </g>
+    </g>
+    <g id="text_23">
      <!-- code, hirschmann at 1 kbar -->
      <g style="fill: #10151b" transform="translate(390.614457 263.316189) scale(0.120785 -0.120785)">
       <defs>
@@ -1657,23 +1679,23 @@ z
 L 368.873157 270.382111 
 " style="fill: none; stroke: #57a05c; stroke-width: 2.2"/>
     </g>
-    <g id="line2d_44">
+    <g id="line2d_46">
      <g>
       <use xlink:href="#m4b2ba966f7" x="368.873157" y="282.460611" style="fill: #57a05c; stroke: #57a05c"/>
      </g>
     </g>
-    <g id="line2d_45">
+    <g id="line2d_47">
      <g>
       <use xlink:href="#m4b2ba966f7" x="368.873157" y="270.382111" style="fill: #57a05c; stroke: #57a05c"/>
      </g>
     </g>
-    <g id="line2d_46"/>
-    <g id="line2d_47">
+    <g id="line2d_48"/>
+    <g id="line2d_49">
      <g>
       <use xlink:href="#m681a28e444" x="368.873157" y="276.421361" style="fill-opacity: 0; stroke: #57a05c; stroke-linejoin: miter"/>
      </g>
     </g>
-    <g id="text_23">
+    <g id="text_24">
      <!-- Fig. 5, +-0.05 dex -->
      <g style="fill: #10151b" transform="translate(390.614457 280.648836) scale(0.120785 -0.120785)">
       <defs>

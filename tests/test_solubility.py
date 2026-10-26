@@ -86,14 +86,13 @@ class TestSolubilityH2O:
             grid = [10 ** (k / 10) for k in range(0, 31)]
             fig, ax = plt.subplots()
             ax.plot(grid, [s(p) for p in grid], label='code, peridotite')
+            dixon = SolubilityH2O('basalt_dixon')
+            ax.plot(grid, [dixon(p) for p in grid], ls='--', label='code, Dixon basalt')
             ax.plot(
-                [1.0, 1000.0],
-                [965.0, 965.0 * 1000.0**0.5],
-                ls='--',
-                label=r'965 $p^{0.5}$ (Dixon basalt)',
-            )
-            ax.plot(
-                [1.0, 1000.0], [524.0, 524.0 * 1000.0], ls=':', label=r'524 $p$ (exponent 1)'
+                [100.0, 100.0],
+                [965.0 * 10.0, 524.0 * 100.0],
+                'x',
+                label='wrong values of the test',
             )
             ax.plot(
                 [100.0],
@@ -291,10 +290,10 @@ class TestSolubilityS2_xFeO:
             fig.tight_layout()
             return fig
 
-        validation_plot(figure, 'solubility_s2_2500k')
         # Sign and scale guards: positive ppmw, order 1e4 at these conditions.
         assert out > 0
         assert 1e3 < out < 1e5
+        validation_plot(figure, 'solubility_s2_2500k')
 
     @pytest.mark.physics_invariant
     @pytest.mark.parametrize(

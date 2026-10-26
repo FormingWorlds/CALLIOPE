@@ -238,7 +238,7 @@ def test_janaf_constant_matches_janaf_rows_over_fit_range(
         fig, (top, bottom) = plt.subplots(2, 1, sharex=True, height_ratios=[2, 1])
         top.plot(T, janaf, 'o', ms=3, label='JANAF rows')
         top.plot(T, fit, label=f'janaf_{product}')
-        top.plot(T, 0.5 * (a / T - b), ls='--', label='discriminating fit')
+        top.plot(T, 0.5 * (a / T - b), ls='--', label='wrong fit')
         top.set(ylabel=r'$\log_{10} K$ per mole')
         top.legend()
         bottom.plot(T, fit - janaf, 'o', ms=3)

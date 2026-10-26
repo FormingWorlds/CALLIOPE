@@ -25,10 +25,10 @@ Each case below says why the check exists, what it tests, how we know the right 
 
 **Why it matters.** The solubility of water decides how much water stays in the magma ocean and how much goes into the atmosphere.
 
-![Dissolved water against pressure on log axes, the code law and the 2 wrong laws, with the value at 100 bar](../assets/validation/solubility_h2o_peridotite.svg#only-light){ width="80%" }
-![Dissolved water against pressure on log axes, the code law and the 2 wrong laws, with the value at 100 bar](../assets/validation/solubility_h2o_peridotite_dark.svg#only-dark){ width="80%" }
+![Dissolved water against pressure on log axes, the code law and the Dixon law, with the value and the 2 wrong values at 100 bar](../assets/validation/solubility_h2o_peridotite.svg#only-light){ width="80%" }
+![Dissolved water against pressure on log axes, the code law and the Dixon law, with the value and the 2 wrong values at 100 bar](../assets/validation/solubility_h2o_peridotite_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** Both axes are logarithmic. The solid line is the code law and gives context; the dashed line is the Dixon basalt law and the dotted line a law with exponent 1. The test asserts the code value at 100 bar (circle) against $524 \times 100^{0.5}$ = 5240 ppmw (square). A pass means that the circle sits in the square and both wrong laws lie far away.
+**How to read the plot.** Both axes are logarithmic. The solid line is the code law and the dashed line is the Dixon basalt law of the code; both give context. The test asserts the code value at 100 bar (circle) against $524 \times 100^{0.5}$ = 5240 ppmw (square), to a relative 1e-12, too small to see. The 2 crosses at 100 bar are the wrong values that the test holds: 9650 ppmw from the Dixon constant and 52400 ppmw from an exponent of 1. A pass means that the circle sits in the square and both crosses lie more than 1000 ppmw from it.
 
 ??? info "Test details"
     - Reference: Sossi et al. (2023)[^cite-sossi2023] peridotite H2O fit: `ppmw = 524 * p^0.5`.
@@ -58,7 +58,7 @@ Each case below says why the check exists, what it tests, how we know the right 
 ![Dissolved sulfur against temperature with the Hirschmann and the Fischer buffer, with the pinned value at 2500 K](../assets/validation/solubility_s2_2500k.svg#only-light){ width="80%" }
 ![Dissolved sulfur against temperature with the Hirschmann and the Fischer buffer, with the pinned value at 2500 K](../assets/validation/solubility_s2_2500k_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** The lines are the code law with the Hirschmann buffer (solid) and with the Fischer buffer (dashed) and give context. The test asserts the marks at 2500 K: the code value (circle), the pinned value 13248.67 ppmw (square) and the Fischer value 13085.87 ppmw (cross). A pass means that the circle sits in the square and the cross lies more than 100 ppmw below.
+**How to read the plot.** The lines are the code law with the Hirschmann buffer (solid) and with the Fischer buffer (dashed) and give context. The test asserts the marks at 2500 K: the code value (circle), the pinned value 13248.67 ppmw (square) and the Fischer value 13085.87 ppmw (cross). A pass means that the circle agrees with the square to a relative 1e-5, too small to see, and the cross lies more than 100 ppmw below.
 
 **Known limit.** As a regression check, the case fails when a coefficient, the FeO unit or the buffer changes. It does not test the published law itself.
 
@@ -97,7 +97,7 @@ Each case below says why the check exists, what it tests, how we know the right 
 ![Henry constants of the 5 noble gases from the code, with the hand-computed literals](../assets/validation/solubility_noble_constants.svg#only-light){ width="80%" }
 ![Henry constants of the 5 noble gases from the code, with the hand-computed literals](../assets/validation/solubility_noble_constants_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** Each bar is the constant of the code for one gas, and each point is the literal that the test asserts. A pass means that every point sits at the top of its bar.
+**How to read the plot.** Each grey column is the constant of the code for one gas, and each mark is the literal that the test asserts. A pass means that every mark sits at the top of its column, to a relative 1e-4.
 
 ??? info "Test details"
     - Reference: Jambon, Weill and Braun (1986)[^cite-jambon1986], noble gas Henry constants in tholeiitic basalt ([doi:10.1016/0016-7037(86)90193-6](https://doi.org/10.1016/0016-7037(86)90193-6)); code in `jambon86_ppmw_per_bar` and `SolubilityNobleGas`.
@@ -119,7 +119,7 @@ Each case below says why the check exists, what it tests, how we know the right 
 ![CALLIOPE Henry constants against the atmodeller concentrations at 1 bar for the 5 noble gases](../assets/validation/solubility_noble_atmodeller.svg#only-light){ width="80%" }
 ![CALLIOPE Henry constants against the atmodeller concentrations at 1 bar for the 5 noble gases](../assets/validation/solubility_noble_atmodeller_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** Both axes are logarithmic. Each point is one gas: the atmodeller concentration at 1 bar on the x-axis and the CALLIOPE constant on the y-axis. A pass means that every point lies on the dotted 1:1 line.
+**How to read the plot.** Both axes are logarithmic. Each mark is one gas: the atmodeller concentration at 1 bar on the x-axis and the CALLIOPE constant on the y-axis. A pass means that every mark lies on the dotted 1:1 line, to a relative 1e-10.
 
 **Known limit.** The test is skipped when atmodeller is not installed, so it runs only where atmodeller is present, such as the nightly cross-code job.
 
