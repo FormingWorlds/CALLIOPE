@@ -226,7 +226,8 @@ def test_metal_diw_takes_no_absolute_fo2():
     pure = _metal_diw({'dIW_eq_mode': 'from_FeO'}, dict.fromkeys(w, 0.0), KLB1)
     assert pure == pytest.approx(-2.4846, abs=1e-4)
     assert diw[0] - pure == pytest.approx(0.1194, abs=1e-4)
-    assert _metal_diw({'dIW_eq': -2.5, 'fO2_model': 'oneill'}, w, KLB1) == pytest.approx(-2.5)
+    for b in BUFFERS:
+        assert _metal_diw({'dIW_eq': -2.5, 'fO2_model': b}, w, KLB1) == pytest.approx(-2.5), b
 
 
 @pytest.mark.physics_invariant
