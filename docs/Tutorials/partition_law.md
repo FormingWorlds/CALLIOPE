@@ -1,13 +1,13 @@
 # Add a new partition law
 
-The [metal reservoir](../Explanations/metal.md) reads its partition laws from a TOML file. CALLIOPE comes with a file of placeholder laws. This tutorial puts a published law into your own copy of that file, checks it, and uses it in a solve. A second part says what a developer must change to add a law in a new form or for a new element.
+The [metal reservoir](../Explanations/metal.md) reads its partition laws from a TOML file. CALLIOPE comes with a file of placeholder laws. This tutorial puts a published law into your own copy of that file, checks it, and uses it in a solve (Part 1). Part 2 explains the covariance, range and basis fields. Part 3 is for developers: it says what to change in the code to add a law in a new form or for a new element.
 
 By the end of it you will:
 
 - have mapped each coefficient of a published equation onto the fields of the file;
 - have written your own partition file and loaded it with `load_partition_table`;
 - know the error that a typical mistake in the file gives;
-- have compared $D$ and the core share of the new law with the placeholder law;
+- have compared $D$ and the metal share of the new law with the placeholder law;
 - know what to fill in the covariance, range and basis fields.
 
 You should already have done the [metal reservoir tutorial](metal_reservoir.md). The file format is on the [partition file reference](../Reference/partition_file.md#file-schema). The whole tutorial runs in a few seconds.
@@ -31,7 +31,7 @@ with $a = 2.31(20)$, $b = -1542(500)$, $c = -38.9(78)$ and $d = 6.69(30)$ (p. 3;
 
 ### Step 2: map the coefficients onto the file
 
-The file needs $\log_{10} D$ alone on the left. Move the term $\frac{1}{4}\Delta\mathrm{IW}$ to the right:
+Note that the letters of the paper are not the field names of the file: the paper's $d$ multiplies $\log_{10}(1 - x'_\mathrm{C})$ and goes into the file field `eps`, while the file field `d` multiplies $\Delta\mathrm{IW}$. The file needs $\log_{10} D$ alone on the left. Move the term $\frac{1}{4}\Delta\mathrm{IW}$ to the right:
 
 $$
 \log_{10} D_\mathrm{H} = 2.31 - \frac{1542}{T} - 38.9\,\frac{P}{T} - 0.25\,\Delta\mathrm{IW} + 6.69\,\log_{10}(1 - x'_\mathrm{C}).
@@ -41,12 +41,12 @@ Compare it term by term with the law of the file, $\log_{10} D = a + b/T + c\,P/
 
 | Paper (Eq. 3) | File field | Value | Why |
 |---|---|---|---|
-| $a$ | `a` | 2.31 | same term |
-| $b$ | `b` | -1542.0 | same term, $T$ in K |
-| $c$ | `c` | -38.9 | same term, $P$ in GPa |
+| paper $a$ | `a` | 2.31 | same term |
+| paper $b$ | `b` | -1542.0 | same term, $T$ in K |
+| paper $c$ | `c` | -38.9 | same term, $P$ in GPa |
 | $\frac{1}{4}\Delta\mathrm{IW}$ on the left | `d`, `dIW_factor` | -0.25, 1.0 | moved to the right, so the sign changes |
 | no NBO/T term | `e` | 0.0 | |
-| $d \cdot \log_{10}(1 - x'_\mathrm{C})$ | `eps` | `{ C = 6.69 }` | CALLIOPE takes $X_j$ on the same $x'$ basis (Eq. 10) |
+| paper $d \cdot \log_{10}(1 - x'_\mathrm{C})$ | `eps` | `{ C = 6.69 }` | CALLIOPE takes $X_j$ on the same $x'$ basis (Eq. 10) |
 | fits $K_D$ | `quantity` | `"K_D"` | what the source fits; the law still gives $D$, because the $\Delta\mathrm{IW}$ term holds the conversion |
 | $D$ over $x'$ in the metal | `basis` | `"mole_xprime_noHC"` | Eq. 1 and Eq. 10 |
 | H in the melt as HO$_{0.5}$ | `silicate_basis` | `"single_cation"` | see below |
@@ -103,6 +103,7 @@ doi = "10.1038/s41467-025-65729-5"
 '''
 start, end = text.index('[H]\n'), text.index('[C]\n')
 mine = text[:start] + h_law + text[end:]
+assert 'name = "placeholder-2026-10"' in mine  # the name of the packaged file
 mine = mine.replace('name = "placeholder-2026-10"', 'name = "tsutsumi2025-H"')
 with open('my_partition_laws.toml', 'w') as f:
     f.write(mine)
@@ -173,14 +174,14 @@ for name, tab in (('placeholder', load_partition_table()), ('Tsutsumi 2025', tab
     )
     share = res['H_kg_core'] / (res['H_kg_core'] + res['H_kg_total'])
     print(
-        f"{name:13s}  D_H {res['H_D_metal']:.4g}  H core share {share:.4f}  "
+        f"{name:13s}  D_H {res['H_D_metal']:.4g}  H metal share {share:.4f}  "
         f"H in gas {res['H_kg_atm']:.3e} kg  flag {res['H_D_out_of_range']}"
     )
 ```
 
 ```text
-placeholder    D_H 22.14  H core share 0.9142  H in gas 1.582e+15 kg  flag 0
-Tsutsumi 2025  D_H 33.3  H core share 0.9413  H in gas 7.413e+14 kg  flag 0
+placeholder    D_H 22.14  H metal share 0.9142  H in gas 1.582e+15 kg  flag 0
+Tsutsumi 2025  D_H 33.3  H metal share 0.9413  H in gas 7.413e+14 kg  flag 0
 ```
 
 The new law gives $D_\mathrm{H}$ = 33.3, 1.5 times the placeholder value, and halves the H that is left in the gas. At these conditions the metal holds almost no C (the C law gives $D_\mathrm{C}$ = 0.08), so the C term of the new law is close to 0, and the difference comes from the new $a$, $b$ and $c$. In a metal with more C, the C term lowers $D_\mathrm{H}$. Both laws are in range here (flag 0), but the file is still marked `placeholder`, so the placeholder warning stays: the N, S, O and Si laws of the file have not changed.
@@ -211,14 +212,14 @@ This part is for developers. A law in the `log10_linear` form for one of H, C, N
     - `_check_read_values`: state which forms and fields the evaluator of each element reads, so that a file with a value the code ignores is refused.
     - The evaluator: a function like `log10_D` for the new form, and the conversion to the mass basis in `mass_D` (or a new function like `exchange_metal` for an exchange reaction).
     - `ELEMENTS` (and `EXCHANGE_ELEMENTS` for an exchange with FeO): add a new element.
-2. **`src/calliope/solve.py`**: the metal reservoir partitions H, C, N and S in `_with_metal` and the residual functions `func` and `func_authoritative_O`. A new volatile element needs a budget, a residual and its core term there, and its name in the element lists of `_with_metal` (the loops over H, C, N and S, and over O and Si), which write the metal keys of the result.
+2. **`src/calliope/solve.py`**: the metal reservoir partitions H, C, N and S in `_with_metal` and the residual functions `func` and `func_authoritative_O`. A new volatile element needs a budget, a residual and its core term there, and its name in the element lists of `_with_metal` (the loops over H, C, N and S, and over O and Si) and in the loops of `equilibrium_atmosphere` and `equilibrium_atmosphere_authoritative_O` that write `<e>_kg_core`; `_with_metal` reads those keys from each inner solve.
 3. **The packaged file** `src/calliope/data/partition_coefficients_placeholder.toml`: a law for each new element, so the default table stays complete.
 4. **The docs**: the field table and the placeholder table of [Reference/partition_file.md](../Reference/partition_file.md), and the [explanation page](../Explanations/metal.md) if the physics changes.
 5. **The tests** (`tests/test_metal.py`, rules in `tests/AGENTS.md`):
-    - a `reference_pinned` test that evaluates the law at the conditions of a value that the source gives (a run of its table, or a value in its text) and asserts that value within the error of the source;
+    - a `reference_pinned` test (a test that runs the real code and compares it with a published value): evaluate the law at the conditions of a value that the source gives (a run of its table, or a value in its text) and assert that value within the error of the source;
     - a format test for each new field: a wrong type, NaN, a missing value and a value out of its range raise `PartitionTableError`;
-    - a mutant check: change one coefficient sign or the basis in the code and confirm that the pinned test fails;
-    - a case on the [validation page](../Validation/metal.md) and a row in `docs/Validation/index.md`, which `tests/test_validation_index.py` checks.
+    - a mutation check, which shows that the test can fail: change one coefficient sign or the basis in the code, run the test, confirm that it fails, and undo the change;
+    - a case on the [validation page](../Validation/metal.md) and a row in `docs/Validation/index.md`, which the test `tests/test_validation_index.py` compares with the list of validation tests.
 
 ## Where to go next
 

@@ -1,13 +1,13 @@
 # Code architecture
 
-CALLIOPE is a small package: nine pure Python modules, no compiled extensions, no thread or process pools. This page maps each module to its responsibility and shows how they call each other.
+CALLIOPE is a small package: eight pure Python modules plus `_version.py`, which the build writes, no compiled extensions, no thread or process pools. This page maps each module to its responsibility and shows how they call each other.
 
 ## Package layout
 
 ```
 src/calliope/
 ├── __init__.py              # version string only
-├── _version.py              # package version
+├── _version.py              # package version, written by the build
 ├── constants.py             # molar masses, element list, plotting colours
 ├── oxygen_fugacity.py       # IW buffer parameterisations
 ├── chemistry.py             # ModifiedKeq class, six redox couples

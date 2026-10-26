@@ -11,7 +11,7 @@ By the end of it you will:
 - have made a plot of the share of each element in the metal against $\Delta\mathrm{IW}$;
 - have run the authoritative-O solve with metal.
 
-You should already have done the [First run](firstrun.md) tutorial. The physics is on the [Metal reservoir](../Explanations/metal.md) explanation page, and every input and output key is on the [partition file reference](../Reference/partition_file.md). The whole tutorial runs in about 1 minute.
+You should already have done the [First run](firstrun.md) tutorial. The physics is on the [Metal reservoir](../Explanations/metal.md) explanation page, and every input and output key is on the [partition file reference](../Reference/partition_file.md). The whole tutorial runs in less than a minute.
 
 ## Step 1: the input
 
@@ -65,7 +65,7 @@ The metal keys:
 - `P_eq` (GPa) and `T_eq` (K) are the pressure and temperature of the metal-melt equilibrium. They are not the surface values: the metal equilibrates deep in the magma ocean.
 - `dIW_eq` (log10 units) is the oxygen fugacity of that equilibrium relative to the iron-wüstite (IW) buffer. It is a separate input from `fO2_shift_IW`, which sets the gas and the melt at the surface.
 
-The logging line makes the warnings of CALLIOPE visible. You need them in step 5.
+The logging line makes the warnings of CALLIOPE visible. The solves of steps 2 to 4 log warnings; step 5 explains each of them.
 
 ## Step 2: solve without metal and with metal
 
@@ -75,24 +75,26 @@ no_metal = equilibrium_atmosphere(target, {**ddict, 'metal_mass': 0.0}, print_re
 with_metal = equilibrium_atmosphere(target, {**ddict, **metal}, print_result=False)
 
 print(f"P_surf: {no_metal['P_surf']:.3g} bar without metal, {with_metal['P_surf']:.3g} bar with metal")
-print('el  D_metal  w_core     kg_core    kg_total   bulk       core share')
+print('el  D_metal  w_core     kg_core    kg_total   bulk       metal share')
 for el in ('H', 'C', 'N', 'S'):
     core, total = with_metal[f'{el}_kg_core'], with_metal[f'{el}_kg_total']
     print(
         f"{el:2s}  {with_metal[f'{el}_D_metal']:<7.4g}  {with_metal[f'w_{el}_core']:.3e}  "
         f'{core:.3e}  {total:.3e}  {core + total:.3e}  {core / (core + total):.4f}'
     )
+print('budget: ' + ', '.join(f'{el} {target[el]:.3e}' for el in ('H', 'C', 'N', 'S')))
 ```
 
 The output:
 
 ```text
 P_surf: 8.7 bar without metal, 7.67 bar with metal
-el  D_metal  w_core     kg_core    kg_total   bulk       core share
+el  D_metal  w_core     kg_core    kg_total   bulk       metal share
 H   22.14    7.304e-05  1.417e+20  1.330e+19  1.550e+20  0.9142
 C   0.08284  4.384e-08  8.505e+16  1.541e+19  1.550e+19  0.0055
 N   39       1.733e-06  3.362e+18  4.698e+18  8.060e+18  0.4172
 S   173      4.105e-04  7.964e+20  9.565e+18  8.060e+20  0.9881
+budget: H 1.550e+20, C 1.550e+19, N 8.060e+18, S 8.060e+20
 ```
 
 How to read the columns:
@@ -100,7 +102,8 @@ How to read the columns:
 - `<e>_D_metal` is the partition coefficient $D$ on the mass basis: the mass fraction of the element in the metal divided by that in the melt.
 - `w_<e>_core` is the mass fraction of the element in the metal, and `<e>_kg_core` its mass there, in kg.
 - `<e>_kg_total` is the gas plus the melt. It does not include the metal.
-- The bulk inventory of an element is `<e>_kg_total + <e>_kg_core`. It equals the budget in `target`: no mass is lost or made.
+- The bulk inventory of an element is `<e>_kg_total + <e>_kg_core`. It equals the budget in `target` (the last line): no mass is lost or made.
+- The metal share is the bulk inventory in the metal, `<e>_kg_core` over the bulk. The keys say `core` for the metal reservoir.
 
 Most of the H and S goes into the metal, and almost no C. The atmosphere of this planet is mostly CO and CO$_2$, so the surface pressure falls only from 8.7 to 7.67 bar.
 
@@ -152,7 +155,7 @@ O and Si enter the metal by exchange with the silicate: $\mathrm{FeO} = \mathrm{
 ```python
 fixed = equilibrium_atmosphere(
     target, {**ddict, **metal, 'w_O_core': 0.02, 'w_Si_core': 0.05}, print_result=False
-)
+)  # example values, not a model of the Earth's core
 partition = equilibrium_atmosphere(
     target,
     {**ddict, **metal, 'O_mode_core': 'partition', 'Si_mode_core': 'partition'},
@@ -202,15 +205,15 @@ WARNING Si partition law evaluated outside its range or on an unknown range: P_e
 What each one means, and what to do:
 
 - **The laws are placeholders.** The packaged partition file has `placeholder = true`. Its laws come from published values, but some are simple lines through 2 table values. For a result you want to publish, put a fitted law from a source you have read into your own file: see [Add a new partition law](partition_law.md).
-- **A law outside its range.** `<e>_D_out_of_range` is 1 and the warning names the conditions. The pressure, temperature or $\Delta\mathrm{IW}$ is outside the data that the law was fitted to, or the range is unknown. The placeholder N and S laws are in range only at one pressure and temperature (N: 20 GPa, 3000 K; S: 60 GPa, 4000 K). The placeholder O and Si laws have no known temperature and $\Delta\mathrm{IW}$ range, so they are always flagged. Move the conditions into the range, or use a law whose range covers them. If you keep the result, say in your text that the law was extrapolated.
+- **A law outside its range.** `<e>_D_out_of_range` is 1 and the warning names the conditions. The pressure, temperature or $\Delta\mathrm{IW}$ is outside the data that the law was fitted to, or the range is unknown. The placeholder N and S laws are in range only at one pressure and temperature (N: 20 GPa, 3000 K; S: 60 GPa, 4000 K). The placeholder O and Si laws have no known temperature and $\Delta\mathrm{IW}$ range, so they are always flagged. With the packaged file, no `P_eq` and `T_eq` put N and S in range together, so every result with this file has at least one flag. Use a law whose range covers your conditions ([Add a new partition law](partition_law.md)), or move the conditions into the range of the law you have. If you keep a flagged result, say in your text that the law was extrapolated.
 - **The FeO exchange.** More than 10 % of the melt FeO moved. Use less metal O and Si, or apply the exchange to the FeO budget of your own model.
 - **Ideal activities.** `'partition'` mode leaves out the activity coefficients of the published O and Si fits. Treat its O and Si as a first estimate.
 
 The solve does not stop or clamp a value for any of these: it returns the result with the flags set. The flags are in the result dictionary, so a script can check them; the warnings appear only once per process.
 
-## Step 6: a plot of the core share against $\Delta\mathrm{IW}$
+## Step 6: a plot of the metal share against $\Delta\mathrm{IW}$
 
-Scan `dIW_eq` from $-3$ to 0 and plot the share of each element in the metal. Each solve starts from the partial pressures of the solve before (`p_guess`), which makes the scan faster:
+Scan `dIW_eq` from $-3$ to 0 and plot the metal share of each element. Each solve starts from the partial pressures of the solve before (`p_guess`), which makes the scan faster:
 
 ```python
 d_iw_grid = np.linspace(-3.0, 0.0, 13)
@@ -246,9 +249,9 @@ dIW_eq -1.00: H 0.914, C 0.00549, N 0.417, S 0.988
 dIW_eq +0.00: H 0.857, C 0.0032, N 0.718, S 0.995
 ```
 
-![Share of H, C, N and S in the metal against the oxygen fugacity of the metal-melt equilibrium](../assets/figures/tutorials/metal_core_share.png)
+![Log plot of the metal share of H, C, N and S against dIW_eq from -3 to 0: H and S near 1, N rising from 0.06 to 0.7, C falling from 0.016 to 0.003](../assets/figures/tutorials/metal_core_share.png)
 
-*Share of the bulk H, C, N and S inventory in the metal against `dIW_eq`, for the whole Earth core at 50 GPa and 3500 K. The grey band is the $\Delta\mathrm{IW}$ range of the placeholder H law. The N and S laws (dashed) are flagged out of range at every point of this plot, because they are in range only at one other pressure and temperature.*
+*Metal share of the bulk H, C, N and S inventory against `dIW_eq`, for the whole Earth core at 50 GPa and 3500 K. The y axis is logarithmic. The grey band is the $\Delta\mathrm{IW}$ range of the placeholder H law; outside it, the H law is out of range. The C law is out of range above $-0.53$. The N and S laws (dashed) are out of range at every point, because each is in range only at one other pressure and temperature. A solid line does not mean that the law is in range.*
 
 How to read the plot:
 
@@ -281,7 +284,7 @@ O budget 1.3129e+20 kg, gas + melt O 1.3129e+20 kg
 O_kg_core 1.940e+21 kg
 ```
 
-The solve returns the $\Delta\mathrm{IW}$ of the buffered solve, and the gas and melt O equal the budget. The metal holds about 15 times more O than the gas and the melt, and none of it is counted in the budget. The guess `p_guess` holds the 4 primary partial pressures and `fO2_shift_IW`; without it, the solve starts from random guesses and takes about a minute here instead of a fraction of a second.
+This is a round trip: the O of a buffered solve, given back as a budget, must give back the $\Delta\mathrm{IW}$ of that buffered solve. The solve returns +0.5, and the gas and melt O equal the budget. The metal holds about 15 times more O than the gas and the melt, and none of it is counted in the budget. The guess `p_guess` holds the 4 primary partial pressures and `fO2_shift_IW`; without it, the solve starts from random guesses and can take from about a minute to a few minutes here, instead of a fraction of a second.
 
 ## Where to go next
 

@@ -51,7 +51,7 @@ When CALLIOPE is called from PROTEUS, the wrapper in `proteus.outgas.calliope` s
 
 ### Optional: metal reservoir
 
-These keys add a metal reservoir in equilibrium with the melt ([Metal reservoir](../Explanations/metal.md)). Without `metal_mass`, or with `metal_mass` = 0, the solve has no metal and ignores the others. The [partition file reference](../Reference/partition_file.md#inputs-in-ddict) gives the default, the allowed range and the rules of each key.
+These keys add a metal reservoir in equilibrium with the melt ([Metal reservoir](../Explanations/metal.md)). Without the key `metal_mass`, the solve has no metal and does not read the other keys. With `metal_mass` present, also with 0, the solve checks every metal key that is present and raises `ValueError` for a bad value; with 0 it adds no metal. The [partition file reference](../Reference/partition_file.md#inputs-in-ddict) gives the default, the allowed range and the rules of each key.
 
 | Key | Type | Units | Meaning |
 |---|---|---|---|
@@ -64,7 +64,7 @@ These keys add a metal reservoir in equilibrium with the melt ([Metal reservoir]
 | `silicate_oxides` | dict | wt% | Melt composition by oxide. Default KLB-1. |
 | `silicate_nbo_t` | float | n/a | NBO/T of the melt. Default 2.6. |
 | `partition_table` | dict | n/a | A table from `calliope.metal.load_partition_table`. Default: the packaged placeholder file. |
-| `tol_w_core` | float | n/a | Stop of the fixed point on the metal composition. Default 1e-6. |
+| `tol_w_core` | float | n/a | Relative change of each metal mass fraction between 2 passes at which the loop on the metal composition stops. Default 1e-6. |
 
 ## The `target` dictionary
 
