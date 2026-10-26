@@ -18,7 +18,13 @@ The **buffered solve**, `equilibrium_atmosphere(target, ddict)`, takes the oxyge
 The **authoritative-O solve**, `equilibrium_atmosphere_authoritative_O(target, ddict)`, takes the O budget as input in `target['O']` and finds the $\Delta\mathrm{IW}$ that matches it.
 It treats the oxygen fugacity as a fifth unknown and solves the 5 by 5 mass balance of the 4 primary partial pressures (H$_2$O, CO$_2$, N$_2$, S$_2$) and the oxygen fugacity.
 The [metal reservoir page](metal.md) uses the same 2 names, and the [authoritative oxygen](../Explanations/authoritative_oxygen.md) page explains the second solve.
-A difference of 1 dex is a difference of 1 in log10 units.
+
+**Terms used on this page.**
+
+- **dex**: a difference in log10 units; 0.05 dex is a factor of $10^{0.05} \approx 1.12$.
+- **Regression snapshot**: a set of stored values, results the code gave before. A test that compares with them fails when a result changes, but it does not show that the result is right.
+- **Cross-code check**: a test that compares CALLIOPE with a second, independent code.
+- **atmodeller**: an outgassing code that PROTEUS can use in place of CALLIOPE.
 
 ## Round trip between the 2 solves
 
@@ -54,27 +60,27 @@ A difference of 1 dex is a difference of 1 in log10 units.
 
 ## Gas-only grid against atmodeller
 
-**Why this check exists.** atmodeller is a second outgassing code that PROTEUS can use in place of CALLIOPE. If the 2 codes give different gases for the same planet, a run changes when you change the code. This case finds a change in either code that moves the 2 apart.
+**Why this check exists.** If the 2 codes give different gases for the same planet, a run changes when you change the code. This case finds a change in either code that moves the 2 apart.
 
 **What it tests.** 72 cases with gas only, of a planet of 5.972e24 kg with a radius of 6335 km, a core mass fraction of 0.325 and no melt.
 The reference inventory is 1.55e20 kg of H, the mass of the hydrogen in one Earth ocean of water (`ocean_moles` in `constants.py`), the same mass of C and of S, and half that mass of N. The cases are 3 inventories (0.1, 1 and 10 times the reference) at 4 temperatures (1500, 2000, 2500 and 3000 K). For 60 cases both codes get the same $f\mathrm{O_2}$, at $\Delta\mathrm{IW}$ = -4, -2, 0, +2 and +4 of the [Fischer buffer](oxygen_fugacity.md#fischer-buffer-at-2000-k). The other 12 cases give both codes an O budget. For each case the test requires:
 
 - that atmodeller converges in every case;
-- in the 60 buffered cases, that the gas of CALLIOPE holds each element budget to 1e-5 of the largest budget plus 1e10 kg;
-- in the 12 O-budget cases, that it holds each element budget to 1e-5 of that budget, and that the O budget of both codes holds to a relative 1e-9;
-- the offset $\log_{10}(p_\mathrm{CALLIOPE}/p_\mathrm{atmodeller})$ of the surface pressure and of 10 species (11 in the O-budget cases), no more than 0.005 dex from its stored offset, a value recorded from an earlier run;
+- in the 60 buffered cases, that the gas of CALLIOPE holds each element budget to 1e-5 of the largest budget plus 1e10 kg plus 10 kg;
+- in the 12 O-budget cases, that it holds each element budget to 1e-5 of that budget or 10 kg, whichever is larger, and that the O budget of both codes holds to a relative 1e-9;
+- the offset $\log_{10}(p_\mathrm{CALLIOPE}/p_\mathrm{atmodeller})$ of the surface pressure and of 10 species (11 in the O-budget cases), no more than 0.005 dex from its stored offset;
 - in the O-budget cases a tighter bound of 0.001 dex for the surface pressure and for H$_2$O, CO$_2$, N$_2$, SO$_2$ and S$_2$;
 - the offset of the SO$_2$ reaction quotient, no more than 0.002 dex from its stored offset.
 
-**How we know the right answer.** The 2 codes use different fits of the thermodynamic data, so the expected offsets are not zero: they are values recorded from a run (a regression snapshot). The test fails if an offset moves, but it does not say which code is right. The largest stored offset is that of CH$_4$, 0.109 dex. Before the solves, the test checks that the NASA Glenn values of the [chemistry page](chemistry.md#six-constants-against-nasa-glenn-data) equal atmodeller's own polynomials to 1e-6 in $\log_{10} K$.
+**How we know the right answer.** The 2 codes use different fits of the thermodynamic data, so the expected offsets are not zero: they are stored values, a regression snapshot. The largest stored offset is that of CH$_4$, 0.109 dex. Before the solves, the test checks that the NASA Glenn values[^cite-mcbride2002] of the [chemistry page](chemistry.md#six-constants-against-nasa-glenn-data) equal atmodeller's own polynomials to 1e-6 in $\log_{10} K$.
 
 **Why it matters.** The [cross-code comparison](../Explanations/cross_backend_comparison.md) of CALLIOPE and atmodeller depends on the size of these known offsets, and this case fails if an offset moves by more than its bound.
 
-**Known limit.** The grid has no melt, so it does not compare the solubility laws of the 2 codes. It runs only in the nightly cross-code job, because it needs atmodeller. The comparison at the Earth case in `scripts/cross_backend/` is not part of the test suite.
+**Known limit.** The offsets are a regression snapshot: the case fails if an offset moves, but it does not say which code is right. The grid has no melt, so it does not compare the solubility laws of the 2 codes. It runs only in the nightly cross-code job, because it needs atmodeller. The comparison at the Earth case in `scripts/cross_backend/` is not part of the test suite.
 
 ??? info "Test details"
     - Reference: atmodeller (cross-code check).
-    - Tolerance: element budgets of CALLIOPE to 1e-5 of the largest budget plus 1e10 kg (buffered) or to 1e-5 of each budget (O budget), O budget of both codes to a relative 1e-9; each offset no more than 0.005 dex from its stored value (0.001 dex for the surface pressure, H$_2$O, CO$_2$, N$_2$, SO$_2$ and S$_2$ with an O budget); SO$_2$ quotient to 0.002 dex.
+    - Tolerance: element budgets of CALLIOPE to 1e-5 of the largest budget plus 1e10 kg plus 10 kg (buffered) or to 1e-5 of each budget, at least 10 kg (O budget), O budget of both codes to a relative 1e-9; each offset no more than 0.005 dex from its stored value (0.001 dex for the surface pressure, H$_2$O, CO$_2$, N$_2$, SO$_2$ and S$_2$ with an O budget); SO$_2$ quotient to 0.002 dex.
     - Test id: `tests/test_cross_code_consistency.py::test_calliope_vs_atmodeller_72_case_gas_only_grid`
     - Command: `pytest tests/test_cross_code_consistency.py -k 72_case` (integration tier; skips without atmodeller)
 
@@ -97,3 +103,7 @@ The reference inventory is 1.55e20 kg of H, the mass of the hydrogen in one Eart
 - `src/calliope/solve.py`: the 2 solves.
 - [Authoritative oxygen](../Explanations/authoritative_oxygen.md): the explanation page of the authoritative-O solve.
 - [Cross-code comparison](../Explanations/cross_backend_comparison.md): CALLIOPE with the Fischer buffer against atmodeller with the Hirschmann buffer at the Earth case, with a residual of 0.16 dex in $\Delta\mathrm{IW}$.
+
+## References
+
+[^cite-mcbride2002]: B. J. McBride, M. J. Zehe, S. Gordon, *[NASA Glenn Coefficients for Calculating Thermodynamic Properties of Individual Species](https://ntrs.nasa.gov/citations/20020085330)*, NASA/TP-2002-211556, NASA Glenn Research Center, 2002.

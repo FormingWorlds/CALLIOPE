@@ -9,6 +9,12 @@ Validation means that a test runs the code on a case where another source gives 
 If a law is wrong, the melt holds the wrong amount of a volatile, so the atmosphere above it gets too much or too little of it.
 Each case below says why the check exists, what it tests, how we know the right answer and why it matters, and a box "Test details" ends it.
 
+**Terms used on this page.**
+
+- **Regression check**: a test that compares the code with a stored value, a result the code gave before. It fails when the result changes, but it does not show that the result is right.
+- **Cross-code check**: a test that compares CALLIOPE with a second, independent code.
+- **atmodeller**: an outgassing code that PROTEUS can use in place of CALLIOPE.
+
 ## Water in peridotite melt
 
 **Why this check exists.** `SolubilityH2O()` with no argument uses the peridotite law, the default of the package. A wrong constant, the constant of another melt composition, or a wrong exponent changes the dissolved water at every pressure.
@@ -40,9 +46,11 @@ Each case below says why the check exists, what it tests, how we know the right 
 
 **What it tests.** `SolubilityS2()` with its defaults, at $p_\mathrm{S_2}$ = 1 bar, $T$ = 2500 K and $\Delta\mathrm{IW}$ = 0, must give 13248.67 ppmw to a relative 1e-5. The default FeO content is $x_\mathrm{FeO}$ = 10 wt%, and the default buffer is that of Hirschmann (2021)[^cite-hirschmann2021]. The test also requires that the result differs by more than 100 ppmw from the value with the Fischer et al. (2011)[^cite-fischer2011] buffer (13085.87 ppmw), and that it lies between 1e3 and 1e5 ppmw.
 
-**How we know the right answer.** The value 13248.67 is the output of the code, so this case is a regression check: it fails when a coefficient, the FeO unit or the buffer changes, not when the published law itself is wrong. The value agrees with a hand evaluation of the law. Gaillard et al. (2022)[^cite-gaillard2022] give the closed form $\ln X_\mathrm{S} = 13.8426 - 26476/T + 0.124\,x_\mathrm{FeO} + 0.5 \ln(p_\mathrm{S_2}/f\mathrm{O_2})$, where $X_\mathrm{S}$ is the sulfur content of the melt in ppmw. With the Hirschmann buffer at 2500 K and 1 bar, $\log_{10} f\mathrm{O_2}$ = -4.34247, and the closed form gives 13249 ppmw.
+**How we know the right answer.** The value 13248.67 is the output of the code, so this case is a regression check. The value agrees with a hand evaluation of the law. Gaillard et al. (2022)[^cite-gaillard2022] give the closed form $\ln X_\mathrm{S} = 13.8426 - 26476/T + 0.124\,x_\mathrm{FeO} + 0.5 \ln(p_\mathrm{S_2}/f\mathrm{O_2})$, where $X_\mathrm{S}$ is the sulfur content of the melt in ppmw. With the Hirschmann buffer at 2500 K and 1 bar, $\log_{10} f\mathrm{O_2}$ = -4.34247, and the closed form gives 13249 ppmw.
 
 **Why it matters.** The dissolved sulfur sets how much S$_2$, SO$_2$ and H$_2$S the atmosphere can hold. The value also depends on the default IW buffer: a change of the default or of its coefficients changes this number, and the test then fails here.
+
+**Known limit.** As a regression check, the case fails when a coefficient, the FeO unit or the buffer changes. It does not test the published law itself.
 
 ??? info "Test details"
     - Reference: Gaillard et al. (2022)[^cite-gaillard2022], EPSL 117255, S2 solubility law with `x_FeO = 10 wt%` Earth-mantle default ([doi:10.1016/j.epsl.2021.117255](https://doi.org/10.1016/j.epsl.2021.117255)); Hirschmann (2021)[^cite-hirschmann2021] IW buffer.
@@ -85,13 +93,15 @@ Each case below says why the check exists, what it tests, how we know the right 
 
 ## Noble gas constants against atmodeller
 
-**Why this check exists.** atmodeller is a second outgassing code that PROTEUS can use in place of CALLIOPE. CALLIOPE and atmodeller both compute the Jambon et al. (1986) constants. If the two codes differ, a comparison of the two outgassing codes measures a difference in the constants, not in the physics.
+**Why this check exists.** CALLIOPE and atmodeller both compute the Jambon et al. (1986) constants. If the two codes differ, a comparison of the two outgassing codes measures a difference in the constants, not in the physics.
 
-**What it tests.** For each noble gas, the CALLIOPE constant must equal the atmodeller concentration at 1 bar, to a relative 1e-10. The largest constant must be more than 2 times the smallest, so a transcription that used one value for every gas fails. The test is skipped when atmodeller is not installed.
+**What it tests.** For each noble gas, the CALLIOPE constant must equal the atmodeller concentration at 1 bar, to a relative 1e-10. The largest constant must be more than 2 times the smallest, so a transcription that used one value for every gas fails.
 
 **How we know the right answer.** atmodeller derives its constants from the same primitives, and its law is linear in the fugacity, so its concentration at 1 bar is the constant itself (a cross-code check).
 
 **Why it matters.** The [cross-code comparison](../Explanations/cross_backend_comparison.md) of CALLIOPE and atmodeller relies on the 2 codes using the same constants.
+
+**Known limit.** The test is skipped when atmodeller is not installed, so it runs only where atmodeller is present, such as the nightly cross-code job.
 
 ??? info "Test details"
     - Reference: cross-code check against atmodeller.

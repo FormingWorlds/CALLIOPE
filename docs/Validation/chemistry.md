@@ -17,6 +17,9 @@ A box "Test details" ends each case.
 - **$\nu$**: the exponent of the oxygen fugacity that a reaction method returns: 0.5 for `janaf_H2`, `janaf_CO` and `schaefer_H`, 1 for `schaefer_CH4`, and 0 for `janaf_SO2`, `janaf_H2S` and `janaf_NH3`. H$_2$S and NH$_3$ contain no O$_2$. For SO$_2$ the solve puts the O$_2$ pressure into the SO$_2$ pressure itself, $\sqrt{G_\mathrm{eq}\, p_\mathrm{S_2}\, p_\mathrm{O_2}^2}$, so $\nu$ is 0.
 - **dex**: a difference in log10 units; 0.025 dex is a factor of $10^{0.025} \approx 1.06$.
 - **JANAF**: the NIST-JANAF Thermochemical Tables[^cite-chase1998], tables of formation data of gases and solids against temperature.
+- **Cross-code check**: a test that compares CALLIOPE with a second, independent code or data set.
+- **atmodeller**: an outgassing code that PROTEUS can use in place of CALLIOPE.
+- **Regression check**: a test that compares the code with a stored value, a result the code gave before. It fails when the result changes, but it does not show that the result is right. A set of stored values is a **regression snapshot**.
 - **$K_f$**: the formation constant of a species, from its elements in their reference states.
 
 ## H2 to H2O ratio at 2000 K
@@ -78,7 +81,7 @@ A box "Test details" ends each case.
 
 **Why this check exists.** `janaf_H2S` gives $\log_{10} K$ of S$_2$ + 2 H$_2$ = 2 H$_2$S as $a/T - b$, where $a$ \[K\] and $b$ are fit coefficients. A wrong coefficient, a wrong stoichiometric coefficient of S$_2$ (1 per mole of H$_2$S in place of 1/2), or a fit over the wrong temperature range gives the wrong H$_2$S pressure.
 
-**What it tests.** Per mole of H$_2$S, that is half of $a/T - b$, the code's $\log_{10} K$ must lie within 0.025 dex of the JANAF value at each of the 44 table rows from 700 to 5000 K, the 2 ends included. The JANAF value per mole is $\log K_f(\mathrm{H_2S}) - 0.5 \log K_f(\mathrm{S_2})$, where $K_f$ is the formation constant of a species. The largest miss of the code is 0.018 dex. To show that the test can see a wrong fit, it also checks a set of wrong coefficients, those with S$_2$ coefficient 1: they must miss the rows by more than 0.075 dex, and they miss by up to 1.853 dex. Last, $\log_{10} K$ must fall with $T$, as for an exothermic reaction.
+**What it tests.** Per mole of H$_2$S, that is half of $a/T - b$, the code's $\log_{10} K$ must lie within 0.025 dex of the JANAF value at each of the 44 table rows from 700 to 5000 K, the 2 ends included. The JANAF value per mole is $\log K_f(\mathrm{H_2S}) - 0.5 \log K_f(\mathrm{S_2})$, where $K_f$ is the formation constant of a species. The largest miss of the code is 0.018 dex. To show that the test can see a wrong fit, it also checks a second set of coefficients that the test holds, `DISCRIMINATING_FIT['H2S']`, $13462.03/T - 7.2455$: they must miss the rows by more than 0.075 dex, and they miss by up to 1.853 dex. Last, $\log_{10} K$ must fall with $T$, as for an exothermic reaction.
 
 **How we know the right answer.** The JANAF rows of H$_2$S and S$_2$ are in `tools/janaf_H2S.dat` and `tools/janaf_S2.dat`, taken from the NIST-JANAF tables[^cite-chase1998]. Both tables use the same sulfur reference state, which cancels in the difference.
 
@@ -86,13 +89,13 @@ A box "Test details" ends each case.
 
 ??? info "Test details"
     - Reference: NIST-JANAF Thermochemical Tables[^cite-chase1998] (4th ed.), log Kf of H2S and S2 in `tools/`.
-    - Tolerance: 0.025 dex at every row from 700 to 5000 K; the discriminating coefficients must miss by more than 0.075 dex (3 times the tolerance). Last compared 2026-10-20.
+    - Tolerance: 0.025 dex at every row from 700 to 5000 K; the discriminating coefficients must miss by more than 0.075 dex (3 times the tolerance).
     - Test id: `tests/test_chemistry.py::test_janaf_constant_matches_janaf_rows_over_fit_range[hydrogen_sulfide]`
     - Command: `pytest "tests/test_chemistry.py::test_janaf_constant_matches_janaf_rows_over_fit_range[hydrogen_sulfide]"`
 
 ## H2S coefficients are a least-squares fit
 
-**Why this check exists.** The case above allows a miss of 0.025 dex, so coefficients from a different fit could still pass it. This case pins the coefficients to the one fit they come from.
+**Why this check exists.** A change of a coefficient, of the fit range or of the fit form can keep the miss below the 0.025 dex of the case above. This case catches such a change, because the coefficients must equal the least-squares fit of the JANAF rows.
 
 **What it tests.** The test fits a straight line of $2 \log_{10} K$ against $1/T$ to the JANAF rows from 700 to 5000 K by least squares. At every row, this line must equal the code's $a/T - b$ to a relative and absolute 1e-6. The absolute part is needed because the H$_2$S value crosses zero near 1830 K.
 
@@ -102,7 +105,7 @@ A box "Test details" ends each case.
 
 ??? info "Test details"
     - Reference: the JANAF rows of the case above; `tools/fit_H2S.ipynb`.
-    - Tolerance: relative 1e-6 and absolute 1e-6 at every row. Last compared 2026-10-20.
+    - Tolerance: relative 1e-6 and absolute 1e-6 at every row.
     - Test id: `tests/test_chemistry.py::test_janaf_coefficients_are_least_squares_fit_of_janaf_rows[hydrogen_sulfide]`
     - Command: `pytest "tests/test_chemistry.py::test_janaf_coefficients_are_least_squares_fit_of_janaf_rows[hydrogen_sulfide]"`
 
@@ -118,13 +121,13 @@ A box "Test details" ends each case.
 
 ??? info "Test details"
     - Reference: NIST-JANAF Thermochemical Tables[^cite-chase1998] (4th ed.), log Kf of NH3 in `tools/`.
-    - Tolerance: 0.04 dex at every row from 700 to 5000 K; the discriminating coefficients must miss by more than 0.12 dex (3 times the tolerance). Last compared 2026-10-20.
+    - Tolerance: 0.04 dex at every row from 700 to 5000 K; the discriminating coefficients must miss by more than 0.12 dex (3 times the tolerance).
     - Test id: `tests/test_chemistry.py::test_janaf_constant_matches_janaf_rows_over_fit_range[ammonia]`
     - Command: `pytest "tests/test_chemistry.py::test_janaf_constant_matches_janaf_rows_over_fit_range[ammonia]"`
 
 ## NH3 coefficients are a least-squares fit
 
-**Why this check exists.** As for H$_2$S, the 0.04 dex of the row test leaves room for coefficients from a different fit.
+**Why this check exists.** A change of a coefficient, of the fit range or of the fit form can keep the miss below the 0.04 dex of the case above. This case catches such a change.
 
 **What it tests.** The test fits a straight line of $2 \log_{10} K$ against $1/T$ to the JANAF rows from 700 to 5000 K by least squares. At every row, this line must equal the code's $a/T - b$ to a relative and absolute 1e-6.
 
@@ -134,29 +137,29 @@ A box "Test details" ends each case.
 
 ??? info "Test details"
     - Reference: the JANAF rows of the case above; `tools/fit_NH3.ipynb`.
-    - Tolerance: relative 1e-6 and absolute 1e-6 at every row. Last compared 2026-10-20.
+    - Tolerance: relative 1e-6 and absolute 1e-6 at every row.
     - Test id: `tests/test_chemistry.py::test_janaf_coefficients_are_least_squares_fit_of_janaf_rows[ammonia]`
     - Command: `pytest "tests/test_chemistry.py::test_janaf_coefficients_are_least_squares_fit_of_janaf_rows[ammonia]"`
 
 ## Six constants against NASA Glenn data
 
-**Why this check exists.** The cases above check `janaf_H2`, `janaf_H2S` and `janaf_NH3` one by one. `janaf_CO`, `janaf_SO2` and `schaefer_CH4` need a check too, and the solve must use each constant in the right form. The reaction quotient $Q$ of a reaction is the ratio of the product pressures to the reactant pressures, each to the power of its coefficient; in equilibrium it equals $K$. The test writes each reaction per mole of product. For SO$_2$, NH$_3$ and H$_2$S the code's $K$ is for 2 moles of product, so the test compares $\log_{10} Q$ with $0.5 \log_{10} K$.
+**Why this check exists.** A wrong coefficient of `janaf_CO`, `janaf_SO2` or `schaefer_CH4` that moves its $\log_{10} K$ by more than 0.002 dex, a wrong O$_2$ factor $\nu$, or a solve that puts a constant into the wrong reaction form, gives the wrong gas. No case above checks these 3 constants. The reaction quotient $Q$ of a reaction is the ratio of the product pressures to the reactant pressures, each to the power of its coefficient; in equilibrium it equals $K$. The test writes each reaction per mole of product. For SO$_2$, NH$_3$ and H$_2$S the code's $K$ is for 2 moles of product, so the test compares $\log_{10} Q$ with $0.5 \log_{10} K$.
 
 **What it tests.** The test uses 6 constants: `janaf_H2`, `janaf_CO`, `schaefer_CH4`, `janaf_SO2`, `janaf_NH3` and `janaf_H2S`. It uses the Fischer buffer (see the [oxygen fugacity page](oxygen_fugacity.md#fischer-buffer-at-2000-k)), which is also the buffer of the comparison with atmodeller. At 1500, 2000, 2500 and 3000 K it checks:
 
 - the O$_2$ factor $\nu$ of each reaction, exactly;
 - $G_\mathrm{eq}$ against $10^{\log_{10} K - \nu \log_{10} f\mathrm{O_2}}$ to a relative 1e-12, and the ratio of $G_\mathrm{eq}$ at $\Delta\mathrm{IW} = +2$ and $-2$ against $10^{-4\nu}$, also to a relative 1e-12;
 - after a solve with gas only (no melt), $\log_{10} Q$ of each reaction, for example $Q = p_\mathrm{H_2}\, p_\mathrm{O_2}^{0.5} / p_\mathrm{H_2O}$, against $\log_{10}$ of the code's $K$ per mole of product, to a relative 1e-12;
-- the offset of $\log_{10} Q$ from $\log_{10} K_\mathrm{NASA}$, the NASA Glenn value per mole of product. Each offset must lie within 0.002 dex of a stored offset, a value recorded from an earlier run.
+- the offset of $\log_{10} Q$ from $\log_{10} K_\mathrm{NASA}$, the NASA Glenn value per mole of product. Each offset must lie within 0.002 dex of a stored offset.
 
-**How we know the right answer.** NASA Glenn data are 9-coefficient polynomial fits of the thermodynamic properties of each gas; the test holds their $\log_{10} K$ values, taken from atmodeller 1.0.2. CALLIOPE uses its own JANAF and Schaefer fits, which give a different $\log_{10} K$ than the NASA Glenn fits. So the expected offsets are not zero: they are values recorded from a run (a regression snapshot). The test fails if an offset moves, but it does not say which data set is right. The largest stored offset is that of CH$_4$, 0.100 dex at 2000 K. The checks of $\log_{10} Q$ against the code's own $K$, in contrast, are exact identities of the solve.
+**How we know the right answer.** NASA Glenn data[^cite-mcbride2002] are polynomial fits of the thermodynamic properties of each species, with 9 coefficients per temperature interval; the test holds their $\log_{10} K$ values, taken from atmodeller 1.0.2. CALLIOPE uses its own JANAF and Schaefer fits, which give a different $\log_{10} K$ than the NASA Glenn fits. So the expected offsets are not zero: they are stored values, a regression snapshot. The largest stored offset is that of CH$_4$, 0.100 dex at 2000 K. The checks of $\log_{10} Q$ against the code's own $K$, in contrast, are exact identities of the solve.
 
 **Why it matters.** This case covers `janaf_CO`, `janaf_SO2` and `schaefer_CH4`, which no other case on this page checks, and it records how far the chemistry of CALLIOPE lies from the data that atmodeller uses.
 
-**Known limit.** `schaefer_C` has no case. `schaefer_H` appears only in the first case, as the alternative constant that $G_\mathrm{eq}$ must differ from. The test does not call atmodeller. It sits in the cross-code test file, which is skipped without atmodeller, so it runs in the nightly cross-code job.
+**Known limit.** The offsets from NASA Glenn are a regression snapshot: the case fails if an offset moves, but it does not say which data set is right. `schaefer_C` has no case. `schaefer_H` appears only in the first case, as the alternative constant that $G_\mathrm{eq}$ must differ from. The test does not call atmodeller. It sits in the cross-code test file, which is skipped without atmodeller, so it runs in the nightly cross-code job.
 
 ??? info "Test details"
-    - Reference: NASA Glenn 9-coefficient thermodynamic data (cross-code check, values from atmodeller 1.0.2).
+    - Reference: NASA Glenn thermodynamic data[^cite-mcbride2002] (cross-code check, values from atmodeller 1.0.2).
     - Tolerance: exact O$_2$ factor; relative 1e-12 for $G_\mathrm{eq}$, the shift ratio and $\log_{10} Q$; offset from NASA Glenn within 0.002 dex of the stored offset.
     - Test id: `tests/test_cross_code_consistency.py::test_calliope_equilibrium_constants_and_reaction_quotients_vs_nasa_glenn`
     - Command: `pytest tests/test_cross_code_consistency.py -k nasa_glenn` (integration tier; skips without atmodeller)
@@ -172,3 +175,4 @@ A box "Test details" ends each case.
 [^cite-chase1998]: M. W. Chase, *[NIST-JANAF Thermochemical Tables, 4th edition](https://janaf.nist.gov/)*, Journal of Physical and Chemical Reference Data Monograph 9, 1998.
 [^cite-oneilleggins2002]: H. St. C. O'Neill, S. M. Eggins, *[The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts](https://doi.org/10.1016/S0009-2541(01)00414-4)*, Chemical Geology, 186, 151-181, 2002. [SciX](https://scixplorer.org/abs/2002ChGeo.186..151O/abstract). The IW expression of the code uses the free energy of Fe + 0.5 O$_2$ = FeO(liquid) in their Table 6, p. 163.
 [^cite-schaeferfegley2017]: L. Schaefer, B. Fegley, *[Redox states of initial atmospheres outgassed on rocky planets and planetesimals](https://doi.org/10.3847/1538-4357/aa784f)*, The Astrophysical Journal, 843(2), 120, 2017. [SciX](https://scixplorer.org/abs/2017ApJ...843..120S/abstract).
+[^cite-mcbride2002]: B. J. McBride, M. J. Zehe, S. Gordon, *[NASA Glenn Coefficients for Calculating Thermodynamic Properties of Individual Species](https://ntrs.nasa.gov/citations/20020085330)*, NASA/TP-2002-211556, NASA Glenn Research Center, 2002.

@@ -36,20 +36,15 @@ def test_calculate_mantle_mass_recovers_wang_2018_earth_core_fraction():
     Earth mass, and `core_frac = 0.55` (Earth-like core radius fraction), the
     computed core mass equals `0.325 * M_earth` by construction; the mantle
     mass is `(1 - 0.325) * M_earth = 0.675 * M_earth`.
-
-    Cross-check: the reduced-mass orbital test in PROTEUS's satellite module
-    uses the same 0.325 core-fraction value for Earth-Moon decomposition, so
-    this pin keeps the two codes consistent.
     """
     expected = (1.0 - 0.325) * M_earth
     mantle = calculate_mantle_mass(R_earth, M_earth, core_frac=0.55)
     # rel=1e-6 because the only source of error is float32->float64 promotion
     # in the constants module; the formula is closed-form and deterministic.
     assert mantle == pytest.approx(expected, rel=1e-6)
-    # Exponent-error guard: a regression to `(radius * core_frac)**2.0` lands
-    # at a wildly different mass (the core volume scales as r^3 by physics,
-    # not r^2). At Earth scale the r^2 form would give ~3e18 kg, ~6 orders
-    # below the correct 1.95e24 kg.
+    # Exponent-error guard: the core volume scales as r^3, not r^2. At Earth
+    # scale an r^2 core is 5.6e17 kg against the correct core of 1.94e24 kg
+    # (0.325 M_earth).
     wrong_r2 = M_earth - (
         ((3.0 * 0.325 * M_earth) / (4.0 * 3.14159265 * (0.55 * R_earth) ** 3.0))
         * (4.0 / 3.0)
