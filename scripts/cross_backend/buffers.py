@@ -26,9 +26,9 @@ def oneill(T: np.ndarray) -> np.ndarray:
     """O'Neill & Eggins (2002) IW buffer, monolithic fit.
 
     Reproduces the CALLIOPE implementation in
-    `calliope.oxygen_fugacity.oneill`. The 8.31441 J/mol/K gas-constant
-    value reproduces O'Neill & Eggins Eq. 11 verbatim; do not substitute
-    a more modern CODATA value.
+    `calliope.oxygen_fugacity.oneill`, with the free energy of O'Neill &
+    Eggins (2002), Chem. Geol. 186, Table 6, p. 163. Keep the coded gas
+    constant 8.31441 J/mol/K, which the paper does not print.
     """
     T = np.asarray(T, dtype=float)
     R = 8.31441

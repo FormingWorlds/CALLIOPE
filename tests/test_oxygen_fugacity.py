@@ -80,8 +80,8 @@ def test_oxygen_fugacity_fischer_value_at_2000K_cross_check_and_regression():
 def test_oxygen_fugacity_oneill_value_at_2000K_matches_published_fit():
     """O'Neill & Eggins (2002) IW at T = 2000 K matches the closed form.
 
-    Uses the free energy of Fe + 0.5 O2 = FeO(liq) from O'Neill & Eggins
-    (2002, Chem. Geol. 186, 151), Table 6 on p. 163, as
+    Builds log10 fO2 from the free energy of Fe + 0.5 O2 = FeO(liq) of
+    O'Neill & Eggins (2002, Chem. Geol. 186, 151), Table 6 on p. 163:
     `2 * (-244118 + 115.559*T - 8.474*T*ln(T)) / (ln(10) * 8.31441 * T)`.
     At T = 2000 K this evaluates to ~-7.4078. The discrimination guard
     against Fischer is the mirror of the test above.

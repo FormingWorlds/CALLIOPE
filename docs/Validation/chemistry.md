@@ -4,16 +4,17 @@
 
 This page checks the equilibrium constants that CALLIOPE uses to split the gas between reduced and oxidised species.
 An equilibrium constant $K$ fixes the ratio of the partial pressures of the products and reactants of a reaction at a given temperature.
-CALLIOPE folds the oxygen fugacity into it: `ModifiedKeq` returns $G_\mathrm{eq} = 10^{\log_{10} K - \nu \log_{10} f\mathrm{O_2}}$, and for example the H$_2$ pressure of the gas is $G_\mathrm{eq}$ of `janaf_H2` times the H$_2$O pressure (`src/calliope/solve.py`).
+CALLIOPE folds the oxygen fugacity $f\mathrm{O_2}$ (defined below) into it: `ModifiedKeq` returns $G_\mathrm{eq} = 10^{\log_{10} K - \nu \log_{10} f\mathrm{O_2}}$, where $\nu$ is the number of O$_2$ that the reaction releases, and for example the H$_2$ pressure of the gas is $G_\mathrm{eq}$ of `janaf_H2` times the H$_2$O pressure (`src/calliope/solve.py`).
 Validation means that a test runs the code on a case where another source gives the right answer, and checks the result within a stated tolerance.
 If a constant is wrong, the gas has the wrong ratio of H$_2$ to H$_2$O, CO to CO$_2$, or H$_2$S and NH$_3$ to their parents, and the atmosphere that PROTEUS passes to the climate model is wrong.
-Each case below says why the check exists, what it tests, how we know the right answer and why it matters, and a box "Test details" ends it.
+Each case below says why the check exists, what it tests, how we know the right answer and why it matters.
+A box "Test details" ends each case.
 
 **Terms used on this page.**
 
 - **Oxygen fugacity** $f\mathrm{O_2}$ \[bar\]: a measure of how oxidising the melt is, in the form of an effective O$_2$ pressure.
 - **IW buffer**: the $f\mathrm{O_2}$ at which iron metal and wüstite (FeO) are in equilibrium. $\Delta\mathrm{IW}$ is the shift of $f\mathrm{O_2}$ from it in log10 units. The [oxygen fugacity page](oxygen_fugacity.md) checks the buffers.
-- **$\nu$**: the O$_2$ factor that a reaction method returns: 0.5 for `janaf_H2`, `janaf_CO` and `schaefer_H`, 1 for `schaefer_CH4`, and 0 for `janaf_SO2`, whose O$_2$ the solve adds through the O$_2$ pressure, and for `janaf_H2S` and `janaf_NH3`, which contain no O$_2$.
+- **$\nu$**: the O$_2$ factor that a reaction method returns: 0.5 for `janaf_H2`, `janaf_CO` and `schaefer_H`, 1 for `schaefer_CH4`, and 0 for `janaf_SO2`, `janaf_H2S` and `janaf_NH3`. H$_2$S and NH$_3$ contain no O$_2$; for SO$_2$ the solve uses the O$_2$ pressure directly.
 - **dex**: a difference in log10 units; 0.025 dex is a factor of $10^{0.025} \approx 1.06$.
 - **JANAF**: the NIST-JANAF Thermochemical Tables[^cite-chase1998], tables of formation data of gases and solids against temperature.
 - **$K_f$**: the formation constant of a species, from its elements in their reference states.
@@ -137,22 +138,22 @@ Each case below says why the check exists, what it tests, how we know the right 
     - Test id: `tests/test_chemistry.py::test_janaf_coefficients_are_least_squares_fit_of_janaf_rows[ammonia]`
     - Command: `pytest "tests/test_chemistry.py::test_janaf_coefficients_are_least_squares_fit_of_janaf_rows[ammonia]"`
 
-## All 6 constants against NASA Glenn data
+## Six constants against NASA Glenn data
 
-**Why this check exists.** The cases above check `janaf_H2`, `janaf_H2S` and `janaf_NH3` one by one. `janaf_CO`, `janaf_SO2` and `schaefer_CH4` need a check too, and the solve must use each constant in the right mass-action form.
+**Why this check exists.** The cases above check `janaf_H2`, `janaf_H2S` and `janaf_NH3` one by one. `janaf_CO`, `janaf_SO2` and `schaefer_CH4` need a check too, and the solve must use each constant in the right mass-action form. The reaction quotient of a reaction is the ratio of the product pressures to the reactant pressures, each to the power of its coefficient; in equilibrium it equals $K$.
 
-**What it tests.** At 1500, 2000, 2500 and 3000 K the test checks, for `janaf_H2`, `janaf_CO`, `schaefer_CH4`, `janaf_SO2`, `janaf_NH3` and `janaf_H2S` with the Fischer buffer:
+**What it tests.** The test uses 6 constants: `janaf_H2`, `janaf_CO`, `schaefer_CH4`, `janaf_SO2`, `janaf_NH3` and `janaf_H2S`. It uses the Fischer buffer (see the [oxygen fugacity page](oxygen_fugacity.md#fischer-buffer-at-2000-k)), which is also the buffer of the comparison with atmodeller. At 1500, 2000, 2500 and 3000 K it checks:
 
-- the O$_2$ factor $\nu$ of each reaction method, exactly;
-- $G_\mathrm{eq}$ against $10^{\log_{10} K - \nu \log_{10} f\mathrm{O_2}}$, and the ratio of $G_\mathrm{eq}$ at $\Delta\mathrm{IW} = +2$ and $-2$ against $10^{-4\nu}$, to a relative 1e-12;
-- after a gas-only solve, each reaction quotient (for example $p_\mathrm{H_2}\, p_\mathrm{O_2}^{0.5} / p_\mathrm{H_2O}$) against the code's $K$, to a relative 1e-12;
-- the offset of each quotient from the NASA Glenn value of $\log_{10} K$, to within 0.002 dex of its stored offset.
+- the O$_2$ factor $\nu$ of each reaction, exactly;
+- $G_\mathrm{eq}$ against $10^{\log_{10} K - \nu \log_{10} f\mathrm{O_2}}$ to a relative 1e-12, and the ratio of $G_\mathrm{eq}$ at $\Delta\mathrm{IW} = +2$ and $-2$ against $10^{-4\nu}$, also to a relative 1e-12;
+- after a solve with gas only (no melt), each reaction quotient, for example $p_\mathrm{H_2}\, p_\mathrm{O_2}^{0.5} / p_\mathrm{H_2O}$, against the code's $K$, to a relative 1e-12;
+- the offset $\log_{10} Q_\mathrm{CALLIOPE} - \log_{10} K_\mathrm{NASA}$ of each quotient, where it must lie within 0.002 dex of a stored offset.
 
-**How we know the right answer.** The NASA Glenn values are 9-coefficient fits of thermodynamic data, taken from atmodeller 1.0.2; the 72-case test on the [solve page](solve.md#gas-only-grid-against-atmodeller) checks them against atmodeller's own polynomials. The 2 data sets differ by construction, so the stored offsets are measured values (a regression snapshot): the largest is that of CH$_4$, 0.100 dex at 2000 K. The mass-action checks are exact identities of the solve.
+**How we know the right answer.** NASA Glenn data are 9-coefficient polynomial fits of the thermodynamic properties of each gas; the test holds their $\log_{10} K$ values, taken from atmodeller 1.0.2. CALLIOPE uses its own JANAF and Schaefer fits, which differ from NASA Glenn because they are fitted to different data. So the expected offsets are not zero: they are values recorded from a run (a regression snapshot). The test fails if an offset moves, but it does not say which data set is right. The largest stored offset is that of CH$_4$, 0.100 dex at 2000 K. The mass-action checks, in contrast, are exact identities of the solve.
 
-**Why it matters.** This case covers `janaf_CO`, `janaf_SO2` and `schaefer_CH4`, which no other case on this page checks, and it fixes how far CALLIOPE's chemistry lies from the data that atmodeller uses.
+**Why it matters.** This case covers `janaf_CO`, `janaf_SO2` and `schaefer_CH4`, which no other case on this page checks, and it records how far the chemistry of CALLIOPE lies from the data that atmodeller uses.
 
-**Known limit.** `schaefer_C` has no case, and `schaefer_H` appears only as the wrong reaction of the first case. This case runs only in the nightly cross-code job, because it needs atmodeller.
+**Known limit.** `schaefer_C` has no case. `schaefer_H` appears only in the first case, as the alternative constant that $G_\mathrm{eq}$ must differ from. The test does not call atmodeller, but it sits in the cross-code test file, which is skipped without atmodeller, so it runs in the nightly cross-code job.
 
 ??? info "Test details"
     - Reference: NASA Glenn 9-coefficient thermodynamic data (cross-code check, values from atmodeller 1.0.2).

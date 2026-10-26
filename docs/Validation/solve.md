@@ -6,10 +6,10 @@ This page checks the equilibrium solve in `src/calliope/solve.py`.
 The solve finds the partial pressures of the gas and the dissolved masses for a given inventory of H, C, N, S and O.
 Validation here means that we run the code on a case where another source gives the right answer.
 The test then checks that the code gives that answer within a stated tolerance.
-On this page the right answer comes from a second CALLIOPE solve that must agree with the first, and from a closed-form result for the noble gases.
+On this page the right answer comes from a second CALLIOPE solve that must agree with the first, from a closed-form result for the noble gases, and from a second code, atmodeller, for the gas-only grid.
 If the solve is wrong, every outgassing step of a PROTEUS run gets the wrong atmosphere.
 Each case below says why the check exists, what it tests, how we know the right answer and why it matters.
-The box "Test details" at the end of each case gives the reference, the tolerance, the test id and the command.
+A box "Test details" at the end of each case gives the reference, the tolerance, the test id and the command.
 The cases of the solve with a metal reservoir are on the [metal reservoir page](metal.md).
 
 **The 2 ways to call the solve.**
@@ -24,7 +24,7 @@ A difference of 1 dex is a difference of 1 in log10 units.
 
 **Why this check exists.** The 2 solves share one chemistry. The buffered solve computes the O budget from the gas and melt that it finds; the authoritative-O solve must reach a given O budget. An error in how either solve counts O, or in the search for $\Delta\mathrm{IW}$, makes the 2 solves disagree on the same planet.
 
-**What it tests.** An Earth-like planet: $T$ = 1800 K, a fully molten mantle of 4.03e24 kg, budgets of 1.5e20 kg H, 1.5e19 kg C, 8.0e18 kg N and 8.0e20 kg S, every volatile species included, and the default IW buffer. The buffered solve with $\Delta\mathrm{IW}$ = 2 gives an O budget of 1.2254e21 kg; the test requires it between 1e18 and 1e22 kg. The authoritative-O solve with that O budget must then find $\Delta\mathrm{IW}$ = 2 to 0.05 dex. In repeated runs it finds 2.0000, give or take 2e-4; the exact digits depend on the random starts of the solve.
+**What it tests.** An Earth-like planet: $T$ = 1800 K, a fully molten mantle of 4.03e24 kg, budgets of 1.5e20 kg H, 1.5e19 kg C, 8.0e18 kg N and 8.0e20 kg S, every volatile species included, and the default IW buffer. The buffered solve with $\Delta\mathrm{IW}$ = 2 gives an O budget of 1.2254e21 kg; the test requires it between 1e18 and 1e22 kg. The authoritative-O solve with that O budget must then find $\Delta\mathrm{IW}$ = 2 to 0.05 dex. With the random seeds of the test it finds 2.0000. Other random starts of the buffered solve move the result by up to 2e-4.
 
 **How we know the right answer.** The authoritative-O solve starts from the O budget of the buffered solve, so the exact answer is the $\Delta\mathrm{IW}$ of the buffered solve (a check of one code against itself).
 
@@ -56,21 +56,22 @@ A difference of 1 dex is a difference of 1 in log10 units.
 
 **Why this check exists.** atmodeller is a second outgassing code that PROTEUS can use in place of CALLIOPE. If the 2 codes give different gases for the same planet, a run changes when you change the code. This case finds a change in either code that moves the 2 apart.
 
-**What it tests.** 72 gas-only cases of an Earth-like planet (Earth mass and radius, core mass fraction 0.325, no melt): 3 inventories (0.1, 1 and 10 times a reference) times 4 temperatures (1500 to 3000 K). For 60 cases both codes get the same $f\mathrm{O_2}$, at $\Delta\mathrm{IW}$ = -4, -2, 0, +2 and +4 of the Fischer buffer. The other 12 cases give both codes an O budget. For each case the test requires:
+**What it tests.** 72 cases with gas only, of a planet with the Earth's mass, a radius of 6335 km, a core mass fraction of 0.325 and no melt. The reference inventory is 1.55e20 kg of H (one ocean of hydrogen), the same mass of C and of S, and half that mass of N. The cases are 3 inventories (0.1, 1 and 10 times the reference) at 4 temperatures (1500, 2000, 2500 and 3000 K). For 60 cases both codes get the same $f\mathrm{O_2}$, at $\Delta\mathrm{IW}$ = -4, -2, 0, +2 and +4 of the Fischer buffer. The other 12 cases give both codes an O budget. For each case the test requires:
 
-- that atmodeller converges in every case, and that the gas of CALLIOPE holds each element budget (to 1e-5 of the largest budget plus a small floor; for the 12 O-budget cases, the O budget of both codes to a relative 1e-9);
-- the offset $\log_{10}(p_\mathrm{CALLIOPE}/p_\mathrm{atmodeller})$ of the surface pressure and of 10 or 11 species, no more than 0.005 dex from its stored offset (0.001 dex for the major species of the O-budget cases);
+- that atmodeller converges in every case;
+- that the gas of CALLIOPE holds each element budget: to 1e-5 of the largest budget plus 1e10 kg in the 60 buffered cases, and to 1e-5 of each budget in the 12 O-budget cases, where the O budget of both codes must also hold to a relative 1e-9;
+- the offset $\log_{10}(p_\mathrm{CALLIOPE}/p_\mathrm{atmodeller})$ of the surface pressure and of 10 species (11 in the O-budget cases), no more than 0.005 dex from its stored offset; in the O-budget cases the bound is 0.001 dex for the surface pressure and for H$_2$O, CO$_2$, N$_2$, SO$_2$ and S$_2$;
 - the offset of the SO$_2$ reaction quotient, no more than 0.002 dex from its stored offset.
 
-**How we know the right answer.** The 2 codes use thermodynamic data that differ by construction, so the stored offsets are measured values (a regression snapshot), not zero. Before the solves, the test checks that the NASA Glenn values of the [chemistry page](chemistry.md#all-6-constants-against-nasa-glenn-data) equal atmodeller's own polynomials to 1e-6 in $\log_{10} K$.
+**How we know the right answer.** The 2 codes use thermodynamic data that are fitted to different measurements, so the expected offsets are not zero: they are values recorded from a run (a regression snapshot). The test fails if an offset moves, but it does not say which code is right. The largest stored offset is that of CH$_4$, 0.109 dex. Before the solves, the test checks that the NASA Glenn values of the [chemistry page](chemistry.md#six-constants-against-nasa-glenn-data) equal atmodeller's own polynomials to 1e-6 in $\log_{10} K$.
 
-**Why it matters.** The [cross-code comparison](../Explanations/cross_backend_comparison.md) of CALLIOPE and atmodeller relies on this agreement.
+**Why it matters.** The [cross-code comparison](../Explanations/cross_backend_comparison.md) of CALLIOPE and atmodeller depends on the size of these known offsets, and this case keeps them fixed.
 
 **Known limit.** The grid has no melt, so it does not compare the solubility laws of the 2 codes. It runs only in the nightly cross-code job, because it needs atmodeller. The comparison at the Earth case in `scripts/cross_backend/` is not part of the test suite.
 
 ??? info "Test details"
     - Reference: atmodeller (cross-code check).
-    - Tolerance: element budgets of CALLIOPE to 1e-5 of the largest budget plus a floor (O budget: relative 1e-9); each offset no more than 0.005 dex from its stored value (0.001 dex for the major species with an O budget); SO$_2$ quotient to 0.002 dex.
+    - Tolerance: element budgets of CALLIOPE to 1e-5 of the largest budget plus 1e10 kg (buffered) or to 1e-5 of each budget (O budget), O budget of both codes to a relative 1e-9; each offset no more than 0.005 dex from its stored value (0.001 dex for the surface pressure and the major species with an O budget); SO$_2$ quotient to 0.002 dex.
     - Test id: `tests/test_cross_code_consistency.py::test_calliope_vs_atmodeller_72_case_gas_only_grid`
     - Command: `pytest tests/test_cross_code_consistency.py -k 72_case` (integration tier; skips without atmodeller)
 

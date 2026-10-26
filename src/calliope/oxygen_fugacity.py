@@ -80,8 +80,8 @@ class OxygenFugacity:
 
     def oneill(self, T):
         """O'Neill and Eggins (2002) IW"""
-        # DrG of Fe + 0.5 O2 = FeO(liq): O'Neill & Eggins (2002), Chem. Geol. 186, Table 6, p. 163.
-        # The paper prints no gas constant; keep the coded 8.31441, not constants.R_gas.
+        # DrG of Fe + 0.5 O2 = FeO(liq): O'Neill & Eggins (2002), Chem. Geol. 186,
+        # Table 6, p. 163. The paper prints no gas constant; keep the coded 8.31441.
         return 2 * (-244118 + 115.559 * T - 8.474 * T * np.log(T)) / (np.log(10) * 8.31441 * T)
 
     def _hirschmann_1bar(self, T):
