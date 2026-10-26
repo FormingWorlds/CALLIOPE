@@ -172,6 +172,8 @@ def load_partition_table(path=None):
         A field that breaks the schema, named with its element.
     FileNotFoundError
         No file at ``path``.
+    tomllib.TOMLDecodeError
+        A file that is not valid TOML (a ``ValueError``).
     """
     if path is None:
         text = resources.files('calliope.data').joinpath(PLACEHOLDER_FILE).read_text()
@@ -226,6 +228,12 @@ def log10_D(entry, p_gpa, t_k, d_iw, x_metal=None, nbo_t=2.6):
     -------
     float
         ``a + b/T + c P/T + d dIW_factor dIW + e NBO/T + sum_j eps_j log10(1 - X_j)``.
+
+    Raises
+    ------
+    ValueError
+        P, dIW or NBO/T not finite, T not finite and positive, or an X_j of an eps term
+        outside [0, 1).
     """
     _finite('P [GPa]', p_gpa)
     _finite('T [K]', t_k, positive=True)
@@ -388,7 +396,8 @@ def metal_masses(mass_int_d, ddict, d_mass):
     Raises
     ------
     ValueError
-        Metal with no melt, or a D that is negative or not finite.
+        ``metal_mass`` negative or not finite, metal with no melt, or a D that is
+        negative or not finite.
     """
     m_metal = ddict.get('metal_mass', 0.0)
     if not (math.isfinite(m_metal) and m_metal >= 0):
@@ -441,6 +450,14 @@ def mass_D(entry, p_gpa, t_k, d_iw, w_metal, w_melt, oxides=KLB1, nbo_t=2.6):
         ``D_w = D N_metal / N_melt`` for a mole basis, with N the moles per kg of the
         metal (without H and C for ``mole_xprime_noHC``) and of the melt units; ``D``
         for the mass basis.
+
+    Raises
+    ------
+    PartitionTableError
+        An entry whose form is not ``log10_linear``.
+    ValueError
+        A metal with no iron left, a D beyond the float range (naming the law and its P,
+        T and dIW), or an invalid input of :func:`log10_D`.
 
     Notes
     -----
