@@ -36,6 +36,11 @@ The [metal reservoir page](metal.md) uses the same 2 names, and the [authoritati
 
 **Why it matters.** PROTEUS uses the buffered solve with `planet.fO2_source = "user_constant"` and the authoritative-O solve with `"from_O_budget"`. The 2 settings must describe the same planet the same way.
 
+![Found Delta IW of the authoritative-O solve inside its band, and the O budget of the buffered solve inside its range](../assets/validation/solve_round_trip.svg#only-light){ width="80%" }
+![Found Delta IW of the authoritative-O solve inside its band, and the O budget of the buffered solve inside its range](../assets/validation/solve_round_trip_dark.svg#only-dark){ width="80%" }
+
+**How to read the plot.** The left panel shows the $\Delta\mathrm{IW}$ that the authoritative-O solve finds, with the band of $\pm 0.05$ dex around the input 2. The right panel shows the O budget of the buffered solve on a log axis, with the allowed range of 1e18 to 1e22 kg. A pass means that both points lie inside their grey areas.
+
 ??? info "Test details"
     - Reference: cross-check of the 2 CALLIOPE solves: `equilibrium_atmosphere` against `equilibrium_atmosphere_authoritative_O`.
     - Tolerance: 0.05 dex on the recovered $\Delta\mathrm{IW}$; O budget between 1e18 and 1e22 kg.
@@ -51,6 +56,11 @@ The [metal reservoir page](metal.md) uses the same 2 names, and the [authoritati
 **How we know the right answer.** For a noble gas the dissolved mass is $10^{-6}\,M_\mathrm{mantle}\,\Phi\,k\,p$ and the atmospheric mass is $10^5\,(A/g)\,(M/\mu)\,p$. Here $p$ \[bar\] is its partial pressure, $k$ \[ppmw bar$^{-1}$\] its Henry constant of Jambon et al. (1986), $\Phi$ the melt fraction, $A = 4\pi R^2$ the surface area, $g$ the gravity, $M$ its molar mass and $\mu$ the mean molar mass of the gas. The ratio of the 2 does not depend on $p$ (an analytical limit). The test takes $\mu$ from the result of the solve, so it checks how the solve assembles the 2 masses, not the value of $\mu$. The value of $k$ itself is checked on the [solubility page](solubility.md#noble-gas-henry-constants).
 
 **Why it matters.** This split decides how much of each noble gas the atmosphere holds, and so how much escape can remove.
+
+![Melt to atmosphere mass ratio of He, Ar and Xe after the solve against the closed-form ratio](../assets/validation/solve_noble_partition.svg#only-light){ width="80%" }
+![Melt to atmosphere mass ratio of He, Ar and Xe after the solve against the closed-form ratio](../assets/validation/solve_noble_partition_dark.svg#only-dark){ width="80%" }
+
+**How to read the plot.** Both axes are logarithmic. Each point is one gas: the closed-form ratio on the x-axis and the ratio after the solve on the y-axis. A pass means that every point lies on the dotted 1:1 line.
 
 ??? info "Test details"
     - Reference: analytical limit, the ratio of the Henry coefficient to the coefficient of the hydrostatic column.
@@ -75,6 +85,11 @@ The reference inventory is 1.55e20 kg of H, the mass of the hydrogen in one Eart
 **How we know the right answer.** The 2 codes use different fits of the thermodynamic data, so the expected offsets are not zero: they are stored values, a regression snapshot. The largest stored offset is that of CH$_4$, 0.109 dex. Before the solves, the test checks that the NASA Glenn values[^cite-mcbride2002] of the [chemistry page](chemistry.md#six-constants-against-nasa-glenn-data) equal atmodeller's own polynomials to 1e-6 in $\log_{10} K$.
 
 **Why it matters.** The [cross-code comparison](../Explanations/cross_backend_comparison.md) of CALLIOPE and atmodeller depends on the size of these known offsets, and this case fails if an offset moves by more than its bound.
+
+![Measured offsets of CALLIOPE from atmodeller against their stored offsets for all checks of the 72 cases](../assets/validation/solve_gas_only_grid.svg#only-light){ width="80%" }
+![Measured offsets of CALLIOPE from atmodeller against their stored offsets for all checks of the 72 cases](../assets/validation/solve_gas_only_grid_dark.svg#only-dark){ width="80%" }
+
+**How to read the plot.** Each point is one checked quantity of one case: its stored offset on the x-axis and the offset measured in the test on the y-axis. The marker gives the bound of the check (0.005, 0.001 or 0.002 dex). A pass means that every point lies on the dotted 1:1 line within its bound; the bounds are too small to see at this scale.
 
 **Known limit.** The offsets are a regression snapshot: the case fails if an offset moves, but it does not say which code is right. The grid has no melt, so it does not compare the solubility laws of the 2 codes. It runs only in the nightly cross-code job, because it needs atmodeller. The comparison at the Earth case in `scripts/cross_backend/` is not part of the test suite.
 

@@ -27,6 +27,11 @@ Each case below says why the check exists, what it tests, how we know the right 
 
 **Why it matters.** CALLIOPE uses the Fischer fit when the input dictionary sets `fO2_model = 'fischer'`, and the comparison of CALLIOPE with atmodeller uses it ([cross-code comparison](../Explanations/cross_backend_comparison.md)).
 
+![Log10 fO2 of the 3 IW buffers against temperature near 2000 K, with the values at 2000 K](../assets/validation/oxygen_fugacity_fischer_2000k.svg#only-light){ width="80%" }
+![Log10 fO2 of the 3 IW buffers against temperature near 2000 K, with the values at 2000 K](../assets/validation/oxygen_fugacity_fischer_2000k_dark.svg#only-dark){ width="80%" }
+
+**How to read the plot.** The lines are the 3 buffers from `OxygenFugacity` and give context. The test asserts the 3 marks at 2000 K: the Fischer code value (circle), the coded form (square) and the O'Neill and Eggins value (cross). A pass means that the circle sits in the square, 0.258 dex above the cross.
+
 **Known limit.** This case is a regression check of the coded form and of its offset from O'Neill and Eggins; it does not compare the Fischer fit with independent data.
 
 ??? info "Test details"
@@ -67,6 +72,11 @@ Each case below says why the check exists, what it tests, how we know the right 
 
 **Why it matters.** Every solve that does not set `fO2_model` uses this buffer, so every $\Delta\mathrm{IW}$ of such a solve is relative to it.
 
+![Log10 fO2 of the 3 IW buffers against temperature near 1473 K, with the figure value and the code values at 1473 K](../assets/validation/oxygen_fugacity_hirschmann_1473k.svg#only-light){ width="80%" }
+![Log10 fO2 of the 3 IW buffers against temperature near 1473 K, with the figure value and the code values at 1473 K](../assets/validation/oxygen_fugacity_hirschmann_1473k_dark.svg#only-dark){ width="80%" }
+
+**How to read the plot.** The lines are the 3 buffers from `OxygenFugacity` and give context. The test asserts the marks at 1473 K: the Hirschmann code value (circle), the figure value with its bar of 0.05 dex (square), the Fischer and O'Neill and Eggins values (crosses) and the Hirschmann value at 1 kbar (triangle). A pass means that the circle lies inside the bar and both crosses lie more than 0.2 dex away.
+
 **Known limit.** The reference value is read off a figure, so the case catches only changes larger than 0.05 dex.
 
 ??? info "Test details"
@@ -85,6 +95,11 @@ Each case below says why the check exists, what it tests, how we know the right 
 **How we know the right answer.** In the reaction Fe + 1/2 O$_2$ = FeO, only the solids Fe and FeO change their volume with pressure in the free energy of the reaction, while O$_2$ enters through $f\mathrm{O_2}$. So $\log_{10} f\mathrm{O_2}$ changes with pressure as $2\,\Delta V / (R\,T \ln 10)$, where $\Delta V$ is the volume change of the solid phases and the factor 2 comes from the 1/2 O$_2$ (an analytical limit). $\Delta V = V(\mathrm{FeO}) - V(\mathrm{Fe})$, with $V(\mathrm{FeO})$ = 12.256 cm$^3$ mol$^{-1}$ from Hirschmann (2021) Appendix A and $V(\mathrm{Fe}) = 55.845/7.874$ cm$^3$ mol$^{-1}$ from the density of alpha iron. These volumes are at room temperature and leave out thermal expansion and the change of stoichiometry, so the test allows 15 %.
 
 **Why it matters.** The solve evaluates every buffer at 1 bar, so that $\Delta\mathrm{IW}$ has one meaning. The pressure term gives the buffer at depth when a caller passes `P_bar` to `OxygenFugacity.hirschmann`, and this case checks that term.
+
+![Ratio of the fitted pressure slope to the volume estimate at 3 temperatures, with the 15 percent band](../assets/validation/oxygen_fugacity_hirschmann_pressure_slope.svg#only-light){ width="80%" }
+![Ratio of the fitted pressure slope to the volume estimate at 3 temperatures, with the 15 percent band](../assets/validation/oxygen_fugacity_hirschmann_pressure_slope_dark.svg#only-dark){ width="80%" }
+
+**How to read the plot.** Each point is the change of $\log_{10} f\mathrm{O_2}$ from 1 bar to 1 GPa divided by the estimate from $\Delta V$, at one of the 3 temperatures. The grey band is the tolerance of 15 %. A pass means that all 3 points lie inside the band; they sit 7.5 % to 10.4 % above 1.
 
 ??? info "Test details"
     - Reference: analytical limit $d \log_{10} f\mathrm{O_2} / dP = 2\,\Delta V / (R\,T \ln 10)$; Hirschmann (2021) Appendix A for $V(\mathrm{FeO})$.

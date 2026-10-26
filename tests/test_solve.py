@@ -80,7 +80,7 @@ def _earth_target_HCNS() -> dict:
 
 @pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
-def test_round_trip_self_consistency_at_earth_fiducial():
+def test_round_trip_self_consistency_at_earth_fiducial(validation_plot):
     """Forward solve at `fO2 = IW + 2` and inverse solve from the
     resulting O budget recover the original `fO2_shift_IW_derived`
     within 0.05 dex.
@@ -137,6 +137,25 @@ def test_round_trip_self_consistency_at_earth_fiducial():
     fO2_derived = inverse_result['fO2_shift_derived']
     # Round-trip: |fO2_derived - 2.0| < 0.05 dex (well within solver xtol).
     assert fO2_derived == pytest.approx(fO2_shift, abs=0.05)
+
+    def figure():
+        import matplotlib.pyplot as plt
+
+        fig, (left, right) = plt.subplots(1, 2)
+        left.axhspan(
+            fO2_shift - 0.05, fO2_shift + 0.05, color='0.85', label='input +- 0.05 dex'
+        )
+        left.plot([1], [fO2_derived], 'o', label='found by the authoritative-O solve')
+        left.set(xticks=[], ylabel=r'$\Delta$IW', ylim=(fO2_shift - 0.1, fO2_shift + 0.1))
+        left.legend(fontsize='small')
+        right.axhspan(1e18, 1e22, color='0.85', label='allowed range')
+        right.plot([1], [O_kg_total_forward], 'o', label='buffered solve')
+        right.set(xticks=[], yscale='log', ylabel='O budget [kg]')
+        right.legend(fontsize='small')
+        fig.tight_layout()
+        return fig
+
+    validation_plot(figure, 'solve_round_trip')
 
 
 @pytest.mark.physics_invariant

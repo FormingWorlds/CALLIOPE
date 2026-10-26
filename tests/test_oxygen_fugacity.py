@@ -45,7 +45,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 
 @pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
-def test_oxygen_fugacity_fischer_value_at_2000K_cross_check_and_regression():
+def test_oxygen_fugacity_fischer_value_at_2000K_cross_check_and_regression(validation_plot):
     """Coded Fischer IW at T = 2000 K, cross-checked against O'Neill & Eggins (2002).
 
     Fischer et al. (2011) calculate the 1-bar Fe-FeO curve from Chase (1998)
@@ -74,6 +74,25 @@ def test_oxygen_fugacity_fischer_value_at_2000K_cross_check_and_regression():
     # Scale guard: order of magnitude is -7, not -70 (forgotten log10)
     # or -0.7 (factor-10 unit slip on the temperature coefficient).
     assert -10 < fischer < -3
+
+    def figure():
+        import matplotlib.pyplot as plt
+
+        grid = np.linspace(1900.0, 2100.0, 21)
+        fig, ax = plt.subplots()
+        for model, ls in (('fischer', '-'), ('oneill', '--'), ('hirschmann', ':')):
+            ax.plot(grid, [OxygenFugacity(model)(t) for t in grid], ls=ls, label=model)
+        ax.plot(
+            [2000.0], [6.94059 - 28.1808e3 / 2000.0], 's', ms=10, mfc='none', label='coded form'
+        )
+        ax.plot([2000.0], [fischer], 'o', label='code, fischer')
+        ax.plot([2000.0], [oneill], 'x', label='code, oneill')
+        ax.set(xlabel='T [K]', ylabel=r'$\log_{10} f\mathrm{O_2}$ at IW, 1 bar')
+        ax.legend()
+        fig.tight_layout()
+        return fig
+
+    validation_plot(figure, 'oxygen_fugacity_fischer_2000k')
 
 
 @pytest.mark.physics_invariant
@@ -230,7 +249,7 @@ def test_default_fo2_model_is_shared_by_oxygen_fugacity_and_chemistry():
 
 @pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
-def test_oxygen_fugacity_hirschmann_value_at_1473K_matches_published_figure():
+def test_oxygen_fugacity_hirschmann_value_at_1473K_matches_published_figure(validation_plot):
     """Hirschmann (2021) IW at 1 bar and T = 1473 K matches their Fig. 5.
 
     Fig. 5 of Hirschmann (2021, GCA 313, 74) plots the 1473 K IW value of
@@ -244,19 +263,48 @@ def test_oxygen_fugacity_hirschmann_value_at_1473K_matches_published_figure():
     val = of(1473.0)
     assert val == pytest.approx(-11.94, abs=0.05)
     # Wrong-buffer guards.
-    assert abs(val - OxygenFugacity('fischer')(1473.0)) > 0.2
-    assert abs(val - OxygenFugacity('oneill')(1473.0)) > 0.2
+    fischer = OxygenFugacity('fischer')(1473.0)
+    oneill = OxygenFugacity('oneill')(1473.0)
+    assert abs(val - fischer) > 0.2
+    assert abs(val - oneill) > 0.2
     # The dispatcher evaluates the 1 bar reference, not some other pressure:
     # 1 kbar already moves the buffer by ~0.04 dex at this T.
     assert val == pytest.approx(of.hirschmann(1473.0, P_bar=1.0), abs=1e-12)
-    assert abs(val - of.hirschmann(1473.0, P_bar=1.0e3)) > 0.03
+    kbar = of.hirschmann(1473.0, P_bar=1.0e3)
+    assert abs(val - kbar) > 0.03
     # Scale guard against a dropped log10 or a T-unit slip.
     assert -14 < val < -10
+
+    def figure():
+        import matplotlib.pyplot as plt
+
+        grid = np.linspace(1443.0, 1503.0, 25)
+        fig, ax = plt.subplots()
+        for model, ls in (('hirschmann', '-'), ('fischer', '--'), ('oneill', ':')):
+            ax.plot(grid, [OxygenFugacity(model)(t) for t in grid], ls=ls, label=model)
+        ax.errorbar(
+            [1473.0],
+            [-11.94],
+            yerr=0.05,
+            fmt='s',
+            mfc='none',
+            capsize=4,
+            label='Fig. 5, +-0.05 dex',
+        )
+        ax.plot([1473.0], [val], 'o', label='code, hirschmann')
+        ax.plot([1473.0, 1473.0], [fischer, oneill], 'x', label='code, fischer and oneill')
+        ax.plot([1473.0], [kbar], '^', label='code, hirschmann at 1 kbar')
+        ax.set(xlabel='T [K]', ylabel=r'$\log_{10} f\mathrm{O_2}$ at IW')
+        ax.legend(fontsize='small')
+        fig.tight_layout()
+        return fig
+
+    validation_plot(figure, 'oxygen_fugacity_hirschmann_1473k')
 
 
 @pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
-def test_oxygen_fugacity_hirschmann_low_pressure_slope_matches_volume_change():
+def test_oxygen_fugacity_hirschmann_low_pressure_slope_matches_volume_change(validation_plot):
     """Low-pressure slope of the Hirschmann (2021) IW buffer follows dV.
 
     For Fe + 1/2 O2 = FeO, d(log10 fO2)/dP = 2 dV / (R T ln 10), with
@@ -271,13 +319,29 @@ def test_oxygen_fugacity_hirschmann_low_pressure_slope_matches_volume_change():
     of = OxygenFugacity('hirschmann')
     dV = (12.256 - 55.845 / 7.874) * 1e-6  # m3/mol
     R = 8.314462618
-    for T in (1200.0, 2000.0, 3000.0):
+    temps, ratios = (1200.0, 2000.0, 3000.0), []
+    for T in temps:
         slope = of.hirschmann(T, P_bar=1.0e4) - of.hirschmann(T, P_bar=1.0)  # dex/GPa
         expected = 2 * dV * 1e9 / (R * T * math.log(10))
         assert slope == pytest.approx(expected, rel=0.15)
         # Sign guard: compressing the assemblage favours the denser Fe
         # side, so the buffer must move to higher fO2.
         assert slope > 0
+        ratios.append(slope / expected)
+
+    def figure():
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots()
+        ax.axhspan(0.85, 1.15, color='0.85', label='tolerance, 15 %')
+        ax.axhline(1.0, color='0.5', ls=':')
+        ax.plot(temps, ratios, 'o', label='fit slope / volume estimate')
+        ax.set(xlabel='T [K]', ylabel='slope ratio, 1 bar to 1 GPa', ylim=(0.7, 1.3))
+        ax.legend()
+        fig.tight_layout()
+        return fig
+
+    validation_plot(figure, 'oxygen_fugacity_hirschmann_pressure_slope')
 
 
 @pytest.mark.physics_invariant

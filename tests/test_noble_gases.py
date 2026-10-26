@@ -125,7 +125,7 @@ def test_dissolved_mass_follows_closed_form_henry_law():
 
 @pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
-def test_partition_ratio_matches_henry_versus_hydrostatic_column():
+def test_partition_ratio_matches_henry_versus_hydrostatic_column(validation_plot):
     """Reference (analytical limit): the dissolved-to-atmospheric mass ratio
     of a noble gas equals the closed-form ratio of its Henry coefficient to its
     hydrostatic column coefficient,
@@ -150,12 +150,14 @@ def test_partition_ratio_matches_henry_versus_hydrostatic_column():
     area = 4.0 * np.pi * ddict['radius'] ** 2.0
     mu = out['atm_kg_per_mol']  # kg/mol
     prefactor = 1.0e-6 * ddict['M_mantle'] * ddict['Phi_global']
+    ratios = []
     for gas in ('He', 'Ar', 'Xe'):
         k_diss = prefactor * jambon86_ppmw_per_bar(gas)
         k_atm = 1.0e5 * area / ddict['gravity'] * molar_mass[gas] / mu
         predicted_ratio = k_diss / k_atm
         actual_ratio = out[f'{gas}_kg_liquid'] / out[f'{gas}_kg_atm']
         assert actual_ratio == pytest.approx(predicted_ratio, rel=1e-6)
+        ratios.append((gas, predicted_ratio, actual_ratio))
 
     # Sign + scale guards: the ratio is positive and, for this Earth-scale
     # mantle at ~50 bar, dissolved He is a small but non-zero fraction of
@@ -163,6 +165,27 @@ def test_partition_ratio_matches_henry_versus_hydrostatic_column():
     ratio_he = out['He_kg_liquid'] / out['He_kg_atm']
     assert ratio_he > 0.0
     assert ratio_he < 10.0
+
+    def figure():
+        import matplotlib.pyplot as plt
+
+        lo = min(min(p, a) for _, p, a in ratios) / 2
+        hi = max(max(p, a) for _, p, a in ratios) * 2
+        fig, ax = plt.subplots()
+        ax.plot([lo, hi], [lo, hi], color='0.5', ls=':', label='1:1')
+        for gas, predicted, actual in ratios:
+            ax.plot([predicted], [actual], 'o', label=gas)
+        ax.set(
+            xscale='log',
+            yscale='log',
+            xlabel='closed-form ratio',
+            ylabel='melt / atmosphere mass after the solve',
+        )
+        ax.legend()
+        fig.tight_layout()
+        return fig
+
+    validation_plot(figure, 'solve_noble_partition')
 
 
 @pytest.mark.physics_invariant

@@ -25,6 +25,11 @@ Each case below says why the check exists, what it tests, how we know the right 
 
 **Why it matters.** The solubility of water decides how much water stays in the magma ocean and how much goes into the atmosphere.
 
+![Dissolved water against pressure on log axes, the code law and the 2 wrong laws, with the value at 100 bar](../assets/validation/solubility_h2o_peridotite.svg#only-light){ width="80%" }
+![Dissolved water against pressure on log axes, the code law and the 2 wrong laws, with the value at 100 bar](../assets/validation/solubility_h2o_peridotite_dark.svg#only-dark){ width="80%" }
+
+**How to read the plot.** Both axes are logarithmic. The solid line is the code law and gives context; the dashed line is the Dixon basalt law and the dotted line a law with exponent 1. The test asserts the code value at 100 bar (circle) against $524 \times 100^{0.5}$ = 5240 ppmw (square). A pass means that the circle sits in the square and both wrong laws lie far away.
+
 ??? info "Test details"
     - Reference: Sossi et al. (2023)[^cite-sossi2023] peridotite H2O fit: `ppmw = 524 * p^0.5`.
     - Tolerance: relative 1e-12 at 100 bar; more than 1000 ppmw from the Dixon et al. (1995) basalt law and from an exponent of 1.
@@ -49,6 +54,11 @@ Each case below says why the check exists, what it tests, how we know the right 
 **How we know the right answer.** The value 13248.67 is the output of the code, so this case is a regression check. The value agrees with a hand evaluation of the law. Gaillard et al. (2022)[^cite-gaillard2022] give the closed form $\ln X_\mathrm{S} = 13.8426 - 26476/T + 0.124\,x_\mathrm{FeO} + 0.5 \ln(p_\mathrm{S_2}/f\mathrm{O_2})$, where $X_\mathrm{S}$ is the sulfur content of the melt in ppmw. With the Hirschmann buffer at 2500 K and 1 bar, $\log_{10} f\mathrm{O_2}$ = -4.34247, and the closed form gives 13249 ppmw.
 
 **Why it matters.** The dissolved sulfur sets how much S$_2$, SO$_2$ and H$_2$S the atmosphere can hold. The value also depends on the default IW buffer: a change of the default or of its coefficients changes this number, and the test then fails here.
+
+![Dissolved sulfur against temperature with the Hirschmann and the Fischer buffer, with the pinned value at 2500 K](../assets/validation/solubility_s2_2500k.svg#only-light){ width="80%" }
+![Dissolved sulfur against temperature with the Hirschmann and the Fischer buffer, with the pinned value at 2500 K](../assets/validation/solubility_s2_2500k_dark.svg#only-dark){ width="80%" }
+
+**How to read the plot.** The lines are the code law with the Hirschmann buffer (solid) and with the Fischer buffer (dashed) and give context. The test asserts the marks at 2500 K: the code value (circle), the pinned value 13248.67 ppmw (square) and the Fischer value 13085.87 ppmw (cross). A pass means that the circle sits in the square and the cross lies more than 100 ppmw below.
 
 **Known limit.** As a regression check, the case fails when a coefficient, the FeO unit or the buffer changes. It does not test the published law itself.
 
@@ -84,6 +94,11 @@ Each case below says why the check exists, what it tests, how we know the right 
 
 **Why it matters.** The dissolved fraction of each noble gas decides how much of it reaches the atmosphere.
 
+![Henry constants of the 5 noble gases from the code, with the hand-computed literals](../assets/validation/solubility_noble_constants.svg#only-light){ width="80%" }
+![Henry constants of the 5 noble gases from the code, with the hand-computed literals](../assets/validation/solubility_noble_constants_dark.svg#only-dark){ width="80%" }
+
+**How to read the plot.** Each bar is the constant of the code for one gas, and each point is the literal that the test asserts. A pass means that every point sits at the top of its bar.
+
 ??? info "Test details"
     - Reference: Jambon, Weill and Braun (1986)[^cite-jambon1986], noble gas Henry constants in tholeiitic basalt ([doi:10.1016/0016-7037(86)90193-6](https://doi.org/10.1016/0016-7037(86)90193-6)); code in `jambon86_ppmw_per_bar` and `SolubilityNobleGas`.
     - Tolerance: relative 1e-4 per gas; no match with another gas; $0.01 < \mathrm{constant} < 1$ ppmw bar$^{-1}$.
@@ -100,6 +115,11 @@ Each case below says why the check exists, what it tests, how we know the right 
 **How we know the right answer.** atmodeller derives its constants from the same primitives, and its law is linear in the fugacity, so its concentration at 1 bar is the constant itself (a cross-code check).
 
 **Why it matters.** The [cross-code comparison](../Explanations/cross_backend_comparison.md) of CALLIOPE and atmodeller relies on the 2 codes using the same constants.
+
+![CALLIOPE Henry constants against the atmodeller concentrations at 1 bar for the 5 noble gases](../assets/validation/solubility_noble_atmodeller.svg#only-light){ width="80%" }
+![CALLIOPE Henry constants against the atmodeller concentrations at 1 bar for the 5 noble gases](../assets/validation/solubility_noble_atmodeller_dark.svg#only-dark){ width="80%" }
+
+**How to read the plot.** Both axes are logarithmic. Each point is one gas: the atmodeller concentration at 1 bar on the x-axis and the CALLIOPE constant on the y-axis. A pass means that every point lies on the dotted 1:1 line.
 
 **Known limit.** The test is skipped when atmodeller is not installed, so it runs only where atmodeller is present, such as the nightly cross-code job.
 

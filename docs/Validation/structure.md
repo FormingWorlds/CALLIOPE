@@ -20,6 +20,11 @@ The case below says why the check exists, what it tests, how we know the right a
 
 **Why it matters.** A standalone CALLIOPE run dissolves volatiles in this mantle mass. PROTEUS does not call `calculate_mantle_mass`: it passes the mantle mass of its own interior model, as the [code architecture](../Explanations/code_architecture.md#structurepy) page explains.
 
+![Mantle mass over Earth mass against core radius fraction, with the values at 0.55](../assets/validation/structure_earth_mantle_mass.svg#only-light){ width="80%" }
+![Mantle mass over Earth mass against core radius fraction, with the values at 0.55](../assets/validation/structure_earth_mantle_mass_dark.svg#only-dark){ width="80%" }
+
+**How to read the plot.** The line is `calculate_mantle_mass` for the Earth against the core radius fraction and gives context. The test asserts the marks at 0.55: the code value (circle), the value $1 - 0.325$ (square) and the result with an $r^2$ core volume (cross). A pass means that the circle sits in the square and the cross lies far above.
+
 ??? info "Test details"
     - Reference: Wang, Lineweaver and Ireland (2018)[^cite-wang2018], arxiv:1708.08718: Earth core mass fraction 32.5 ± 0.3 wt% ([arxiv:1708.08718](https://arxiv.org/abs/1708.08718)).
     - Tolerance: relative 1e-6; more than $0.1\,M_\oplus$ from the $r^2$ result; $10^{24} < M_\mathrm{mantle} < 10^{25}$ kg.

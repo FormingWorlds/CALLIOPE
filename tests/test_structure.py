@@ -25,7 +25,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 
 @pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
-def test_calculate_mantle_mass_recovers_wang_2018_earth_core_fraction():
+def test_calculate_mantle_mass_recovers_wang_2018_earth_core_fraction(validation_plot):
     """Earth-like inputs recover Wang, Lineweaver & Ireland (2018) Earth
     core mass fraction 0.325.
 
@@ -57,6 +57,33 @@ def test_calculate_mantle_mass_recovers_wang_2018_earth_core_fraction():
     # Scale guard: order of magnitude is 4e24 kg (between 1e24 and 1e25),
     # not 4e21 (forgotten kg->g) or 4e27 (forgotten g->kg).
     assert 1e24 < mantle < 1e25
+
+    def figure():
+        import matplotlib.pyplot as plt
+
+        grid = [0.30 + 0.02 * k for k in range(21)]
+        fig, ax = plt.subplots()
+        ax.plot(
+            grid,
+            [calculate_mantle_mass(R_earth, M_earth, core_frac=c) / M_earth for c in grid],
+            label='calculate_mantle_mass',
+        )
+        ax.plot(
+            [0.55],
+            [expected / M_earth],
+            's',
+            ms=10,
+            mfc='none',
+            label='1 - 0.325 (Wang et al. 2018)',
+        )
+        ax.plot([0.55], [mantle / M_earth], 'o', label='code, core radius 0.55')
+        ax.plot([0.55], [wrong_r2 / M_earth], 'x', label=r'core volume with $r^2$')
+        ax.set(xlabel='core radius / planet radius', ylabel=r'mantle mass / $M_\oplus$')
+        ax.legend()
+        fig.tight_layout()
+        return fig
+
+    validation_plot(figure, 'structure_earth_mantle_mass')
 
 
 @pytest.mark.physics_invariant

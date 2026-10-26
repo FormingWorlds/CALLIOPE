@@ -1262,7 +1262,9 @@ def test_required_env_guards(monkeypatch):
     _check_cross_code_required_env('_nonexistent_cross_code_module_r62')
 
 
-def test_calliope_equilibrium_constants_and_reaction_quotients_vs_nasa_glenn(record_property):
+def test_calliope_equilibrium_constants_and_reaction_quotients_vs_nasa_glenn(
+    record_property, validation_plot
+):
     """Verify CALLIOPE ModifiedKeq and secondary gas speciation.
 
     Checked against NASA Glenn reference data.
@@ -1288,6 +1290,7 @@ def test_calliope_equilibrium_constants_and_reaction_quotients_vs_nasa_glenn(rec
     }
     fo2_model = OxygenFugacity('fischer')
     pin = {'H2O': 120.0, 'CO2': 80.0, 'N2': 15.0, 'S2': 4.0}
+    offsets: list[tuple[float, str, float, float]] = []
 
     for t_k, ref_dict in NASA_GLENN_LOG10_K_REF.items():
         t_label = f'T={int(t_k)} K'
@@ -1378,6 +1381,7 @@ def test_calliope_equilibrium_constants_and_reaction_quotients_vs_nasa_glenn(rec
         }
         exp_k = K_OFFSET_EXPECTED_DEX[t_k]
         for sp, d_val in product_quotients.items():
+            offsets.append((t_k, sp, d_val, exp_k[sp]))
             _assert_near_dex(
                 d_val,
                 exp_k[sp],
@@ -1385,8 +1389,37 @@ def test_calliope_equilibrium_constants_and_reaction_quotients_vs_nasa_glenn(rec
                 f'{t_label} {sp}',
             )
 
+    def figure():
+        import matplotlib.pyplot as plt
 
-def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path):
+        colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+        fig, ax = plt.subplots()
+        for k, sp in enumerate(('H2', 'CO', 'CH4', 'SO2', 'NH3', 'H2S')):
+            rows = [(t, d, e) for t, s_, d, e in offsets if s_ == sp]
+            color = colors[k % len(colors)]
+            ax.errorbar(
+                [t for t, _, _ in rows],
+                [e for _, _, e in rows],
+                yerr=K_OFFSET_MARGIN_DEX,
+                fmt='none',
+                capsize=4,
+                color=color,
+            )
+            ax.plot(
+                [t for t, _, _ in rows], [d for _, d, _ in rows], 'o', color=color, label=sp
+            )
+        ax.axhline(0.0, color='0.5', ls=':')
+        ax.set(xlabel='T [K]', ylabel=r'$\log_{10} Q - \log_{10} K_\mathrm{NASA}$ [dex]')
+        ax.legend(ncols=3, fontsize='small')
+        fig.tight_layout()
+        return fig
+
+    validation_plot(figure, 'chemistry_nasa_glenn_offsets')
+
+
+def test_calliope_vs_atmodeller_72_case_gas_only_grid(
+    record_property, tmp_path, validation_plot
+):
     """Verify CALLIOPE vs atmodeller cross-code agreement over all 72 gas-only grid cases."""
     report_env = os.environ.get('CHEM_SULFUR_REPORT_PATH')
     report_path = Path(report_env) if report_env else (tmp_path / 'sulfur_72_case_report.tsv')
@@ -1548,6 +1581,12 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
     asdict_auth = mdl_auth.output.asdict()
     ptot_auth = np.asarray(mdl_auth.output.total_pressure())
 
+    checked: list[tuple[float, float, float]] = []
+
+    def check(actual, expected, margin, label):
+        checked.append((actual, expected, margin))
+        _assert_near_dex(actual, expected, margin, label)
+
     sulfur_report_rows: list[str] = []
     expected_sulfur: dict[str, tuple[float, float, float]] = {}
 
@@ -1591,7 +1630,7 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
 
         exp_case = BUFFERED_EXPECTED_DEX[cid]
         d_psurf = _guarded_log10_ratio(float(cal_out['P_surf']), float(ptot_buf[idx]))
-        _assert_near_dex(
+        check(
             d_psurf,
             exp_case['P_surf'],
             GRID_OFFSET_MARGIN_DEX,
@@ -1612,7 +1651,7 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
             d_sp = _guarded_log10_ratio(
                 float(cal_out[f'{sp_cal}_bar']), float(asdict_buf[sp_atm]['pressure'][idx])
             )
-            _assert_near_dex(
+            check(
                 d_sp,
                 exp_case[sp_cal],
                 GRID_OFFSET_MARGIN_DEX,
@@ -1626,7 +1665,7 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
             (float(asdict_buf['S2_g']['pressure'][idx]) ** 0.5)
             * float(asdict_buf['O2_g']['pressure'][idx])
         )
-        _assert_near_dex(
+        check(
             math.log10(q_so2_cal / q_so2_atm),
             K_OFFSET_EXPECTED_DEX[case['T_K']]['SO2'],
             K_OFFSET_MARGIN_DEX,
@@ -1698,7 +1737,7 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
         )
 
         exp_case = AUTHO_EXPECTED_DEX[cid]
-        _assert_near_dex(
+        check(
             _guarded_log10_ratio(float(cal_out['P_surf']), float(ptot_auth[idx])),
             exp_case['P_surf'],
             AUTHO_MAJOR_MARGIN_DEX,
@@ -1725,7 +1764,7 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
                 if sp_cal in ('H2O', 'CO2', 'N2', 'SO2', 'S2')
                 else GRID_OFFSET_MARGIN_DEX
             )
-            _assert_near_dex(
+            check(
                 d_sp,
                 exp_case[sp_cal],
                 margin,
@@ -1739,7 +1778,7 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
             (float(asdict_auth['S2_g']['pressure'][idx]) ** 0.5)
             * float(asdict_auth['O2_g']['pressure'][idx])
         )
-        _assert_near_dex(
+        check(
             math.log10(q_so2_cal / q_so2_atm),
             K_OFFSET_EXPECTED_DEX[case['T_K']]['SO2'],
             K_OFFSET_MARGIN_DEX,
@@ -1793,3 +1832,32 @@ def test_calliope_vs_atmodeller_72_case_gas_only_grid(record_property, tmp_path)
             )
     # Every grid case has an S target > 0, so the report has zero NaN-pair skips.
     assert nan_pair_skips == 0, f'Expected 0 total NaN-pair skips, got {nan_pair_skips}'
+
+    def figure():
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots(figsize=(4.4, 3.4))
+        for margin, marker in (
+            (GRID_OFFSET_MARGIN_DEX, 'o'),
+            (AUTHO_MAJOR_MARGIN_DEX, 's'),
+            (K_OFFSET_MARGIN_DEX, '^'),
+        ):
+            rows = [(e, a) for a, e, m in checked if m == margin]
+            ax.plot(
+                [e for e, _ in rows],
+                [a for _, a in rows],
+                marker,
+                ms=2,
+                mfc='none',
+                rasterized=True,
+                label=f'bound {margin} dex',
+            )
+        lo = min(min(a, e) for a, e, _ in checked)
+        hi = max(max(a, e) for a, e, _ in checked)
+        ax.plot([lo, hi], [lo, hi], color='0.5', ls=':', label='1:1')
+        ax.set(xlabel='stored offset [dex]', ylabel='measured offset [dex]')
+        ax.legend(fontsize='small')
+        fig.tight_layout()
+        return fig
+
+    validation_plot(figure, 'solve_gas_only_grid')
