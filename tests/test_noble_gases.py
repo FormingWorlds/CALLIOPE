@@ -179,7 +179,7 @@ def test_partition_ratio_matches_henry_versus_hydrostatic_column(validation_plot
             xscale='log',
             yscale='log',
             xlabel='closed-form ratio',
-            ylabel='melt / atmosphere mass after the solve',
+            ylabel='melt / atmosphere mass ratio',
         )
         ax.legend()
         fig.tight_layout()

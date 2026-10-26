@@ -244,7 +244,7 @@ def test_janaf_constant_matches_janaf_rows_over_fit_range(
         bottom.plot(T, fit - janaf, 'o', ms=3)
         bottom.axhline(tol, color='0.5', ls=':')
         bottom.axhline(-tol, color='0.5', ls=':')
-        bottom.set(xlabel='T [K]', ylabel='code - JANAF [dex]')
+        bottom.set(xlabel='T [K]', ylabel='code − JANAF [dex]')
         fig.tight_layout()
         return fig
 

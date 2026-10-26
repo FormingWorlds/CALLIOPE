@@ -121,7 +121,8 @@ def test_round_trip_self_consistency_at_earth_fiducial(validation_plot):
     O_kg_total_forward = legacy_result['O_kg_total']
     assert O_kg_total_forward > 0
     # Scale guard: O mass at Earth-fiducial inputs is order 1e20 kg.
-    assert 1e18 < O_kg_total_forward < 1e22
+    O_lo, O_hi = 1e18, 1e22
+    assert O_lo < O_kg_total_forward < O_hi
 
     # Inverse solve: target the forward-mode O budget; recover fO2_shift.
     target_with_O = dict(target, O=O_kg_total_forward)
@@ -136,22 +137,23 @@ def test_round_trip_self_consistency_at_earth_fiducial(validation_plot):
     )
     fO2_derived = inverse_result['fO2_shift_derived']
     # Round-trip: |fO2_derived - 2.0| < 0.05 dex (well within solver xtol).
-    assert fO2_derived == pytest.approx(fO2_shift, abs=0.05)
+    band = 0.05
+    assert fO2_derived == pytest.approx(fO2_shift, abs=band)
 
     def figure():
         import matplotlib.pyplot as plt
 
-        fig, (left, right) = plt.subplots(1, 2)
+        fig, (left, right) = plt.subplots(1, 2, figsize=(8.0, 4.0))
         left.axhspan(
-            fO2_shift - 0.05, fO2_shift + 0.05, color='0.85', label='input +- 0.05 dex'
+            fO2_shift - band, fO2_shift + band, color='0.85', label=r'input $\pm$0.05 dex'
         )
-        left.plot([1], [fO2_derived], 'o', label='found by the authoritative-O solve')
-        left.set(xticks=[], ylabel=r'$\Delta$IW', ylim=(fO2_shift - 0.1, fO2_shift + 0.1))
-        left.legend(fontsize='small')
-        right.axhspan(1e18, 1e22, color='0.85', label='allowed range')
+        left.plot([1], [fO2_derived], 'o', label='authoritative-O solve')
+        left.set(xticks=[], ylabel=r'$\Delta$IW [dex]', ylim=(fO2_shift - 0.3, fO2_shift + 0.1))
+        left.legend(fontsize='small', loc='lower center')
+        right.axhspan(O_lo, O_hi, color='0.5', alpha=0.25, label='allowed range')
         right.plot([1], [O_kg_total_forward], 'o', label='buffered solve')
-        right.set(xticks=[], yscale='log', ylabel='O budget [kg]')
-        right.legend(fontsize='small')
+        right.set(xticks=[], yscale='log', ylabel='O budget [kg]', ylim=(1e16, 1e23))
+        right.legend(fontsize='small', loc='lower center')
         fig.tight_layout()
         return fig
 

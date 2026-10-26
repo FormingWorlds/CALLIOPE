@@ -69,13 +69,15 @@ class TestSolubilityH2O:
         # Zero-pressure boundary: identically zero by power-law definition.
         assert s(0.0) == 0.0
         # At p = 100 bar: 524 * sqrt(100) = 5240 ppmw.
-        val = s(100.0)
+        p = 100.0
+        val = s(p)
         expected = 524.0 * 10.0
         assert val == pytest.approx(expected, rel=1e-12)
         # Wrong-law guard: basalt_dixon would give 9650, off by ~84%.
-        assert abs(val - 965.0 * 10.0) > 1000.0
+        wrong_dixon, wrong_exponent = 965.0 * 10.0, 524.0 * 100.0
+        assert abs(val - wrong_dixon) > 1000.0
         # Wrong-exponent guard: p^1.0 instead of p^0.5 would give 52400.
-        assert abs(val - 524.0 * 100.0) > 1000.0
+        assert abs(val - wrong_exponent) > 1000.0
         # Sign + scale guards: positive ppmw, order 1e3 to 1e4 at 100 bar.
         assert val > 0
         assert 1e3 < val < 1e4
@@ -89,20 +91,17 @@ class TestSolubilityH2O:
             dixon = SolubilityH2O('basalt_dixon')
             ax.plot(grid, [dixon(p) for p in grid], ls='--', label='code, Dixon basalt')
             ax.plot(
-                [100.0, 100.0],
-                [965.0 * 10.0, 524.0 * 100.0],
-                'x',
-                label='wrong values of the test',
+                [p, p], [wrong_dixon, wrong_exponent], 'x', label='wrong values of the test'
             )
             ax.plot(
-                [100.0],
+                [p],
                 [expected],
                 's',
                 ms=10,
                 mfc='none',
                 label=r'524 $p^{0.5}$ (Sossi et al. 2023)',
             )
-            ax.plot([100.0], [val], 'o', label='code at 100 bar')
+            ax.plot([p], [val], 'o', label='code at 100 bar')
             ax.set(
                 xscale='log',
                 yscale='log',
@@ -263,16 +262,17 @@ class TestSolubilityS2_xFeO:
         test_oxygen_fugacity.
         """
         s = SolubilityS2()
-        out = s(1.0, 2500.0, 0.0)
+        T, pinned, fischer_value = 2500.0, 13248.67, 13085.87
+        out = s(1.0, T, 0.0)
         # Regression pin: computed at default x_FeO=10.0 with Hirschmann 2021.
-        assert out == pytest.approx(13248.67, rel=1e-5)
+        assert out == pytest.approx(pinned, rel=1e-5)
         # Wrong-buffer guard: the Fischer 2011 buffer gives 13085.87.
-        assert abs(out - 13085.87) > 100.0
+        assert abs(out - fischer_value) > 100.0
 
         def figure():
             import matplotlib.pyplot as plt
 
-            grid = [2400.0 + 10.0 * k for k in range(21)]
+            grid = [T - 100.0 + 10.0 * k for k in range(21)]
             fischer = SolubilityS2(fO2_model='fischer')
             fig, ax = plt.subplots()
             ax.plot(grid, [s(1.0, t, 0.0) for t in grid], label='code, Hirschmann buffer')
@@ -282,9 +282,9 @@ class TestSolubilityS2_xFeO:
                 ls='--',
                 label='code, Fischer buffer',
             )
-            ax.plot([2500.0], [13248.67], 's', ms=10, mfc='none', label='pinned value')
-            ax.plot([2500.0], [out], 'o', label='code at 2500 K')
-            ax.plot([2500.0], [13085.87], 'x', label='Fischer value of the test')
+            ax.plot([T], [pinned], 's', ms=10, mfc='none', label='pinned value')
+            ax.plot([T], [out], 'o', label='code at 2500 K')
+            ax.plot([T], [fischer_value], 'x', label='Fischer value of the test')
             ax.set(xlabel='T [K]', ylabel='dissolved S [ppmw] at 1 bar, IW+0')
             ax.legend()
             fig.tight_layout()
@@ -656,8 +656,9 @@ class TestSolubilityNobleGas:
             'Kr': 0.112229,
             'Xe': 0.099642,
         }
+        consts = {gas: jambon86_ppmw_per_bar(gas) for gas in noble_gases}
         for gas in noble_gases:
-            assert jambon86_ppmw_per_bar(gas) == pytest.approx(expected[gas], rel=1e-4)
+            assert consts[gas] == pytest.approx(expected[gas], rel=1e-4)
 
         # Discrimination guard: the constants are close for several pairs
         # (He/Ar/Xe all near 0.1), so pin that each gas differs from every
@@ -683,7 +684,7 @@ class TestSolubilityNobleGas:
 
             gases = list(noble_gases)
             fig, ax = plt.subplots()
-            ax.bar(gases, [jambon86_ppmw_per_bar(g) for g in gases], color='0.75', label='code')
+            ax.bar(gases, [consts[g] for g in gases], color='0.75', label='code')
             ax.plot(gases, [expected[g] for g in gases], 'o', label='hand-computed literal')
             ax.set(ylabel='Henry constant [ppmw bar$^{-1}$]')
             ax.legend()

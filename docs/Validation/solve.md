@@ -86,10 +86,10 @@ The reference inventory is 1.55e20 kg of H, the mass of the hydrogen in one Eart
 
 **Why it matters.** The [cross-code comparison](../Explanations/cross_backend_comparison.md) of CALLIOPE and atmodeller depends on the size of these known offsets, and this case fails if an offset moves by more than its bound.
 
-![Measured offsets of CALLIOPE from atmodeller against their stored offsets for all checks of the 72 cases](../assets/validation/solve_gas_only_grid.svg#only-light){ width="80%" }
-![Measured offsets of CALLIOPE from atmodeller against their stored offsets for all checks of the 72 cases](../assets/validation/solve_gas_only_grid_dark.svg#only-dark){ width="80%" }
+![Measured offsets of CALLIOPE from atmodeller against their stored offsets for all offset checks of the 72 cases](../assets/validation/solve_gas_only_grid.svg#only-light){ width="80%" }
+![Measured offsets of CALLIOPE from atmodeller against their stored offsets for all offset checks of the 72 cases](../assets/validation/solve_gas_only_grid_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** Each mark is one checked quantity of one case: its stored offset on the x-axis and the offset measured in the test on the y-axis. The shape gives the bound of the check. Circles have 0.005 dex. Squares have 0.001 dex: the surface pressure, H$_2$O, CO$_2$, N$_2$, SO$_2$ and S$_2$ of the O-budget cases. Triangles have 0.002 dex: the SO$_2$ quotient. A pass means that every mark lies on the dotted 1:1 line within its bound. The bounds are too small to see at this scale.
+**How to read the plot.** Each mark is one checked quantity of one case: its stored offset on the x-axis and the offset measured in the test on the y-axis. The shape gives the bound of the check. Circles have 0.005 dex. Squares have 0.001 dex: the surface pressure, H$_2$O, CO$_2$, N$_2$, SO$_2$ and S$_2$ of the O-budget cases. Triangles have 0.002 dex: the SO$_2$ quotient. A pass means that every mark lies on the dotted 1:1 line within its bound. The bounds are too small to see at this scale, and many circles overlap along the line. The element and O closure checks and the report-file check are not drawn.
 
 **Known limit.** The offsets are a regression snapshot: the case fails if an offset moves, but it does not say which code is right. The grid has no melt, so it does not compare the solubility laws of the 2 codes. It runs only in the nightly cross-code job, because it needs atmodeller. The comparison at the Earth case in `scripts/cross_backend/` is not part of the test suite.
 

@@ -30,7 +30,7 @@ Each case below says why the check exists, what it tests, how we know the right 
 ![Log10 fO2 of the 3 IW buffers against temperature near 2000 K, with the values at 2000 K](../assets/validation/oxygen_fugacity_fischer_2000k.svg#only-light){ width="80%" }
 ![Log10 fO2 of the 3 IW buffers against temperature near 2000 K, with the values at 2000 K](../assets/validation/oxygen_fugacity_fischer_2000k_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** The lines are the 3 buffers from `OxygenFugacity` and give context. The test asserts the 3 marks at 2000 K: the Fischer code value (circle), the coded form (square) and the O'Neill and Eggins value (cross). A pass means that the circle agrees with the square to a relative 1e-4, too small to see. The circle must also lie 0.258 dex above the cross, to within 0.02 dex.
+**How to read the plot.** The lines are the 3 buffers from `OxygenFugacity` at 1 bar and give context; the y-axis is $\log_{10} f\mathrm{O_2}$ in bar. The test asserts the 3 marks at 2000 K: the Fischer code value (circle), the coded form (square) and the O'Neill and Eggins value (cross). A pass means that the circle agrees with the square to a relative 1e-4, too small to see. The circle must also lie 0.258 dex above the cross, to within 0.02 dex.
 
 **Known limit.** This case is a regression check of the coded form and of its offset from O'Neill and Eggins; it does not compare the Fischer fit with independent data.
 
@@ -75,7 +75,7 @@ Each case below says why the check exists, what it tests, how we know the right 
 ![Log10 fO2 of the 3 IW buffers against temperature near 1473 K, with the figure value and the code values at 1473 K](../assets/validation/oxygen_fugacity_hirschmann_1473k.svg#only-light){ width="80%" }
 ![Log10 fO2 of the 3 IW buffers against temperature near 1473 K, with the figure value and the code values at 1473 K](../assets/validation/oxygen_fugacity_hirschmann_1473k_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** The lines are the 3 buffers from `OxygenFugacity` and give context. The test asserts the marks at 1473 K. The circle is the Hirschmann code value, and the square with its error bar of 0.05 dex is the figure value. The lower cross (x) is the Fischer value and the upper cross (+) is the O'Neill and Eggins value. The triangle is the Hirschmann value at 1 kbar. A pass means that the circle lies inside the error bar and both crosses lie more than 0.2 dex from the circle. The circle must also equal the 1 bar value of the Hirschmann buffer to 1e-12. The triangle lies 0.04 dex above the circle and overlaps it at this scale; the test requires more than 0.03 dex.
+**How to read the plot.** The lines are the 3 buffers from `OxygenFugacity` at 1 bar and give context; the y-axis is $\log_{10} f\mathrm{O_2}$ in bar. The test asserts the marks at 1473 K. The circle is the Hirschmann code value, and the square with its error bar of 0.05 dex is the figure value. The lower cross (x) is the Fischer value and the upper cross (+) is the O'Neill and Eggins value. The triangle is the Hirschmann value at 1 kbar. A pass means that the circle lies inside the error bar and both crosses lie more than 0.2 dex from the circle. The circle must also equal the 1 bar value of the Hirschmann buffer to 1e-12. The triangle lies 0.04 dex above the circle and overlaps it at this scale; the test requires more than 0.03 dex. The square of the figure value sits behind the circle and the triangle.
 
 **Known limit.** The reference value is read off a figure, so the case catches only changes larger than 0.05 dex.
 
@@ -99,7 +99,7 @@ Each case below says why the check exists, what it tests, how we know the right 
 ![Ratio of the fitted pressure slope to the volume estimate at 3 temperatures, with the 15 percent band](../assets/validation/oxygen_fugacity_hirschmann_pressure_slope.svg#only-light){ width="80%" }
 ![Ratio of the fitted pressure slope to the volume estimate at 3 temperatures, with the 15 percent band](../assets/validation/oxygen_fugacity_hirschmann_pressure_slope_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** Each mark is the change of $\log_{10} f\mathrm{O_2}$ from 1 bar to 1 GPa divided by the estimate from $\Delta V$, at one of the 3 temperatures. The grey band is the tolerance of 15 %. A pass means that all 3 marks lie inside the band. They sit 7.5 % to 10.4 % above 1.
+**How to read the plot.** Each mark is the change of $\log_{10} f\mathrm{O_2}$ from 1 bar to 1 GPa divided by the estimate from $\Delta V$, at one of the 3 temperatures. The grey band is the tolerance of 15 % and the dotted line is a ratio of 1. A pass means that all 3 marks lie inside the band. They sit 7.5 % to 10.4 % above 1.
 
 ??? info "Test details"
     - Reference: analytical limit $d \log_{10} f\mathrm{O_2} / dP = 2\,\Delta V / (R\,T \ln 10)$; Hirschmann (2021) Appendix A for $V(\mathrm{FeO})$.

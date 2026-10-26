@@ -116,7 +116,7 @@ A box "Test details" ends each case.
 ![Twice log10 K of H2S from the code and from the least-squares fit against inverse temperature](../assets/validation/chemistry_janaf_h2s_fit.svg#only-light){ width="80%" }
 ![Twice log10 K of H2S from the code and from the least-squares fit against inverse temperature](../assets/validation/chemistry_janaf_h2s_fit_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** The x-axis is $10^4/T$, so a law $a/T - b$ is a straight line. The line is the least-squares fit of the JANAF rows and the marks are the code at each row. The test asserts that they agree to a relative and absolute 1e-6, far below what the plot can show. A pass means that every mark sits on the line.
+**How to read the plot.** The x-axis is $10^4/T$ and the y-axis is twice $\log_{10} K$ per mole, that is $a/T - b$, so the law is a straight line. The line is the least-squares fit of the JANAF rows and the marks are the code at each row. The test asserts that they agree to a relative and absolute 1e-6, far below what the plot can show. A pass means that every mark sits on the line.
 
 ??? info "Test details"
     - Reference: the JANAF rows of the case above; `tools/fit_H2S.ipynb`.
@@ -158,7 +158,7 @@ A box "Test details" ends each case.
 ![Twice log10 K of NH3 from the code and from the least-squares fit against inverse temperature](../assets/validation/chemistry_janaf_nh3_fit.svg#only-light){ width="80%" }
 ![Twice log10 K of NH3 from the code and from the least-squares fit against inverse temperature](../assets/validation/chemistry_janaf_nh3_fit_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** The x-axis is $10^4/T$. The line is the least-squares fit of the JANAF rows and the marks are the code at each row. The test asserts agreement to a relative and absolute 1e-6, far below what the plot can show. A pass means that every mark sits on the line.
+**How to read the plot.** The x-axis is $10^4/T$ and the y-axis is twice $\log_{10} K$ per mole, that is $a/T - b$. The line is the least-squares fit of the JANAF rows and the marks are the code at each row. The test asserts agreement to a relative and absolute 1e-6, far below what the plot can show. A pass means that every mark sits on the line.
 
 ??? info "Test details"
     - Reference: the JANAF rows of the case above; `tools/fit_NH3.ipynb`.
@@ -184,7 +184,7 @@ A box "Test details" ends each case.
 ![Offset of each reaction quotient from NASA Glenn data against temperature, with the stored offsets and their bounds](../assets/validation/chemistry_nasa_glenn_offsets.svg#only-light){ width="80%" }
 ![Offset of each reaction quotient from NASA Glenn data against temperature, with the stored offsets and their bounds](../assets/validation/chemistry_nasa_glenn_offsets_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** Each colour is one reaction, named in the legend by its product. The x-axis is the temperature and the y-axis the offset of $\log_{10} Q$ from the NASA Glenn value. The error bars are centred on the stored offsets and have the bound of 0.002 dex, about the size of a mark at this scale. The marks are the offsets measured in the test. A pass means that each mark lies on its stored offset within 0.002 dex. Some marks overlap, for example CO and NH$_3$ at 1500 K. The size of the offsets, up to 0.1 dex for CH$_4$, is the known difference between the 2 data sets.
+**How to read the plot.** Each colour is one reaction, named in the legend by its product. The x-axis is the temperature and the y-axis the offset of $\log_{10} Q$ from the NASA Glenn value. The error bars are centred on the stored offsets and have the bound of 0.002 dex, about the size of a mark at this scale. The marks are the offsets measured in the test, and the dotted line is a zero offset. A pass means that each mark lies on its stored offset within 0.002 dex. Some marks overlap, for example CO and NH$_3$ at 1500 K. The size of the offsets, up to 0.1 dex for CH$_4$, is the known difference between the 2 data sets.
 
 **Known limit.** The offsets from NASA Glenn are a regression snapshot: the case fails if an offset moves, but it does not say which data set is right. `schaefer_C` has no case. `schaefer_H` appears only in the first case, as the alternative constant that $G_\mathrm{eq}$ must differ from. The test does not call atmodeller. It sits in the cross-code test file, which is skipped without atmodeller, so it runs in the nightly cross-code job.
 

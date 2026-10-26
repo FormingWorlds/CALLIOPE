@@ -28,7 +28,7 @@ Each case below says why the check exists, what it tests, how we know the right 
 ![Dissolved water against pressure on log axes, the code law and the Dixon law, with the value and the 2 wrong values at 100 bar](../assets/validation/solubility_h2o_peridotite.svg#only-light){ width="80%" }
 ![Dissolved water against pressure on log axes, the code law and the Dixon law, with the value and the 2 wrong values at 100 bar](../assets/validation/solubility_h2o_peridotite_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** Both axes are logarithmic. The solid line is the code law and the dashed line is the Dixon basalt law of the code; both give context. The test asserts the code value at 100 bar (circle) against $524 \times 100^{0.5}$ = 5240 ppmw (square), to a relative 1e-12, too small to see. The 2 crosses at 100 bar are the wrong values that the test holds. They are 9650 ppmw from the Dixon constant and 52400 ppmw from an exponent of 1. A pass means that the circle sits in the square and both crosses lie more than 1000 ppmw from it.
+**How to read the plot.** Both axes are logarithmic. The solid line is the code law and the dashed line is the Dixon basalt law of the code; both give context. The test asserts the code value at 100 bar (circle) against $524 \times 100^{0.5}$ = 5240 ppmw (square), to a relative 1e-12, too small to see. The 2 crosses at 100 bar are the wrong values that the test holds. They lie at 9650 ppmw (Dixon constant) and 52400 ppmw (exponent of 1). A pass means that the circle sits in the square and both crosses lie more than 1000 ppmw from it.
 
 ??? info "Test details"
     - Reference: Sossi et al. (2023)[^cite-sossi2023] peridotite H2O fit: `ppmw = 524 * p^0.5`.
@@ -119,7 +119,7 @@ Each case below says why the check exists, what it tests, how we know the right 
 ![CALLIOPE Henry constants against the atmodeller concentrations at 1 bar for the 5 noble gases](../assets/validation/solubility_noble_atmodeller.svg#only-light){ width="80%" }
 ![CALLIOPE Henry constants against the atmodeller concentrations at 1 bar for the 5 noble gases](../assets/validation/solubility_noble_atmodeller_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** Both axes are logarithmic. Each mark is one gas: the atmodeller concentration at 1 bar on the x-axis and the CALLIOPE constant on the y-axis. A pass means that every mark lies on the dotted 1:1 line, to a relative 1e-10.
+**How to read the plot.** Both axes are logarithmic. Each mark is one gas: the atmodeller concentration at 1 bar on the x-axis and the CALLIOPE constant on the y-axis. The 2 axes agree in number only because the pressure is 1 bar. The He mark sits under the Xe mark. A pass means that every mark lies on the dotted 1:1 line, to a relative 1e-10.
 
 **Known limit.** The test is skipped when atmodeller is not installed, so it runs only where atmodeller is present, such as the nightly cross-code job.
 

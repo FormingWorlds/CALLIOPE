@@ -37,8 +37,9 @@ def test_calculate_mantle_mass_recovers_wang_2018_earth_core_fraction(validation
     computed core mass equals `0.325 * M_earth` by construction; the mantle
     mass is `(1 - 0.325) * M_earth = 0.675 * M_earth`.
     """
+    core_frac = 0.55
     expected = (1.0 - 0.325) * M_earth
-    mantle = calculate_mantle_mass(R_earth, M_earth, core_frac=0.55)
+    mantle = calculate_mantle_mass(R_earth, M_earth, core_frac=core_frac)
     # rel=1e-6 because the only source of error is float32->float64 promotion
     # in the constants module; the formula is closed-form and deterministic.
     assert mantle == pytest.approx(expected, rel=1e-6)
@@ -46,10 +47,10 @@ def test_calculate_mantle_mass_recovers_wang_2018_earth_core_fraction(validation
     # scale an r^2 core is 5.6e17 kg against the correct core of 1.94e24 kg
     # (0.325 M_earth).
     wrong_r2 = M_earth - (
-        ((3.0 * 0.325 * M_earth) / (4.0 * 3.14159265 * (0.55 * R_earth) ** 3.0))
+        ((3.0 * 0.325 * M_earth) / (4.0 * 3.14159265 * (core_frac * R_earth) ** 3.0))
         * (4.0 / 3.0)
         * 3.14159265
-        * (R_earth * 0.55) ** 2.0
+        * (R_earth * core_frac) ** 2.0
     )
     assert abs(mantle - wrong_r2) > 0.1 * M_earth
     # Sign guard: mantle mass is always positive for valid Earth-like input.
@@ -69,15 +70,15 @@ def test_calculate_mantle_mass_recovers_wang_2018_earth_core_fraction(validation
             label='calculate_mantle_mass',
         )
         ax.plot(
-            [0.55],
+            [core_frac],
             [expected / M_earth],
             's',
             ms=10,
             mfc='none',
-            label='1 - 0.325 (Wang et al. 2018)',
+            label=r'$1 - 0.325$ (Wang et al. 2018)',
         )
-        ax.plot([0.55], [mantle / M_earth], 'o', label='code, core radius 0.55')
-        ax.plot([0.55], [wrong_r2 / M_earth], 'x', label=r'core volume with $r^2$')
+        ax.plot([core_frac], [mantle / M_earth], 'o', label='code, core radius 0.55')
+        ax.plot([core_frac], [wrong_r2 / M_earth], 'x', label=r'core volume with $r^2$')
         ax.set(xlabel='core radius / planet radius', ylabel=r'mantle mass / $M_\oplus$')
         ax.legend()
         fig.tight_layout()

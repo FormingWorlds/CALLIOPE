@@ -776,8 +776,8 @@ L 548.431641 19.412156
      </g>
     </g>
     <g id="text_20">
-     <!-- $\log_{10} f\mathrm{O_2}$ at IW, 1 bar -->
-     <g style="fill: #10151b" transform="translate(20.88 235.708182) rotate(-90) scale(0.18 -0.18)">
+     <!-- $\log_{10} f\mathrm{O_2}$ [bar] at IW, 1 bar -->
+     <g style="fill: #10151b" transform="translate(20.88 258.478182) rotate(-90) scale(0.18 -0.18)">
       <defs>
        <path id="DejaVuSans-6c" d="M 603 4863 
 L 1178 4863 
@@ -942,6 +942,36 @@ Q 2828 2175 2409 1742
 Q 1991 1309 1228 531 
 z
 " transform="scale(0.015625)"/>
+       <path id="InstrumentSans-Regular-62" d="M 2125 -58 
+Q 1664 -58 1350 166 
+Q 1037 390 922 800 
+L 992 813 
+L 992 0 
+L 512 0 
+L 512 4608 
+L 1024 4608 
+L 1024 2502 
+L 954 2522 
+Q 1075 2899 1398 3113 
+Q 1722 3328 2170 3328 
+Q 2605 3328 2928 3117 
+Q 3251 2906 3430 2528 
+Q 3610 2150 3610 1645 
+Q 3610 1133 3424 749 
+Q 3238 365 2905 153 
+Q 2573 -58 2125 -58 
+z
+M 2048 390 
+Q 2534 390 2809 726 
+Q 3085 1062 3085 1645 
+Q 3085 2221 2809 2550 
+Q 2534 2880 2048 2880 
+Q 1562 2880 1280 2544 
+Q 998 2208 998 1626 
+Q 998 1056 1280 723 
+Q 1562 390 2048 390 
+z
+" transform="scale(0.015625)"/>
        <path id="InstrumentSans-Regular-61" d="M 2515 0 
 Q 2490 109 2480 249 
 Q 2470 390 2470 608 
@@ -978,6 +1008,26 @@ Q 2438 762 2438 1075
 L 2522 621 
 Q 2419 294 2121 115 
 Q 1824 -64 1395 -64 
+z
+" transform="scale(0.015625)"/>
+       <path id="InstrumentSans-Regular-72" d="M 512 0 
+L 512 3264 
+L 992 3264 
+L 992 2432 
+L 1024 2432 
+L 1024 0 
+L 512 0 
+z
+M 1024 1702 
+L 941 2477 
+Q 1056 2893 1350 3110 
+Q 1645 3328 2029 3328 
+Q 2189 3328 2246 3302 
+L 2246 2810 
+Q 2214 2822 2156 2825 
+Q 2099 2829 2016 2829 
+Q 1530 2829 1277 2537 
+Q 1024 2246 1024 1702 
 z
 " transform="scale(0.015625)"/>
        <path id="InstrumentSans-Regular-74" d="M 1818 -58 
@@ -1040,56 +1090,6 @@ Q 1139 -275 985 -544
 Q 832 -813 493 -922 
 z
 " transform="scale(0.015625)"/>
-       <path id="InstrumentSans-Regular-62" d="M 2125 -58 
-Q 1664 -58 1350 166 
-Q 1037 390 922 800 
-L 992 813 
-L 992 0 
-L 512 0 
-L 512 4608 
-L 1024 4608 
-L 1024 2502 
-L 954 2522 
-Q 1075 2899 1398 3113 
-Q 1722 3328 2170 3328 
-Q 2605 3328 2928 3117 
-Q 3251 2906 3430 2528 
-Q 3610 2150 3610 1645 
-Q 3610 1133 3424 749 
-Q 3238 365 2905 153 
-Q 2573 -58 2125 -58 
-z
-M 2048 390 
-Q 2534 390 2809 726 
-Q 3085 1062 3085 1645 
-Q 3085 2221 2809 2550 
-Q 2534 2880 2048 2880 
-Q 1562 2880 1280 2544 
-Q 998 2208 998 1626 
-Q 998 1056 1280 723 
-Q 1562 390 2048 390 
-z
-" transform="scale(0.015625)"/>
-       <path id="InstrumentSans-Regular-72" d="M 512 0 
-L 512 3264 
-L 992 3264 
-L 992 2432 
-L 1024 2432 
-L 1024 0 
-L 512 0 
-z
-M 1024 1702 
-L 941 2477 
-Q 1056 2893 1350 3110 
-Q 1645 3328 2029 3328 
-Q 2189 3328 2246 3302 
-L 2246 2810 
-Q 2214 2822 2156 2825 
-Q 2099 2829 2016 2829 
-Q 1530 2829 1277 2537 
-Q 1024 2246 1024 1702 
-z
-" transform="scale(0.015625)"/>
       </defs>
       <use xlink:href="#DejaVuSans-6c" transform="translate(0 0.015625)"/>
       <use xlink:href="#DejaVuSans-6f" transform="translate(27.783203 0.015625)"/>
@@ -1100,18 +1100,24 @@ z
       <use xlink:href="#DejaVuSans-4f" transform="translate(296.645833 0.015625)"/>
       <use xlink:href="#DejaVuSans-32" transform="translate(376.313801 -16.390625) scale(0.7)"/>
       <use xlink:href="#InstrumentSans-Regular-20" transform="translate(423.584309 0.015625)"/>
-      <use xlink:href="#InstrumentSans-Regular-61" transform="translate(443.584294 0.015625)"/>
-      <use xlink:href="#InstrumentSans-Regular-74" transform="translate(496.884282 0.015625)"/>
-      <use xlink:href="#InstrumentSans-Regular-20" transform="translate(534.584279 0.015625)"/>
-      <use xlink:href="#InstrumentSans-Regular-49" transform="translate(554.584263 0.015625)"/>
-      <use xlink:href="#InstrumentSans-Regular-57" transform="translate(579.984257 0.015625)"/>
-      <use xlink:href="#InstrumentSans-Regular-2c" transform="translate(688.884251 0.015625)"/>
-      <use xlink:href="#InstrumentSans-Regular-20" transform="translate(714.384236 0.015625)"/>
-      <use xlink:href="#InstrumentSans-Regular-31" transform="translate(734.384221 0.015625)"/>
-      <use xlink:href="#InstrumentSans-Regular-20" transform="translate(773.484211 0.015625)"/>
-      <use xlink:href="#InstrumentSans-Regular-62" transform="translate(793.484196 0.015625)"/>
-      <use xlink:href="#InstrumentSans-Regular-61" transform="translate(854.084187 0.015625)"/>
-      <use xlink:href="#InstrumentSans-Regular-72" transform="translate(907.384175 0.015625)"/>
+      <use xlink:href="#InstrumentSans-Regular-5b" transform="translate(443.584294 0.015625)"/>
+      <use xlink:href="#InstrumentSans-Regular-62" transform="translate(484.184285 0.015625)"/>
+      <use xlink:href="#InstrumentSans-Regular-61" transform="translate(544.784276 0.015625)"/>
+      <use xlink:href="#InstrumentSans-Regular-72" transform="translate(598.084263 0.015625)"/>
+      <use xlink:href="#InstrumentSans-Regular-5d" transform="translate(635.584248 0.015625)"/>
+      <use xlink:href="#InstrumentSans-Regular-20" transform="translate(676.184239 0.015625)"/>
+      <use xlink:href="#InstrumentSans-Regular-61" transform="translate(696.184224 0.015625)"/>
+      <use xlink:href="#InstrumentSans-Regular-74" transform="translate(749.484211 0.015625)"/>
+      <use xlink:href="#InstrumentSans-Regular-20" transform="translate(787.184208 0.015625)"/>
+      <use xlink:href="#InstrumentSans-Regular-49" transform="translate(807.184193 0.015625)"/>
+      <use xlink:href="#InstrumentSans-Regular-57" transform="translate(832.584187 0.015625)"/>
+      <use xlink:href="#InstrumentSans-Regular-2c" transform="translate(941.484181 0.015625)"/>
+      <use xlink:href="#InstrumentSans-Regular-20" transform="translate(966.984166 0.015625)"/>
+      <use xlink:href="#InstrumentSans-Regular-31" transform="translate(986.98415 0.015625)"/>
+      <use xlink:href="#InstrumentSans-Regular-20" transform="translate(1026.084141 0.015625)"/>
+      <use xlink:href="#InstrumentSans-Regular-62" transform="translate(1046.084126 0.015625)"/>
+      <use xlink:href="#InstrumentSans-Regular-61" transform="translate(1106.684117 0.015625)"/>
+      <use xlink:href="#InstrumentSans-Regular-72" transform="translate(1159.984105 0.015625)"/>
      </g>
     </g>
    </g>

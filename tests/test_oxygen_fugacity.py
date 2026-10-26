@@ -59,12 +59,14 @@ def test_oxygen_fugacity_fischer_value_at_2000K_cross_check_and_regression(valid
     values cluster with other published IW fits (Frost 1991 ~ -7.04; O'Neill
     1988 ~ -7.55) within the ~0.5 dex scatter of the literature.
     """
-    fischer = OxygenFugacity('fischer')(2000.0)
-    oneill = OxygenFugacity('oneill')(2000.0)
+    T = 2000.0
+    fischer = OxygenFugacity('fischer')(T)
+    oneill = OxygenFugacity('oneill')(T)
     # Regression check on the offset between the two coded buffer expressions.
     assert (fischer - oneill) == pytest.approx(0.258, abs=0.02)
     # Direct regression check on the coded Fischer 1-bar expression at 2000 K.
-    assert fischer == pytest.approx(6.94059 - 28.1808e3 / 2000.0, rel=1e-4)
+    coded = 6.94059 - 28.1808e3 / T
+    assert fischer == pytest.approx(coded, rel=1e-4)
     # Wrong-buffer guard: a silent dispatch to 'oneill' lands 0.26 dex
     # away from the Fischer value.
     assert abs(fischer - (-7.4078)) > 0.2
@@ -82,12 +84,10 @@ def test_oxygen_fugacity_fischer_value_at_2000K_cross_check_and_regression(valid
         fig, ax = plt.subplots()
         for model, ls in (('fischer', '-'), ('oneill', '--'), ('hirschmann', ':')):
             ax.plot(grid, [OxygenFugacity(model)(t) for t in grid], ls=ls, label=model)
-        ax.plot(
-            [2000.0], [6.94059 - 28.1808e3 / 2000.0], 's', ms=10, mfc='none', label='coded form'
-        )
-        ax.plot([2000.0], [fischer], 'o', label='code, fischer')
-        ax.plot([2000.0], [oneill], 'x', label='code, oneill')
-        ax.set(xlabel='T [K]', ylabel=r'$\log_{10} f\mathrm{O_2}$ at IW, 1 bar')
+        ax.plot([T], [coded], 's', ms=10, mfc='none', label='coded form')
+        ax.plot([T], [fischer], 'o', label='code, fischer')
+        ax.plot([T], [oneill], 'x', label='code, oneill')
+        ax.set(xlabel='T [K]', ylabel=r'$\log_{10} f\mathrm{O_2}$ [bar] at IW, 1 bar')
         ax.legend()
         fig.tight_layout()
         return fig
@@ -260,17 +260,18 @@ def test_oxygen_fugacity_hirschmann_value_at_1473K_matches_published_figure(vali
     land more than 0.2 dex away, so a silent dispatch to either fails.
     """
     of = OxygenFugacity('hirschmann')
-    val = of(1473.0)
-    assert val == pytest.approx(-11.94, abs=0.05)
+    T, fig5, fig5_tol = 1473.0, -11.94, 0.05
+    val = of(T)
+    assert val == pytest.approx(fig5, abs=fig5_tol)
     # Wrong-buffer guards.
-    fischer = OxygenFugacity('fischer')(1473.0)
-    oneill = OxygenFugacity('oneill')(1473.0)
+    fischer = OxygenFugacity('fischer')(T)
+    oneill = OxygenFugacity('oneill')(T)
     assert abs(val - fischer) > 0.2
     assert abs(val - oneill) > 0.2
     # The dispatcher evaluates the 1 bar reference, not some other pressure:
     # 1 kbar already moves the buffer by ~0.04 dex at this T.
-    assert val == pytest.approx(of.hirschmann(1473.0, P_bar=1.0), abs=1e-12)
-    kbar = of.hirschmann(1473.0, P_bar=1.0e3)
+    assert val == pytest.approx(of.hirschmann(T, P_bar=1.0), abs=1e-12)
+    kbar = of.hirschmann(T, P_bar=1.0e3)
     assert abs(val - kbar) > 0.03
     # Scale guard against a dropped log10 or a T-unit slip.
     assert -14 < val < -10
@@ -278,25 +279,25 @@ def test_oxygen_fugacity_hirschmann_value_at_1473K_matches_published_figure(vali
     def figure():
         import matplotlib.pyplot as plt
 
-        grid = np.linspace(1443.0, 1503.0, 25)
-        fig, ax = plt.subplots()
+        grid = np.linspace(T - 30.0, T + 30.0, 25)
+        fig, ax = plt.subplots(figsize=(8.4, 4.4))
         for model, ls in (('hirschmann', '-'), ('fischer', '--'), ('oneill', ':')):
             ax.plot(grid, [OxygenFugacity(model)(t) for t in grid], ls=ls, label=model)
         ax.errorbar(
-            [1473.0],
-            [-11.94],
-            yerr=0.05,
+            [T],
+            [fig5],
+            yerr=fig5_tol,
             fmt='s',
             mfc='none',
             capsize=4,
-            label='Fig. 5, +-0.05 dex',
+            label=r'Fig. 5, $\pm$0.05 dex',
         )
-        ax.plot([1473.0], [val], 'o', label='code, hirschmann')
-        ax.plot([1473.0], [fischer], 'x', label='code, fischer')
-        ax.plot([1473.0], [oneill], '+', ms=10, label='code, oneill')
-        ax.plot([1473.0], [kbar], '^', label='code, hirschmann at 1 kbar')
-        ax.set(xlabel='T [K]', ylabel=r'$\log_{10} f\mathrm{O_2}$ at IW')
-        ax.legend(fontsize='small')
+        ax.plot([T], [val], 'o', label='code, hirschmann')
+        ax.plot([T], [fischer], 'x', label='code, fischer')
+        ax.plot([T], [oneill], '+', ms=10, label='code, oneill')
+        ax.plot([T], [kbar], '^', label='code, hirschmann at 1 kbar')
+        ax.set(xlabel='T [K]', ylabel=r'$\log_{10} f\mathrm{O_2}$ [bar] at IW, 1 bar')
+        ax.legend(fontsize='small', loc='upper left', bbox_to_anchor=(1.02, 1.0))
         fig.tight_layout()
         return fig
 
@@ -320,11 +321,11 @@ def test_oxygen_fugacity_hirschmann_low_pressure_slope_matches_volume_change(val
     of = OxygenFugacity('hirschmann')
     dV = (12.256 - 55.845 / 7.874) * 1e-6  # m3/mol
     R = 8.314462618
-    temps, ratios = (1200.0, 2000.0, 3000.0), []
+    temps, ratios, tol = (1200.0, 2000.0, 3000.0), [], 0.15
     for T in temps:
         slope = of.hirschmann(T, P_bar=1.0e4) - of.hirschmann(T, P_bar=1.0)  # dex/GPa
         expected = 2 * dV * 1e9 / (R * T * math.log(10))
-        assert slope == pytest.approx(expected, rel=0.15)
+        assert slope == pytest.approx(expected, rel=tol)
         # Sign guard: compressing the assemblage favours the denser Fe
         # side, so the buffer must move to higher fO2.
         assert slope > 0
@@ -334,7 +335,7 @@ def test_oxygen_fugacity_hirschmann_low_pressure_slope_matches_volume_change(val
         import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots()
-        ax.axhspan(0.85, 1.15, color='0.85', label='tolerance, 15 %')
+        ax.axhspan(1.0 - tol, 1.0 + tol, color='0.85', label='tolerance, 15 %')
         ax.axhline(1.0, color='0.5', ls=':')
         ax.plot(temps, ratios, 'o', label='fit slope / volume estimate')
         ax.set(xlabel='T [K]', ylabel='slope ratio, 1 bar to 1 GPa', ylim=(0.7, 1.3))
