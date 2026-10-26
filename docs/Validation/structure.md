@@ -8,8 +8,7 @@ Validation here means that we run the code on a case where another source gives 
 The test then checks that the code gives that answer within a stated tolerance.
 Here the right answer is the core mass fraction of the Earth from Wang et al. (2018).
 The mantle mass sets how much melt can hold dissolved volatiles in a standalone CALLIOPE run.
-The case below says why the check exists, what it tests, how we know the right answer and why it matters.
-The box "Test details" at the end of the case gives the reference, the tolerance, the test id and the command.
+The case below says why the check exists, what it tests, how we know the right answer and why it matters, and a box "Test details" ends it.
 
 ## Mantle mass of the Earth
 
@@ -26,7 +25,7 @@ The box "Test details" at the end of the case gives the reference, the tolerance
     - Tolerance: relative 1e-6; more than $0.1\,M_\oplus$ from the $r^2$ result; $10^{24} < M_\mathrm{mantle} < 10^{25}$ kg.
     - Test id: `tests/test_structure.py::test_calculate_mantle_mass_recovers_wang_2018_earth_core_fraction`
     - Command: `pytest tests/test_structure.py -k wang_2018`
-    - Companion test: `test_calculate_mantle_mass_closure_holds_for_earth_like` checks that mantle plus core equals the planet mass to a relative 1e-12, and that both are positive.
+    - Companion test: `test_calculate_mantle_mass_closure_holds_for_earth_like` checks that the mantle and the core are both positive. Its sum check holds by definition, because the test takes the core as the planet mass minus the mantle.
 
 ??? note "Worked numbers"
     `calculate_mantle_mass` subtracts the core mass from the planet mass. The core mass is the volume of a sphere of radius `core_frac * R_planet` times a core density from the Earth:

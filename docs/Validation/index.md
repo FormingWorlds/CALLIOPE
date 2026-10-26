@@ -9,7 +9,7 @@ The table below lists every case once, so you can find a case and open its page.
 
 **How to read the table.** Each row is one case. "Process" links to the page of the case, "Case" says what is checked, and "Test id" names the test that runs it. "Reference" is the source of the right answer, and "Status" says which test tier runs the case and whether it has a plot.
 
-**How the case pages are laid out.** On the metal reservoir page each case says why the check exists, what it tests, how we know the right answer and why it matters, with the test details in a box. The other pages list their cases in a table, with notes that derive the expected values.
+**How the case pages are laid out.** On each page, every case says why the check exists, what it tests, how we know the right answer and why it matters, with the test details in a box. Where a case has worked numbers, a second box gives them.
 
 Each case is a test that has the `reference_pinned` marker, so the CI fails when the code leaves its tolerance. Each page names the test ids and the references of its process.
 

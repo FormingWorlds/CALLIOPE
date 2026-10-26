@@ -2,7 +2,12 @@
 
 ## What this page checks
 
-This page checks the iron-wüstite (IW) buffer in CALLIOPE. The oxygen fugacity $f\mathrm{O_2}$ \[bar\] measures how oxidising the melt is, in the form of an effective O$_2$ pressure. The IW buffer is the $f\mathrm{O_2}$ at which iron metal and wüstite (FeO) are in equilibrium, and CALLIOPE gives the $f\mathrm{O_2}$ of a run as a shift $\Delta\mathrm{IW}$ from it in log10 units. `OxygenFugacity` gives $\log_{10} f\mathrm{O_2}$ of the buffer from one of 3 published fits: Hirschmann (2021)[^cite-hirschmann2021], the default, Fischer et al. (2011)[^cite-fischer2011] and O'Neill and Eggins (2002)[^cite-oneilleggins2002]. Validation means that a test runs the code on a case where another source gives the right answer, and checks the result within a stated tolerance. If the buffer is wrong, every reaction that involves O$_2$ in the gas, and every solubility law that depends on $f\mathrm{O_2}$, gets the wrong value. Each case below says why the check exists, what it tests, how we know the right answer and why it matters. A box "Test details" ends each case.
+This page checks the iron-wüstite (IW) buffer in CALLIOPE.
+The oxygen fugacity $f\mathrm{O_2}$ \[bar\] measures how oxidising the melt is, in the form of an effective O$_2$ pressure.
+The IW buffer is the $f\mathrm{O_2}$ at which iron metal and wüstite (FeO) are in equilibrium, and CALLIOPE gives the $f\mathrm{O_2}$ of a run as a shift $\Delta\mathrm{IW}$ from it in log10 units.
+`OxygenFugacity` gives $\log_{10} f\mathrm{O_2}$ of the buffer from one of 3 published fits: Hirschmann (2021)[^cite-hirschmann2021], the default, Fischer et al. (2011)[^cite-fischer2011] and O'Neill and Eggins (2002)[^cite-oneilleggins2002].
+Validation means that a test runs the code on a case where another source gives the right answer, and checks the result within a stated tolerance; if the buffer is wrong, every reaction with O$_2$ and every solubility law that depends on $f\mathrm{O_2}$ gets a wrong value.
+Each case below says why the check exists, what it tests, how we know the right answer and why it matters, and a box "Test details" ends it. A difference of 1 dex is a difference of 1 in log10 units.
 
 ## Fischer buffer at 2000 K
 
@@ -57,7 +62,7 @@ This page checks the iron-wüstite (IW) buffer in CALLIOPE. The oxygen fugacity 
     - Tolerance: 0.05 dex (value read from a figure); more than 0.2 dex from Fischer and from O'Neill and Eggins; more than 0.03 dex from the 1 kbar value.
     - Test id: `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_hirschmann_value_at_1473K_matches_published_figure`
     - Command: `pytest tests/test_oxygen_fugacity.py -k hirschmann_value_at_1473K`
-    - A separate check of the Table 1 coefficients: the fcc/bcc and hcp branches of the fit meet at the boundary of Eq. 18 with a jump below 0.019 dex from 1000 to 3000 K, against a published maximum fit mismatch of 0.028 dex.
+    - Companion test: `test_oxygen_fugacity_hirschmann_branches_continuous_at_fcc_hcp_boundary` checks the Table 1 coefficients another way. The fit has one branch for fcc/bcc iron and one for hcp iron, which meet at the boundary of Eq. 18. At 1000, 1500, 2000, 2500 and 3000 K the jump between them must be below 0.056 dex, twice the published maximum fit mismatch of 0.028 dex; the fit gives at most 0.0185 dex.
 
 ## Hirschmann buffer under pressure
 
@@ -67,7 +72,7 @@ This page checks the iron-wüstite (IW) buffer in CALLIOPE. The oxygen fugacity 
 
 **How we know the right answer.** For a reaction between solids, the change of $\log_{10} f\mathrm{O_2}$ with pressure is $2\,\Delta V / (R\,T \ln 10)$ (an analytical limit). $\Delta V = V(\mathrm{FeO}) - V(\mathrm{Fe})$, with $V(\mathrm{FeO})$ = 12.256 cm$^3$ mol$^{-1}$ from Hirschmann (2021) Appendix A and $V(\mathrm{Fe}) = 55.845/7.874$ cm$^3$ mol$^{-1}$ from the density of alpha iron. These volumes are at room temperature and leave out thermal expansion and the change of stoichiometry, so the test allows 15 %.
 
-**Why it matters.** The solve evaluates every buffer at 1 bar, so that $\Delta\mathrm{IW}$ has one meaning. The pressure term gives the buffer at depth when code calls `OxygenFugacity.hirschmann` with `P_bar`, and this case checks that term.
+**Why it matters.** The solve evaluates every buffer at 1 bar, so that $\Delta\mathrm{IW}$ has one meaning. The pressure term gives the buffer at depth when a caller passes `P_bar` to `OxygenFugacity.hirschmann`, and this case checks that term.
 
 ??? info "Test details"
     - Reference: analytical limit $d \log_{10} f\mathrm{O_2} / dP = 2\,\Delta V / (R\,T \ln 10)$; Hirschmann (2021) Appendix A for $V(\mathrm{FeO})$.
@@ -77,12 +82,12 @@ This page checks the iron-wüstite (IW) buffer in CALLIOPE. The oxygen fugacity 
 
 ## Default buffer
 
-The default IW buffer of CALLIOPE is Hirschmann (2021), `DEFAULT_FO2_MODEL` in `src/calliope/oxygen_fugacity.py`. Each test that pins an IW value has a check against the other buffers, so a change of the default, or a config that silently selects another buffer, does not move the reference of the test.
+The default IW buffer of CALLIOPE is Hirschmann (2021), `DEFAULT_FO2_MODEL` in `src/calliope/oxygen_fugacity.py`. A test that pins an IW value must check it against the other buffers, so that a change of the default, or a config that silently selects another buffer, does not move the reference of the test. The Fischer case checks against O'Neill and Eggins, and the Hirschmann case at 1473 K against both other buffers.
 
 ## Related code and pages
 
 - `src/calliope/oxygen_fugacity.py` (`OxygenFugacity.hirschmann`, `OxygenFugacity.fischer`, `OxygenFugacity.oneill`): the 3 buffers. An inline comment in `OxygenFugacity.oneill` keeps the constant `8.31441` as printed by O'Neill and Eggins (2002); do not replace it with `constants.R_gas`.
-- [Oxygen fugacity](../Explanations/oxygen_fugacity.md): the explanation page, with the observed values (Earth about IW+3.5, Mars about IW, Mercury IW-3 to IW-5) for the buffers.
+- [Oxygen fugacity](../Explanations/oxygen_fugacity.md): the explanation page, with the observed values (Earth about IW+3.5, Mars about IW, Mercury IW-2.8 to IW-5.4) for the buffers.
 - [Cross-code comparison](../Explanations/cross_backend_comparison.md): CALLIOPE with the Fischer buffer (passed as `fO2_model='fischer'` by the comparison script) against atmodeller with the Hirschmann buffer, with a residual of 0.16 dex at the Earth case.
 
 ## References

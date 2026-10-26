@@ -2,7 +2,12 @@
 
 ## What this page checks
 
-This page checks the solubility laws of CALLIOPE. A solubility law gives the mass fraction of a gas that dissolves in the silicate melt, in ppmw (parts per million by weight), as a function of the partial pressure of that gas \[bar\] and, for some gases, of the temperature and the oxygen fugacity. Validation means that a test runs the code on a case where another source gives the right answer, and checks the result within a stated tolerance. If a law is wrong, the melt holds the wrong amount of a volatile, so the atmosphere above it gets too much or too little of it. Each case below says why the check exists, what it tests, how we know the right answer and why it matters. A box "Test details" ends each case.
+This page checks the solubility laws of CALLIOPE.
+A solubility law gives the mass fraction of a gas that dissolves in the silicate melt, in ppmw (parts per million by weight), as a function of the partial pressure of that gas \[bar\] and, for some gases, of the temperature and the oxygen fugacity.
+The oxygen fugacity $f\mathrm{O_2}$ \[bar\] measures how oxidising the melt is; CALLIOPE gives it as a shift $\Delta\mathrm{IW}$, in log10 units, from the iron-wüstite (IW) buffer (see the [oxygen fugacity page](oxygen_fugacity.md)).
+Validation means that a test runs the code on a case where another source gives the right answer, and checks the result within a stated tolerance.
+If a law is wrong, the melt holds the wrong amount of a volatile, so the atmosphere above it gets too much or too little of it.
+Each case below says why the check exists, what it tests, how we know the right answer and why it matters, and a box "Test details" ends it.
 
 ## Water in peridotite melt
 
@@ -35,7 +40,7 @@ This page checks the solubility laws of CALLIOPE. A solubility law gives the mas
 
 **What it tests.** `SolubilityS2()` with its defaults, at $p_\mathrm{S_2}$ = 1 bar, $T$ = 2500 K and $\Delta\mathrm{IW}$ = 0, must give 13248.67 ppmw to a relative 1e-5. The default FeO content is $x_\mathrm{FeO}$ = 10 wt%, and the default buffer is that of Hirschmann (2021)[^cite-hirschmann2021]. The test also requires that the result differs by more than 100 ppmw from the value with the Fischer et al. (2011)[^cite-fischer2011] buffer (13085.87 ppmw), and that it lies between 1e3 and 1e5 ppmw.
 
-**How we know the right answer.** Gaillard et al. (2022)[^cite-gaillard2022] give the closed form $\ln X_\mathrm{S} = 13.8426 - 26476/T + 0.124\,x_\mathrm{FeO} + 0.5 \ln(p_\mathrm{S_2}/f\mathrm{O_2})$, where $X_\mathrm{S}$ is the sulfur content of the melt in ppmw. With the Hirschmann buffer at 2500 K and 1 bar, $\log_{10} f\mathrm{O_2}$ = -4.34247, and the closed form gives 13249 ppmw.
+**How we know the right answer.** The value 13248.67 is the output of the code, so this case is a regression check: it fails when a coefficient, the FeO unit or the buffer changes, not when the published law itself is wrong. The value agrees with a hand evaluation of the law. Gaillard et al. (2022)[^cite-gaillard2022] give the closed form $\ln X_\mathrm{S} = 13.8426 - 26476/T + 0.124\,x_\mathrm{FeO} + 0.5 \ln(p_\mathrm{S_2}/f\mathrm{O_2})$, where $X_\mathrm{S}$ is the sulfur content of the melt in ppmw. With the Hirschmann buffer at 2500 K and 1 bar, $\log_{10} f\mathrm{O_2}$ = -4.34247, and the closed form gives 13249 ppmw.
 
 **Why it matters.** The dissolved sulfur sets how much S$_2$, SO$_2$ and H$_2$S the atmosphere can hold. The value also depends on the default IW buffer: a change of the default or of its coefficients changes this number, and the test then fails here.
 
@@ -63,23 +68,24 @@ This page checks the solubility laws of CALLIOPE. A solubility law gives the mas
 
 ## Noble gas Henry constants
 
-**Why this check exists.** CALLIOPE turns the Henry constants of Jambon et al. (1986)[^cite-jambon1986], given as a volume of gas at standard temperature and pressure (STP) per gram of melt, into ppmw per bar. A mistyped constant, a wrong molar mass, a constant copied from another gas, or a missing kg-to-g factor gives a wrong solubility for that gas.
+**Why this check exists.** A noble gas follows Henry's law: its dissolved amount is proportional to its partial pressure, and the factor is the Henry constant. CALLIOPE turns the Henry constants of Jambon et al. (1986)[^cite-jambon1986], given as a volume of gas at standard temperature and pressure (STP) per gram of melt, into ppmw per bar. A mistyped constant, a wrong molar mass, a constant copied from another gas, or a missing kg-to-g factor gives a wrong solubility for that gas.
 
 **What it tests.** For each of He, Ne, Ar, Kr and Xe, `jambon86_ppmw_per_bar` must equal a literal value to a relative 1e-4: He 0.100065, Ne 0.225220, Ar 0.105220, Kr 0.112229 and Xe 0.099642 ppmw bar$^{-1}$. No gas may match the value of another gas, where the two literals differ by more than 0.001. Every constant must lie between 0.01 and 1, which catches a missing kg-to-g factor (1000 times too small).
 
-**How we know the right answer.** Each literal is $(k_\mathrm{STP}/V_\mathrm{STP})\,M \times 10^6$, computed by hand from the constants of Jambon et al. (1986) and the molar masses. Here $k_\mathrm{STP}$ \[cm$^3$ STP g$^{-1}$ bar$^{-1}$\] is the published constant, $V_\mathrm{STP}$ = 2.24e4 cm$^3$ mol$^{-1}$ is the molar volume of an ideal gas at STP, and $M$ \[g mol$^{-1}$\] is the molar mass. The test does not need atmodeller, so it runs on every CI image.
+**How we know the right answer.** Each literal is $(k_\mathrm{STP}/V_\mathrm{STP})\,M \times 10^6$, computed by hand from the constants of Jambon et al. (1986) and the molar masses. Here $k_\mathrm{STP}$ \[cm$^3$ STP g$^{-1}$ bar$^{-1}$\] is the published constant (for He the value 56e-5 of the abstract, which atmodeller also uses; Table 5 of the paper gives 56.5e-5), $V_\mathrm{STP}$ = 2.24e4 cm$^3$ mol$^{-1}$ is the molar volume of an ideal gas at STP, and $M$ \[g mol$^{-1}$\] is the molar mass. The test does not need atmodeller, so it runs on every CI image.
 
 **Why it matters.** The dissolved fraction of each noble gas decides how much of it reaches the atmosphere.
 
 ??? info "Test details"
     - Reference: Jambon, Weill and Braun (1986)[^cite-jambon1986], noble gas Henry constants in tholeiitic basalt ([doi:10.1016/0016-7037(86)90193-6](https://doi.org/10.1016/0016-7037(86)90193-6)); code in `jambon86_ppmw_per_bar` and `SolubilityNobleGas`.
     - Tolerance: relative 1e-4 per gas; no match with another gas; $0.01 < \mathrm{constant} < 1$ ppmw bar$^{-1}$.
-    - Test id: `tests/test_solubility.py::TestSolubilityNobleGas::test_every_gas_constant_pinned_to_independent_literal`
-    - Command: `pytest tests/test_solubility.py -k every_gas_constant_pinned`
+    - Test id: `tests/test_solubility.py::TestSolubilityNobleGas::test_every_gas_constant_pinned_to_independent_literal`, `tests/test_solubility.py::TestSolubilityNobleGas::test_helium_constant_matches_jambon_1986`
+    - Command: `pytest tests/test_solubility.py -k "every_gas_constant_pinned or helium_constant_matches"`
+    - The helium test also requires that the He constant differs by more than 0.1 from the value with the molar mass of Ne (about 0.5045).
 
 ## Noble gas constants against atmodeller
 
-**Why this check exists.** CALLIOPE and atmodeller both compute the Jambon et al. (1986) constants. If the two codes differ, a comparison of the two outgassing codes measures a difference in the constants, not in the physics.
+**Why this check exists.** atmodeller is a second outgassing code that PROTEUS can use in place of CALLIOPE. CALLIOPE and atmodeller both compute the Jambon et al. (1986) constants. If the two codes differ, a comparison of the two outgassing codes measures a difference in the constants, not in the physics.
 
 **What it tests.** For each noble gas, the CALLIOPE constant must equal the atmodeller concentration at 1 bar, to a relative 1e-10. The largest constant must be more than 2 times the smallest, so a transcription that used one value for every gas fails. The test is skipped when atmodeller is not installed.
 
