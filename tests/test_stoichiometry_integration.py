@@ -14,14 +14,21 @@ pull the integration tests into the PR gate's unit selection.
 
 from __future__ import annotations
 
+import inspect
 import math
+import re
 
 import pytest
 
 from calliope.constants import volatile_species
+from calliope.solve import FALLBACK_ATTEMPTS, TRUNC_MASS, equilibrium_atmosphere
 
-# 4 x the slowest CI duration of the module, 193 s (the trace-S fallback test under coverage)
+# 4 x the slowest CI duration of the module (rule in docs/Explanations/testing.md)
 pytestmark = [pytest.mark.integration, pytest.mark.timeout(780)]
+
+
+_DEFAULTS = inspect.signature(equilibrium_atmosphere).parameters
+RTOL, ATOL = _DEFAULTS['rtol'].default, _DEFAULTS['atol'].default
 
 
 class TestEquilibriumAtmosphereIntegration:
@@ -134,10 +141,10 @@ class TestEquilibriumAtmosphereIntegration:
         )
 
     def test_full_chns_converges(self):
-        """Full C-H-N-S system converges to a root that closes every element.
+        """Full C-H-N-S system at S/H 3e-3 converges to a root that closes every element.
 
-        S/H is 3e-3, 10 times the smallest ratio that converged on seeds 0 to 2 on every
-        machine tried; at 1e-4 the outcome depends on the BLAS kernel of the machine.
+        S/H 3e-3 lies well above the ratio below which the restarts may not reach a root
+        that keeps S (between 1e-4 and 3e-4 for this case).
         """
         target = {'H': 1e20, 'C': 1e17, 'N': 1e17, 'S': 3e17}
         result = self._run_equilibrium(target, T=2500.0, Phi=1.0, dIW=0.0)
@@ -155,29 +162,31 @@ class TestEquilibriumAtmosphereIntegration:
             f'range for this H budget'
         )
 
-        # each element closes to its own tolerance (library rtol 1e-5, floor 10 kg)
+        # Hirschmann buffer; the same solve on Fischer gives 0.35939 bar, on O'Neill 0.5503
+        assert P_surf == pytest.approx(0.361194, rel=1e-4)
+        assert abs(P_surf - 0.359391) > 1e-3
         for e, target_kg in target.items():
-            assert abs(result[f'{e}_res']) <= max(target_kg * 1e-5, 10.0), e
+            assert abs(result[f'{e}_res']) <= max(target_kg * RTOL, TRUNC_MASS), e
             total = result[f'{e}_kg_atm'] + result[f'{e}_kg_liquid']
-            assert total == pytest.approx(target_kg, rel=1e-5), e
+            assert total == pytest.approx(target_kg, rel=RTOL), e
 
     def test_trace_sulfur_far_below_hydrogen_returns_the_warned_fallback(self, caplog):
-        """S 1e15 kg under H 1e20 kg (S/H 1e-5): no attempt closes S, so the solve returns
-        the warned fallback.
+        """S 1e15 kg under H 1e20 kg (S/H 1e-5): the restarts reach no root that closes S.
 
-        Its warning names S, and the returned state passes the scalar CHNOS mass gate. On
-        seeds 0 to 2 the S residual of that state is above 1e3 times its tolerance on every
-        machine tried; its size depends on round-off, so it is not pinned.
+        The solve returns the fallback after FALLBACK_ATTEMPTS more attempts; its warning
+        names S alone, and the returned state passes the scalar CHNOS mass gate. The size of
+        the S residual depends on round-off and is not pinned.
         """
         target = {'H': 1e20, 'C': 1e17, 'N': 1e17, 'S': 1e15}
         with caplog.at_level('WARNING', logger='fwl.calliope.solve'):
             result = self._run_equilibrium(target, T=2500.0, Phi=1.0, dIW=0.0)
         assert result['fallback'] is True
-        warning = [r.getMessage() for r in caplog.records if 'No root closes' in r.getMessage()]
+        warning = [m for m in caplog.messages if 'No root closes' in m]
         assert len(warning) == 1
-        assert 'tolerance for S (' in warning[0] or ', S (' in warning[0]
-        assert abs(result['S_res']) > 1e-5 * target['S']
-        # scalar CHNOS gate of the solve: largest budget x rtol + atol + 10 kg
-        gate = max(target.values()) * 1e-5 + 1e10 + 10.0
+        assert re.findall(r'(?:for|,) ([A-Z][a-z]?) \(', warning[0]) == ['S']
+        attempts = int(re.search(r'after (\d+) attempts', warning[0]).group(1))
+        assert FALLBACK_ATTEMPTS < attempts < 5000  # nguess of _run_equilibrium
+        # scalar CHNOS gate of the solve: largest budget x rtol + atol + TRUNC_MASS
+        gate = max(target.values()) * RTOL + ATOL + TRUNC_MASS
         assert max(abs(result[f'{e}_res']) for e in 'HCNS') <= gate
-        assert 1e-3 < result['P_surf'] < 1e6
+        assert result['P_surf'] == pytest.approx(0.361192, rel=1e-4)
