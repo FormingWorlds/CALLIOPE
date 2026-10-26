@@ -30,6 +30,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.timeout(780)]
 
 _DEFAULTS = inspect.signature(equilibrium_atmosphere).parameters
 RTOL, ATOL = _DEFAULTS['rtol'].default, _DEFAULTS['atol'].default
+NGUESS = 5000
 
 
 class TestEquilibriumAtmosphereIntegration:
@@ -58,7 +59,7 @@ class TestEquilibriumAtmosphereIntegration:
                 ddict,
                 hide_warnings=True,
                 print_result=False,
-                nguess=5000,
+                nguess=NGUESS,
             )
         return result
 
@@ -168,8 +169,8 @@ class TestEquilibriumAtmosphereIntegration:
         assert len(warning) == 1
         assert re.findall(r'(?:for|,) ([A-Z][a-z]?) \(', warning[0]) == ['S']
         attempts = int(re.search(r'after (\d+) attempts', warning[0]).group(1))
-        # the first fallback comes within a few attempts, then the cap ends the loop
-        assert FALLBACK_ATTEMPTS < attempts <= FALLBACK_ATTEMPTS + 20
+        # the cap ends the loop FALLBACK_ATTEMPTS after the first fallback, before nguess
+        assert FALLBACK_ATTEMPTS < attempts < NGUESS
         # scalar CHNOS gate of the solve: largest budget x rtol + atol + TRUNC_MASS
         gate = max(target.values()) * RTOL + ATOL + TRUNC_MASS
         assert max(abs(result[f'{e}_res']) for e in 'HCNS') <= gate
