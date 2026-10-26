@@ -4,6 +4,9 @@ This page is the **practical recipe** for using CALLIOPE inside a PROTEUS couple
 
 For the underlying control flow (per-iteration sequence diagram, what the wrapper passes to `equilibrium_atmosphere()`, how warm-starts are constructed, what gets written back into `hf_row`), see the [theory page](../Explanations/proteus_coupling.md).
 
+!!! note "Metal reservoir"
+    The [metal reservoir](../Explanations/metal.md) of CALLIOPE is available in standalone runs only. PROTEUS does not pass `metal_mass`, and no PROTEUS config key turns it on, so a coupled run keeps all of the H, C, N and S in the gas and the melt.
+
 ## Minimal `[outgas]` block
 
 ```toml

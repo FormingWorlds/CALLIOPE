@@ -24,6 +24,8 @@ nav:
       - Two-mode round-trip: Tutorials/two_modes.md
       - Speciation phase diagram: Tutorials/phase_diagram.md
       - Coupled-loop driver: Tutorials/coupled_loop.md
+      - Metal reservoir: Tutorials/metal_reservoir.md
+      - Add a new partition law: Tutorials/partition_law.md
       - Reproducing the Earth fiducial: Tutorials/earth_fiducial.md
       - Mars-like atmosphere: Tutorials/mars_fiducial.md
 
@@ -34,27 +36,33 @@ nav:
       - Noble gases: Explanations/noble_gases.md
       - Oxygen fugacity: Explanations/oxygen_fugacity.md
       - Mass balance & solver: Explanations/mass_balance.md
+      - Metal reservoir: Explanations/metal.md
       - Authoritative-oxygen mode: Explanations/authoritative_oxygen.md
       - Coupling to PROTEUS: Explanations/proteus_coupling.md
       - Backend comparison: Explanations/cross_backend_comparison.md
       - Code architecture: Explanations/code_architecture.md
       - Testing suite: Explanations/testing.md
 
+  - Validation:
+      - Overview: Validation/index.md
+      - Chemistry: Validation/chemistry.md
+      - Oxygen fugacity: Validation/oxygen_fugacity.md
+      - Solubility: Validation/solubility.md
+      - Solve: Validation/solve.md
+      - Metal reservoir: Validation/metal.md
+      - Structure: Validation/structure.md
+
   - Reference:
       - API reference:
           - Overview: Reference/api/index.md
           - Solve: Reference/api/calliope.solve.md
+          - Metal: Reference/api/calliope.metal.md
           - Chemistry: Reference/api/calliope.chemistry.md
           - Solubility: Reference/api/calliope.solubility.md
           - Oxygen fugacity: Reference/api/calliope.oxygen_fugacity.md
           - Structure: Reference/api/calliope.structure.md
           - Constants: Reference/api/calliope.constants.md
-      - Validation anchors:
-          - Chemistry: Validation/chemistry.md
-          - Oxygen fugacity: Validation/oxygen_fugacity.md
-          - Solubility: Validation/solubility.md
-          - Solve: Validation/solve.md
-          - Structure: Validation/structure.md
+      - Metal reservoir and partition file: Reference/partition_file.md
       - Publications: Reference/publications.md
 
   - Community:

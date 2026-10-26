@@ -12,7 +12,9 @@ $$
 
 where $\mathbf{p} = (p_\mathrm{H_2O}, p_\mathrm{CO_2}, p_\mathrm{N_2}, p_\mathrm{S_2})$ is the four-vector of primary partial pressures in bar. The seven secondary partial pressures (and $p_\mathrm{O_2}$) are not independent variables: they are algebraic functions of $\mathbf{p}$ via the [equilibrium chemistry](equilibrium_chemistry.md) speciation tree. Oxygen is *not* conserved; it is set by the $f_{\mathrm{O}_2}$ buffer and is allowed to leak in or out of the system as the speciation requires.
 
-The four-vector residual function is `solve.func`:
+With a metal reservoir (`metal_mass` above zero), each of the 4 equations gains the mass of the element in the metal, $D_e M_\mathrm{metal} w_e^\mathrm{melt}$, with $D_e$ the partition coefficient on the mass basis and $w_e^\mathrm{melt}$ the mass fraction in the melt. `func` adds this term through `_core_masses`, and `_with_metal` repeats the solve until $D_e$ and the metal composition agree. See [Metal reservoir](metal.md).
+
+The four-vector residual function is `solve.func` (shown here without the metal term):
 
 ```python
 def func(pin_arr, ddict, mass_target_d):

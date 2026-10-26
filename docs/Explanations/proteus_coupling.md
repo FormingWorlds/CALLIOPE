@@ -11,7 +11,7 @@ PROTEUS runs an iterative loop in which structure, outgassing, atmosphere radiat
    │  while not done:                                                         │
    │                                                                          │
    │      # 1. Static structure (Zalmoxis or SPIDER)                          │
-   │      run_structure(config, hf_row)            # writes R_int, M_mantle,  │
+   │      run_structure(config, hf_row)            # writes R_int, M_core,    │
    │                                               # gravity, R_cmb, P_cmb    │
    │                                                                          │
    │      # 2. Outgassing (this is CALLIOPE)                                  │
@@ -27,7 +27,7 @@ PROTEUS runs an iterative loop in which structure, outgassing, atmosphere radiat
    │      # 4. Interior thermal evolution (Aragog or SPIDER)                  │
    │      run_interior(config, hf_row)             # writes T_magma, S_mantle,│
    │                                               # Phi_global, T_core,      │
-   │                                               # F_int                    │
+   │                                               # F_int, M_mantle          │
    │                                                                          │
    │      # 5. Atmospheric escape (ZEPHYRUS)                                  │
    │      run_escape(dirs, config, hf_row)         # writes esc_kg_*,         │
@@ -50,7 +50,7 @@ CALLIOPE is the cheapest of the five (a few tens of milliseconds per call vs. se
 
 | `solvevol_inp[…]` | Source |
 |---|---|
-| `M_mantle` | `hf_row['M_mantle']` (set by structure module) |
+| `M_mantle` | `hf_row['M_mantle']` (set by the interior structure and energetics steps) |
 | `gravity` | `hf_row['gravity']` |
 | `radius` | `hf_row['R_int']` |
 | `Phi_global` | `hf_row['Phi_global']` if `config.outgas.calliope.solubility` else `0.0` |
@@ -168,6 +168,10 @@ For each key in `expected_keys()` (defined in `proteus.outgas.common`), the wrap
 | `atm_kg_per_mol` | Mean molecular mass, kg/mol |
 | `<e>/<e'>_atm` | Atmospheric elemental mass ratios |
 | `<e>_res` | Mass-balance residual for element `e`, kg |
+
+### No metal reservoir in PROTEUS
+
+The wrapper does not pass `metal_mass`, so a PROTEUS run solves gas and melt only: the [metal reservoir](metal.md) is off, and all of the H, C, N and S stays in the gas and the melt. The metal keys of CALLIOPE (`<e>_kg_core`, `w_<e>_core` and the others) are not in `expected_keys()`, so `hf_row` has none of them. The metal reservoir is available in standalone CALLIOPE runs ([tutorial](../Tutorials/metal_reservoir.md)).
 
 After the writeback, `wrapper.run_outgassing` recomputes `M_atm` from the per-species `_kg_atm` sum (defensive: catches any internal inconsistency in the result dict).
 

@@ -21,6 +21,7 @@ This page summarises the model assumptions, the variables it solves for, and how
 
 - **One oxygen-fugacity buffer**: Hirschmann (2021) [^cite-hirschmann2021] iron-wüstite (default; matches atmodeller's buffer above 1000 K), Fischer et al. (2011) [^cite-fischer2011], or the legacy O'Neill & Eggins (2002) [^cite-oneilleggins2002] IW. The shift $\Delta\mathrm{IW}$ sets $\log_{10} f_{\mathrm{O}_2}$ relative to the buffer; under the buffered mode it is a user-prescribed input, under the authoritative-O mode it is a solver unknown.
 - **One solubility law per species** with multiple alternative compositions (peridotite, basalt, lunar glass, anorthite-diopside) selectable via constructor argument.
+- **An optional metal reservoir**: with `metal_mass` above zero, liquid metal in equilibrium with the melt takes part of the H, C, N and S, and O and Si from the silicate FeO. It is off by default. See [Metal reservoir](metal.md).
 
 ## What is *not* in the model
 
@@ -42,6 +43,8 @@ $$
 
 Under the buffered mode the equation set spans $e \in \{\mathrm{H}, \mathrm{C}, \mathrm{N}, \mathrm{S}\}$, the four primary partial pressures are the unknowns, and the $4\times 4$ system is solved with `scipy.optimize.fsolve` (Powell hybrid). Under the authoritative-O mode the equation set spans $e \in \{\mathrm{H}, \mathrm{C}, \mathrm{N}, \mathrm{S}, \mathrm{O}\}$, the unknown vector is extended with $\Delta\mathrm{IW}$, and the $5\times 5$ system is solved with the same outer loop ([Authoritative-oxygen mode](authoritative_oxygen.md)).
 
+With a metal reservoir, each of the H, C, N and S equations gains a third term on the left, the mass of the element in the metal, $D_e M_\mathrm{metal} w_e^\mathrm{melt}$ ([Metal reservoir](metal.md#the-element-balance-with-a-metal-term)).
+
 The seven secondary partial pressures are *not* independent in either mode: they are algebraic functions of the primaries via the six equilibrium constants, evaluated at $T = T_\mathrm{magma}$ and $\log_{10} f_{\mathrm{O}_2} = \log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T) + \Delta\mathrm{IW}$.
 
 The four pieces of physics decompose cleanly:
@@ -52,6 +55,7 @@ The four pieces of physics decompose cleanly:
 | Atmospheric column mass | [Mass balance & solver](mass_balance.md) | `solve.atmosphere_mass` |
 | Dissolved mass via Henry / power-law / multi-arg solubility | [Solubility laws](solubility.md) | `solubility.SolubilityH2O`, ..., `solve.dissolved_mass` |
 | Hirschmann IW buffer (default), Fischer IW buffer, O'Neill IW buffer (legacy) | [Oxygen fugacity](oxygen_fugacity.md) | `oxygen_fugacity.OxygenFugacity` |
+| Optional metal reservoir (core term, partition laws) | [Metal reservoir](metal.md) | `metal.mass_D`, `metal.metal_masses`, `solve._with_metal` |
 
 ## Lineage
 
@@ -70,7 +74,7 @@ CALLIOPE is calibrated for surface temperatures of roughly $1000 \le T_\mathrm{m
 - The JANAF constants for H$_2$ and CO have a use range of only $1500 \le T \le 3000$ K (named in their `chemistry.py` docstrings), so inside the envelope below 1500 K and above 3000 K they are used outside it; the fits for H$_2$S and NH$_3$ cover $700 \le T \le 5000$ K and log one warning per process below 700 K, but both species also depend on the H$_2$ that `janaf_H2` sets, which the warning does not cover (see [Equilibrium chemistry](equilibrium_chemistry.md)). The PROTEUS wrapper enforces a configurable `T_floor` (default 700 K), which clips temperatures below `T_floor` to this value, since thermochemical equilibrium does not necessarily hold at cooler temperatures.
 - Above $T \sim 4000$ K the mantle-atmosphere partitioning approximation breaks down; switch to atmodeller (Bower et al. 2025 [^cite-bower2025]).
 - The Sossi (2023) peridotite and Newcombe (2017) anorthite-diopside / lunar-glass H$_2$O laws are calibrated at 1 atm. The Dixon (1995) basalt fit is calibrated to 717 bar $p_\mathrm{H_2O}$. For surface pressures above $\sim$1 kbar use the Hamilton (1964) basalt fit (1-6 kbar calibration range) or atmodeller for higher-pressure non-ideal behaviour. Applying the Sossi or Newcombe fits at kbar pressures extrapolates the partial-pressure input by 3 orders of magnitude beyond calibration; the resulting dissolved-mass error scales as $p^{0.5}$ for the power-law fits, so the error is a factor of $\sim$30 at 1 kbar.
-- Solid-phase partitioning is ignored; CALLIOPE strictly handles melt + gas. Use it only when $\Phi_\mathrm{global} > 0$, or accept that all dissolved masses will be zero.
+- Solid-phase partitioning is ignored; CALLIOPE handles melt and gas, plus the optional metal reservoir. Use it only when $\Phi_\mathrm{global} > 0$, or accept that all dissolved masses will be zero.
 
  [^cite-bower2019]: D. J. Bower, D. Kitzmann, A. S. Wolf, P. Sanan, C. Dorn, A. V. Oza, *[Linking the evolution of terrestrial interiors and an early outgassed atmosphere to astrophysical observations](https://doi.org/10.1051/0004-6361/201935710)*, Astronomy & Astrophysics, 631, A103, 2019. [SciX](https://scixplorer.org/abs/2019A%26A...631A.103B/abstract).
  [^cite-bower2022]: D. J. Bower, K. Hakim, P. A. Sossi, P. Sanan, *[Retention of water in terrestrial magma oceans and carbon-rich early atmospheres](https://doi.org/10.3847/PSJ/ac5fb1)*, The Planetary Science Journal, 3(4), 93, 2022. [SciX](https://scixplorer.org/abs/2022PSJ.....3...93B/abstract).

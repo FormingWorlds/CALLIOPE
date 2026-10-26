@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import math
+import numbers
 import warnings
 
 import numpy as np
@@ -10,9 +12,23 @@ from .chemistry import ModifiedKeq
 from .constants import (
     element_list_chnos,
     molar_mass,
+    molar_mass_rock,
     noble_gases,
     ocean_moles,
     volatile_species,
+)
+from .metal import (
+    _OXIDES,
+    KLB1,
+    PartitionTableError,
+    _mass,
+    _metal_moles,
+    cation_fraction,
+    exchange_metal,
+    load_partition_table,
+    mass_D,
+    metal_masses,
+    out_of_range,
 )
 from .oxygen_fugacity import DEFAULT_FO2_MODEL, FO2_MODELS, OxygenFugacity
 from .solubility import (
@@ -103,6 +119,9 @@ def _noble_henry_seed(core_out, active, target_d, ddict):
 # Floor [kg] added to the residual tolerance so benign solutions are
 # not rejected for sub-10-kg mass-balance noise.
 TRUNC_MASS = 1e1
+
+# (element, kind) of the metal-reservoir warnings given in this process
+_METAL_WARNED = set()
 
 # Attempts allowed after the first fallback is stored, before the best one is returned. A
 # solvable trace budget (H 1e15 kg) reaches its root within 100 of them for ~85% of seeds.
@@ -549,13 +568,24 @@ def func(pin_arr, ddict, mass_target_d):
 
     mass_atm_d = atmosphere_mass(pin_dict, ddict)
     mass_int_d = dissolved_mass(pin_dict, ddict)
+    mass_core_d = _core_masses(mass_int_d, ddict)
 
     elems = ['H', 'C', 'N', 'S'] + list(active)
     res_l = [0.0] * len(elems)
     for i, vol in enumerate(elems):
         res_l[i] = mass_atm_d[vol] + mass_int_d[vol] - mass_target_d[vol]
+        res_l[i] += mass_core_d.get(vol, 0.0)
 
     return res_l
+
+
+def _core_masses(mass_int_d, ddict):
+    """Core masses [kg] of H, C, N, S at the mass-basis D in ``ddict['_metal_D']``.
+
+    Without that key (no metal) the result is empty, so the balance is unchanged.
+    """
+    d_mass = ddict.get('_metal_D')
+    return metal_masses(mass_int_d, ddict, d_mass) if d_mass else {}
 
 
 def obj(pin_arr, ddict, mass_target_d):
@@ -605,11 +635,13 @@ def func_authoritative_O(x_arr, ddict, mass_target_d):
 
     mass_atm_d = _atmosphere_mass(pin_dict, fO2_shift, ddict)
     mass_int_d = _dissolved_mass(pin_dict, fO2_shift, ddict)
+    mass_core_d = _core_masses(mass_int_d, ddict)
 
     elems = ['H', 'C', 'N', 'S', 'O'] + list(active)
     res_l = [0.0] * len(elems)
     for i, elem in enumerate(elems):
         res_l[i] = mass_atm_d[elem] + mass_int_d[elem] - mass_target_d[elem]
+        res_l[i] += mass_core_d.get(elem, 0.0)
 
     return res_l
 
@@ -839,6 +871,8 @@ def equilibrium_atmosphere(
         Target elemental mass inventories [kg], with keys 'H', 'C', 'N', 'S'.
     ddict : dict
         Dictionary of coupler options variables (planet, magma state, inclusion flags).
+        With ``metal_mass`` > 0 [kg] the solve adds a metal reservoir in equilibrium with
+        the melt; its keys are listed on the docs page 'Metal reservoir and partition file'.
     hide_warnings : bool, default True
         Hide floating point runtime warnings raised by `scipy` for poor guesses.
     rtol : float, default 1e-5
@@ -893,6 +927,23 @@ def equilibrium_atmosphere(
     """
 
     ddict = _with_fO2_model(ddict, fO2_model)
+
+    if 'metal_mass' in ddict and '_metal_D' not in ddict:
+        check_metal_fields(ddict)
+    if ddict.get('metal_mass', 0.0) > 0 and '_metal_D' not in ddict:
+        kwargs = dict(
+            hide_warnings=hide_warnings,
+            rtol=rtol,
+            atol=atol,
+            xtol=xtol,
+            p_guess=p_guess,
+            nsolve=nsolve,
+            nguess=nguess,
+            print_result=print_result,
+            opt_solver=opt_solver,
+            p_guess_max=p_guess_max,
+        )
+        return _with_metal(equilibrium_atmosphere, target_d, ddict, kwargs)
 
     if print_result:
         log.info('Solving for equilibrium partial pressures at surface')
@@ -1131,6 +1182,7 @@ def equilibrium_atmosphere(
     # on a dict that already contains the secondaries (read but ignored).
     mass_atm_d = atmosphere_mass(sol_dict, ddict)
     mass_int_d = dissolved_mass(sol_dict, ddict)
+    mass_core_d = _core_masses(mass_int_d, ddict)
 
     # Active noble gases join the reaction-network species and elements in the
     # output schema, so their partial pressures, reservoir masses, mole
@@ -1213,6 +1265,9 @@ def equilibrium_atmosphere(
         outdict[gas + '_res'] = res_l[4 + i]
     outdict['fallback'] = fell_back
     outdict['fO2_model'] = ddict['fO2_model']
+    if 'metal_mass' in ddict:
+        for el in ('H', 'C', 'N', 'S'):
+            outdict[el + '_kg_core'] = mass_core_d.get(el, 0.0)
 
     return outdict
 
@@ -1260,7 +1315,9 @@ def equilibrium_atmosphere_authoritative_O(
         Coupler options dict (planet, magma state, inclusion flags).
         ``ddict['fO2_shift_IW']`` is IGNORED by this entry point; the
         value is treated as a solver unknown initialised from
-        ``fO2_hint`` instead.
+        ``fO2_hint`` instead. With ``metal_mass`` > 0 [kg] the solve adds a
+        metal reservoir; its O comes from the silicate FeO and stays out of
+        the O budget (docs page 'Metal reservoir and partition file').
     fO2_hint : float, default 4.0
         Initial guess for the IW-buffer offset (log10 units). Provide
         a value close to the expected solution to speed convergence;
@@ -1371,6 +1428,28 @@ def equilibrium_atmosphere_authoritative_O(
     >>> abs(out_new['fO2_shift_derived'] - 4.0) < 0.01  # round-trip
     True
     """
+    ddict = _with_fO2_model(ddict, fO2_model)
+
+    if 'metal_mass' in ddict and '_metal_D' not in ddict:
+        check_metal_fields(ddict)
+    if ddict.get('metal_mass', 0.0) > 0 and '_metal_D' not in ddict:
+        kwargs = dict(
+            fO2_hint=fO2_hint,
+            hide_warnings=hide_warnings,
+            rtol=rtol,
+            atol=atol,
+            xtol=xtol,
+            p_guess=p_guess,
+            nsolve=nsolve,
+            nguess=nguess,
+            print_result=print_result,
+            opt_solver=opt_solver,
+            random_seed=random_seed,
+            p_guess_max=p_guess_max,
+        )
+        return _with_metal(
+            equilibrium_atmosphere_authoritative_O, target_d, ddict, kwargs, o_budget=True
+        )
 
     # Active noble gases are appended after the O residual, so the residual
     # (and target) order is H, C, N, S, O, then each active noble gas.
@@ -1394,8 +1473,6 @@ def equilibrium_atmosphere_authoritative_O(
             raise ValueError('target_d[%r] must be a finite real number [kg], got %r.' % (e, v))
         if v < 0:
             raise ValueError('target_d[%r] must be non-negative [kg], got %r.' % (e, v))
-
-    ddict = _with_fO2_model(ddict, fO2_model)
 
     # Validate fO2_hint and the planet/state parameters consumed from
     # ddict by the residual chain. The solver evaluates the residual at
@@ -1816,8 +1893,299 @@ def equilibrium_atmosphere_authoritative_O(
         outdict[gas + '_res'] = res_l[5 + i]
     outdict['fO2_shift_derived'] = fO2_derived
     outdict['fO2_model'] = ddict['fO2_model']
+    if 'metal_mass' in ddict:
+        mass_core_d = _core_masses(mass_int_d, ddict)
+        for el in ('H', 'C', 'N', 'S'):
+            outdict[el + '_kg_core'] = mass_core_d.get(el, 0.0)
 
     if print_result:
         log.info('    Derived fO2_shift = %.4f (hint was %.4f)', fO2_derived, fO2_hint)
 
     return outdict
+
+
+def _with_metal(solve, target_d, ddict, kwargs, o_budget=False):
+    """Solve with a metal reservoir: fixed point on the metal composition.
+
+    Each pass evaluates the mass-basis D of H, C, N and S on the metal and melt of the
+    previous pass with the O and Si of this pass (``metal.mass_D``), solves at those fixed
+    D, and takes the new metal H, C, N and S
+    from the core masses. O and Si in the metal are fixed mass fractions
+    (``O_mode_core``, ``Si_mode_core`` = 'fixed'; ``w_O_core``, ``w_Si_core``) or follow
+    their exchange K_D at the dIW of the pass ('partition', ideal activities). A
+    partitioned element moves by ``1 / (1 - s)`` of its exchange step, with ``s`` the
+    secant slope of the exchange value against the metal value of the last 2 passes when
+    ``s < 0`` (1 otherwise): with dIW from FeO, more metal Si raises dIW and lowers the
+    exchange Si, and the undamped passes alternate. With O and Si both partitioned each
+    secant also holds the move of the other element. The moves of a pass are halved until
+    they take at most half of the iron left in the metal; an exchange that leaves no iron
+    and does not fall from the previous pass raises ``ValueError``. That is a stop rule, not
+    a proof that no fixed point with iron exists: in 'partition' mode ``w_O_core`` and
+    ``w_Si_core`` are the start metal, and another start can reach one. O and Si both
+    partitioned with dIW from FeO do not converge at 6000-7000 K (P_eq 50 GPa, KLB-1); O
+    alone with dIW from FeO stalls near K_D(O) x_FeO = 1/4. The passes stop when
+    each metal mass fraction, or exchange step, is at most ``tol_w_core`` (default 1e-6)
+    of its value, plus 1e-15; that bounds the last step, not the error. The dIW of a pass
+    uses the metal before its O and Si move. The metal O comes from the silicate FeO and never enters the
+    volatile O budget; with ``o_budget`` (the authoritative-O solve) gas and melt O close
+    on ``target_d['O']``.
+    The closure check uses the acceptance gate of the solve: the largest H, C, N, S
+    budget times ``rtol`` plus ``atol`` for ``equilibrium_atmosphere``, each budget
+    times ``rtol`` (at least 10 kg) with ``o_budget``. ``<e>_kg_total`` stays gas plus
+    melt and excludes the core; the bulk inventory is ``<e>_kg_total + <e>_kg_core``.
+    ``<e>_D_out_of_range`` is 1 for each element whose law runs outside its (P, T, dIW)
+    range or on an unknown range (O and Si only in 'partition' mode); such a law, the
+    ideal activities of 'partition' mode and a table marked placeholder each warn once
+    per process.
+
+    Raises
+    ------
+    RuntimeError
+        No convergence in 30 passes, or a solved state that breaks the element closure.
+    ValueError
+        A metal field that breaks its rule, or metal with no melt (Phi_global 0).
+    """
+    check_metal_fields(ddict)
+    table = ddict.get('partition_table') or load_partition_table()
+    m_metal, m_melt = ddict['metal_mass'], ddict['M_mantle'] * ddict['Phi_global']
+    if not m_melt > 0:
+        raise ValueError(
+            f'metal_mass {m_metal!r} kg needs melt, but M_mantle * Phi_global is {m_melt!r}'
+        )
+    oxides = ddict.get('silicate_oxides', KLB1)
+    nbo_t = ddict.get('silicate_nbo_t', 2.6)
+    p_eq, t_eq = ddict['P_eq'], ddict['T_eq']
+    fixed, modes = {}, {}
+    for el in ('O', 'Si'):
+        modes[el] = ddict.get(f'{el}_mode_core', 'fixed')
+        fixed[el] = float(ddict.get(f'w_{el}_core', 0.0))
+        if modes[el] == 'partition':
+            _warn_metal_once(
+                el,
+                'ideal',
+                f"{el}_mode_core 'partition' uses ideal activities in metal and melt; "
+                'activity coefficients are not included',
+            )
+    if table['meta']['placeholder']:
+        _warn_metal_once('table', 'placeholder', 'the metal partition laws are placeholders')
+    partitioned = tuple(el for el in ('O', 'Si') if modes[el] == 'partition')
+    missing = [el for el in ('H', 'C', 'N', 'S') + partitioned if el not in table]
+    if missing:
+        raise PartitionTableError(f'the partition table has no law for {missing}')
+    w = {**fixed, 'H': 0.0, 'C': 0.0, 'N': 0.0, 'S': 0.0}
+    w_melt = {'H': 0.0, 'C': 0.0}
+    tol = ddict.get('tol_w_core', 1e-6)
+    active = _active_noble(ddict)
+    out, last, resid, x_sum = None, {}, {}, math.inf
+    for _ in range(30):
+        d_iw = _metal_diw(ddict, w, oxides)
+        if partitioned:
+            x_ex = exchange_metal(table, p_eq, t_eq, d_iw, oxides, partitioned, check=False)
+            x_sum, x_prev = sum(x_ex.values()), x_sum
+            if x_sum >= max(1.0, x_prev):  # an exchange without iron that does not fall
+                raise ValueError(
+                    ', '.join(f"{el}_mode_core 'partition'" for el in partitioned)
+                    + f': the exchange holds no iron and does not fall ({x_ex}); no fixed '
+                    'point was reached from the start metal ('
+                    + ', '.join(f'w_{el}_core' for el in partitioned)
+                    + ')'
+                )
+            n_total = _metal_moles(w, ('H', 'C'))[0]
+            move = {}
+            for el in partitioned:
+                target, lam = x_ex[el] * n_total * _mass(el), 1.0
+                if el in last and fixed[el] != last[el][0]:
+                    slope = (target - last[el][1]) / (fixed[el] - last[el][0])
+                    lam = 1.0 / (1.0 - min(slope, 0.0))
+                last[el], resid[el] = (fixed[el], target), target - fixed[el]
+                move[el] = lam * resid[el]
+            # a pass takes at most half of the iron left in the metal
+            while sum(w.values()) + sum(move.values()) >= 0.5 * (1.0 + sum(w.values())):
+                move = {el: 0.5 * v for el, v in move.items()}
+            for el in partitioned:
+                fixed[el] += move[el]
+        d_mass = {
+            el: mass_D(table[el], p_eq, t_eq, d_iw, {**w, **fixed}, w_melt, oxides, nbo_t)
+            for el in ('H', 'C', 'N', 'S')
+        }
+        inner = {**ddict, '_metal_D': d_mass}
+        out = solve(target_d, inner, **kwargs)
+        kwargs['p_guess'] = {s: out[s + '_bar'] for s in ('H2O', 'CO2', 'N2', 'S2') + active}
+        if o_budget:
+            kwargs['p_guess']['fO2_shift_IW'] = out['fO2_shift_derived']
+        new = {**fixed, **{el: out[el + '_kg_core'] / m_metal for el in ('H', 'C', 'N', 'S')}}
+        w_melt = {el: out[el + '_kg_liquid'] / m_melt for el in ('H', 'C')}
+        step = {el: new[el] - w[el] for el in new} | resid
+        settled = all(abs(step[el]) <= tol * abs(new[el]) + 1e-15 for el in new)
+        w = new
+        if settled:
+            break
+    else:
+        raise RuntimeError(f'metal composition did not converge in 30 passes: {w}')
+    for el in ('H', 'C', 'N', 'S'):
+        out[el + '_D_metal'] = d_mass[el]
+        out['w_' + el + '_core'] = w[el]
+    for el in ('H', 'C', 'N', 'S') + partitioned:
+        out[el + '_D_out_of_range'] = int(out_of_range(table[el], p_eq, t_eq, d_iw))
+        if out[el + '_D_out_of_range']:
+            _warn_metal_once(
+                el,
+                'range',
+                f'{el} partition law evaluated outside its range or on an unknown range: '
+                f'P_eq {p_eq:g} GPa, T_eq {t_eq:g} K, dIW_eq {d_iw:.3g}',
+            )
+    for el in ('O', 'Si'):
+        out['w_' + el + '_core'] = fixed[el]
+        out[el + '_kg_core'] = fixed[el] * m_metal
+    out.update(_feo_exchange(out['O_kg_core'], out['Si_kg_core'], m_melt, oxides))
+    rtol = kwargs['rtol']
+    gate = max(target_d[el] for el in ('H', 'C', 'N', 'S')) * rtol + kwargs['atol'] + TRUNC_MASS
+    for el in ('H', 'C', 'N', 'S') + (('O',) if o_budget else ()):
+        core = out[el + '_kg_core'] if el != 'O' else 0.0  # metal O is rock O, not budget O
+        closure = out[el + '_kg_atm'] + out[el + '_kg_liquid'] + core
+        # the 1e-12 relative term covers round-off of the 3-term sum
+        tol_kg = (max(target_d[el] * rtol, TRUNC_MASS) if o_budget else gate) + 1e-12 * (
+            target_d[el]
+        )
+        if not 0.0 <= core <= target_d[el] + tol_kg:
+            raise RuntimeError(
+                f'{el} core mass {out[el + "_kg_core"]:.4g} kg is outside [0, budget '
+                f'{target_d[el]:.4g} kg]'
+            )
+        if abs(closure - target_d[el]) > tol_kg:
+            raise RuntimeError(
+                f'{el} closure over gas, melt and core fails: {closure} vs {target_d[el]}'
+            )
+    out['dIW_eq'] = d_iw
+    return out
+
+
+def _feo_exchange(o_kg, si_kg, m_melt, oxides):
+    """Silicate FeO taken by the metal O and Si, against the FeO of the melt.
+
+    FeO = Fe + O takes 1 FeO per metal O; SiO2 + 2 Fe = Si + 2 FeO gives back 2 per metal
+    Si, so ``n_FeO_exchange = n_O - 2 n_Si`` [mol]. ``FeO_exchange_out_of_range`` is 1
+    when the exchange is more than 10 % of the melt FeO, in either sign.
+    """
+    m_feo = _mass('Fe') + molar_mass['O']
+    n_ex = o_kg / molar_mass['O'] - 2.0 * si_kg / _mass('Si')
+    n_sil = m_melt * oxides.get('FeO', 0.0) / 100.0 / m_feo
+    ratio = abs(n_ex) / n_sil if n_sil > 0 else (math.inf if n_ex else 0.0)
+    if ratio > 0.1:
+        _warn_metal_once(
+            'FeO',
+            'exchange',
+            f'the metal exchange takes more than 10 % of the silicate FeO ({ratio:.3g}); '
+            'the melt FeO and dIW_eq of this solve do not follow it',
+        )
+    return {
+        'n_FeO_exchange': n_ex,
+        'FeO_kg_exchange': n_ex * m_feo,
+        'n_FeO_silicate': n_sil,
+        'FeO_exchange_out_of_range': int(ratio > 0.1),
+    }
+
+
+def _warn_metal_once(el, kind, message):
+    """Log a metal-reservoir warning once per process for each (element, kind)."""
+    if (el, kind) not in _METAL_WARNED:
+        _METAL_WARNED.add((el, kind))
+        log.warning(message)
+
+
+def _metal_diw(ddict, w_metal, oxides):
+    """dIW of the metal-melt equilibrium: the parameter, or 2 log10(x_FeO / x'_Fe) (ideal).
+
+    x_FeO is on the single-cation basis of the melt, x'_Fe over the metal without H and C
+    (Tagawa et al. 2021, Methods Eq. 4 and the fO2 path of their multi-stage model).
+    """
+    mode = ddict.get('dIW_eq_mode', 'parameter')
+    if mode == 'parameter':
+        return float(ddict['dIW_eq'])
+    if mode != 'from_FeO':
+        raise ValueError(f"dIW_eq_mode {mode!r}: use 'parameter' or 'from_FeO'")
+    total, _ = _metal_moles(w_metal, ('H', 'C'))
+    x_fe = (1.0 - sum(w_metal.values())) / molar_mass_rock['Fe'] / total
+    return 2.0 * np.log10(cation_fraction(oxides, 'FeO') / x_fe)
+
+
+_METAL_MODES = {
+    'O_mode_core': ('fixed', 'partition'),
+    'Si_mode_core': ('fixed', 'partition'),
+    'dIW_eq_mode': ('parameter', 'from_FeO'),
+}
+# field -> (lowest value, highest value, low end allowed, high end allowed)
+_METAL_FIELDS = {
+    'metal_mass': (0.0, math.inf, True, False),
+    'P_eq': (0.0, math.inf, False, False),
+    'T_eq': (0.0, math.inf, False, False),
+    'dIW_eq': (-math.inf, math.inf, False, False),
+    'silicate_nbo_t': (0.0, math.inf, True, False),
+    'w_O_core': (0.0, 1.0, True, False),
+    'w_Si_core': (0.0, 1.0, True, False),
+    'tol_w_core': (0.0, 1.0, False, False),
+}
+
+
+def check_metal_fields(ddict):
+    """Check the metal-reservoir fields of ``ddict`` that are present.
+
+    Each must be a finite real number (not a boolean) in its range: ``metal_mass`` [kg]
+    and ``silicate_nbo_t`` >= 0, ``P_eq`` [GPa] and ``T_eq`` [K] > 0, ``tol_w_core`` in
+    (0, 1), ``w_O_core`` and ``w_Si_core`` in [0, 1) with a sum below 1. A mode is one of
+    its strings. ``silicate_oxides`` is a dict of known
+    oxides in wt%, finite and >= 0, that sums to 95-101.
+
+    Raises
+    ------
+    ValueError
+        Names the first field that breaks its rule.
+    """
+    for field, (lo, hi, lo_ok, hi_ok) in _METAL_FIELDS.items():
+        if field not in ddict:
+            continue
+        v = ddict[field]
+        if not _finite_number(v):
+            raise ValueError(f'{field} must be a finite number, got {v!r}')
+        if v < lo or v > hi or (v == lo and not lo_ok) or (v == hi and not hi_ok):
+            raise ValueError(f'{field} = {v!r} is outside its range ({lo}, {hi})')
+    if 'silicate_oxides' in ddict:
+        ox = ddict['silicate_oxides']
+        if not isinstance(ox, dict):
+            raise ValueError(f'silicate_oxides must be a dict of oxide wt%, got {ox!r}')
+        unknown = [k for k in ox if k not in _OXIDES]
+        if unknown:
+            raise ValueError(
+                f'silicate_oxides has unknown oxides {unknown}; known: {list(_OXIDES)}'
+            )
+        for k, v in ox.items():
+            if not (_finite_number(v) and v >= 0):
+                raise ValueError(f'silicate_oxides[{k!r}] must be finite and >= 0, got {v!r}')
+        if not 95.0 <= sum(ox.values()) <= 101.0:
+            raise ValueError(f'silicate_oxides sum to {sum(ox.values())!r} wt%, not 95-101')
+    for field, options in _METAL_MODES.items():
+        mode = ddict.get(field, options[0])
+        if not isinstance(mode, str) or mode not in options:
+            raise ValueError(f'{field} {mode!r}: use one of {options}')
+    if ddict.get('w_O_core', 0.0) + ddict.get('w_Si_core', 0.0) >= 1.0:
+        raise ValueError('w_O_core + w_Si_core leave no iron in the metal')
+    if not ddict.get('metal_mass', 0.0) > 0:
+        return
+    diw_mode = ddict.get('dIW_eq_mode', 'parameter')
+    for field in ('P_eq', 'T_eq') + (('dIW_eq',) if diw_mode == 'parameter' else ()):
+        if field not in ddict:
+            raise ValueError(f'{field} is required with metal_mass > 0')
+    ox = ddict.get('silicate_oxides', KLB1)
+    needs = {'FeO': diw_mode == 'from_FeO', 'SiO2': ddict.get('Si_mode_core') == 'partition'}
+    for oxide in (k for k, need in needs.items() if need and not ox.get(k, 0) > 0):
+        raise ValueError(f'silicate_oxides needs {oxide} above 0 for the selected mode')
+
+
+def _finite_number(v):
+    """A finite real number that is not a boolean (Python or numpy)."""
+    if not isinstance(v, numbers.Real) or isinstance(v, bool | np.bool_):
+        return False
+    try:
+        return math.isfinite(v)
+    except OverflowError:  # an int beyond the float range
+        return False

@@ -77,7 +77,7 @@ A unit test on any physics source must assert at least one of four invariant fam
 Tests that meet one or more of these are tagged `@pytest.mark.physics_invariant`.
 The marker is per-function, not module-level: structural tests in the same file (for example, an ordering or pass-through-assignment check) should not carry it.
 
-Physics sources in CALLIOPE are the five files `chemistry.py`, `oxygen_fugacity.py`, `solubility.py`, `solve.py`, `structure.py`.
+Physics sources in CALLIOPE are the six files `chemistry.py`, `metal.py`, `oxygen_fugacity.py`, `solubility.py`, `solve.py`, `structure.py`.
 Utility sources (`__init__.py`, `_version.py`, `constants.py`) are exempt from the invariant requirement but remain subject to the anti-happy-path rules below.
 
 ## Reference-pinned validation
@@ -89,12 +89,13 @@ The anchor is one of:
 - an **analytical limit** (for example, the ideal-gas limit at low pressure, or the Stefan-Boltzmann black-body limit),
 - a **cross-implementation check** (CALLIOPE vs atmodeller at a shared Earth fiducial).
 
-Each of the five physics sources carries at least one reference-pinned test, recorded on the matching `docs/Validation/<file>.md` page.
+Each physics source carries at least one reference-pinned test, recorded in a section on a page in `docs/Validation/`; the [Validation overview](../Validation/index.md) lists every case.
 The current anchors:
 
 | Source | Anchor | Test |
 |---|---|---|
 | `chemistry.py` | JANAF Thermochemical Tables [^cite-chase1998] (4th ed.), $K_{eq}$ for $\mathrm{H_2O} \to \mathrm{H_2} + 0.5\,\mathrm{O_2}$ at 2000 K with the O'Neill & Eggins 2002 [^cite-oneilleggins2002] buffer | `tests/test_chemistry.py::test_modified_keq_janaf_H2_matches_closed_form_at_2000K_with_oneill` |
+| `metal.py` | [Tagawa et al. 2021](https://doi.org/10.1038/s41467-021-22035-0): the H law of their Eq. 2 against the 6 runs of their SI Table 1 | `tests/test_metal.py::test_tagawa_runs_lie_within_one_sigma_of_eq2` |
 | `oxygen_fugacity.py` | Cross-implementation check of the coded Fischer et al. 2011 [^cite-fischer2011] (EPSL 304, 496) IW expression against the O'Neill & Eggins 2002 [^cite-oneilleggins2002] buffer at 2000 K; no independent pin of the Fischer 1-bar fit exists | `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_cross_check_and_regression` |
 | `solubility.py` | Sossi et al. 2023 [^cite-sossi2023] peridotite H$_2$O fit; Gaillard et al. 2022 [^cite-gaillard2022] (EPSL 117255) S$_2$ fit | `tests/test_solubility.py::TestSolubilityH2O::test_peridotite_default_matches_sossi_2023_fit` and `TestSolubilityS2_xFeO::test_default_call_matches_gaillard_2022_earth_mantle_value` |
 | `solve.py` | Self-consistency between `equilibrium_atmosphere` (buffered) and `equilibrium_atmosphere_authoritative_O` (the authoritative-O entry point) at the Earth fiducial | `tests/test_solve.py::test_round_trip_self_consistency_at_earth_fiducial` |
@@ -109,6 +110,7 @@ Each source file in `src/calliope/` has a same-named companion in `tests/`:
 | Source | Test |
 |---|---|
 | `src/calliope/chemistry.py` | `tests/test_chemistry.py` |
+| `src/calliope/metal.py` | `tests/test_metal.py` |
 | `src/calliope/oxygen_fugacity.py` | `tests/test_oxygen_fugacity.py` |
 | `src/calliope/solubility.py` | `tests/test_solubility.py` |
 | `src/calliope/solve.py` | `tests/test_solve.py` |
@@ -121,8 +123,9 @@ Cross-cutting tests are the documented exception, not the rule:
 - `tests/test_invariants.py`, `tests/test_invariants_hypothesis.py`: contract clauses that span multiple sources (mass closure end-to-end, partial-species behaviour, stoichiometry of an arbitrary recipe).
 - `tests/test_authoritative_O.py`, `tests/test_authoritative_O_validation.py`, `tests/test_authoritative_O_monotonicity.py`: the authoritative-O entry point, which touches `solve.py`, `chemistry.py`, and `oxygen_fugacity.py` together.
 - `tests/test_equilibrium_paths.py`, `tests/test_partial_species.py`, `tests/test_stoichiometry.py`, `tests/test_targets.py`: solver-architecture tests that span the same three files.
+- `tests/test_metal_solve.py`, `tests/test_metal_fields.py`: the metal reservoir in the full solve and the checks of its `ddict` keys, which span `metal.py` and `solve.py`.
 
-When a new physics source is added, its 1:1 test file is created at the same time; the matching `docs/Validation/<file>.md` page is added when the first reference-pinned test for that source lands.
+When a new physics source is added, its 1:1 test file is created at the same time; its cases get a section on a page of the Validation tab when the first reference-pinned test for that source lands.
 
 ## AST test-quality linter
 

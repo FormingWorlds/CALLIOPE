@@ -98,6 +98,10 @@ The Gaillard et al. (2022) [^cite-gaillard2022] sulfide solubility carries an ex
 
 Similarly, the Dasgupta et al. (2022) [^cite-dasgupta2022] N$_2$ solubility includes a $-1.6\,\Delta\mathrm{IW}$ term in its exponent, so reducing conditions sharply increase the dissolved-N inventory. `solubility.SolubilityN2.dasgupta` takes the solve's shift as this $\Delta\mathrm{IW}$ directly, on whichever buffer the solve uses. Dasgupta et al. (2022) define $\Delta\mathrm{IW}$ by the Fe-FeO activity ratio of the melt (their Eq. 2) and name no IW buffer curve, so there is no buffer to convert to. This is the one channel that the `fO2_model` setting does not reach: at a fixed absolute $f_{\mathrm{O}_2}$, switching buffers moves the shift and with it the dissolved N. This is one mechanism by which planet-scale N partitioning is tied to mantle redox; see Nicholls et al. (2026) [^cite-nicholls2026] for an application to L 98-59 d, where the inferred H$_2$-dominated atmosphere with photochemical SO$_2$ implies $\Delta\mathrm{IW}$ between IW-4 and IW-1.
 
+## The oxygen fugacity of the metal reservoir
+
+The optional [metal reservoir](metal.md) has its own $\Delta\mathrm{IW}$, `dIW_eq`: the oxygen fugacity at which the metal and the melt equilibrate, at the pressure `P_eq` and temperature `T_eq` of that equilibrium. It is a separate input from `fO2_shift_IW`, which sets the gas and the melt at the surface. `dIW_eq` enters only the partition laws and the O and Si exchange; CALLIOPE does not convert it to an absolute $f_{\mathrm{O}_2}$, so the IW buffer of the solve does not apply to it. With `dIW_eq_mode = 'from_FeO'` CALLIOPE computes it from the FeO of the melt and the Fe of the metal; the buffer then reaches it only through the composition that the solve returns. See [Metal reservoir](metal.md#the-oxygen-fugacity-of-the-metal-melt-equilibrium).
+
 ## Reference values for $\Delta\mathrm{IW}$
 
 | Reservoir | $\Delta\mathrm{IW}$ | Source |

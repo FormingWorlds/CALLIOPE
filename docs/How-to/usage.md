@@ -52,9 +52,9 @@ The `result` dictionary contains, for every species `s` in `volatile_species`:
 - `s_kg_atm`: atmospheric column mass, kg
 - `s_kg_liquid`: dissolved mass, kg
 - `s_kg_solid`: 0.0 (solid partitioning is handled by the caller, not CALLIOPE)
-- `s_kg_total`: sum of atmosphere + liquid
+- `s_kg_total`: sum of atmosphere + liquid (it excludes the core when a metal reservoir is on)
 
-and per-element totals `H_kg_atm`, `C_kg_atm`, ..., `S_res` (mass-balance residual in kg). `fallback` (a bool) is True when the returned state misses the tolerance of an element and a warning was logged. `fO2_model` names the IW buffer the solve used (a string); set it as `ddict['fO2_model']` to evaluate a state with `get_partial_pressures`, `atmosphere_mass` or `dissolved_mass` on the same buffer.
+and per-element totals `H_kg_atm`, `C_kg_atm`, ..., `S_res` (mass-balance residual in kg). `fallback` (a bool) is True when the returned state misses the tolerance of an element and a warning was logged. `fO2_model` names the IW buffer the solve used (a string); set it as `ddict['fO2_model']` to evaluate a state with `get_partial_pressures`, `atmosphere_mass` or `dissolved_mass` on the same buffer. With `metal_mass` above zero in `ddict` the result also carries the metal reservoir keys `<e>_kg_core`, `w_<e>_core`, `<e>_D_metal`, `<e>_D_out_of_range` and `dIW_eq` ([metal reservoir](../Reference/partition_file.md)).
 
 ## Pattern 2 - solve from initial partial pressures
 
@@ -87,6 +87,26 @@ result = equilibrium_atmosphere(target, ddict, print_result=True)
 ```
 
 `get_target_from_pressures()` computes the implied total elemental masses by summing atmospheric column mass (Bower et al. (2019) [^cite-bower2019] Eq. 2) and dissolved mass (Henry's law) across every included species at the prescribed initial pressures.
+
+## Pattern 3 - add a metal reservoir
+
+Start from the `ddict` and `target` of Pattern 1. Add `metal_mass` (kg) above zero and the conditions of the metal-melt equilibrium, and the same call solves gas, melt and metal together:
+
+```python
+ddict_metal = {
+    **ddict,
+    'metal_mass': 1.94e24,  # kg of metal in equilibrium with the present melt
+    'P_eq': 50.0,  # GPa
+    'T_eq': 3500.0,  # K
+    'dIW_eq': -1.0,  # log10 units relative to the IW buffer
+}
+result = equilibrium_atmosphere(target, ddict_metal, print_result=False)
+print(f"H in the metal: {result['H_kg_core']:.3e} kg, D_H = {result['H_D_metal']:.3g}")
+```
+
+With the input of Pattern 1 this prints `H in the metal: 1.417e+20 kg, D_H = 22.1`, together with the warnings that the [metal reservoir tutorial](../Tutorials/metal_reservoir.md#step-5-read-the-warnings-and-the-flags) explains.
+
+The result adds, per element `e`, the mass in the metal `<e>_kg_core` (kg), the mass fraction `w_<e>_core`, the partition coefficient `<e>_D_metal` and the range flag `<e>_D_out_of_range`, plus `dIW_eq` and the FeO exchange keys. `<e>_kg_total` stays the gas plus the melt; the bulk inventory is `<e>_kg_total + <e>_kg_core`. The [partition file reference](../Reference/partition_file.md) lists every key, the [metal reservoir tutorial](../Tutorials/metal_reservoir.md) runs the options step by step, and the [explanation page](../Explanations/metal.md) gives the physics.
 
 ## Warm-starting from a previous solve
 

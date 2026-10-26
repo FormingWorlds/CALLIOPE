@@ -26,7 +26,8 @@ Full documentation is at **[proteus-framework.org/CALLIOPE](https://proteus-fram
 - [Tutorials](https://proteus-framework.org/CALLIOPE/Tutorials/firstrun.html): first run, Earth and Mars fiducials, two-mode round-trip, coupled-loop driver, speciation phase diagram.
 - [How-to guides](https://proteus-framework.org/CALLIOPE/How-to/installation.html): install, configure, run, couple to PROTEUS, use the authoritative-oxygen mode, test, release.
 - [Explanations](https://proteus-framework.org/CALLIOPE/Explanations/model.html): model overview, equilibrium chemistry, solubility laws, oxygen fugacity, mass balance, authoritative-oxygen mode, [CALLIOPE-vs-atmodeller cross-backend comparison](https://proteus-framework.org/CALLIOPE/Explanations/cross_backend_comparison.html).
-- [API reference](https://proteus-framework.org/CALLIOPE/Reference/api/index.html) and [validation anchors](https://proteus-framework.org/CALLIOPE/Validation/oxygen_fugacity.html): every public function with NumPy-style docstrings, plus the per-source reference-pinned test inventory.
+- [Validation](https://proteus-framework.org/CALLIOPE/Validation/index.html): the reference-pinned cases of each process, with their references and tolerances.
+- [API reference](https://proteus-framework.org/CALLIOPE/Reference/api/index.html): every public function with NumPy-style docstrings.
 
 ## Installation
 

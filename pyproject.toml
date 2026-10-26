@@ -52,6 +52,7 @@ develop = [
     "pytest-cov",
     "pytest-timeout",
     "pre-commit",
+    "proteus-mpl >= 1.5.0",
     "pyyaml",
     "ruff",
 ]
@@ -71,6 +72,9 @@ docs = [
 package-dir = {"calliope" = "src/calliope" }
 include-package-data = true
 
+[tool.setuptools.package-data]
+calliope = ["data/*.toml"]
+
 [tool.setuptools_scm]
 # CalVer: tags are bare YY.MM.DD dates (no leading 'v', e.g. 26.05.10).
 # setuptools-scm derives the version from the latest git tag.
@@ -89,12 +93,8 @@ branch = true
 source = ["calliope"]
 
 [tool.coverage.report]
-# Full coverage gate: unit + smoke + integration + slow tests, enforced by
-# the nightly workflow. 90% is the PROTEUS-ecosystem ceiling: the gate does
-# not rise above this value even if real coverage exceeds it. Above 90%
-# the gate tracks pragma usage and style rather than bug-finding signal.
-# Auto-ratcheted by tools/update_coverage_threshold.py; never manually
-# decrease. See .github/.claude/rules/calliope-tests.md section 15.
+# Full gate (all tiers, nightly), capped at the 90% PROTEUS-ecosystem ceiling.
+# Raised by tools/update_coverage_threshold.py, never lowered; see tests/AGENTS.md.
 fail_under = 90.0
 show_missing = true
 exclude_lines = [
@@ -104,11 +104,8 @@ exclude_lines = [
 ]
 
 [tool.calliope.coverage_fast]
-# Fast PR gate: unit + smoke coverage only, enforced on every PR via
-# .github/workflows/tests.yaml. Capped at the 90% PROTEUS-ecosystem
-# ceiling by tools/update_coverage_threshold.py. Measured unit+smoke
-# coverage exceeds 90, so the gate sits at the ceiling. Never manually
-# decrease. See .github/.claude/rules/calliope-tests.md section 15.
+# Fast gate (unit and smoke, every pull request in tests.yaml), capped at 90%.
+# Raised by tools/update_coverage_threshold.py, never lowered; see tests/AGENTS.md.
 fail_under = 90.0
 
 [tool.pytest.ini_options]
@@ -119,8 +116,8 @@ markers = [
     "smoke: real-binary tests on minimal configurations (target < 30 s each)",
     "integration: real-binary tests with full coupling",
     "slow: anything > 1 minute, run in nightly only",
-    "physics_invariant: marks tests that assert a physical invariant (conservation, positivity, boundedness, monotonicity, symmetry). See .github/.claude/rules/calliope-tests.md section 3.",
-    "reference_pinned: marks tests that pin behavior against a published benchmark, analytical limit, or cross-implementation cross-check. Cite the source in the test docstring. Each physics source must contain at least one. See .github/.claude/rules/calliope-tests.md section 3.",
+    "physics_invariant: marks tests that assert a physical invariant (conservation, positivity, boundedness, monotonicity, symmetry). See tests/AGENTS.md.",
+    "reference_pinned: marks tests that pin behavior against a published benchmark, analytical limit, or cross-implementation cross-check. Cite the source in the test docstring. Each physics source must contain at least one. See tests/AGENTS.md.",
 ]
 
 [tool.ruff]

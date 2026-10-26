@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """AST-based test-quality linter for the CALLIOPE test suite.
 
-Enforces the rules in `.github/.claude/rules/calliope-tests.md` (sections 1 + 7):
+Enforces the test rules of `tests/AGENTS.md`:
 
 - Every test file must declare a module-level ``pytestmark`` containing a tier
   marker (``unit`` / ``smoke`` / ``integration`` / ``slow``).
@@ -11,7 +11,7 @@ Enforces the rules in `.github/.claude/rules/calliope-tests.md` (sections 1 + 7)
   check in the test: ``result is not None``, ``result > 0``,
   ``len(result) > 0``, ``isinstance(result, dict)``, ``result is None``.
   A weak assertion that accompanies a stronger primary assertion (the
-  three-class discrimination guard from calliope-tests.md section 2 uses
+  discrimination guard of tests/AGENTS.md uses
   ``val > 0`` as a sign guard alongside ``pytest.approx(...)``, for
   example) is NOT flagged.
 - Every test function must have a docstring.
@@ -65,19 +65,16 @@ TIER_MARKERS = {'unit', 'smoke', 'integration', 'slow'}
 # Optional dependencies. Any test module that imports one of these MUST
 # precede the import with ``pytest.importorskip('<name>')`` at module
 # scope, otherwise CI's ``pip install --no-deps`` build fails collection.
-# Source rule: calliope-tests.md section 5.
 OPTIONAL_DEPS = {
     'hypothesis',
     'atmodeller',
 }
 
-# Physics source files. Each one must have a 1:1 test file at
-# ``tests/test_<source>.py`` (the rule in calliope-tests.md section 12).
-# Each source must have at least one @pytest.mark.physics_invariant test
-# and at least one @pytest.mark.reference_pinned test in its companion
-# test file.
+# Physics sources: each has tests/test_<source>.py with at least one
+# physics_invariant and one reference_pinned test (tests/AGENTS.md).
 PHYSICS_SOURCES = {
     'chemistry.py',
+    'metal.py',
     'oxygen_fugacity.py',
     'solubility.py',
     'solve.py',

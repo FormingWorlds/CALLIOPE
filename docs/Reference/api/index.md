@@ -12,6 +12,7 @@ src/calliope/
 ├── chemistry.py         # ModifiedKeq (six redox couples)
 ├── solubility.py        # Solubility{H2O,CO2,CO,CH4,N2,S2}
 ├── solve.py             # equilibrium_atmosphere() and supporting functions
+├── metal.py             # partition file reader, partition laws, metal reservoir masses
 └── structure.py         # calculate_mantle_mass() simple core/mantle split
 ```
 
@@ -39,7 +40,7 @@ src/calliope/
 
 ### Structure
 
-- [`calliope.structure`](calliope.structure.md) - `calculate_mantle_mass(radius, mass, core_frac)` simple Earth-density core/mantle split. Provided as a fallback; PROTEUS-coupled runs source `M_mantle` from Zalmoxis or SPIDER instead.
+- [`calliope.structure`](calliope.structure.md) - `calculate_mantle_mass(radius, mass, core_frac)` simple Earth-density core/mantle split. Provided for standalone runs; PROTEUS does not call it and passes the mantle mass of its interior steps ([code architecture](../../Explanations/code_architecture.md#structurepy)).
 
 ### Constants
 

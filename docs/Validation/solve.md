@@ -1,5 +1,16 @@
 # Validation: `src/calliope/solve.py`
 
+## What this page checks
+
+This page checks the equilibrium solve in `src/calliope/solve.py`.
+The solve finds the partial pressures of the gas and the dissolved masses for a given inventory of H, C, N, S and O.
+Validation here means that we run the code on a case where another source gives the right answer.
+The test then checks that the code gives that answer within a stated tolerance.
+On this page the right answer comes from a second CALLIOPE solve that must agree with the first, and from a closed-form result for the noble gases.
+If the solve is wrong, every outgassing step of a PROTEUS run gets the wrong atmosphere.
+The table below lists each case with its reference, and the sections after it explain how the expected values follow.
+The cases of the solve with a metal reservoir are on the [metal reservoir page](metal.md).
+
 This page tracks the `@pytest.mark.reference_pinned` tests that anchor the
 behaviour of `calliope.solve` against published or self-consistency sources.
 
@@ -64,6 +75,10 @@ several topical cross-cutting files for readability:
 This is a documented exception to the strict 1:1 source-to-test
 mirroring rule for sources >500 LOC where the test topics are
 independent enough that consolidation would hurt readability.
+
+## Metal reservoir
+
+The cases of the solve with a metal reservoir (`metal_mass` above zero) are on the [metal reservoir validation page](metal.md).
 
 ## Anchor types
 

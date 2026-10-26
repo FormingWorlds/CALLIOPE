@@ -49,6 +49,23 @@ If the calling code uses `calliope.solve.get_target_from_params(ddict)` to build
 
 When CALLIOPE is called from PROTEUS, the wrapper in `proteus.outgas.calliope` sets these four fields automatically based on the `[planet.elements]` block of the PROTEUS config.
 
+### Optional: metal reservoir
+
+These keys add a metal reservoir in equilibrium with the melt ([Metal reservoir](../Explanations/metal.md)). Without the key `metal_mass`, the solve has no metal and does not read the other keys. With `metal_mass` present, also with 0, the solve checks every metal key that is present, except `partition_table`, and raises `ValueError` for a bad value; with 0 it adds no metal. The [partition file reference](../Reference/partition_file.md#inputs-in-ddict) gives the default, the allowed range and the rules of each key.
+
+| Key | Type | Units | Meaning |
+|---|---|---|---|
+| `metal_mass` | float | kg | Mass of the metal in equilibrium with the present melt. Above 0 turns the reservoir on and needs `Phi_global` above 0. |
+| `P_eq`, `T_eq` | float | GPa, K | Pressure and temperature of the metal-melt equilibrium. Required with metal. |
+| `dIW_eq_mode` | str | n/a | `'parameter'` (default) or `'from_FeO'`. |
+| `dIW_eq` | float | $\log_{10}$ units | $\Delta\mathrm{IW}$ of the metal-melt equilibrium. Required in `'parameter'` mode. |
+| `O_mode_core`, `Si_mode_core` | str | n/a | `'fixed'` (default) or `'partition'`. |
+| `w_O_core`, `w_Si_core` | float | mass fraction | O and Si of the metal in `'fixed'` mode, and the start metal in `'partition'` mode. Default 0. |
+| `silicate_oxides` | dict | wt% | Melt composition by oxide. Default KLB-1. |
+| `silicate_nbo_t` | float | n/a | NBO/T of the melt. Default 2.6. |
+| `partition_table` | dict | n/a | A table from `calliope.metal.load_partition_table`. Default: the packaged placeholder file. |
+| `tol_w_core` | float | n/a | Relative change of each metal mass fraction between 2 passes at which the loop on the metal composition stops. Default 1e-6. |
+
 ## The `target` dictionary
 
 `target` carries the elemental conservation constraints, in kilograms. For the buffered-mode entry point [`equilibrium_atmosphere`](usage.md), the dict has four keys:
