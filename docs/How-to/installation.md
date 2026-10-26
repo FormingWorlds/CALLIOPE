@@ -61,12 +61,12 @@ for sp in volatile_species:
     ddict[f'{sp}_included'] = 1
     ddict[f'{sp}_initial_bar'] = 0.0
 
-target = {'H': 1e20, 'C': 1e17, 'N': 1e17, 'S': 1e16}    # kg
+target = {'H': 1e20, 'C': 1e17, 'N': 1e17, 'S': 3e17}    # kg
 result = equilibrium_atmosphere(target, ddict, print_result=False)
 print(f"Surface pressure: {result['P_surf']:.2f} bar")
 ```
 
-A successful run should print a non-zero surface pressure (typically a few hundred to a few thousand bar for these inputs). Any exception means the install or the runtime environment is broken; check that `numpy` and `scipy` import cleanly and that you are on Python 3.11+.
+A successful run prints `Surface pressure: 0.36 bar` and logs no warning. Any exception means the install or the runtime environment is broken; check that `numpy` and `scipy` import cleanly and that you are on Python 3.12 or newer.
 
 ## Next step
 

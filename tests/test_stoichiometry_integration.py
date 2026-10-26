@@ -190,3 +190,18 @@ class TestEquilibriumAtmosphereIntegration:
         gate = max(target.values()) * RTOL + ATOL + TRUNC_MASS
         assert max(abs(result[f'{e}_res']) for e in 'HCNS') <= gate
         assert result['P_surf'] == pytest.approx(0.361192, rel=1e-4)
+
+    def test_installation_page_example_prints_the_stated_pressure(self, capsys, caplog):
+        """The solver example of docs/How-to/installation.md converges and prints 0.36 bar."""
+        from pathlib import Path
+
+        page = Path(__file__).resolve().parents[1] / 'docs' / 'How-to' / 'installation.md'
+        blocks = re.findall(r'```python\n(.*?)```', page.read_text(), re.S)
+        example = [b for b in blocks if 'equilibrium_atmosphere' in b]
+        assert len(example) == 1
+        namespace = {}
+        with caplog.at_level('WARNING', logger='fwl.calliope.solve'):
+            exec(example[0], namespace)
+        assert capsys.readouterr().out.strip() == 'Surface pressure: 0.36 bar'
+        assert not namespace['result']['fallback']
+        assert 'No root closes' not in caplog.text
