@@ -1,6 +1,6 @@
 # Code architecture
 
-CALLIOPE is a small package: eight pure Python modules plus `_version.py`, which the build writes, no compiled extensions, no thread or process pools. This page maps each module to its responsibility and shows how they call each other.
+CALLIOPE is a small package of 7 pure Python modules, plus `__init__.py` and a `data/` folder with the placeholder partition file. The build writes `_version.py`. The package has no compiled extensions and no thread or process pools. This page maps each module to its responsibility and shows how they call each other.
 
 ## Package layout
 
@@ -14,7 +14,8 @@ src/calliope/
 ├── solubility.py            # five solubility classes
 ├── solve.py                 # speciation, mass balance, outer solver
 ├── metal.py                 # partition file reader, partition laws, metal reservoir masses
-└── structure.py             # simple core/mantle mass split
+├── structure.py             # simple core/mantle mass split
+└── data/                    # partition_coefficients_placeholder.toml
 ```
 
 Plus the test suite:

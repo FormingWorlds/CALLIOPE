@@ -43,7 +43,7 @@ $$
 
 Under the buffered mode the equation set spans $e \in \{\mathrm{H}, \mathrm{C}, \mathrm{N}, \mathrm{S}\}$, the four primary partial pressures are the unknowns, and the $4\times 4$ system is solved with `scipy.optimize.fsolve` (Powell hybrid). Under the authoritative-O mode the equation set spans $e \in \{\mathrm{H}, \mathrm{C}, \mathrm{N}, \mathrm{S}, \mathrm{O}\}$, the unknown vector is extended with $\Delta\mathrm{IW}$, and the $5\times 5$ system is solved with the same outer loop ([Authoritative-oxygen mode](authoritative_oxygen.md)).
 
-With a metal reservoir, each of the H, C, N and S equations gains a third term on the left, the mass of the element in the metal, $D_e M_\mathrm{metal} w_e^\mathrm{melt}$ ([Metal reservoir](metal.md#the-element-balance-with-a-core-term)).
+With a metal reservoir, each of the H, C, N and S equations gains a third term on the left, the mass of the element in the metal, $D_e M_\mathrm{metal} w_e^\mathrm{melt}$ ([Metal reservoir](metal.md#the-element-balance-with-a-metal-term)).
 
 The seven secondary partial pressures are *not* independent in either mode: they are algebraic functions of the primaries via the six equilibrium constants, evaluated at $T = T_\mathrm{magma}$ and $\log_{10} f_{\mathrm{O}_2} = \log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T) + \Delta\mathrm{IW}$.
 

@@ -31,7 +31,7 @@ with $a = 2.31(20)$, $b = -1542(500)$, $c = -38.9(78)$ and $d = 6.69(30)$ (p. 3;
 
 ### Step 2: map the coefficients onto the file
 
-Note that the letters of the paper are not the field names of the file: the paper's $d$ multiplies $\log_{10}(1 - x'_\mathrm{C})$ and goes into the file field `eps`, while the file field `d` multiplies $\Delta\mathrm{IW}$. The file needs $\log_{10} D$ alone on the left. Move the term $\frac{1}{4}\Delta\mathrm{IW}$ to the right:
+The file needs $\log_{10} D$ alone on the left. Move the term $\frac{1}{4}\Delta\mathrm{IW}$ to the right:
 
 $$
 \log_{10} D_\mathrm{H} = 2.31 - \frac{1542}{T} - 38.9\,\frac{P}{T} - 0.25\,\Delta\mathrm{IW} + 6.69\,\log_{10}(1 - x'_\mathrm{C}).
@@ -50,6 +50,8 @@ Compare it term by term with the law of the file, $\log_{10} D = a + b/T + c\,P/
 | fits $K_D$ | `quantity` | `"K_D"` | what the source fits; the law still gives $D$, because the $\Delta\mathrm{IW}$ term holds the conversion |
 | $D$ over $x'$ in the metal | `basis` | `"mole_xprime_noHC"` | Eq. 1 and Eq. 10 |
 | H in the melt as HO$_{0.5}$ | `silicate_basis` | `"single_cation"` | see below |
+
+The letters of the paper are not the field names of the file: the paper's $d$ multiplies $\log_{10}(1 - x'_\mathrm{C})$ and goes into the file field `eps`, while the file field `d` multiplies $\Delta\mathrm{IW}$.
 
 `silicate_basis`: Tsutsumi et al. count H in the melt as HO$_{0.5}$ units. CALLIOPE counts the melt on the single-cation basis, one unit per cation, and H as HO$_{0.5}$. This is the basis with which CALLIOPE reproduces the single-stage core H and C of Tsutsumi et al. (2025, SI Table 1) on the [validation page](../Validation/metal.md#tsutsumi-et-al-2025-single-stage-cores).
 
@@ -103,8 +105,8 @@ doi = "10.1038/s41467-025-65729-5"
 '''
 start, end = text.index('[H]\n'), text.index('[C]\n')
 mine = text[:start] + h_law + text[end:]
-assert 'name = "placeholder-2026-10"' in mine  # the name of the packaged file
-mine = mine.replace('name = "placeholder-2026-10"', 'name = "tsutsumi2025-H"')
+packaged_name = load_partition_table()['meta']['name']
+mine = mine.replace(f'name = "{packaged_name}"', 'name = "tsutsumi2025-H"')
 with open('my_partition_laws.toml', 'w') as f:
     f.write(mine)
 ```
@@ -211,11 +213,15 @@ This part is for developers. A law in the `log10_linear` form for one of H, C, N
     - `KEYS` and `_entry`: add and check each new field of the form.
     - `_check_read_values`: state which forms and fields the evaluator of each element reads, so that a file with a value the code ignores is refused.
     - The evaluator: a function like `log10_D` for the new form, and the conversion to the mass basis in `mass_D` (or a new function like `exchange_metal` for an exchange reaction).
+    - `BASES`, `QUANTITIES`, `SILICATE_BASES` and `COEFFICIENTS`: add a new basis, fitted quantity, melt basis or numeric coefficient; `_entry` refuses any value outside these tuples.
     - `ELEMENTS` (and `EXCHANGE_ELEMENTS` for an exchange with FeO): add a new element.
-2. **`src/calliope/solve.py`**: the metal reservoir partitions H, C, N and S in `_with_metal` and the residual functions `func` and `func_authoritative_O`. A new volatile element needs a budget, a residual and its core term there, and its name in the element lists of `_with_metal` (the loops over H, C, N and S, and over O and Si) and in the loops of `equilibrium_atmosphere` and `equilibrium_atmosphere_authoritative_O` that write `<e>_kg_core`; `_with_metal` reads those keys from each inner solve.
+2. **`src/calliope/solve.py`**, for a new volatile element:
+    - `func`, `func_authoritative_O` and `_with_metal`: a budget, a residual and a metal term for the element.
+    - The element lists of `_with_metal`: the loops over H, C, N and S, and over O and Si.
+    - The loops of `equilibrium_atmosphere` and `equilibrium_atmosphere_authoritative_O` that write `<e>_kg_core`: `_with_metal` reads those keys from each inner solve.
 3. **The packaged file** `src/calliope/data/partition_coefficients_placeholder.toml`: a law for each new element, so the default table stays complete.
 4. **The docs**: the field table and the placeholder table of [Reference/partition_file.md](../Reference/partition_file.md), and the [explanation page](../Explanations/metal.md) if the physics changes.
-5. **The tests** (`tests/test_metal.py`, rules in `tests/AGENTS.md`):
+5. **The tests** (`tests/test_metal.py` for `metal.py`; `tests/test_metal_solve.py` and `tests/test_metal_fields.py` for `solve.py`; rules in `tests/AGENTS.md`):
     - a `reference_pinned` test (a test that runs the real code and compares it with a published value): evaluate the law at the conditions of a value that the source gives (a run of its table, or a value in its text) and assert that value within the error of the source;
     - a format test for each new field: a wrong type, NaN, a missing value and a value out of its range raise `PartitionTableError`;
     - a mutation check, which shows that the test can fail: change one coefficient sign or the basis in the code, run the test, confirm that it fails, and undo the change;

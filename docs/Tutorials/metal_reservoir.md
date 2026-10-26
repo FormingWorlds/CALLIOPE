@@ -8,7 +8,7 @@ By the end of it you will:
 - know the 2 ways to set the oxygen fugacity of the metal-melt equilibrium (`dIW_eq_mode`);
 - know the 2 ways to set the O and Si of the metal (`O_mode_core`, `Si_mode_core`), and how to read the FeO exchange;
 - know what the out-of-range flags and the placeholder warning mean, and what to do about them;
-- have made a plot of the share of each element in the metal against $\Delta\mathrm{IW}$;
+- have made a plot of the metal share of each element against $\Delta\mathrm{IW}$;
 - have run the authoritative-O solve with metal.
 
 You should already have done the [First run](firstrun.md) tutorial. The physics is on the [Metal reservoir](../Explanations/metal.md) explanation page, and every input and output key is on the [partition file reference](../Reference/partition_file.md). The whole tutorial runs in less than a minute.
@@ -184,7 +184,7 @@ How to read the exchange:
 - `n_FeO_silicate` (mol) is the FeO of the melt.
 - `FeO_exchange_out_of_range` is 1 when the exchange is more than 10 % of the melt FeO. CALLIOPE does not change the melt FeO, so such a result is not self-consistent. With the whole core as metal, a few wt% of O or Si already moves a large part of the melt FeO.
 
-In `'partition'` mode the metal takes 13.7 wt% O. That needs 3.56 times the FeO that the melt has, which is not possible. The metal O also enters the C law through its composition term, and $D_\mathrm{C}$ rises from 0.0828 to 430. The O and Si of the metal come from the FeO of the rock, so they never enter the volatile O budget (see step 7).
+In `'partition'` mode the metal takes 13.7 wt% O. Net of the Si reaction, the exchange needs 3.56 times the FeO that the melt has, which is not possible. The metal O also enters the C law through its composition term, and $D_\mathrm{C}$ rises from 0.0828 to 430. The O and Si of the metal come from the FeO of the rock, so they never enter the volatile O budget (see step 7).
 
 ## Step 5: read the warnings and the flags
 
@@ -284,7 +284,7 @@ O budget 1.3129e+20 kg, gas + melt O 1.3129e+20 kg
 O_kg_core 1.940e+21 kg
 ```
 
-This is a round trip: the O of a buffered solve, given back as a budget, must give back the $\Delta\mathrm{IW}$ of that buffered solve. The solve returns +0.5, and the gas and melt O equal the budget. The metal holds about 15 times more O than the gas and the melt, and none of it is counted in the budget. The guess `p_guess` holds the 4 primary partial pressures and `fO2_shift_IW`; without it, the solve starts from random guesses and can take from about a minute to a few minutes here, instead of a fraction of a second.
+This is a round trip: the O of a buffered solve, given back as a budget, must give back the $\Delta\mathrm{IW}$ of that buffered solve. The solve returns +0.5, and the gas and melt O equal the budget. The metal holds about 15 times more O than the gas and the melt, and none of it is counted in the budget. The guess `p_guess` holds the 4 primary partial pressures and `fO2_shift_IW`; without it, the solve starts from random guesses and can take minutes here, instead of a fraction of a second.
 
 ## Where to go next
 

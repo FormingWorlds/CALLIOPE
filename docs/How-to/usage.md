@@ -104,7 +104,7 @@ result = equilibrium_atmosphere(target, ddict_metal, print_result=False)
 print(f"H in the metal: {result['H_kg_core']:.3e} kg, D_H = {result['H_D_metal']:.3g}")
 ```
 
-This prints `H in the metal: 1.417e+20 kg, D_H = 22.1`, together with the warnings that the [metal reservoir tutorial](../Tutorials/metal_reservoir.md#step-5-read-the-warnings-and-the-flags) explains.
+With the input of Pattern 1 this prints `H in the metal: 1.417e+20 kg, D_H = 22.1`, together with the warnings that the [metal reservoir tutorial](../Tutorials/metal_reservoir.md#step-5-read-the-warnings-and-the-flags) explains.
 
 The result adds, per element `e`, the mass in the metal `<e>_kg_core` (kg), the mass fraction `w_<e>_core`, the partition coefficient `<e>_D_metal` and the range flag `<e>_D_out_of_range`, plus `dIW_eq` and the FeO exchange keys. `<e>_kg_total` stays the gas plus the melt; the bulk inventory is `<e>_kg_total + <e>_kg_core`. The [partition file reference](../Reference/partition_file.md) lists every key, the [metal reservoir tutorial](../Tutorials/metal_reservoir.md) runs the options step by step, and the [explanation page](../Explanations/metal.md) gives the physics.
 

@@ -51,7 +51,7 @@ When CALLIOPE is called from PROTEUS, the wrapper in `proteus.outgas.calliope` s
 
 ### Optional: metal reservoir
 
-These keys add a metal reservoir in equilibrium with the melt ([Metal reservoir](../Explanations/metal.md)). Without the key `metal_mass`, the solve has no metal and does not read the other keys. With `metal_mass` present, also with 0, the solve checks every metal key that is present and raises `ValueError` for a bad value; with 0 it adds no metal. The [partition file reference](../Reference/partition_file.md#inputs-in-ddict) gives the default, the allowed range and the rules of each key.
+These keys add a metal reservoir in equilibrium with the melt ([Metal reservoir](../Explanations/metal.md)). Without the key `metal_mass`, the solve has no metal and does not read the other keys. With `metal_mass` present, also with 0, the solve checks every metal key that is present, except `partition_table`, and raises `ValueError` for a bad value; with 0 it adds no metal. The [partition file reference](../Reference/partition_file.md#inputs-in-ddict) gives the default, the allowed range and the rules of each key.
 
 | Key | Type | Units | Meaning |
 |---|---|---|---|
