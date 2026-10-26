@@ -20,7 +20,8 @@ import pytest
 
 from calliope.constants import volatile_species
 
-pytestmark = [pytest.mark.integration, pytest.mark.timeout(480)]
+# 4 x the slowest CI duration of the module, 193 s (the trace-S fallback test under coverage)
+pytestmark = [pytest.mark.integration, pytest.mark.timeout(780)]
 
 
 class TestEquilibriumAtmosphereIntegration:
@@ -133,9 +134,14 @@ class TestEquilibriumAtmosphereIntegration:
         )
 
     def test_full_chns_converges(self):
-        """Full C-H-N-S system should converge to a physically plausible state."""
-        target = {'H': 1e20, 'C': 1e17, 'N': 1e17, 'S': 1e16}
+        """Full C-H-N-S system converges to a root that closes every element.
+
+        S/H is 3e-3, 10 times the smallest ratio that converged on seeds 0 to 2 on every
+        machine tried; at 1e-4 the outcome depends on the BLAS kernel of the machine.
+        """
+        target = {'H': 1e20, 'C': 1e17, 'N': 1e17, 'S': 3e17}
         result = self._run_equilibrium(target, T=2500.0, Phi=1.0, dIW=0.0)
+        assert not result['fallback']
         P_surf = result.get('P_surf', 0)
         assert P_surf > 0.0
 
@@ -149,9 +155,29 @@ class TestEquilibriumAtmosphereIntegration:
             f'range for this H budget'
         )
 
-        # Element budgets must each be conserved to within solver tolerance.
+        # each element closes to its own tolerance (library rtol 1e-5, floor 10 kg)
         for e, target_kg in target.items():
-            total = result.get(f'{e}_kg_atm', 0) + result.get(f'{e}_kg_liquid', 0)
-            assert 0.1 * target_kg < total < 10.0 * target_kg, (
-                f'{e}: total={total:.4e}, target={target_kg:.4e} (order-of-magnitude check)'
-            )
+            assert abs(result[f'{e}_res']) <= max(target_kg * 1e-5, 10.0), e
+            total = result[f'{e}_kg_atm'] + result[f'{e}_kg_liquid']
+            assert total == pytest.approx(target_kg, rel=1e-5), e
+
+    def test_trace_sulfur_far_below_hydrogen_returns_the_warned_fallback(self, caplog):
+        """S 1e15 kg under H 1e20 kg (S/H 1e-5): no attempt closes S, so the solve returns
+        the warned fallback.
+
+        Its warning names S, and the returned state passes the scalar CHNOS mass gate. On
+        seeds 0 to 2 the S residual of that state is above 1e3 times its tolerance on every
+        machine tried; its size depends on round-off, so it is not pinned.
+        """
+        target = {'H': 1e20, 'C': 1e17, 'N': 1e17, 'S': 1e15}
+        with caplog.at_level('WARNING', logger='fwl.calliope.solve'):
+            result = self._run_equilibrium(target, T=2500.0, Phi=1.0, dIW=0.0)
+        assert result['fallback'] is True
+        warning = [r.getMessage() for r in caplog.records if 'No root closes' in r.getMessage()]
+        assert len(warning) == 1
+        assert 'tolerance for S (' in warning[0] or ', S (' in warning[0]
+        assert abs(result['S_res']) > 1e-5 * target['S']
+        # scalar CHNOS gate of the solve: largest budget x rtol + atol + 10 kg
+        gate = max(target.values()) * 1e-5 + 1e10 + 10.0
+        assert max(abs(result[f'{e}_res']) for e in 'HCNS') <= gate
+        assert 1e-3 < result['P_surf'] < 1e6
