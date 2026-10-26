@@ -15,9 +15,9 @@ pull the integration tests into the PR gate's unit selection.
 from __future__ import annotations
 
 import inspect
-import logging
 import math
 import re
+from pathlib import Path
 
 import pytest
 
@@ -144,7 +144,7 @@ class TestEquilibriumAtmosphereIntegration:
         """Full C-H-N-S system at S/H 3e-3 converges to a root that closes every element.
 
         S/H 3e-3 lies well above the ratio below which the restarts may not reach a root
-        that keeps S (roughly 3e-4 for this case).
+        that keeps S (between 1e-4 and 3e-4 for this case).
         """
         target = {'H': 1e20, 'C': 1e17, 'N': 1e17, 'S': 3e17}
         result = self._run_equilibrium(target, T=2500.0, Phi=1.0, dIW=0.0)
@@ -153,6 +153,8 @@ class TestEquilibriumAtmosphereIntegration:
         assert result['P_surf'] == pytest.approx(0.361194, rel=1e-4)
         for e, target_kg in target.items():
             assert abs(result[f'{e}_res']) <= max(target_kg * RTOL, TRUNC_MASS), e
+            total = result[f'{e}_kg_atm'] + result[f'{e}_kg_liquid']
+            assert total == pytest.approx(target_kg, rel=RTOL), e
 
     def test_trace_sulfur_far_below_hydrogen_returns_the_warned_fallback(self, caplog):
         """S 1e15 kg under H 1e20 kg (S/H 1e-5): the restarts reach no root that closes S.
@@ -169,17 +171,15 @@ class TestEquilibriumAtmosphereIntegration:
         assert len(warning) == 1
         assert re.findall(r'(?:for|,) ([A-Z][a-z]?) \(', warning[0]) == ['S']
         attempts = int(re.search(r'after (\d+) attempts', warning[0]).group(1))
-        # the cap ends the loop FALLBACK_ATTEMPTS after the first fallback, before nguess
         assert FALLBACK_ATTEMPTS < attempts < NGUESS
-        # scalar CHNOS gate of the solve: largest budget x rtol + atol + TRUNC_MASS
+        # scalar CHNOS gate (largest budget x rtol + atol + TRUNC_MASS): it bounds H, C
+        # and N; it exceeds the whole S budget, so it does not bound the S kept
         gate = max(target.values()) * RTOL + ATOL + TRUNC_MASS
         assert max(abs(result[f'{e}_res']) for e in 'HCNS') <= gate
         assert result['P_surf'] == pytest.approx(0.361192, rel=1e-4)
 
     def test_installation_page_example_prints_the_stated_pressure(self, capsys, caplog):
         """The solver example of docs/How-to/installation.md converges and prints 0.36 bar."""
-        from pathlib import Path
-
         page = Path(__file__).resolve().parents[1] / 'docs' / 'How-to' / 'installation.md'
         blocks = re.findall(r'```python\n(.*?)```', page.read_text(), re.S)
         example = [b for b in blocks if 'equilibrium_atmosphere' in b]
@@ -190,4 +190,4 @@ class TestEquilibriumAtmosphereIntegration:
         assert capsys.readouterr().out.strip() == 'Surface pressure: 0.36 bar'
         assert not namespace['result']['fallback']
         assert namespace['result']['fO2_model'] == 'hirschmann'  # Fischer also prints 0.36
-        assert [r for r in caplog.records if r.levelno >= logging.WARNING] == []
+        assert not caplog.records  # at_level('WARNING') keeps warnings and above only
