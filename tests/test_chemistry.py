@@ -37,7 +37,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 
 @pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
-def test_modified_keq_janaf_H2_matches_closed_form_at_2000K_with_oneill():
+def test_modified_keq_janaf_H2_matches_closed_form_at_2000K_with_oneill(validation_plot):
     """`janaf_H2` Geq at T = 2000 K under O'Neill 2002 IW matches the
     closed-form `10^(Keq - 0.5 * log10_fO2)`.
 
@@ -76,6 +76,28 @@ def test_modified_keq_janaf_H2_matches_closed_form_at_2000K_with_oneill():
     # Sign + scale guards: Geq is positive (10^x) and of order unity.
     assert g > 0
     assert 0.5 < g < 5.0
+
+    def figure():
+        import matplotlib.pyplot as plt
+
+        grid = np.linspace(1500.0, 3000.0, 61)
+        fig, ax = plt.subplots()
+        ax.plot(grid, [math.log10(mk(t, fO2_shift=0.0)) for t in grid], label='janaf_H2')
+        ax.plot(
+            grid,
+            [math.log10(mk_schaefer(t, fO2_shift=0.0)) for t in grid],
+            ls='--',
+            label='schaefer_H',
+        )
+        ax.plot([T], [math.log10(expected)], 's', ms=10, mfc='none', label='closed form')
+        ax.plot([T], [math.log10(g)], 'o', label='code, janaf_H2')
+        ax.plot([T], [math.log10(wrong)], 'x', label='code, schaefer_H')
+        ax.set(xlabel='T [K]', ylabel=r'$\log_{10} G_\mathrm{eq}$ (H$_2$/H$_2$O)')
+        ax.legend()
+        fig.tight_layout()
+        return fig
+
+    validation_plot(figure, 'chemistry_janaf_h2_2000k')
 
 
 @pytest.mark.physics_invariant
@@ -190,7 +212,9 @@ def _rows_in_fit_range(janaf_log_k, product):
 @pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
 @pytest.mark.parametrize('product', ['H2S', 'NH3'], ids=['hydrogen_sulfide', 'ammonia'])
-def test_janaf_constant_matches_janaf_rows_over_fit_range(janaf_log_k, product):
+def test_janaf_constant_matches_janaf_rows_over_fit_range(
+    janaf_log_k, product, validation_plot
+):
     """The doubled-form constant matches every NIST-JANAF row from 700 to 5000 K.
 
     Reference: JANAF 4th ed. log Kf columns in `tools/` (H2S: log Kf(H2S) -
@@ -201,16 +225,37 @@ def test_janaf_constant_matches_janaf_rows_over_fit_range(janaf_log_k, product):
     assert T[-1] == pytest.approx(JANAF_FIT_RANGE_K[1])
     fit = _per_mole_log_k(product, T)
     assert np.max(np.abs(fit - janaf)) < JANAF_FIT_TOL_DEX[product]
-    # Discrimination: the discriminating fits miss the rows by far more.
+    # Discrimination: the wrong fits miss the rows by far more.
     a, b = DISCRIMINATING_FIT[product]
     assert np.max(np.abs(0.5 * (a / T - b) - janaf)) > 3 * JANAF_FIT_TOL_DEX[product]
     # Sign: the formation reactions are exothermic, so log K falls with T.
     assert np.all(np.diff(fit) < 0)
 
+    def figure():
+        import matplotlib.pyplot as plt
+
+        tol = JANAF_FIT_TOL_DEX[product]
+        fig, (top, bottom) = plt.subplots(2, 1, sharex=True, height_ratios=[2, 1])
+        top.plot(T, janaf, 'o', ms=3, label='JANAF rows')
+        top.plot(T, fit, label=f'janaf_{product}')
+        top.plot(T, 0.5 * (a / T - b), ls='--', label='wrong fit')
+        top.set(ylabel=r'$\log_{10} K$ per mole')
+        top.legend()
+        bottom.plot(T, fit - janaf, 'o', ms=3)
+        bottom.axhline(tol, color='0.5', ls=':')
+        bottom.axhline(-tol, color='0.5', ls=':')
+        bottom.set(xlabel='T [K]', ylabel='code − JANAF [dex]')
+        fig.tight_layout()
+        return fig
+
+    validation_plot(figure, f'chemistry_janaf_{product.lower()}_rows')
+
 
 @pytest.mark.reference_pinned
 @pytest.mark.parametrize('product', ['H2S', 'NH3'], ids=['hydrogen_sulfide', 'ammonia'])
-def test_janaf_coefficients_are_least_squares_fit_of_janaf_rows(janaf_log_k, product):
+def test_janaf_coefficients_are_least_squares_fit_of_janaf_rows(
+    janaf_log_k, product, validation_plot
+):
     """The coefficients equal a least-squares a/T - b fit of the JANAF rows in range.
 
     A changed fit range, form or coefficient moves the fit away from the code.
@@ -221,6 +266,19 @@ def test_janaf_coefficients_are_least_squares_fit_of_janaf_rows(janaf_log_k, pro
     # atol because the doubled H2S log K crosses zero near 1830 K.
     np.testing.assert_allclose(fit, slope / T + intercept, rtol=1e-6, atol=1e-6)
     assert fit[0] > fit[-1]
+
+    def figure():
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots()
+        ax.plot(1e4 / T, slope / T + intercept, label='least-squares fit of the JANAF rows')
+        ax.plot(1e4 / T, fit, 'o', ms=3, label=f'janaf_{product}')
+        ax.set(xlabel=r'$10^4 / T$ [K$^{-1}$]', ylabel=r'$2 \log_{10} K$')
+        ax.legend()
+        fig.tight_layout()
+        return fig
+
+    validation_plot(figure, f'chemistry_janaf_{product.lower()}_fit')
 
 
 @pytest.fixture

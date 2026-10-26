@@ -53,7 +53,7 @@ class TestSolubilityH2O:
 
     @pytest.mark.physics_invariant
     @pytest.mark.reference_pinned
-    def test_peridotite_default_matches_sossi_2023_fit(self):
+    def test_peridotite_default_matches_sossi_2023_fit(self, validation_plot):
         """Sossi et al. (2023) peridotite H2O fit: `ppmw = 524 * p^0.5`.
 
         `SolubilityH2O('peridotite')` is the package-wide default; the
@@ -69,16 +69,50 @@ class TestSolubilityH2O:
         # Zero-pressure boundary: identically zero by power-law definition.
         assert s(0.0) == 0.0
         # At p = 100 bar: 524 * sqrt(100) = 5240 ppmw.
-        val = s(100.0)
+        p = 100.0
+        val = s(p)
         expected = 524.0 * 10.0
         assert val == pytest.approx(expected, rel=1e-12)
         # Wrong-law guard: basalt_dixon would give 9650, off by ~84%.
-        assert abs(val - 965.0 * 10.0) > 1000.0
+        wrong_dixon, wrong_exponent = 965.0 * 10.0, 524.0 * 100.0
+        assert abs(val - wrong_dixon) > 1000.0
         # Wrong-exponent guard: p^1.0 instead of p^0.5 would give 52400.
-        assert abs(val - 524.0 * 100.0) > 1000.0
+        assert abs(val - wrong_exponent) > 1000.0
         # Sign + scale guards: positive ppmw, order 1e3 to 1e4 at 100 bar.
         assert val > 0
         assert 1e3 < val < 1e4
+
+        def figure():
+            import matplotlib.pyplot as plt
+
+            grid = [10 ** (k / 10) for k in range(0, 31)]
+            fig, ax = plt.subplots()
+            ax.plot(grid, [s(p) for p in grid], label='code, peridotite')
+            dixon = SolubilityH2O('basalt_dixon')
+            ax.plot(grid, [dixon(p) for p in grid], ls='--', label='code, Dixon basalt')
+            ax.plot(
+                [p, p], [wrong_dixon, wrong_exponent], 'x', label='wrong values of the test'
+            )
+            ax.plot(
+                [p],
+                [expected],
+                's',
+                ms=10,
+                mfc='none',
+                label=r'524 $p^{0.5}$ (Sossi et al. 2023)',
+            )
+            ax.plot([p], [val], 'o', label='code at 100 bar')
+            ax.set(
+                xscale='log',
+                yscale='log',
+                xlabel='H$_2$O partial pressure [bar]',
+                ylabel='dissolved H$_2$O [ppmw]',
+            )
+            ax.legend()
+            fig.tight_layout()
+            return fig
+
+        validation_plot(figure, 'solubility_h2o_peridotite')
 
     @pytest.mark.physics_invariant
     def test_basalt_dixon_matches_published_constant(self):
@@ -210,7 +244,7 @@ class TestSolubilityS2_xFeO:
 
     @pytest.mark.physics_invariant
     @pytest.mark.reference_pinned
-    def test_default_call_matches_gaillard_2022_earth_mantle_value(self):
+    def test_default_call_matches_gaillard_2022_earth_mantle_value(self, validation_plot):
         """Pin S2 ppmw under Gaillard et al. (2022) Earth-mantle defaults.
 
         At p_S2 = 1 bar, T = 2500 K, fO2_shift = 0, x_FeO = 10 wt%, and
@@ -228,14 +262,38 @@ class TestSolubilityS2_xFeO:
         test_oxygen_fugacity.
         """
         s = SolubilityS2()
-        out = s(1.0, 2500.0, 0.0)
+        T, pinned, fischer_value = 2500.0, 13248.67, 13085.87
+        out = s(1.0, T, 0.0)
         # Regression pin: computed at default x_FeO=10.0 with Hirschmann 2021.
-        assert out == pytest.approx(13248.67, rel=1e-5)
+        assert out == pytest.approx(pinned, rel=1e-5)
         # Wrong-buffer guard: the Fischer 2011 buffer gives 13085.87.
-        assert abs(out - 13085.87) > 100.0
+        assert abs(out - fischer_value) > 100.0
+
+        def figure():
+            import matplotlib.pyplot as plt
+
+            grid = [T - 100.0 + 10.0 * k for k in range(21)]
+            fischer = SolubilityS2(fO2_model='fischer')
+            fig, ax = plt.subplots()
+            ax.plot(grid, [s(1.0, t, 0.0) for t in grid], label='code, Hirschmann buffer')
+            ax.plot(
+                grid,
+                [fischer(1.0, t, 0.0) for t in grid],
+                ls='--',
+                label='code, Fischer buffer',
+            )
+            ax.plot([T], [pinned], 's', ms=10, mfc='none', label='pinned value')
+            ax.plot([T], [out], 'o', label='code at 2500 K')
+            ax.plot([T], [fischer_value], 'x', label='Fischer value of the test')
+            ax.set(xlabel='T [K]', ylabel='dissolved S [ppmw] at 1 bar, IW+0')
+            ax.legend()
+            fig.tight_layout()
+            return fig
+
         # Sign and scale guards: positive ppmw, order 1e4 at these conditions.
         assert out > 0
         assert 1e3 < out < 1e5
+        validation_plot(figure, 'solubility_s2_2500k')
 
     @pytest.mark.physics_invariant
     @pytest.mark.parametrize(
@@ -581,7 +639,7 @@ class TestSolubilityNobleGas:
 
     @pytest.mark.physics_invariant
     @pytest.mark.reference_pinned
-    def test_every_gas_constant_pinned_to_independent_literal(self):
+    def test_every_gas_constant_pinned_to_independent_literal(self, validation_plot):
         """Pin each noble gas Henry constant [ppmw/bar] to an independently
         hand-computed literal, so a fat-fingered entry in `JAMBON86_STP_HENRY`
         or `molar_mass` for ANY of the five gases fails here even on a CI
@@ -598,8 +656,9 @@ class TestSolubilityNobleGas:
             'Kr': 0.112229,
             'Xe': 0.099642,
         }
+        consts = {gas: jambon86_ppmw_per_bar(gas) for gas in noble_gases}
         for gas in noble_gases:
-            assert jambon86_ppmw_per_bar(gas) == pytest.approx(expected[gas], rel=1e-4)
+            assert consts[gas] == pytest.approx(expected[gas], rel=1e-4)
 
         # Discrimination guard: the constants are close for several pairs
         # (He/Ar/Xe all near 0.1), so pin that each gas differs from every
@@ -619,6 +678,20 @@ class TestSolubilityNobleGas:
         # constant 1000x too small (order 1e-4). All five are order 1e-1.
         for gas in noble_gases:
             assert 1e-2 < jambon86_ppmw_per_bar(gas) < 1e0
+
+        def figure():
+            import matplotlib.pyplot as plt
+
+            gases = list(noble_gases)
+            fig, ax = plt.subplots()
+            ax.bar(gases, [consts[g] for g in gases], color='0.75', label='code')
+            ax.plot(gases, [expected[g] for g in gases], 'o', label='hand-computed literal')
+            ax.set(ylabel='Henry constant [ppmw bar$^{-1}$]')
+            ax.legend()
+            fig.tight_layout()
+            return fig
+
+        validation_plot(figure, 'solubility_noble_constants')
 
     def test_conversion_matches_closed_form_for_every_gas(self):
         """`jambon86_ppmw_per_bar` reproduces the closed-form chain
@@ -665,7 +738,7 @@ class TestSolubilityNobleGas:
 
     @pytest.mark.physics_invariant
     @pytest.mark.reference_pinned
-    def test_noble_constants_cross_check_against_atmodeller(self):
+    def test_noble_constants_cross_check_against_atmodeller(self, validation_plot):
         """Cross-implementation check: CALLIOPE and atmodeller derive the
         Jambon et al. (1986) Henry constants from the same primitives for all
         five gases, so the two backends must agree to floating point. This is
@@ -676,6 +749,7 @@ class TestSolubilityNobleGas:
         from atmodeller.solubility import get_solubility_models
 
         models = get_solubility_models()
+        pairs = []
         for gas in noble_gases:
             cal = jambon86_ppmw_per_bar(gas)
             model = models[f'{gas}_basalt_jambon86']
@@ -686,12 +760,32 @@ class TestSolubilityNobleGas:
             except TypeError:
                 atm = float(model.concentration(1.0))
             assert cal == pytest.approx(atm, rel=1e-10), f'{gas}: {cal} vs {atm}'
+            pairs.append((gas, cal, atm))
 
         # Discrimination guard: the five constants are distinct, so a
         # transcription that reused He's value for every gas would fail the
         # per-gas comparison. Confirm they span a real range.
         vals = [jambon86_ppmw_per_bar(g) for g in noble_gases]
         assert max(vals) / min(vals) > 2.0
+
+        def figure():
+            import matplotlib.pyplot as plt
+
+            fig, ax = plt.subplots()
+            ax.plot([0.08, 0.3], [0.08, 0.3], color='0.5', ls=':', label='1:1')
+            for gas, cal, atm in pairs:
+                ax.plot([atm], [cal], 'o', label=gas)
+            ax.set(
+                xscale='log',
+                yscale='log',
+                xlabel='atmodeller at 1 bar [ppmw]',
+                ylabel='CALLIOPE constant [ppmw bar$^{-1}$]',
+            )
+            ax.legend()
+            fig.tight_layout()
+            return fig
+
+        validation_plot(figure, 'solubility_noble_atmodeller')
 
     @pytest.mark.physics_invariant
     def test_henry_law_is_linear_in_pressure(self):

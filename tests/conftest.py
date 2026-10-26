@@ -28,6 +28,11 @@ def pytest_collection_modifyitems(items):
         raise pytest.UsageError('tests without a positive timeout mark: ' + ' '.join(bad))
 
 
+def pytest_sessionstart(session):
+    """Build the matplotlib font cache before the first plotting test and its time limit."""
+    from matplotlib import font_manager  # noqa: F401
+
+
 @pytest.fixture(autouse=True)
 def _seed_global_rng():
     """Start every test from global NumPy RNG seed 0, so its solver restarts repeat."""

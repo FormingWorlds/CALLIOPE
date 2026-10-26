@@ -25,7 +25,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 
 @pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
-def test_calculate_mantle_mass_recovers_wang_2018_earth_core_fraction():
+def test_calculate_mantle_mass_recovers_wang_2018_earth_core_fraction(validation_plot):
     """Earth-like inputs recover Wang, Lineweaver & Ireland (2018) Earth
     core mass fraction 0.325.
 
@@ -36,25 +36,21 @@ def test_calculate_mantle_mass_recovers_wang_2018_earth_core_fraction():
     Earth mass, and `core_frac = 0.55` (Earth-like core radius fraction), the
     computed core mass equals `0.325 * M_earth` by construction; the mantle
     mass is `(1 - 0.325) * M_earth = 0.675 * M_earth`.
-
-    Cross-check: the reduced-mass orbital test in PROTEUS's satellite module
-    uses the same 0.325 core-fraction value for Earth-Moon decomposition, so
-    this pin keeps the two codes consistent.
     """
+    core_frac = 0.55
     expected = (1.0 - 0.325) * M_earth
-    mantle = calculate_mantle_mass(R_earth, M_earth, core_frac=0.55)
+    mantle = calculate_mantle_mass(R_earth, M_earth, core_frac=core_frac)
     # rel=1e-6 because the only source of error is float32->float64 promotion
     # in the constants module; the formula is closed-form and deterministic.
     assert mantle == pytest.approx(expected, rel=1e-6)
-    # Exponent-error guard: a regression to `(radius * core_frac)**2.0` lands
-    # at a wildly different mass (the core volume scales as r^3 by physics,
-    # not r^2). At Earth scale the r^2 form would give ~3e18 kg, ~6 orders
-    # below the correct 1.95e24 kg.
+    # Exponent-error guard: the core volume scales as r^3, not r^2. At Earth
+    # scale an r^2 core is 5.6e17 kg against the correct core of 1.94e24 kg
+    # (0.325 M_earth).
     wrong_r2 = M_earth - (
-        ((3.0 * 0.325 * M_earth) / (4.0 * 3.14159265 * (0.55 * R_earth) ** 3.0))
+        ((3.0 * 0.325 * M_earth) / (4.0 * 3.14159265 * (core_frac * R_earth) ** 3.0))
         * (4.0 / 3.0)
         * 3.14159265
-        * (R_earth * 0.55) ** 2.0
+        * (R_earth * core_frac) ** 2.0
     )
     assert abs(mantle - wrong_r2) > 0.1 * M_earth
     # Sign guard: mantle mass is always positive for valid Earth-like input.
@@ -62,6 +58,33 @@ def test_calculate_mantle_mass_recovers_wang_2018_earth_core_fraction():
     # Scale guard: order of magnitude is 4e24 kg (between 1e24 and 1e25),
     # not 4e21 (forgotten kg->g) or 4e27 (forgotten g->kg).
     assert 1e24 < mantle < 1e25
+
+    def figure():
+        import matplotlib.pyplot as plt
+
+        grid = [0.30 + 0.02 * k for k in range(21)]
+        fig, ax = plt.subplots()
+        ax.plot(
+            grid,
+            [calculate_mantle_mass(R_earth, M_earth, core_frac=c) / M_earth for c in grid],
+            label='calculate_mantle_mass',
+        )
+        ax.plot(
+            [core_frac],
+            [expected / M_earth],
+            's',
+            ms=10,
+            mfc='none',
+            label=r'$1 - 0.325$ (Wang et al. 2018)',
+        )
+        ax.plot([core_frac], [mantle / M_earth], 'o', label='code, core radius 0.55')
+        ax.plot([core_frac], [wrong_r2 / M_earth], 'x', label=r'core volume with $r^2$')
+        ax.set(xlabel='core radius / planet radius', ylabel=r'mantle mass / $M_\oplus$')
+        ax.legend()
+        fig.tight_layout()
+        return fig
+
+    validation_plot(figure, 'structure_earth_mantle_mass')
 
 
 @pytest.mark.physics_invariant
