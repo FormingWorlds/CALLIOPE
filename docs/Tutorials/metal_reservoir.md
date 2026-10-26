@@ -284,7 +284,7 @@ O budget 1.3129e+20 kg, gas + melt O 1.3129e+20 kg
 O_kg_core 1.940e+21 kg
 ```
 
-This is a round trip: the O of a buffered solve, given back as a budget, must give back the $\Delta\mathrm{IW}$ of that buffered solve. The solve returns +0.5, and the gas and melt O equal the budget. The metal holds about 15 times more O than the gas and the melt, and none of it is counted in the budget. The guess `p_guess` holds the 4 primary partial pressures and `fO2_shift_IW`; without it, the solve starts from random guesses and can take minutes here, instead of a fraction of a second.
+This is a round trip: the O of a buffered solve, given back as a budget, must give back the $\Delta\mathrm{IW}$ of that buffered solve. The solve returns +0.5, and the gas and melt O equal the budget. The metal holds about 15 times more O than the gas and the melt, and none of it is counted in the budget. The guess `p_guess` holds the 4 primary partial pressures and `fO2_shift_IW`; without it, the solve starts from random guesses and can take a minute or more here, instead of a fraction of a second.
 
 ## Where to go next
 

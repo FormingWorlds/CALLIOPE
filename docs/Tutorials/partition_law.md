@@ -24,7 +24,7 @@ $$
 \log_{10} K_D = \log_{10} D_\mathrm{H}^\mathrm{metal/silicate} + \frac{1}{4}\Delta\mathrm{IW} = a + \frac{b}{T} + c\,\frac{P}{T} + d \cdot \log_{10}\left(1 - x'^\mathrm{metal}_\mathrm{C}\right),
 $$
 
-with $a = 2.31(20)$, $b = -1542(500)$, $c = -38.9(78)$ and $d = 6.69(30)$ (p. 3; the numbers in brackets are the 1-sigma errors of the last digits). $T$ is in K and $P$ in GPa. The other definitions:
+with $a = 2.31(20)$, $b = -1542(500)$, $c = -38.9(78)$ and $d = 6.69(30)$ (p. 3; the numbers in brackets are the 1-sigma errors of the last digits). $T$ is in K and $P$ in GPa. $K_D$ is the exchange coefficient of the reaction of H with FeO (see [Metal reservoir](../Explanations/metal.md)). The other definitions:
 
 - $D_\mathrm{H} = x'^\mathrm{metal}_\mathrm{H} / x^\mathrm{silicate}_\mathrm{HO_{0.5}}$, a ratio of mole fractions (Eq. 1, p. 2). The note under their Table 1 (p. 2) says: "D$_\mathrm{H}$ and D$_\mathrm{C}$ are based on molar concentrations".
 - $x'_i = N_i / \sum_{k \ne \mathrm{H,C}} N_k$, the mole fraction over the metal without H and C (Eq. 10, p. 8).
@@ -37,7 +37,7 @@ $$
 \log_{10} D_\mathrm{H} = 2.31 - \frac{1542}{T} - 38.9\,\frac{P}{T} - 0.25\,\Delta\mathrm{IW} + 6.69\,\log_{10}(1 - x'_\mathrm{C}).
 $$
 
-Compare it term by term with the law of the file, $\log_{10} D = a + b/T + c\,P/T + d \cdot \mathrm{dIW\_factor} \cdot \Delta\mathrm{IW} + e\,(\mathrm{NBO/T}) + \sum_j \varepsilon_j \log_{10}(1 - X_j)$:
+The letters of the paper are not the field names of the file: the paper's $d$ multiplies $\log_{10}(1 - x'_\mathrm{C})$ and goes into the file field `eps`, while the file field `d` multiplies $\Delta\mathrm{IW}$. Compare the law term by term with the law of the file, $\log_{10} D = a + b/T + c\,P/T + d \cdot \mathrm{dIW\_factor} \cdot \Delta\mathrm{IW} + e\,(\mathrm{NBO/T}) + \sum_j \varepsilon_j \log_{10}(1 - X_j)$:
 
 | Paper (Eq. 3) | File field | Value | Why |
 |---|---|---|---|
@@ -45,13 +45,12 @@ Compare it term by term with the law of the file, $\log_{10} D = a + b/T + c\,P/
 | paper $b$ | `b` | -1542.0 | same term, $T$ in K |
 | paper $c$ | `c` | -38.9 | same term, $P$ in GPa |
 | $\frac{1}{4}\Delta\mathrm{IW}$ on the left | `d`, `dIW_factor` | -0.25, 1.0 | moved to the right, so the sign changes |
-| no NBO/T term | `e` | 0.0 | |
+| no NBO/T term (NBO/T: how polymerised the melt is) | `e` | 0.0 | |
 | paper $d \cdot \log_{10}(1 - x'_\mathrm{C})$ | `eps` | `{ C = 6.69 }` | CALLIOPE takes $X_j$ on the same $x'$ basis (Eq. 10) |
 | fits $K_D$ | `quantity` | `"K_D"` | what the source fits; the law still gives $D$, because the $\Delta\mathrm{IW}$ term holds the conversion |
 | $D$ over $x'$ in the metal | `basis` | `"mole_xprime_noHC"` | Eq. 1 and Eq. 10 |
 | H in the melt as HO$_{0.5}$ | `silicate_basis` | `"single_cation"` | see below |
 
-The letters of the paper are not the field names of the file: the paper's $d$ multiplies $\log_{10}(1 - x'_\mathrm{C})$ and goes into the file field `eps`, while the file field `d` multiplies $\Delta\mathrm{IW}$.
 
 `silicate_basis`: Tsutsumi et al. count H in the melt as HO$_{0.5}$ units. CALLIOPE counts the melt on the single-cation basis, one unit per cation, and H as HO$_{0.5}$. This is the basis with which CALLIOPE reproduces the single-stage core H and C of Tsutsumi et al. (2025, SI Table 1) on the [validation page](../Validation/metal.md#tsutsumi-et-al-2025-single-stage-cores).
 
@@ -213,12 +212,15 @@ This part is for developers. A law in the `log10_linear` form for one of H, C, N
     - `KEYS` and `_entry`: add and check each new field of the form.
     - `_check_read_values`: state which forms and fields the evaluator of each element reads, so that a file with a value the code ignores is refused.
     - The evaluator: a function like `log10_D` for the new form, and the conversion to the mass basis in `mass_D` (or a new function like `exchange_metal` for an exchange reaction).
-    - `BASES`, `QUANTITIES`, `SILICATE_BASES` and `COEFFICIENTS`: add a new basis, fitted quantity, melt basis or numeric coefficient; `_entry` refuses any value outside these tuples.
+    - `BASES`, `QUANTITIES` and `SILICATE_BASES`: add a new basis, fitted quantity or melt basis; `_entry` refuses a value outside these tuples.
+    - `COEFFICIENTS`: add a new numeric coefficient; `KEYS`, the field names that `_entry` accepts, includes it.
     - `ELEMENTS` (and `EXCHANGE_ELEMENTS` for an exchange with FeO): add a new element.
 2. **`src/calliope/solve.py`**, for a new volatile element:
     - `func`, `func_authoritative_O` and `_with_metal`: a budget, a residual and a metal term for the element.
     - The element lists of `_with_metal`: the loops over H, C, N and S, and over O and Si.
     - The loops of `equilibrium_atmosphere` and `equilibrium_atmosphere_authoritative_O` that write `<e>_kg_core`: `_with_metal` reads those keys from each inner solve.
+
+    For a law in a new form for an element that CALLIOPE already partitions, `_with_metal` must call the new evaluator: it calls `mass_D` for H, C, N and S and `exchange_metal` for O and Si by name, and `mass_D` refuses a form other than `log10_linear`.
 3. **The packaged file** `src/calliope/data/partition_coefficients_placeholder.toml`: a law for each new element, so the default table stays complete.
 4. **The docs**: the field table and the placeholder table of [Reference/partition_file.md](../Reference/partition_file.md), and the [explanation page](../Explanations/metal.md) if the physics changes.
 5. **The tests** (`tests/test_metal.py` for `metal.py`; `tests/test_metal_solve.py` and `tests/test_metal_fields.py` for `solve.py`; rules in `tests/AGENTS.md`):
