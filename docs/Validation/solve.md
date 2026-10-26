@@ -8,90 +8,67 @@ Validation here means that we run the code on a case where another source gives 
 The test then checks that the code gives that answer within a stated tolerance.
 On this page the right answer comes from a second CALLIOPE solve that must agree with the first, and from a closed-form result for the noble gases.
 If the solve is wrong, every outgassing step of a PROTEUS run gets the wrong atmosphere.
-The table below lists each case with its reference, and the sections after it explain how the expected values follow.
+Each case below says why the check exists, what it tests, how we know the right answer and why it matters.
+The box "Test details" at the end of each case gives the reference, the tolerance, the test id and the command.
 The cases of the solve with a metal reservoir are on the [metal reservoir page](metal.md).
 
-This page tracks the `@pytest.mark.reference_pinned` tests that anchor the
-behaviour of `calliope.solve` against published or self-consistency sources.
+**The 2 ways to call the solve.**
+`equilibrium_atmosphere(target, ddict)` takes the oxygen fugacity as input: you give the shift $\Delta\mathrm{IW}$ from the iron-wüstite buffer in `ddict['fO2_shift_IW']`, and the solve returns the partial pressures, the mass of each species and the O budget `O_kg_total` that goes with them.
+`equilibrium_atmosphere_authoritative_O(target, ddict)` takes the O budget as input: you give `O_kg_total` in `target['O']`, and the solve finds the $\Delta\mathrm{IW}$ that matches it.
+It treats the oxygen fugacity as a fifth unknown and solves the 5 by 5 mass balance of 4 partial pressures and the oxygen fugacity.
+The [authoritative oxygen](../Explanations/authoritative_oxygen.md) page explains this second way.
 
-| Test id | Reference | Source page | Scope |
-|---|---|---|---|
-| `tests/test_solve.py::test_round_trip_self_consistency_at_earth_fiducial` | Cross-implementation cross-check: CALLIOPE forward `equilibrium_atmosphere` vs CALLIOPE inverse `equilibrium_atmosphere_authoritative_O` | `src/calliope/solve.py` (forward and authoritative-O entry points) | Pins the round-trip property at the Earth-fiducial input: forward solve at `fO2 = IW + 2` produces an O budget; the authoritative-O inverse from that budget recovers `fO2_shift_derived` within 0.05 dex. |
-| `tests/test_noble_gases.py::test_partition_ratio_matches_henry_versus_hydrostatic_column` | Analytical limit: closed-form Henry-versus-hydrostatic-column partition ratio | `src/calliope/solve.py` (noble gas unknowns and reservoir tallies) | Pins the dissolved-to-atmospheric mass ratio of He, Ar, and Xe after the joint solve against the independently computed ratio of the Henry coefficient to the hydrostatic column coefficient, anchoring the noble gas partitioning to first principles and the Jambon et al. (1986) constants. |
+## Round trip between the 2 solves
 
-## Re-derivation note
+**Why this check exists.** The 2 calls share one chemistry, but each has its own O mass balance. An error in the O mass balance of either call, or in the inverse solve, makes the 2 calls disagree on the same planet.
 
-`calliope.solve` exposes two entry points into the equilibrium-chemistry
-solver:
+**What it tests.** An Earth-like planet: $T$ = 1800 K, a fully molten mantle of 4.03e24 kg, budgets of 1.5e20 kg H, 1.5e19 kg C, 8.0e18 kg N and 8.0e20 kg S, every volatile species included, and the default IW buffer. The solve with $\Delta\mathrm{IW}$ = 2 gives an O budget of 1.2254e21 kg; the test requires it between 1e18 and 1e22 kg. The solve with that O budget must then find $\Delta\mathrm{IW}$ = 2 to within 0.05 dex. It finds 2.00004.
 
-- `equilibrium_atmosphere(target, ddict)` (legacy / forward): user
-  supplies `fO2_shift_IW` in `ddict`; the solver returns the equilibrium
-  partial pressures and per-species kg.
-- `equilibrium_atmosphere_authoritative_O(target, ddict)` (authoritative-O
-  inverse): user supplies the target `O_kg_total` in `target['O']`;
-  the solver inverts to find the `fO2_shift_IW` that matches it, then
-  forwards into the same equilibrium engine.
+**How we know the right answer.** The second solve starts from the O budget of the first, so the exact answer is the $\Delta\mathrm{IW}$ of the first solve (a check of one code against itself).
 
-The round-trip is the contract: the inverse must recover the forward-mode
-`fO2_shift_IW` from the forward-mode `O_kg_total`. The test pins this at
-the Earth-fiducial input (`T_magma = 1800 K`, `Phi = 1.0`, Earth-like
-H/C/N/S budget, all volatile species included, `fO2 = IW + 2`) and asserts
-the recovered `fO2_shift_derived` matches the input within 0.05 dex.
+**Why it matters.** PROTEUS uses the first call with `planet.fO2_source = "user_constant"` and the second with `"from_O_budget"`. The 2 settings must describe the same planet the same way.
 
-Anchor type: forward-inverse closure of one engine. Both entry points
-share the same equilibrium chemistry. The legacy mode takes
-`fO2_shift_IW` as a control variable and returns the implied `O_kg_total`;
-the authoritative-O mode treats `fO2_shift_IW` as a fifth unknown and
-solves the 5x5 mass-balance system (four partial pressures plus fO2) for
-the `fO2_shift_derived` that reproduces the supplied `O_kg_total`. Their
-round-trip agreement is the property the test pins. A regression that
-broke either the forward O mass-balance or the inverse solve would lose
-the round-trip within 0.1 dex; the 0.05 dex envelope catches a
-coefficient-only bug.
+??? info "Test details"
+    - Reference: cross-check of the 2 CALLIOPE calls: `equilibrium_atmosphere` against `equilibrium_atmosphere_authoritative_O`.
+    - Tolerance: 0.05 dex on the recovered $\Delta\mathrm{IW}$; O budget between 1e18 and 1e22 kg.
+    - Test id: `tests/test_solve.py::test_round_trip_self_consistency_at_earth_fiducial`
+    - Command: `pytest tests/test_solve.py -k round_trip_self_consistency`
 
-## Cross-cutting topical test files
+## Noble gases between melt and atmosphere
 
-`solve.py` is large (>1200 LOC) and its full test surface is split across
-several topical cross-cutting files for readability:
+**Why this check exists.** The solve puts each noble gas into the melt by its Henry constant and into the atmosphere by its partial pressure. A wrong formula for the mass of the gas column, a wrong prefactor of the dissolved mass, or the constant of one gas used for another gives the wrong split.
 
-- `tests/test_authoritative_O.py` and siblings: authoritative-O entry
-  point contract, monotonicity (`test_authoritative_O_monotonicity.py`),
-  input validation (`test_authoritative_O_validation.py`).
-- `tests/test_equilibrium_paths.py`: forward solver behaviour on
-  multi-species compositions.
-- `tests/test_partial_species.py`: partial-species (some elements
-  excluded) branches.
-- `tests/test_stoichiometry.py`: stoichiometric ratios across the
-  published reactions.
-- `tests/test_targets.py`: target-element-budget computation.
-- `tests/test_noble_gases.py`: noble gas (He, Ne, Ar, Kr, Xe)
-  partitioning, mass closure, the mean-molar-mass coupling, and the
-  target builders.
-- `tests/test_invariants.py`: per-element / per-species closure
-  invariants.
-- `tests/test_invariants_hypothesis.py`: property-based fuzz tests at
-  the slow tier.
+**What it tests.** An Earth-scale magma ocean ($T$ = 1800 K, fully molten mantle of 4.0e24 kg, gravity 9.81 m s$^{-2}$, radius 6.37e6 m) with H, C, N, O and S and the noble gases. For He, Ar and Xe the ratio of the dissolved mass to the atmospheric mass after the solve must equal the closed-form ratio to a relative 1e-6. For He the ratio must lie between 0 and 10.
 
-This is a documented exception to the strict 1:1 source-to-test
-mirroring rule for sources >500 LOC where the test topics are
-independent enough that consolidation would hurt readability.
+**How we know the right answer.** For a noble gas the dissolved mass is $10^{-6}\,M_\mathrm{mantle}\,\Phi\,k\,p$ and the atmospheric mass is $10^5\,(A/g)\,(M/\mu)\,p$. Here $p$ \[bar\] is its partial pressure, $k$ \[ppmw bar$^{-1}$\] its Henry constant of Jambon et al. (1986), $\Phi$ the melt fraction, $A = 4\pi R^2$ the surface area, $g$ the gravity, $M$ its molar mass and $\mu$ the mean molar mass of the gas. The ratio of the 2 does not depend on $p$ (an analytical limit). The value of $k$ itself is checked on the [solubility page](solubility.md#noble-gas-henry-constants).
 
-## Metal reservoir
+**Why it matters.** This split decides how much of each noble gas the atmosphere holds, and so how much escape can remove.
 
-The cases of the solve with a metal reservoir (`metal_mass` above zero) are on the [metal reservoir validation page](metal.md).
+??? info "Test details"
+    - Reference: analytical limit, the ratio of the Henry coefficient to the coefficient of the hydrostatic column.
+    - Tolerance: relative 1e-6 for He, Ar and Xe; $0 < M_\mathrm{liquid}/M_\mathrm{atm} < 10$ for He.
+    - Test id: `tests/test_noble_gases.py::test_partition_ratio_matches_henry_versus_hydrostatic_column`
+    - Command: `pytest tests/test_noble_gases.py -k partition_ratio_matches_henry`
 
-## Anchor types
+**Known limit.** No case on this page compares CALLIOPE with atmodeller. The comparison at the Earth case is in `scripts/cross_backend/` and on the [cross-code comparison](../Explanations/cross_backend_comparison.md) page, not in the test suite.
 
-- Self-consistency cross-implementation (round-trip forward vs inverse).
-- Future addition: cross-backend cross-check (CALLIOPE vs atmodeller at
-  the Earth-fiducial) at the slow tier, once `scripts/cross_backend/`
-  fixtures land in `tests/`.
+## Other tests of the solve
 
-## Cross-references
+`solve.py` is a large file, so its tests are split by topic:
 
-- `src/calliope/solve.py`: forward and authoritative-O entry points.
-- `docs/Explanations/authoritative_oxygen.md`: user-facing concept page
-  on the authoritative-O entry point.
-- `docs/Explanations/cross_backend_comparison.md`: empirical comparison
-  of CALLIOPE Fischer vs atmodeller Hirschmann at the Earth fiducial
-  (ΔIW = 0.16 dex residual after the buffer-default flip).
+- `tests/test_authoritative_O.py` and the files `test_authoritative_O_*.py`: the contract of the second call, its monotonicity and its input checks.
+- `tests/test_equilibrium_paths.py`: the first call on compositions with many species.
+- `tests/test_partial_species.py`: solves with some elements left out.
+- `tests/test_stoichiometry.py`: the stoichiometric ratios of the reactions.
+- `tests/test_targets.py`: the element budgets.
+- `tests/test_noble_gases.py`: the noble gases (He, Ne, Ar, Kr, Xe): their split, mass closure, their effect on the mean molar mass, and their budgets.
+- `tests/test_invariants.py`: closure of every element and species.
+- `tests/test_invariants_hypothesis.py`: property-based tests at the slow tier.
+
+This split is an exception to the rule of one test file per source file, for sources above 500 lines whose topics are independent.
+
+## Related code and pages
+
+- `src/calliope/solve.py`: the 2 calls of the solve.
+- [Authoritative oxygen](../Explanations/authoritative_oxygen.md): the explanation page of the second call.
+- [Cross-code comparison](../Explanations/cross_backend_comparison.md): CALLIOPE with the Fischer buffer against atmodeller with the Hirschmann buffer at the Earth case, with a residual of 0.16 dex in $\Delta\mathrm{IW}$.
