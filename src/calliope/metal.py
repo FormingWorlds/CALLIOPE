@@ -544,8 +544,12 @@ def exchange_metal(table, p_gpa, t_k, d_iw, oxides=KLB1, elements=('O', 'Si'), c
 
     Raises
     ------
+    PartitionTableError
+        A law of ``elements`` whose form is not ``exchange_KD``.
     ValueError
-        O and Si that leave no iron in the metal (with ``check``) or are not finite.
+        P not finite, T not finite and positive, dIW not finite, a K_D or exchange term
+        beyond the float range (naming the law and its P, T and dIW), or O and Si that
+        leave no iron in the metal (with ``check``) or are not finite.
     """
     for el in elements:
         _need_form(table[el], 'exchange_KD')
