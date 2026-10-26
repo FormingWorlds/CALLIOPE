@@ -126,4 +126,3 @@ The script that gives these numbers is the code of steps 1 to 4 of the [metal re
 - **PROTEUS does not pass `metal_mass`.** A PROTEUS run has no metal reservoir. The reservoir is available in standalone CALLIOPE runs (see [Coupling to PROTEUS](proteus_coupling.md)).
 
 **Where this is checked.** The [metal reservoir validation page](../Validation/metal.md) checks the core term against mass balance, the full solve against a solve with a larger melt, the O bookkeeping of the authoritative-O solve, and the laws against published laboratory values.
-
