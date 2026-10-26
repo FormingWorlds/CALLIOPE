@@ -15,6 +15,7 @@ pull the integration tests into the PR gate's unit selection.
 from __future__ import annotations
 
 import inspect
+import logging
 import math
 import re
 
@@ -37,8 +38,6 @@ class TestEquilibriumAtmosphereIntegration:
     def _run_equilibrium(self, masses, T=2000.0, Phi=0.5, dIW=0.0):
         """Run equilibrium_atmosphere and return result dict."""
         import warnings
-
-        from calliope.solve import equilibrium_atmosphere
 
         ddict = {
             'M_mantle': 4.03e24,
@@ -144,31 +143,15 @@ class TestEquilibriumAtmosphereIntegration:
         """Full C-H-N-S system at S/H 3e-3 converges to a root that closes every element.
 
         S/H 3e-3 lies well above the ratio below which the restarts may not reach a root
-        that keeps S (between 1e-4 and 3e-4 for this case).
+        that keeps S (roughly 3e-4 for this case).
         """
         target = {'H': 1e20, 'C': 1e17, 'N': 1e17, 'S': 3e17}
         result = self._run_equilibrium(target, T=2500.0, Phi=1.0, dIW=0.0)
         assert not result['fallback']
-        P_surf = result.get('P_surf', 0)
-        assert P_surf > 0.0
-
-        # Discrimination guard: a stub that returns a positive constant for
-        # P_surf would pass the bare positivity check. Confirm that P_surf
-        # is in a physically plausible range for this H budget (well under
-        # the ~1e6 bar runaway-greenhouse ceiling and well above the
-        # solver-floor of 1e-30 bar).
-        assert 1e-3 < P_surf < 1e6, (
-            f'P_surf = {P_surf:.4e} bar is outside the physically plausible '
-            f'range for this H budget'
-        )
-
         # Hirschmann buffer; the same solve on Fischer gives 0.35939 bar, on O'Neill 0.5503
-        assert P_surf == pytest.approx(0.361194, rel=1e-4)
-        assert abs(P_surf - 0.359391) > 1e-3
+        assert result['P_surf'] == pytest.approx(0.361194, rel=1e-4)
         for e, target_kg in target.items():
             assert abs(result[f'{e}_res']) <= max(target_kg * RTOL, TRUNC_MASS), e
-            total = result[f'{e}_kg_atm'] + result[f'{e}_kg_liquid']
-            assert total == pytest.approx(target_kg, rel=RTOL), e
 
     def test_trace_sulfur_far_below_hydrogen_returns_the_warned_fallback(self, caplog):
         """S 1e15 kg under H 1e20 kg (S/H 1e-5): the restarts reach no root that closes S.
@@ -185,7 +168,8 @@ class TestEquilibriumAtmosphereIntegration:
         assert len(warning) == 1
         assert re.findall(r'(?:for|,) ([A-Z][a-z]?) \(', warning[0]) == ['S']
         attempts = int(re.search(r'after (\d+) attempts', warning[0]).group(1))
-        assert FALLBACK_ATTEMPTS < attempts < 5000  # nguess of _run_equilibrium
+        # the first fallback comes within a few attempts, then the cap ends the loop
+        assert FALLBACK_ATTEMPTS < attempts <= FALLBACK_ATTEMPTS + 20
         # scalar CHNOS gate of the solve: largest budget x rtol + atol + TRUNC_MASS
         gate = max(target.values()) * RTOL + ATOL + TRUNC_MASS
         assert max(abs(result[f'{e}_res']) for e in 'HCNS') <= gate
@@ -204,4 +188,5 @@ class TestEquilibriumAtmosphereIntegration:
             exec(example[0], namespace)
         assert capsys.readouterr().out.strip() == 'Surface pressure: 0.36 bar'
         assert not namespace['result']['fallback']
-        assert 'No root closes' not in caplog.text
+        assert namespace['result']['fO2_model'] == 'hirschmann'  # Fischer also prints 0.36
+        assert [r for r in caplog.records if r.levelno >= logging.WARNING] == []
