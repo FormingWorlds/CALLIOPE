@@ -14,13 +14,23 @@ pull the integration tests into the PR gate's unit selection.
 
 from __future__ import annotations
 
+import inspect
 import math
+import re
+from pathlib import Path
 
 import pytest
 
 from calliope.constants import volatile_species
+from calliope.solve import FALLBACK_ATTEMPTS, TRUNC_MASS, equilibrium_atmosphere
 
-pytestmark = [pytest.mark.integration, pytest.mark.timeout(480)]
+# 4 x the CALLIOPE-nightly duration of the trace-S fallback test (docs/Explanations/testing.md)
+pytestmark = [pytest.mark.integration, pytest.mark.timeout(780)]
+
+
+_DEFAULTS = inspect.signature(equilibrium_atmosphere).parameters
+RTOL, ATOL = _DEFAULTS['rtol'].default, _DEFAULTS['atol'].default
+NGUESS = 5000
 
 
 class TestEquilibriumAtmosphereIntegration:
@@ -29,8 +39,6 @@ class TestEquilibriumAtmosphereIntegration:
     def _run_equilibrium(self, masses, T=2000.0, Phi=0.5, dIW=0.0):
         """Run equilibrium_atmosphere and return result dict."""
         import warnings
-
-        from calliope.solve import equilibrium_atmosphere
 
         ddict = {
             'M_mantle': 4.03e24,
@@ -51,7 +59,7 @@ class TestEquilibriumAtmosphereIntegration:
                 ddict,
                 hide_warnings=True,
                 print_result=False,
-                nguess=5000,
+                nguess=NGUESS,
             )
         return result
 
@@ -133,25 +141,55 @@ class TestEquilibriumAtmosphereIntegration:
         )
 
     def test_full_chns_converges(self):
-        """Full C-H-N-S system should converge to a physically plausible state."""
-        target = {'H': 1e20, 'C': 1e17, 'N': 1e17, 'S': 1e16}
+        """Full C-H-N-S system at S/H 3e-3 converges to a root that closes every element.
+
+        Below an edge between S/H 1e-4 and 1e-3, set by the BLAS of the machine, the restarts
+        may not reach a root that keeps S: at 3e-4 seeds 0 to 2 converged with OpenBLAS (macOS
+        and the Linux CI runners), and 3 of 12 seeds fell back with Accelerate on arm64. S/H
+        3e-3 lies 3 to 10 times above that edge.
+        """
+        target = {'H': 1e20, 'C': 1e17, 'N': 1e17, 'S': 3e17}
         result = self._run_equilibrium(target, T=2500.0, Phi=1.0, dIW=0.0)
-        P_surf = result.get('P_surf', 0)
-        assert P_surf > 0.0
-
-        # Discrimination guard: a stub that returns a positive constant for
-        # P_surf would pass the bare positivity check. Confirm that P_surf
-        # is in a physically plausible range for this H budget (well under
-        # the ~1e6 bar runaway-greenhouse ceiling and well above the
-        # solver-floor of 1e-30 bar).
-        assert 1e-3 < P_surf < 1e6, (
-            f'P_surf = {P_surf:.4e} bar is outside the physically plausible '
-            f'range for this H budget'
-        )
-
-        # Element budgets must each be conserved to within solver tolerance.
+        assert not result['fallback']
+        # Hirschmann buffer; the same solve on Fischer gives 0.35939 bar, on O'Neill 0.5503
+        assert result['P_surf'] == pytest.approx(0.361194, rel=1e-4)
         for e, target_kg in target.items():
-            total = result.get(f'{e}_kg_atm', 0) + result.get(f'{e}_kg_liquid', 0)
-            assert 0.1 * target_kg < total < 10.0 * target_kg, (
-                f'{e}: total={total:.4e}, target={target_kg:.4e} (order-of-magnitude check)'
-            )
+            assert abs(result[f'{e}_res']) <= max(target_kg * RTOL, TRUNC_MASS), e
+            total = result[f'{e}_kg_atm'] + result[f'{e}_kg_liquid']
+            assert total == pytest.approx(target_kg, rel=RTOL), e
+
+    def test_trace_sulfur_far_below_hydrogen_returns_the_warned_fallback(self, caplog):
+        """S 1e15 kg under H 1e20 kg (S/H 1e-5): the restarts reach no root that closes S.
+
+        The solve returns the fallback after FALLBACK_ATTEMPTS more attempts; its warning
+        names S alone, and the returned state passes the scalar CHNOS mass gate. The size of
+        the S residual depends on round-off and is not pinned.
+        """
+        target = {'H': 1e20, 'C': 1e17, 'N': 1e17, 'S': 1e15}
+        with caplog.at_level('WARNING', logger='fwl.calliope.solve'):
+            result = self._run_equilibrium(target, T=2500.0, Phi=1.0, dIW=0.0)
+        assert result['fallback'] is True
+        warning = [m for m in caplog.messages if 'No root closes' in m]
+        assert len(warning) == 1
+        assert re.findall(r'(?:for|,) ([A-Z][a-z]?) \(', warning[0]) == ['S']
+        attempts = int(re.search(r'after (\d+) attempts', warning[0]).group(1))
+        assert FALLBACK_ATTEMPTS < attempts < NGUESS
+        # scalar CHNOS gate (largest budget x rtol + atol + TRUNC_MASS): it bounds H, C
+        # and N; it exceeds the whole S budget, so it does not bound the S kept
+        gate = max(target.values()) * RTOL + ATOL + TRUNC_MASS
+        assert max(abs(result[f'{e}_res']) for e in 'HCNS') <= gate
+        assert result['P_surf'] == pytest.approx(0.361192, rel=1e-4)
+
+    def test_installation_page_example_prints_the_stated_pressure(self, capsys, caplog):
+        """The solver example of docs/How-to/installation.md converges and prints 0.36 bar."""
+        page = Path(__file__).resolve().parents[1] / 'docs' / 'How-to' / 'installation.md'
+        blocks = re.findall(r'```python\n(.*?)```', page.read_text(), re.S)
+        example = [b for b in blocks if 'equilibrium_atmosphere' in b]
+        assert len(example) == 1
+        namespace = {}
+        with caplog.at_level('WARNING', logger='fwl.calliope.solve'):
+            exec(example[0], namespace)
+        assert capsys.readouterr().out.strip() == 'Surface pressure: 0.36 bar'
+        assert not namespace['result']['fallback']
+        assert namespace['result']['fO2_model'] == 'hirschmann'  # Fischer also prints 0.36
+        assert not caplog.records  # at_level('WARNING') keeps warnings and above only
