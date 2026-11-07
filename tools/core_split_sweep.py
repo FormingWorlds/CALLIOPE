@@ -81,8 +81,10 @@ def run(stratum, out):
 def compare(old_path, new_path):
     old, new = json.load(open(old_path)), json.load(open(new_path))
     assert [r['input'] for r in old] == [r['input'] for r in new], 'not the same stratum'
-    changed, lost, gained = [], [], []
+    changed, lost, gained, other = [], [], [], []
     for k, (a, b) in enumerate(zip(old, new)):
+        if a['outcome'] != b['outcome'] and 'ok' not in (a['outcome'], b['outcome']):
+            other.append((k, a['outcome'], b['outcome']))
         if a['outcome'] == 'ok' and b['outcome'] == 'ok':
             rel = max(
                 abs(b[p][el] - a[p][el]) / a[p][el]
@@ -99,7 +101,8 @@ def compare(old_path, new_path):
     print(
         f'both converge {sum(a["outcome"] == b["outcome"] == "ok" for a, b in zip(old, new))}; '
         f'changed {len(changed)} (above 1e-9: {sum(r > 1e-9 for _, r in changed)}, '
-        f'above 1e-3: {sum(r > 1e-3 for _, r in changed)}); lost {lost}; gained {gained}'
+        f'above 1e-3: {sum(r > 1e-3 for _, r in changed)}); lost {lost}; gained {gained}; '
+        f'error type changed {other}'
     )
 
 

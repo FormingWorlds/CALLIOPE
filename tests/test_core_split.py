@@ -158,8 +158,9 @@ def test_out_of_range_is_evaluated_unclamped_and_flagged(caplog):
 
 def test_zero_metal_and_zero_bulk():
     """M_metal 0 leaves every element in the mantle; a bulk of 0 gives 0 in both."""
-    core, mantle, _ = split_core_mantle(BULK, 0.0, M_SIL, dIW=-2.0)
+    core, mantle, flags = split_core_mantle(BULK, 0.0, M_SIL, dIW=-2.0)
     assert core == {el: 0.0 for el in BULK} and mantle == BULK
+    assert all(flags[el]['D_residual'] == 0.0 for el in BULK)
     core, mantle, _ = split_core_mantle({'S': 0.0}, M_METAL, M_SIL, dIW=-2.0)
     assert core == {'S': 0.0} and mantle == {'S': 0.0}
 
@@ -911,10 +912,12 @@ def test_grid_rule_accepts_a_move_of_up_to_2_ulp():
         g_s = w1 if len(calls) == 1 else w['S'] - k * (w['S'] - root)
         return {'A': 0.2, 'S': g_s}, {'A': 0.8, 'S': 1.0 - g_s}, {'A': 0.2, 'S': g_s}, {}
 
-    _, _, w = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': w0}, {}, False)
+    core, mantle, w = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': w0}, {}, False)
     step = 4 * math.ulp(w1)
     assert calls == [w0, w1, w1 - step, w1 + step]
     assert w['S'] == w1
+    assert core['S'] == pytest.approx(w1, rel=1e-15, abs=0.0)  # M_metal 1 in this map
+    assert core['S'] + mantle['S'] == pytest.approx(1.0, rel=1e-15, abs=0.0)
 
 
 def test_grid_rule_of_the_common_step_judges_each_element_at_its_own_lam():
@@ -923,12 +926,16 @@ def test_grid_rule_of_the_common_step_judges_each_element_at_its_own_lam():
     a1 = math.nextafter(math.nextafter(a0, 1.0), 1.0)
     script_a = iter([a1, a1 - 5e-10])
 
+    calls = []
+
     def evaluate(w, w_melt):
+        calls.append(1)
         return {}, {}, {'A': next(script_a, w['A']), 'B': 0.2 - 0.5 * (w['B'] - 0.2)}, {}
 
     _, _, w = core_split._relaxed_passes(evaluate, {'A': a0, 'B': 0.2 * (1 + 6e-10)}, {}, True)
     assert w['B'] == pytest.approx(0.2, rel=1e-13, abs=0.0)
     assert w['A'] == pytest.approx(a1, rel=1e-9)
+    assert len(calls) == 6  # judged at the common lam, B takes one more pass
 
 
 def _d_residuals(bulk, m_metal, m_sil, diw, w_fixed, core, mantle):
@@ -982,10 +989,12 @@ def test_relaxed_split_reaches_the_damped_root_with_iron(bulk, m_metal, m_sil, d
 
     The root is the only one with iron that damped iterations at lam 0.05 to 0.005 and 40 random starts find.
     """
-    core, mantle, _ = split_core_mantle(bulk, m_metal, m_sil, dIW=diw, w_fixed={'O': 0.02})
+    core, mantle, flags = split_core_mantle(bulk, m_metal, m_sil, dIW=diw, w_fixed={'O': 0.02})
     assert {el: core[el] / m_metal for el in bulk} == pytest.approx(ref, rel=1e-9)
-    assert (
-        max(_d_residuals(bulk, m_metal, m_sil, diw, {'O': 0.02}, core, mantle).values()) <= 1e-9
+    res = _d_residuals(bulk, m_metal, m_sil, diw, {'O': 0.02}, core, mantle)
+    assert max(res.values()) <= 1e-9
+    assert {el: flags[el]['D_residual'] for el in bulk} == pytest.approx(
+        res, rel=1e-6, abs=1e-15
     )
 
 
@@ -1101,4 +1110,25 @@ def test_return_at_the_evaluated_metal_keeps_every_mantle_non_negative():
 
     core, mantle, w = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': w0}, {}, False)
     assert min(mantle.values()) >= 0.0
-    assert w['S'] == pytest.approx(root, rel=1e-15)
+    assert w['S'] == pytest.approx(root, rel=1e-15, abs=0.0)
+
+
+def test_bracket_uses_the_melt_basis_of_the_evaluated_metal():
+    """The root moves with the melt H: the bracket at w takes the melt that evaluated w, not the newer one."""
+    w0 = 0.5
+    w1 = math.nextafter(math.nextafter(w0, 1.0), 1.0)
+    root0 = math.nextafter(w1, 0.0)
+    k = 1e-12 / (w1 - root0)
+    calls = []
+
+    def evaluate(w, w_melt):
+        calls.append(w['S'])
+        root = root0 + 0.01 * (w_melt.get('H', 0.5) - 0.5)
+        g_s = w1 if len(calls) == 1 else w['S'] - k * (w['S'] - root)
+        melt = {'H': 0.5 if len(calls) == 1 else 0.5 + 4e-13}
+        return {'A': 0.2, 'S': g_s}, {'A': 0.8, 'S': 1.0 - g_s}, {'A': 0.2, 'S': g_s}, melt
+
+    _, _, w = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': w0}, {}, False)
+    step = 4 * math.ulp(w1)
+    assert calls == [w0, w1, w1 - step, w1 + step]
+    assert w['S'] == w1

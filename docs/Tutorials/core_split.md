@@ -80,7 +80,7 @@ print('S at 300 GPa, 5500 K: core share', f'{core2["S"] / bulk["S"]:.3f}', flags
 ```
 
 ```console
-S at 300 GPa, 5500 K: core share 0.998 {'out_of_range': 1, 'P_GPa': 209.0, 'T_K': 1400.0, 'dIW': 0.0}
+S at 300 GPa, 5500 K: core share 0.998 {'out_of_range': 1, 'P_GPa': 209.0, 'T_K': 1400.0, 'dIW': 0.0, 'D_residual': 0.0}
 ```
 
 The S law now runs 209 GPa and 1400 K beyond its data. From 60 GPa and 4000 K to this point the $cP/T$ term of the law rises by 1.31 and the $b/T$ term falls by 0.20, so $D_\mathrm{S}$ rises and the core takes 99.8 % of the S. No measurement backs this number. This is why the default point is 60 GPa and 4000 K and not the core-mantle boundary.

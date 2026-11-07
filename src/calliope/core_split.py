@@ -111,17 +111,19 @@ def _plain_fixed_point(evaluate, start, fixed):
 def _relaxed_fixed_point(evaluate, start, fixed):
     """Relaxed passes, first with a step factor per element, then with one for all elements.
 
-    Each element moves lam = 1/(1 - min(s, 0)) of its step g - w, s being the secant slope of g
-    against w of the element over its last 2 passes (as in the metal reservoir of calliope.solve):
-    a falling g is damped, a rising g takes its full step. If those passes do not settle or leave
-    no iron, they start again from ``start`` with the smallest lam for every element, which keeps
-    coupled moves in step. Raises ValueError when the common passes leave no iron and
-    RuntimeError when they do not settle.
+    Each element moves lam = 1/(1 + |s|) of its step g - w, s being the secant slope of g against
+    w of the element over its last 2 passes (as in the metal reservoir of calliope.solve for a
+    falling g; a rising slope from the coupling of elements is damped the same way). If those
+    passes do not settle or leave no iron, they start again from ``start`` with the smallest lam
+    for every element, which keeps coupled moves in step. Raises ValueError when the common
+    passes leave no iron, or do not settle after the first passes left no iron, and RuntimeError
+    when neither settles.
     """
+    iron_out = None
     try:
         out = _relaxed_passes(evaluate, start, fixed, False)
-    except _IronOut:
-        out = None
+    except _IronOut as err:
+        out, iron_out = None, err
     if out is not None:
         return out
     try:
@@ -130,6 +132,8 @@ def _relaxed_fixed_point(evaluate, start, fixed):
         raise ValueError(str(err)) from None
     if out is not None:
         return out
+    if iron_out is not None:
+        raise ValueError(str(iron_out)) from None
     raise RuntimeError(
         f'the metal of the split did not settle in 2 x {MAX_RELAXED_PASSES} relaxed passes'
     )
@@ -154,10 +158,10 @@ def _relaxed_passes(evaluate, start, fixed, common):
     The melt H and C of the pass must have settled too, since they set the silicate units of
     the mole bases. A pass adds at most half of the iron left. An element has settled when its
     step meets the settle test, or when g falls with w, its move at its own lam is within 2 ulp
-    of w and its step within GRID_RTOL of g (the float grid of a steep g); such a pass is
-    returned only when one more pass at its metal moves no element by more than GRID_RTOL, so
-    D at the returned split meets GRID_RTOL. A pass that leaves iron below IRON_FLOOR raises
-    _IronOut.
+    of w and its step within GRID_RTOL of g (the float grid of a steep g), and g - w changes
+    sign within 4 ulp each side of the evaluated w; such a pass is returned at w (core mass
+    fractions w, mantle the rest of the bulk) when no mantle is negative. A pass that leaves
+    iron below IRON_FLOOR raises _IronOut.
     """
     w, w_melt, last = start, {}, {}
     for _ in range(MAX_RELAXED_PASSES):
@@ -189,11 +193,9 @@ def _relaxed_passes(evaluate, start, fixed, common):
                 for el in g
             ):
                 at_w = {el: w[el] * core[el] / g[el] if g[el] else 0.0 for el in g}
-                return (
-                    at_w,
-                    {el: core[el] + mantle[el] - at_w[el] for el in g},
-                    {**fixed, **{el: w[el] for el in g}},
-                )
+                rest = {el: core[el] + mantle[el] - at_w[el] for el in g}
+                if min(rest.values()) >= 0.0:
+                    return at_w, rest, {**fixed, **{el: w[el] for el in g}}
         while sum(move.values()) > 0.5 * (1.0 - sum(w.values())):
             move = {el: 0.5 * v for el, v in move.items()}
         w = {**w, **{el: w[el] + v for el, v in move.items()}}
@@ -256,7 +258,9 @@ def split_core_mantle(
         ``P_GPa``, ``T_K``, ``dIW`` of :func:`calliope.metal.range_distance`. Under
         ``'metal'``: the mole fractions ``x_light`` (all light elements) and ``x_S`` over
         the whole metal, ``S_over_Fe`` (moles), and ``beyond_FeS`` (1 when the metal holds
-        more S than Fe, past FeS; no clamp).
+        more S than Fe, past FeS; no clamp). Per element also ``D_residual``: |w - D w_sil| / w
+        at the returned split, with w = core / M_metal and w_sil = mantle / M_silicate (0 for
+        no core mass).
 
     Raises
     ------
@@ -347,13 +351,14 @@ def split_core_mantle(
             'beyond_FeS': int(n_s > n_fe),
         }
     }
+    w_ret = {**fixed, **{el: core[el] / m_metal for el in bulk}} if m_metal else w
     w_melt = {el: mantle[el] / m_sil for el in ('H', 'C') if el in bulk}
     for el, entry in entries.items():
         dist = range_distance(entry, p_eq, t_eq, d_iw)
         flags[el] = {'out_of_range': int(any(v != 0.0 for v in dist.values())), **dist}
         flags[el]['D_residual'] = 0.0
         if core[el] > 0.0:
-            d = mass_D(entry, p_eq, t_eq, d_iw, w, w_melt, oxides, nbo_t)
+            d = mass_D(entry, p_eq, t_eq, d_iw, w_ret, w_melt, oxides, nbo_t)
             flags[el]['D_residual'] = (
                 abs(core[el] - d * mantle[el] * m_metal / m_sil) / core[el]
             )
