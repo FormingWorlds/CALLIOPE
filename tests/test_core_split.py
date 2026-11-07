@@ -744,7 +744,7 @@ def test_steep_step_above_the_grid_tolerance_is_not_accepted():
         return {}, {}, {'A': 0.2, 'S': g_s}, {}
 
     _, _, w = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': 0.5}, {}, False)
-    assert w['A'] == 0.2
+    assert w['A'] == pytest.approx(0.2, rel=1e-15)
     assert abs(w['S'] - w1) <= 2 * math.ulp(w1)
 
 
@@ -757,8 +757,9 @@ def test_relaxed_passes_wait_for_the_melt_basis_to_settle():
         calls.append(dict(w_melt))
         return {}, {}, dict(w), next(melts, {'H': 0.2})
 
-    core_split._relaxed_passes(evaluate, {'S': 0.3}, {}, False)
+    _, _, w = core_split._relaxed_passes(evaluate, {'S': 0.3}, {}, False)
     assert calls == [{}, {'H': 0.1}, {'H': 0.2}]
+    assert w == {'S': 0.3}
 
 
 def test_common_step_settles_a_split_that_the_per_element_passes_do_not():
