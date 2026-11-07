@@ -815,7 +815,9 @@ SUER_RUNS = [
 ]
 # V3 settings: the 1-sigma of a (Table 3), the X_FeO read for run 7 and the runs stated as misses
 V3_TOL_DEX = 0.47
-V3_XFEO = {7: 0.20}  # Table 1 prints 0.02; its IW -1.06 and Table 2 FeO 25.62 wt% give 0.20
+# Run 7: Table 1 (p. 91) prints X_FeO 0.02, a misprint of 0.20: its IW -1.06 implies 0.2007
+# and its Table 2 (p. 92) FeO of 25.62 wt% gives 0.204 on the single-cation basis
+V3_XFEO = {7: 0.20}
 V3_MISSES = {7}
 
 
@@ -848,12 +850,18 @@ class TestSuer2017:
     @pytest.mark.physics_invariant
     @pytest.mark.reference_pinned
     def test_runs_of_table_1_against_eq7(self, validation_plot, legend_clear):
-        """V3: each run of Suer 2017 Table 1 within V3_TOL_DEX of Eq. 7, except V3_MISSES."""
+        """V3: 8 runs of Suer 2017 Table 1 within 0.47 dex of Eq. 7; run 7 a stated miss at +0.495 dex.
+
+        Run 7 uses X_FeO 0.20, not the printed 0.02 (Table 1, journal p. 91): with X_Fe 0.68 its
+        IW of -1.06 implies 0.2007, and its FeO of 25.62 wt% in Table 2 (p. 92) gives 0.204. With
+        0.2007 the residual would be +0.497 dex, with the printed 0.02 it is -0.505 dex.
+        """
         s = get_law('S', 'suer2017_eq7')
         xs = {run: V3_XFEO.get(run, x) for run, _, _, _, _, x, _, _ in SUER_RUNS}
         model = [_suer(s, p, t, xs[run], xo) for run, p, t, _, _, _, _, xo in SUER_RUNS]
         resid = {r[0]: m - math.log10(r[3]) for r, m in zip(SUER_RUNS, model)}
         assert {run for run, d in resid.items() if abs(d) > V3_TOL_DEX} == V3_MISSES
+        assert resid[7] == pytest.approx(0.495, abs=5e-4)
         # the X_FeO read of each run agrees with its IW = 2 log10(X_FeO / X_Fe) to 0.005
         assert all(
             abs(xs[r] - x_fe * 10 ** (iw / 2)) < 0.005
@@ -1060,6 +1068,17 @@ class TestRegistry:
             get_law('N', 'missing')
         with pytest.raises(PartitionTableError, match='exchange'):
             register_law('O', 'z', _const_law, **_DECL)
+
+    def test_entry_registration_refuses_declarations_another_element_and_non_laws(self):
+        """An entry with declarations or of another element, or a law that is neither, raises."""
+        entry = load_partition_table()['N']
+        with pytest.raises(PartitionTableError, match='own declarations'):
+            register_law('N', 'n2', entry, basis='mass')
+        with pytest.raises(PartitionTableError, match="entry of 'S'"):
+            register_law('S', 'n_as_s', entry)
+        with pytest.raises(PartitionTableError, match='entry or a callable'):
+            register_law('N', 'n3', 2.0)
+        assert ('N', 'n2') not in metal._LAWS and ('S', 'n_as_s') not in metal._LAWS
 
     def test_callable_that_returns_a_non_finite_value_names_the_law(self):
         """A NaN from a registered law raises ValueError with its name and the point."""

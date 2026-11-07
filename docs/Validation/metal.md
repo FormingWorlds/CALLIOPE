@@ -171,7 +171,7 @@ $$
 
 with $T$ in K, $P$ in GPa, $X_\mathrm{FeO}$ the mole fraction of FeO in the silicate melt, $X_\mathrm{O}$ the mole fraction of O in the metal and $C_\mathrm{S}$ the sulfide capacity of the melt. $D_\mathrm{S}$ is a ratio of mole fractions (their Eq. 1). Each run uses its own $X_\mathrm{FeO}$ and $X_\mathrm{O}$ from Table 1, and $\log_{10} C_\mathrm{S} = -5.372$, the value of their Fig. 6 for a pyrolite mantle. Table 1 does not list the $C_\mathrm{S}$ of each run.
 
-For run 7, Table 1 prints $X_\mathrm{FeO}$ = 0.02. The same row gives IW -1.06, and with $\mathrm{IW} = 2\log_{10}(X_\mathrm{FeO}/X_\mathrm{Fe})$ and $X_\mathrm{Fe}$ = 0.68 that needs $X_\mathrm{FeO}$ = 0.20. The FeO of 25.62 wt% in their Table 2 also gives 0.20. The test therefore uses 0.20 for run 7. For the other 8 runs the IW column and $X_\mathrm{FeO}$ agree to 0.005.
+For run 7, Table 1 (p. 91) prints $X_\mathrm{FeO}$ = 0.02, which we read as a misprint of 0.20. The same row gives IW -1.06, and with $\mathrm{IW} = 2\log_{10}(X_\mathrm{FeO}/X_\mathrm{Fe})$ and $X_\mathrm{Fe}$ = 0.68 that needs $X_\mathrm{FeO}$ = 0.2007. The FeO of 25.62 wt% in their Table 2 (p. 92) gives 0.204 on the single-cation basis. The test uses 0.20 for run 7. For the other 8 runs the IW column and $X_\mathrm{FeO}$ agree to 0.005.
 
 **How we know the right answer.** The measured $D_\mathrm{S}$ of each run is in Table 1. The tolerance is 0.47 dex, the 1-sigma uncertainty that Table 3 gives for the coefficient $a$.
 
@@ -182,11 +182,11 @@ For run 7, Table 1 prints $X_\mathrm{FeO}$ = 0.02. The same row gives IW -1.06, 
 
 **How to read the plot.** The x-axis is $\log_{10} D_\mathrm{S}$ from Eq. 7 and the y-axis the measured value. The dashed line is 1:1 and the band is $\pm$0.47 dex around it. Filled points are runs within the band; the open point is run 7. A pass means that 8 runs lie in the band and run 7 lies outside it.
 
-The residual (model minus measurement) is +0.30, -0.12, +0.42, +0.42, +0.03, -0.03, +0.50, +0.15 and +0.38 dex for runs 1 to 9, with a mean of +0.23 dex. Run 7 misses the band by 0.025 dex. With the printed $X_\mathrm{FeO}$ of 0.02 it would miss by 0.04 dex on the other side (-0.51 dex). A possible cause of the mean offset is the $C_\mathrm{S}$ value: it is for a pyrolite melt, while the runs use MORB and KLB-1 melts (Table 1). With $a = -3.30$, the value printed in their Eq. 8, every residual is 0.2 dex larger and 5 runs miss.
+The residual (model minus measurement) is +0.30, -0.12, +0.42, +0.42, +0.03, -0.03, +0.50, +0.15 and +0.38 dex for runs 1 to 9, with a mean of +0.23 dex. Run 7 is a stated miss at +0.495 dex, 0.025 dex outside the band; with the IW value 0.2007 it would be +0.497 dex. With the printed $X_\mathrm{FeO}$ of 0.02 it would miss by 0.04 dex on the other side (-0.51 dex). A possible cause of the mean offset is the $C_\mathrm{S}$ value: it is for a pyrolite melt, while the runs use MORB and KLB-1 melts (Table 1). With $a = -3.30$, the value printed in their Eq. 8, every residual is 0.2 dex larger and 5 runs miss.
 
 ??? info "Test details"
     - Reference: Suer et al. (2017), Eq. 7, Table 1 (runs), Table 3 (coefficients), Fig. 6 ($\log_{10} C_\mathrm{S}$).
-    - Tolerance: 0.47 dex per run, run 7 a stated miss; the law at the default point relative 1e-12; Eq. 8 read with natural logs lies more than 1 dex away.
+    - Tolerance: 0.47 dex per run for 8 runs, run 7 a stated miss pinned at +0.495 dex (5e-4); the law at the default point relative 1e-12; Eq. 8 read with natural logs lies more than 1 dex away.
     - Test id: `tests/test_metal.py::TestSuer2017::test_runs_of_table_1_against_eq7`, `tests/test_metal.py::TestSuer2017::test_eq7_value_at_the_default_point` (unit tier)
     - Command: `pytest tests/test_metal.py -k TestSuer2017`
 
