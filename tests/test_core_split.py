@@ -750,7 +750,7 @@ def test_steep_step_above_the_grid_tolerance_is_not_accepted():
         g_s = next(script, w['S'])
         return {}, {}, {'A': 0.2, 'S': g_s}, {}
 
-    _, _, w = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': 0.5}, {}, False)
+    _, _, w, _ = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': 0.5}, {}, False)
     assert w['A'] == pytest.approx(0.2, rel=1e-15)
     assert abs(w['S'] - w1) <= 2 * math.ulp(w1)
 
@@ -764,7 +764,7 @@ def test_relaxed_passes_wait_for_the_melt_basis_to_settle():
         calls.append(dict(w_melt))
         return {}, {}, dict(w), next(melts, {'H': 0.2})
 
-    _, _, w = core_split._relaxed_passes(evaluate, {'S': 0.3}, {}, False)
+    _, _, w, _ = core_split._relaxed_passes(evaluate, {'S': 0.3}, {}, False)
     assert calls == [{}, {'H': 0.1}, {'H': 0.2}]
     assert w == {'S': 0.3}
 
@@ -912,7 +912,7 @@ def test_grid_rule_accepts_a_move_of_up_to_2_ulp():
         g_s = w1 if len(calls) == 1 else w['S'] - k * (w['S'] - root)
         return {'A': 0.2, 'S': g_s}, {'A': 0.8, 'S': 1.0 - g_s}, {'A': 0.2, 'S': g_s}, {}
 
-    core, mantle, w = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': w0}, {}, False)
+    core, mantle, w, _ = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': w0}, {}, False)
     step = 4 * math.ulp(w1)
     assert calls == [w0, w1, w1 - step, w1 + step]
     assert w['S'] == w1
@@ -932,7 +932,9 @@ def test_grid_rule_of_the_common_step_judges_each_element_at_its_own_lam():
         calls.append(1)
         return {}, {}, {'A': next(script_a, w['A']), 'B': 0.2 - 0.5 * (w['B'] - 0.2)}, {}
 
-    _, _, w = core_split._relaxed_passes(evaluate, {'A': a0, 'B': 0.2 * (1 + 6e-10)}, {}, True)
+    _, _, w, _ = core_split._relaxed_passes(
+        evaluate, {'A': a0, 'B': 0.2 * (1 + 6e-10)}, {}, True
+    )
     assert w['B'] == pytest.approx(0.2, rel=1e-13, abs=0.0)
     assert w['A'] == pytest.approx(a1, rel=1e-9)
     assert len(calls) == 6  # judged at the common lam, B takes one more pass
@@ -987,7 +989,7 @@ def _d_residuals(bulk, m_metal, m_sil, diw, w_fixed, core, mantle):
 def test_relaxed_split_reaches_the_damped_root_with_iron(bulk, m_metal, m_sil, diw, ref):
     """Iron-poor H-C and S-C-H-N splits: the root that a damped iteration (lam 0.005) reaches, with D settled.
 
-    The root is the only one with iron that damped iterations at lam 0.05 to 0.005 and 40 random starts find.
+    G3 has a second root with iron 6e-7; the split prefers the one with more iron.
     """
     core, mantle, flags = split_core_mantle(bulk, m_metal, m_sil, dIW=diw, w_fixed={'O': 0.02})
     assert {el: core[el] / m_metal for el in bulk} == pytest.approx(ref, rel=1e-9)
@@ -1011,7 +1013,7 @@ def test_iron_floor_is_1e_8_of_the_metal(iron, raises):
         with pytest.raises(ValueError, match='below 1e-08 by mass'):
             core_split._relaxed_passes(evaluate, {'S': 0.0}, {}, False)
     else:
-        _, _, w = core_split._relaxed_passes(evaluate, {'S': 0.0}, {}, False)
+        _, _, w, _ = core_split._relaxed_passes(evaluate, {'S': 0.0}, {}, False)
         assert w['S'] == 1.0 - iron
     assert core_split.IRON_FLOOR == pytest.approx(1e-8, rel=0.0)
 
@@ -1046,7 +1048,7 @@ def test_grid_rule_refuses_a_move_of_more_than_2_ulp(ulps):
         g_s = w1 if len(calls) == 1 else w['S'] - k * (w['S'] - root)
         return {'A': 0.2, 'S': g_s}, {'A': 0.8, 'S': 1.0 - g_s}, {'A': 0.2, 'S': g_s}, {}
 
-    _, _, w = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': w0}, {}, False)
+    _, _, w, _ = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': w0}, {}, False)
     assert w['S'] != w1 and abs(w['S'] - root) <= 4 * math.ulp(root)
     assert calls[:2] == [w0, w1] and w1 + 4 * math.ulp(w1) not in calls
 
@@ -1109,7 +1111,7 @@ def test_return_at_the_evaluated_metal_keeps_every_mantle_non_negative():
         g_s = w1 if len(calls) == 1 else w['S'] - k * (w['S'] - root)
         return {'A': 0.2, 'S': g_s}, {'A': 0.8, 'S': 1e-13}, {'A': 0.2, 'S': g_s}, {}
 
-    core, mantle, w = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': w0}, {}, False)
+    core, mantle, w, _ = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': w0}, {}, False)
     assert min(mantle.values()) >= 0.0
     assert w['S'] == pytest.approx(root, rel=1e-15, abs=0.0)
 
@@ -1129,7 +1131,7 @@ def test_bracket_uses_the_melt_basis_of_the_evaluated_metal():
         melt = {'H': 0.5 if len(calls) == 1 else 0.5 + 4e-13}
         return {'A': 0.2, 'S': g_s}, {'A': 0.8, 'S': 1.0 - g_s}, {'A': 0.2, 'S': g_s}, melt
 
-    _, _, w = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': w0}, {}, False)
+    _, _, w, _ = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': w0}, {}, False)
     step = 4 * math.ulp(w1)
     assert calls == [w0, w1, w1 - step, w1 + step]
     assert w['S'] == w1
@@ -1192,7 +1194,7 @@ def test_bracket_end_that_raises_is_no_bracket(sides):
     step = 4 * math.ulp(w1)
     fail_at = (w1 - step, w1 + step) if sides == 'both' else (w1 + step,)
     evaluate, start, calls, w1, root = _steep_stub(fail_at)
-    _, _, w = core_split._relaxed_passes(evaluate, start, {}, False)
+    _, _, w, _ = core_split._relaxed_passes(evaluate, start, {}, False)
     assert w['S'] != w1
     assert w['S'] == pytest.approx(root, rel=1e-15, abs=0.0)
 
@@ -1200,7 +1202,7 @@ def test_bracket_end_that_raises_is_no_bracket(sides):
 def test_return_at_w_takes_a_zero_mantle():
     """An element with no mass has rest 0 at w: the grid accept returns at w all the same."""
     evaluate, start, calls, w1, root = _steep_stub(zero_element=True)
-    core, mantle, w = core_split._relaxed_passes(evaluate, start, {}, False)
+    core, mantle, w, _ = core_split._relaxed_passes(evaluate, start, {}, False)
     step = 4 * math.ulp(w1)
     assert calls == [0.5, w1, w1 - step, w1 + step]
     assert (core['B'], mantle['B'], w['S']) == (0.0, 0.0, w1)

@@ -47,6 +47,8 @@ P_EQ_GPA = 60.0  # Suer et al. 2023 Table 1, deep magma ocean column
 T_EQ_K = 4000.0
 MAX_PASSES = 50
 MAX_RELAXED_PASSES = 1000
+DAMPED_LAM = 0.02  # step factor of the passes that look for a root with more iron
+MAX_DAMPED_PASSES = 20000
 IRON_FLOOR = 1e-8  # iron mass fraction below which a relaxed pass raises ValueError
 GRID_RTOL = 1e-9  # step of a steep g that the float grid of w cannot resolve further
 TOL_W = 1e-12  # relative step of the metal mass fractions that ends the fixed point
@@ -117,21 +119,20 @@ def _relaxed_fixed_point(evaluate, start, fixed):
     passes do not settle or leave no iron, they start again from ``start`` with the smallest lam
     for every element, which keeps coupled moves in step. Raises ValueError when the common
     passes leave no iron, or do not settle after the first passes left no iron, and RuntimeError
-    when neither settles.
+    when neither settles. A return at w with the metal beyond FeS goes to _more_iron.
     """
     iron_out = None
     try:
         out = _relaxed_passes(evaluate, start, fixed, False)
     except _IronOut as err:
         out, iron_out = None, err
+    if out is None:
+        try:
+            out = _relaxed_passes(evaluate, start, fixed, True)
+        except _IronOut as err:
+            raise ValueError(str(err)) from None
     if out is not None:
-        return out
-    try:
-        out = _relaxed_passes(evaluate, start, fixed, True)
-    except _IronOut as err:
-        raise ValueError(str(err)) from None
-    if out is not None:
-        return out
+        return _more_iron(evaluate, start, fixed, out)
     if iron_out is not None:
         raise ValueError(
             f'{iron_out}; the common passes then did not settle in {MAX_RELAXED_PASSES} passes'
@@ -139,6 +140,30 @@ def _relaxed_fixed_point(evaluate, start, fixed):
     raise RuntimeError(
         f'the metal of the split did not settle in 2 x {MAX_RELAXED_PASSES} relaxed passes'
     )
+
+
+def _iron(w):
+    return 1.0 - sum(w.values())
+
+
+def _more_iron(evaluate, start, fixed, out):
+    """The root of damped passes from ``start`` when it holds more iron than a return at w.
+
+    A return at w (``out[3]``) whose metal holds more S than Fe in moles can sit on a root
+    with little iron where an iron-rich root exists too; passes at lam DAMPED_LAM for every
+    element (melt undamped) reach the iron-rich root. This prefers that root; it does not
+    prove the root unique. Damped passes that leave no iron or do not settle keep ``out``.
+    """
+    core, mantle, w, at_w = out
+    if not at_w or w.get('S', 0.0) / _mass('S') <= _iron(w) / _mass('Fe'):
+        return core, mantle, w
+    try:
+        damped = _relaxed_passes(evaluate, start, fixed, True, DAMPED_LAM, MAX_DAMPED_PASSES)
+    except ValueError:
+        damped = None
+    if damped is not None and _iron(damped[2]) > _iron(w):
+        return damped[:3]
+    return core, mantle, w
 
 
 def _bracketed(evaluate, w, w_melt, el, ulps=4):
@@ -154,9 +179,11 @@ def _bracketed(evaluate, w, w_melt, el, ulps=4):
     return excess(w[el] - step) > 0.0 > excess(w[el] + step)
 
 
-def _relaxed_passes(evaluate, start, fixed, common):
-    """Relaxed passes from ``start``; None when they do not settle in MAX_RELAXED_PASSES.
+def _relaxed_passes(evaluate, start, fixed, common, lam_all=None, passes=None):
+    """Relaxed passes from ``start``: (core, mantle, w, at_w), or None when they do not settle.
 
+    ``common`` moves every element at one lam, ``lam_all`` or else the smallest own lam;
+    ``passes`` caps the passes (default MAX_RELAXED_PASSES).
     The melt H and C of the pass must have settled too, since they set the silicate units of
     the mole bases. A pass adds at most half of the iron left. An element has settled when its
     step meets the settle test, or when g falls with w, its move at its own lam is within 2 ulp
@@ -166,7 +193,7 @@ def _relaxed_passes(evaluate, start, fixed, common):
     iron below IRON_FLOOR raises _IronOut.
     """
     w, w_melt, last = start, {}, {}
-    for _ in range(MAX_RELAXED_PASSES):
+    for _ in range(passes or MAX_RELAXED_PASSES):
         core, mantle, g, new_melt = evaluate(w, w_melt)
         melt_settled = _settled(new_melt, w_melt) if w_melt else not new_melt
         w_melt_prev, w_melt = w_melt, new_melt
@@ -177,7 +204,9 @@ def _relaxed_passes(evaluate, start, fixed, common):
                 slope[el] = (gv - last[el][1]) / (w[el] - last[el][0])
             last[el] = (w[el], gv)
         own = {el: 1.0 / (1.0 + abs(s)) for el, s in slope.items()}
-        lam = dict.fromkeys(own, min(own.values())) if common else own
+        lam = own
+        if common:
+            lam = dict.fromkeys(own, min(own.values()) if lam_all is None else lam_all)
         move = {el: lam[el] * (gv - w[el]) for el, gv in g.items()}
         if melt_settled and all(
             _settled({el: g[el]}, {el: w[el]})
@@ -189,7 +218,7 @@ def _relaxed_passes(evaluate, start, fixed, common):
             for el in g
         ):
             if _settled(g, w):
-                return core, mantle, {**fixed, **g}
+                return core, mantle, {**fixed, **g}, False
             if all(
                 _settled({el: g[el]}, {el: w[el]}) or _bracketed(evaluate, w, w_melt_prev, el)
                 for el in g
@@ -197,7 +226,7 @@ def _relaxed_passes(evaluate, start, fixed, common):
                 at_w = {el: w[el] * core[el] / g[el] if g[el] else 0.0 for el in g}
                 rest = {el: core[el] + mantle[el] - at_w[el] for el in g}
                 if min(rest.values()) >= 0.0:
-                    return at_w, rest, {**fixed, **{el: w[el] for el in g}}
+                    return at_w, rest, {**fixed, **{el: w[el] for el in g}}, True
         while sum(move.values()) > 0.5 * (1.0 - sum(w.values())):
             move = {el: 0.5 * v for el, v in move.items()}
         w = {**w, **{el: w[el] + v for el, v in move.items()}}
