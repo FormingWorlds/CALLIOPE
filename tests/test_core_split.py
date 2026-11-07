@@ -1329,3 +1329,38 @@ def test_relaxed_passes_mark_a_return_at_w():
         return {'S': 0.3}, {'S': 0.7}, {'S': 0.3}, {}
 
     assert core_split._relaxed_passes(settled, {'S': 0.0}, {}, False)[3] is False
+
+
+def test_more_iron_skips_a_metal_at_exactly_fes():
+    """S and Fe equal in moles (a float tie at O 0.01) is not past FeS: no damped passes run."""
+    w = {'S': 0.361064785848359, 'O': 0.01}
+    assert w['S'] / core_split._mass('S') == (1.0 - sum(w.values())) / core_split._mass('Fe')
+    calls = []
+
+    def passes(*args):
+        calls.append(args)
+        return {'S': 0.1}, {'S': 0.9}, {'S': 0.1, 'O': 0.01}, False
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(core_split, '_relaxed_passes', passes)
+        got = core_split._more_iron(
+            'ev', {'S': 0.0}, {'O': 0.01}, ({'S': 0.3}, {'S': 0.7}, w, True)
+        )
+    assert calls == []
+    assert got == ({'S': 0.3}, {'S': 0.7}, w)
+
+
+def test_relaxed_fixed_point_skips_the_common_passes_after_a_per_element_root():
+    """A root of the per-element passes is returned; the common passes do not run."""
+    calls = []
+
+    def passes(evaluate, start, fixed, common, lam_all=None, n=None):
+        calls.append(common)
+        share = 0.2 if common else 0.3
+        return {'S': share}, {'S': 1.0 - share}, {'S': share}, False
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(core_split, '_relaxed_passes', passes)
+        got = core_split._relaxed_fixed_point('ev', {'S': 0.0}, {})
+    assert calls == [False]
+    assert got == ({'S': 0.3}, {'S': 0.7}, {'S': 0.3})
