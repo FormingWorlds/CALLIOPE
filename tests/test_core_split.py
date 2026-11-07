@@ -868,8 +868,8 @@ def test_iron_poor_split_that_does_not_settle_raises_runtime_error(
 ):
     """S- or C-rich, iron-poor splits whose relaxed passes do not settle raise RuntimeError by name.
 
-    359 and 2268 have a root with iron that the float grid of the metal does not resolve (one ulp of w
-    moves the returned metal by a D residual of at least 8e-2 and 1e-5); 849 has no root on a grid scan.
+    359 and 2268 have a root with iron (Fe 1.5e-8 and 1.8e-5 by mass, by bisection) that the relaxed
+    passes do not settle on; 849 has no root on a grid scan, which does not prove that none exists.
     """
     calls = []
     real = core_split.mass_D
@@ -1039,3 +1039,19 @@ def test_grid_rule_refuses_a_move_of_more_than_2_ulp():
     _, _, w = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': w0}, {}, False)
     assert w['S'] == root
     assert calls[:2] == [w0, w1] and w1 + 4 * math.ulp(w1) not in calls
+
+
+def test_iron_floor_can_stop_a_split_that_has_a_root_with_iron():
+    """Small-silicate sweep 1078 (H-N): the passes drain the iron to the floor and raise ValueError.
+
+    A damped iteration (lam 0.005) reaches a root with Fe 2.87e-2 by mass; the relaxed passes do not.
+    """
+    with pytest.raises(ValueError, match='a pass leaves iron below 1e-08') as info:
+        split_core_mantle(
+            {'H': 8.691548542853415e21, 'N': 1.2021745831093811e19},
+            8.768672306066827e21,
+            2.125733426050056e18,
+            dIW=-3.5303822081080702,
+            w_fixed={'O': 0.1},
+        )
+    assert type(info.value) is ValueError
