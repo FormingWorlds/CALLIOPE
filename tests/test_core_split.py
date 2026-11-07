@@ -316,3 +316,62 @@ def test_each_entry_warns_once_with_rounded_distances(caplog):
     msgs = [r.message for r in caplog.records if 'outside its range' in r.message]
     assert len(msgs) == 2
     assert all('0.16999' not in m and "'T_K': 1000" in m for m in msgs)
+
+
+def _x_fe(w):
+    """x'_Fe of a metal of light-element mass fractions w (H and C left out of the basis)."""
+    n = {el: v / metal._mass(el) for el, v in w.items()}
+    n_fe = (1.0 - sum(w.values())) / metal._mass('Fe')
+    return n_fe / (n_fe + sum(v for el, v in n.items() if el not in ('H', 'C')))
+
+
+@pytest.mark.physics_invariant
+def test_s_law_takes_its_feo_from_diw_and_the_metal():
+    """X_FeO of the S law is X'_Fe 10^(dIW/2): D_S rises with dIW, the melt oxides do not set it."""
+    bulk = {'S': 1e15}  # trace S, so the metal stays Fe with the fixed O and Si
+    fixed = {'O': 0.02, 'Si': 0.03}
+    share = []
+    for diw in (-3.0, -1.5, -0.5):
+        core, mantle, _ = split_core_mantle(bulk, M_METAL, M_SIL, dIW=diw, w_fixed=fixed)
+        w = {**fixed, 'S': core['S'] / M_METAL}
+        x_feo = _x_fe(w) * 10 ** (diw / 2)
+        n = {el: v / metal._mass(el) for el, v in w.items()}
+        n_tot = sum(n.values()) + (1.0 - sum(w.values())) / metal._mass('Fe')
+        x_o = n['O'] / n_tot  # x' and x agree without H and C
+        log_d = -3.50 + 3000 / 4000 + 33 * 60 / 4000 + math.log10(x_feo) + 5.372
+        log_d += 14 * math.log10(1 - x_o)
+        d_mass = 10**log_d * n_tot / metal.silicate_units_per_kg()
+        assert core['S'] / M_METAL == pytest.approx(d_mass * mantle['S'] / M_SIL, rel=1e-9)
+        share.append(core['S'] / 1e15)
+    assert share[0] < share[1] < share[2]
+    # 1.5 dex of dIW is 0.75 dex of X_FeO: a D_S ratio of 10^0.75 between -3 and -1.5
+    assert (share[1] / (1 - share[1])) / (share[0] / (1 - share[0])) == pytest.approx(
+        10**0.75, rel=1e-9
+    )
+
+
+@pytest.mark.physics_invariant
+def test_melt_oxides_and_nbo_t_reach_the_laws():
+    """NBO/T moves D_C by 10^(0.118 dNBO/T); twice the melt FeO moves D_S only through the units."""
+    base = split_core_mantle({'C': 1e15, 'S': 1e15}, M_METAL, M_SIL, dIW=-1.5)
+    low = split_core_mantle({'C': 1e15, 'S': 1e15}, M_METAL, M_SIL, dIW=-1.5, nbo_t=0.0)
+    ratio = (low[0]['C'] / low[1]['C']) / (base[0]['C'] / base[1]['C'])
+    assert ratio == pytest.approx(10 ** (0.118 * 2.6), rel=1e-9)
+    ox = dict(metal.KLB1, FeO=16.2, MgO=39.22 - 8.1)
+    rich = split_core_mantle({'S': 1e15}, M_METAL, M_SIL, dIW=-1.5, oxides=ox)
+    s_ratio = (rich[0]['S'] / rich[1]['S']) / (base[0]['S'] / base[1]['S'])
+    units = metal.silicate_units_per_kg() / metal.silicate_units_per_kg(ox)
+    assert s_ratio == pytest.approx(units, rel=1e-9)
+    assert abs(s_ratio - 1.0) > 1e-3  # the units differ, so the check can fail
+
+
+@pytest.mark.physics_invariant
+def test_metal_beyond_fes_is_flagged_not_clamped():
+    """A bulk S that makes the metal richer in S than FeS sets beyond_FeS; an Earth-like one does not."""
+    _, _, earth = split_core_mantle(BULK, M_METAL, M_SIL, dIW=-1.5, w_fixed={'O': 0.02})
+    assert earth['metal']['beyond_FeS'] == 0
+    assert 0.0 < earth['metal']['x_light'] < 0.2
+    core, mantle, flags = split_core_mantle({'S': 8e21}, 1e22, M_SIL, dIW=-1.5)
+    assert flags['metal']['beyond_FeS'] == 1
+    assert flags['metal']['x_S'] > 0.5
+    assert abs(core['S'] + mantle['S'] - 8e21) <= 1e-12 * 8e21
