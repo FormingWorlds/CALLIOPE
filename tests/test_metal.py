@@ -17,6 +17,7 @@ import math
 from importlib import resources
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from calliope import metal
@@ -913,7 +914,7 @@ class TestSuer2017:
     def test_feo_term_needs_a_melt_feo_fraction(self):
         """A law with an X_FeO term refuses a missing, zero or above-1 melt X_FeO."""
         s = get_law('S', 'suer2017_eq7')
-        for xsil in (None, {}, {'FeO': 0.0}, {'FeO': 1.5}, {'FeO': math.nan}):
+        for xsil in (None, {}, {'FeO': 0.0}, {'FeO': 1.5}, {'FeO': math.nan}, {'FeO': True}):
             with pytest.raises(ValueError, match='X_FeO'):
                 log10_D(s, 60.0, 4000.0, -1.0, {}, x_silicate=xsil)
 
@@ -954,20 +955,20 @@ class TestOptionalTerms:
         with pytest.raises(PartitionTableError, match=f"'{key}'"):
             load_partition_table(path)
 
+    @pytest.mark.parametrize('key', ['f', 'log10_C_S'])
     @pytest.mark.parametrize('el', ['O', 'Si'])
-    def test_exchange_law_refuses_the_optional_terms(self, tmp_path, el):
+    def test_exchange_law_refuses_the_optional_terms(self, tmp_path, el, key):
         """An exchange_KD entry does not read f or log10_C_S, so either key is refused."""
-        entry = dict(load_partition_table()[el])
         text = (
             resources.files('calliope.data') / 'partition_coefficients_placeholder.toml'
         ).read_text()
-        text = text.replace(
-            f'[{el}]\nform = "exchange_KD"', f'[{el}]\nf = 1.0\nform = "exchange_KD"'
+        bad = text.replace(
+            f'[{el}]\nform = "exchange_KD"', f'[{el}]\n{key} = 1.0\nform = "exchange_KD"'
         )
-        path = _write(tmp_path, text)
-        with pytest.raises(PartitionTableError, match="'f'"):
-            load_partition_table(path)
-        assert entry['form'] == 'exchange_KD'
+        assert bad != text
+        with pytest.raises(PartitionTableError, match=f"'{key}'"):
+            load_partition_table(_write(tmp_path, bad))
+        assert load_partition_table(_write(tmp_path, text))[el]['form'] == 'exchange_KD'
 
     def test_terms_add_f_log_x_feo_and_subtract_log_c_s(self, tmp_path):
         """f 2, log10_C_S -1: log10 D rises by 2 log10 X_FeO + 1 over the same law without them."""
@@ -1085,3 +1086,82 @@ class TestRegistry:
         register_law('N', 'nan_law', lambda *a: math.nan, **_DECL)
         with pytest.raises(ValueError, match='nan_law.*50 GPa'):
             log10_D(get_law('N', 'nan_law'), 50.0, 3000.0, -2.0)
+
+
+class TestCallableAndRegistryChecks:
+    """Arguments passed to a registered callable, its return check, and registry copies."""
+
+    @pytest.fixture(autouse=True)
+    def _own_registry(self, monkeypatch):
+        monkeypatch.setattr(metal, '_LAWS', dict(metal._LAWS))
+
+    def test_callable_receives_conditions_compositions_and_nbo_t(self):
+        """The callable gets P [GPa], T [K], dIW, x' of the metal, melt cation fractions, NBO/T."""
+        seen = []
+
+        def spy(*args):
+            seen.append(args)
+            return 1.0
+
+        register_law('N', 'spy', spy, **_DECL)
+        w_metal = {'O': 0.04, 'S': 0.02}
+        mass_D(get_law('N', 'spy'), 52.0, 3700.0, -1.7, w_metal, {}, nbo_t=1.9)
+        p, t, d_iw, x_metal, x_sil, nbo_t = seen[0]
+        assert (p, t, d_iw, nbo_t) == (52.0, 3700.0, -1.7, 1.9)
+        n = {'O': 0.04 / 15.999, 'S': 0.02 / 32.06, 'Fe': 0.94 / 55.845}
+        assert x_metal['O'] == pytest.approx(n['O'] / sum(n.values()), rel=1e-3)
+        assert sum(x_sil.values()) == pytest.approx(1.0, rel=1e-12)
+        assert x_sil['FeO'] == pytest.approx(0.05724206711840065, rel=1e-12)
+
+    @pytest.mark.parametrize('ret', [True, math.inf, '1.0', None])
+    def test_callable_return_must_be_a_finite_real(self, ret):
+        """A bool, inf, string or None from a callable raises ValueError naming the law."""
+        register_law('N', 'bad_ret', lambda *a: ret, **_DECL)
+        with pytest.raises(ValueError, match='bad_ret'):
+            log10_D(get_law('N', 'bad_ret'), 50.0, 3000.0, -2.0)
+        assert ('N', 'bad_ret') in metal._LAWS
+
+    def test_numpy_real_return_is_accepted(self):
+        """A finite numpy float32 or int64 from a callable is a valid log10 D."""
+        for k, ret in enumerate((np.float32(1.5), np.int64(2))):
+            register_law('N', f'np{k}', lambda *a, r=ret: r, **_DECL)
+            assert log10_D(get_law('N', f'np{k}'), 50.0, 3000.0, -2.0) == pytest.approx(
+                float(ret), rel=1e-7
+            )
+
+    def test_array_range_is_refused_by_name(self):
+        """A numpy array as a declared range raises PartitionTableError, not a broadcast error."""
+        with pytest.raises(PartitionTableError, match='T_range_K'):
+            register_law('N', 'arr', _const_law, **{**_DECL, 'T_range_K': np.array([1.0, 2.0])})
+        assert ('N', 'arr') not in metal._LAWS
+
+    def test_get_law_returns_a_copy(self):
+        """Changing a returned law changes neither the registry nor its eps table."""
+        s = get_law('S', 'suer2017_eq7')
+        s['a'], s['eps']['O'] = 0.0, 0.0
+        again = get_law('S', 'suer2017_eq7')
+        assert again['a'] == pytest.approx(-3.50, rel=1e-12)
+        assert again['eps']['O'] == pytest.approx(14.0, rel=1e-12)
+
+    def test_replace_registers_over_a_taken_name(self):
+        """A taken name raises unless replace=True, which stores the new law."""
+        register_law('N', 'twice', _const_law, **_DECL)
+        with pytest.raises(PartitionTableError, match='twice'):
+            register_law('N', 'twice', lambda *a: 2.0, **_DECL)
+        register_law('N', 'twice', lambda *a: 2.0, replace=True, **_DECL)
+        assert log10_D(get_law('N', 'twice'), 50.0, 3000.0, -2.0) == pytest.approx(
+            2.0, rel=1e-12
+        )
+
+    def test_incomplete_entry_is_refused(self):
+        """An entry dict without the coefficients of a law raises at registration."""
+        with pytest.raises(PartitionTableError, match='missing'):
+            register_law('N', 'bare', {'element': 'N', 'form': 'log10_linear'})
+        assert ('N', 'bare') not in metal._LAWS
+
+    def test_mass_law_does_not_read_the_melt_oxides(self):
+        """A mass-basis law without an FeO term gives D for any oxide keys, as on main."""
+        n = load_partition_table()['N']
+        d = mass_D(n, 20.0, 3000.0, -2.0, {}, {}, oxides={'FeO': 8.0, 'MnO': 0.1})
+        assert d == pytest.approx(10 ** log10_D(n, 20.0, 3000.0, -2.0), rel=1e-12)
+        assert d > 1.0  # D_N of the line at dIW -2 is about 3.4

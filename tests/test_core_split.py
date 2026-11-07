@@ -271,3 +271,48 @@ def test_registered_callable_is_used_by_the_split():
     assert core['S'] / M_METAL == pytest.approx(100.0 * mantle['S'] / M_SIL, rel=1e-12)
     assert flags['S']['out_of_range'] == 0
     assert log10_D(get_law('S', 'test_d100'), 1.0, 2000.0, 0.0) == pytest.approx(2.0, rel=1e-12)
+
+
+@pytest.mark.parametrize(
+    'laws, err',
+    [
+        ({'S': 'suer2023_line', 's': 'none'}, ValueError),
+        ({'S': None}, metal.PartitionTableError),
+        ({'S': lambda *a: 1.0}, metal.PartitionTableError),
+        ({'S': 'N-entry'}, metal.PartitionTableError),
+    ],
+    ids=['typo-key', 'none', 'bare-callable', 'other-element-entry'],
+)
+def test_laws_argument_is_checked(laws, err):
+    """A law key outside bulk_kg, None, a bare callable or a law of another element raises."""
+    if laws.get('S') == 'N-entry':
+        laws = {'S': get_law('N', 'suer2023_line')}
+    with pytest.raises(err, match='laws'):
+        split_core_mantle({'S': 1e20}, M_METAL, M_SIL, dIW=-1.5, laws=laws)
+    assert core_split._WARNED == set()
+
+
+def test_overflow_of_d_times_metal_raises_a_named_error():
+    """log10 D 290 with 1e24 kg of metal overflows: ValueError naming the element, no NaN."""
+    with pytest.raises(ValueError, match="'N'.*not finite"):
+        split_core_mantle({'N': 1e19}, 1e24, M_SIL, dIW=-2.0, laws={'N': _const('huge', 290.0)})
+    assert 'huge' in metal.law_names('N')
+
+
+def test_bulk_beyond_the_float_range_and_beyond_the_metal_raise_named_errors():
+    """A bulk of 10**400 kg raises ValueError naming it; a bulk the metal cannot hold names the split."""
+    with pytest.raises(ValueError, match='bulk_kg'):
+        split_core_mantle({'S': 10**400}, M_METAL, M_SIL, dIW=-1.5)
+    with pytest.raises(ValueError, match='split of S'):
+        split_core_mantle({'S': 5e24}, M_METAL, M_SIL, dIW=-1.5)
+
+
+def test_each_entry_warns_once_with_rounded_distances(caplog):
+    """2 different entries of N out of range warn once each; the distances print rounded."""
+    a, b = get_law('N', 'suer2023_line'), dict(get_law('N', 'suer2023_line'), source='other')
+    with caplog.at_level(logging.WARNING, logger='fwl.calliope.core_split'):
+        for law in (a, b, a):
+            split_core_mantle({'N': 1e19}, M_METAL, M_SIL, dIW=-2.0, laws={'N': law})
+    msgs = [r.message for r in caplog.records if 'outside its range' in r.message]
+    assert len(msgs) == 2
+    assert all('0.16999' not in m and "'T_K': 1000" in m for m in msgs)
