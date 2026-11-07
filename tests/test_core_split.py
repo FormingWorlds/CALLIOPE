@@ -984,12 +984,12 @@ def _d_residuals(bulk, m_metal, m_sil, diw, w_fixed, core, mantle):
             },
         ),
     ],
-    ids=['G1-iron-floor-before-the-common-step', 'G3-root-with-5-percent-iron'],
+    ids=['H-C-iron-floor-before-the-common-step', 'S-C-H-N-root-with-5-percent-iron'],
 )
 def test_relaxed_split_reaches_the_damped_root_with_iron(bulk, m_metal, m_sil, diw, ref):
     """Iron-poor H-C and S-C-H-N splits: the root that a damped iteration (lam 0.005) reaches, with D settled.
 
-    G3 has a second root with iron 6e-7; the split prefers the one with more iron.
+    The S-C-H-N split has a second root with iron 6e-7; the split prefers the one with more iron.
     """
     core, mantle, flags = split_core_mantle(bulk, m_metal, m_sil, dIW=diw, w_fixed={'O': 0.02})
     assert {el: core[el] / m_metal for el in bulk} == pytest.approx(ref, rel=1e-9)
@@ -1208,7 +1208,7 @@ def test_return_at_w_takes_a_zero_mantle():
     assert (core['B'], mantle['B'], w['S']) == (0.0, 0.0, w1)
 
 
-_G3 = (
+_SCHN_TWO_ROOTS = (
     {
         'S': 1.6351025151692482e24,
         'H': 4.026924495995128e22,
@@ -1223,11 +1223,11 @@ _G3 = (
 
 @pytest.mark.parametrize('start', range(1, 6))
 def test_iron_poor_split_with_2_roots_returns_the_root_with_more_iron(start):
-    """The S-C-H-N split of G3, perturbed at round-off: the root with 5 % iron, not the one with 6e-7."""
+    """The S-C-H-N split with 2 roots, perturbed at round-off: the root with 5 % iron, not the one with 6e-7."""
     np = pytest.importorskip('numpy')
     eps = np.random.default_rng(3).uniform(-1, 1, (start + 1, 7))[start] * 4e-16
-    bulk = {el: m * (1 + e) for (el, m), e in zip(_G3[0].items(), eps)}
-    m_metal, m_sil, diw = (v * (1 + e) for v, e in zip(_G3[1:], eps[4:]))
+    bulk = {el: m * (1 + e) for (el, m), e in zip(_SCHN_TWO_ROOTS[0].items(), eps)}
+    m_metal, m_sil, diw = (v * (1 + e) for v, e in zip(_SCHN_TWO_ROOTS[1:], eps[4:]))
     core, mantle, flags = split_core_mantle(bulk, m_metal, m_sil, dIW=diw, w_fixed={'O': 0.02})
     iron = 0.98 - sum(core.values()) / m_metal
     assert iron == pytest.approx(0.04972804927351793, rel=1e-9)
@@ -1250,6 +1250,7 @@ def _relaxed_out(iron, at_w=True):
         (0.634, True, 0.7, 'damped'),
         (0.5, True, 0.6, 'damped'),
         (0.1, True, 0.2, 'damped'),
+        (0.1, True, (0.2, True), 'damped'),
         (0.1, True, 0.1, 'out'),
         (0.1, True, 0.05, 'out'),
         (0.1, True, None, 'out'),
@@ -1262,6 +1263,7 @@ def _relaxed_out(iron, at_w=True):
         'just-beyond-FeS',
         'S-over-Fe-1.7',
         'more-iron',
+        'more-iron-at-w',
         'same-iron',
         'less-iron',
         'damped-unsettled',
@@ -1279,7 +1281,8 @@ def test_more_iron_takes_the_damped_root_only_with_more_iron(iron, at_w, damped,
             raise core_split._IronOut('no iron')
         if damped == 'law-error':
             raise ValueError('law outside its domain')
-        return None if damped is None else ({'S': 0.1}, {'S': 0.9}, {'S': 1.0 - damped}, False)
+        iron_d, at_w_d = damped if isinstance(damped, tuple) else (damped, False)
+        return None if damped is None else ({'S': 0.1}, {'S': 0.9}, {'S': 1.0 - iron_d}, at_w_d)
 
     out = _relaxed_out(iron, at_w)
     with pytest.MonkeyPatch.context() as mp:
@@ -1290,7 +1293,8 @@ def test_more_iron_takes_the_damped_root_only_with_more_iron(iron, at_w, damped,
             pytest.fail(f'an error of the damped passes escaped: {err!r}')
     ran = at_w and iron < 0.635
     assert calls == ([('ev', {'S': 0.0}, {'O': 0.02}, True, 0.02, 20000)] if ran else [])
-    assert got == (out[:3] if want == 'out' else ({'S': 0.1}, {'S': 0.9}, {'S': 1.0 - damped}))
+    iron_d = damped[0] if isinstance(damped, tuple) else damped
+    assert got == (out[:3] if want == 'out' else ({'S': 0.1}, {'S': 0.9}, {'S': 1.0 - iron_d}))
     assert (core_split.DAMPED_LAM, core_split.MAX_DAMPED_PASSES) == (0.02, 20000)
 
 
@@ -1298,7 +1302,10 @@ def test_more_iron_takes_the_damped_root_only_with_more_iron(iron, at_w, damped,
 def test_relaxed_fixed_point_sends_each_return_to_more_iron(first):
     """A return at w beyond FeS from the per-element or the common passes goes to the damped passes."""
 
+    calls = []
+
     def passes(evaluate, start, fixed, common, lam_all=None, n=None):
+        calls.append((common, lam_all))
         if lam_all is not None:
             return {'S': 0.1}, {'S': 0.9}, {'S': 0.8}, False
         if first == 'per-element' or common:
@@ -1309,6 +1316,8 @@ def test_relaxed_fixed_point_sends_each_return_to_more_iron(first):
         mp.setattr(core_split, '_relaxed_passes', passes)
         got = core_split._relaxed_fixed_point('ev', {'S': 0.0}, {})
     assert got == ({'S': 0.1}, {'S': 0.9}, {'S': 0.8})
+    common = [(True, None)] if first == 'common' else []
+    assert calls == [(False, None), *common, (True, 0.02)]
 
 
 def test_relaxed_passes_take_a_common_lam_and_a_pass_limit():
@@ -1321,6 +1330,48 @@ def test_relaxed_passes_take_a_common_lam_and_a_pass_limit():
 
     assert core_split._relaxed_passes(evaluate, {'S': 0.0, 'C': 0.0}, {}, True, 0.02, 2) is None
     assert calls == [{'S': 0.0, 'C': 0.0}, {'S': 0.01, 'C': 0.005}]
+    calls.clear()
+    assert core_split._relaxed_passes(evaluate, {'S': 0.0, 'C': 0.0}, {}, True, 0.02, 0) is None
+    assert calls == []
+
+
+def test_common_lam_holds_where_the_own_lam_is_smaller():
+    """g = 0.5 - 99 w has own lam 0.01 on pass 2; lam_all 0.02 still moves w by 0.02 of the step."""
+    calls = []
+
+    def evaluate(w, w_melt):
+        calls.append(w['S'])
+        return {}, {}, {'S': 0.5 - 99.0 * w['S']}, {}
+
+    assert core_split._relaxed_passes(evaluate, {'S': 0.0}, {}, True, 0.02, 3) is None
+    step = 0.5 - 99.0 * 0.01 - 0.01
+    assert calls == [0.0, 0.01, pytest.approx(0.01 + 0.02 * step, rel=1e-12, abs=1e-15)]
+
+
+def test_split_past_fes_keeps_its_root_when_the_damped_passes_do_not_settle():
+    """An N-S split with silicate 3e-7 of the metal: damped passes run, do not settle, the root at iron 1e-7 stays."""
+    seen = []
+    real = core_split._relaxed_passes
+
+    def spy(*args):
+        out = real(*args)
+        if len(args) > 4 and args[4] is not None:
+            seen.append(out)
+        return out
+
+    bulk = {'N': 8.068477535862286e19, 'S': 6.3195133058911866e22}
+    m_metal, m_sil, diw = 3.3945186908742967e22, 1.1285170662938994e16, -4.790134145476503
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(core_split, '_relaxed_passes', spy)
+        core, mantle, flags = split_core_mantle(
+            bulk, m_metal, m_sil, dIW=diw, w_fixed={'O': 0.02}
+        )
+    assert seen == [None]
+    assert 0.0 < 0.98 - sum(core.values()) / m_metal < 1e-6
+    assert flags['metal']['beyond_FeS'] == 1
+    assert (
+        max(_d_residuals(bulk, m_metal, m_sil, diw, {'O': 0.02}, core, mantle).values()) <= 1e-8
+    )
 
 
 def test_relaxed_passes_mark_a_return_at_w():
@@ -1334,10 +1385,16 @@ def test_relaxed_passes_mark_a_return_at_w():
     assert core_split._relaxed_passes(settled, {'S': 0.0}, {}, False)[3] is False
 
 
-def test_more_iron_skips_a_metal_at_exactly_fes():
-    """S and Fe equal in moles (a float tie at O 0.01) is not past FeS: no damped passes run."""
-    w = {'S': 0.361064785848359, 'O': 0.01}
-    assert w['S'] / core_split._mass('S') == (1.0 - sum(w.values())) / core_split._mass('Fe')
+@pytest.mark.parametrize(
+    'w, ran',
+    [({'S': 0.361064785848359, 'O': 0.01}, False), ({'S': 0.36, 'O': 0.02}, True)],
+    ids=['S-and-Fe-equal', 'past-FeS-with-the-metal-O'],
+)
+def test_more_iron_counts_the_fixed_metal_in_the_fes_test(w, ran):
+    """S and Fe equal in moles (a float tie) is not past FeS; S 0.36 with O 0.02 is (S/Fe 1.011)."""
+    n_s, n_fe = w['S'] / core_split._mass('S'), (1.0 - sum(w.values())) / core_split._mass('Fe')
+    assert (n_s == n_fe) is not ran
+    assert n_s / n_fe == pytest.approx(1.0114 if ran else 1.0, abs=1e-4)
     calls = []
 
     def passes(*args):
@@ -1349,8 +1406,11 @@ def test_more_iron_skips_a_metal_at_exactly_fes():
         got = core_split._more_iron(
             'ev', {'S': 0.0}, {'O': 0.01}, ({'S': 0.3}, {'S': 0.7}, w, True)
         )
-    assert calls == []
-    assert got == ({'S': 0.3}, {'S': 0.7}, w)
+    assert len(calls) == int(ran)
+    want = (
+        ({'S': 0.1}, {'S': 0.9}, {'S': 0.1, 'O': 0.01}) if ran else ({'S': 0.3}, {'S': 0.7}, w)
+    )
+    assert got == want
 
 
 def test_relaxed_fixed_point_skips_the_common_passes_after_a_per_element_root():
