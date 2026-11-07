@@ -1007,7 +1007,7 @@ class TestRangeDistance:
         assert dist['P_GPa'] == pytest.approx(0.0, abs=0.0)
 
 
-def _const_law(p_gpa, t_k, d_iw, x_metal, x_silicate):
+def _const_law(p_gpa, t_k, d_iw, x_metal, x_silicate, nbo_t):
     return 1.0 + 0.0 * p_gpa
 
 

@@ -55,6 +55,13 @@ def _ledger(bulk, core, mantle):
         assert abs(core[el] + mantle[el] - m) <= 1e-12 * m
 
 
+def _x_fe(w):
+    """x'_Fe of a metal of light-element mass fractions w (H and C left out of the basis)."""
+    n = {el: v / metal._mass(el) for el, v in w.items()}
+    n_fe = (1.0 - sum(w.values())) / metal._mass('Fe')
+    return n_fe / (n_fe + sum(v for el, v in n.items() if el not in ('H', 'C')))
+
+
 @pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
 def test_constant_d_gives_the_closed_form_core_fraction(validation_plot, legend_clear):
@@ -111,8 +118,9 @@ def test_default_laws_split_an_earth_like_bulk():
     # the D of the returned metal and melt reproduce the returned split
     w = {'O': 0.02, 'Si': 0.03, **{el: core[el] / M_METAL for el in BULK}}
     w_melt = {el: mantle[el] / M_SIL for el in ('H', 'C')}
+    x_feo = _x_fe(w) * 10**-0.75
     for el in BULK:
-        d = mass_D(get_law(el, DEFAULT_LAWS[el]), 60.0, 4000.0, -1.5, w, w_melt)
+        d = mass_D(get_law(el, DEFAULT_LAWS[el]), 60.0, 4000.0, -1.5, w, w_melt, x_feo=x_feo)
         assert core[el] / M_METAL == pytest.approx(d * mantle[el] / M_SIL, rel=1e-10)
     # S follows Suer 2017, not the Suer 2023 line of the placeholder file (D 10 to 173)
     alt, _, _ = split_core_mantle(
@@ -123,7 +131,7 @@ def test_default_laws_split_an_earth_like_bulk():
         laws={'S': 'suer2023_line'},
         w_fixed={'O': 0.02, 'Si': 0.03},
     )
-    assert abs(alt['S'] - core['S']) > 0.01 * BULK['S']
+    assert abs(alt['S'] - core['S']) > 0.003 * BULK['S']  # 0.0066 of the bulk at dIW -1.5
     # at 60 GPa and 4000 K the S law is inside its range, the H law (dIW -1.33 to -0.88) is not
     assert flags['S']['out_of_range'] == 0 and flags['H']['out_of_range'] == 1
 
@@ -137,14 +145,12 @@ def test_out_of_range_is_evaluated_unclamped_and_flagged(caplog):
         )
         split_core_mantle({'S': 1e20}, M_METAL, M_SIL, dIW=-1.5, P_eq=300.0, T_eq=5500.0)
     assert flags['S'] == {'out_of_range': 1, 'P_GPa': 209.0, 'T_K': 1400.0, 'dIW': 0.0}
-    d = mass_D(
-        get_law('S', 'suer2017_eq7'), 300.0, 5500.0, -1.5, {'S': core['S'] / M_METAL}, {}
-    )
+    w = {'S': core['S'] / M_METAL}
+    x_feo = _x_fe(w) * 10**-0.75
+    d = mass_D(get_law('S', 'suer2017_eq7'), 300.0, 5500.0, -1.5, w, {}, x_feo=x_feo)
     assert core['S'] / mantle['S'] == pytest.approx(d * M_METAL / M_SIL, rel=1e-10)
     # a clamp to (91 GPa, 4100 K) gives a different D
-    clamped = mass_D(
-        get_law('S', 'suer2017_eq7'), 91.0, 4100.0, -1.5, {'S': core['S'] / M_METAL}, {}
-    )
+    clamped = mass_D(get_law('S', 'suer2017_eq7'), 91.0, 4100.0, -1.5, w, {}, x_feo=x_feo)
     assert abs(math.log10(clamped / d)) > 0.1
     assert sum('outside its range' in r.message for r in caplog.records) == 1
 
@@ -318,13 +324,6 @@ def test_each_entry_warns_once_with_rounded_distances(caplog):
     assert all('0.16999' not in m and "'T_K': 1000" in m for m in msgs)
 
 
-def _x_fe(w):
-    """x'_Fe of a metal of light-element mass fractions w (H and C left out of the basis)."""
-    n = {el: v / metal._mass(el) for el, v in w.items()}
-    n_fe = (1.0 - sum(w.values())) / metal._mass('Fe')
-    return n_fe / (n_fe + sum(v for el, v in n.items() if el not in ('H', 'C')))
-
-
 @pytest.mark.physics_invariant
 def test_s_law_takes_its_feo_from_diw_and_the_metal():
     """X_FeO of the S law is X'_Fe 10^(dIW/2): D_S rises with dIW, the melt oxides do not set it."""
@@ -371,7 +370,7 @@ def test_metal_beyond_fes_is_flagged_not_clamped():
     _, _, earth = split_core_mantle(BULK, M_METAL, M_SIL, dIW=-1.5, w_fixed={'O': 0.02})
     assert earth['metal']['beyond_FeS'] == 0
     assert 0.0 < earth['metal']['x_light'] < 0.2
-    core, mantle, flags = split_core_mantle({'S': 8e21}, 1e22, M_SIL, dIW=-1.5)
+    core, mantle, flags = split_core_mantle({'S': 1.5e22}, 1e22, M_SIL, dIW=-1.5)
     assert flags['metal']['beyond_FeS'] == 1
     assert flags['metal']['x_S'] > 0.5
-    assert abs(core['S'] + mantle['S'] - 8e21) <= 1e-12 * 8e21
+    assert abs(core['S'] + mantle['S'] - 1.5e22) <= 1e-12 * 1.5e22

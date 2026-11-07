@@ -5,7 +5,10 @@ The metal of mass ``M_metal`` equilibrates with a silicate of mass ``M_silicate`
 ``w_i = M_i / (M_silicate + D_i M_metal)``, the core holds ``D_i M_metal w_i`` and the
 mantle ``M_silicate w_i``. D_i depends on the metal and melt composition (interaction
 terms, mole bases), so the split is a fixed point on the metal composition. The laws come
-from :func:`calliope.metal.get_law` by name (:data:`DEFAULT_LAWS`) or as entries.
+from :func:`calliope.metal.get_law` by name (:data:`DEFAULT_LAWS`) or as entries. ``dIW``
+is the one redox input: a law with an FeO term (the S law) takes the melt FeO mole fraction
+``X_FeO = x'_Fe 10^(dIW/2)`` of ideal mixing from the metal of the pass, and the melt
+``oxides`` set only the silicate units of the mole bases.
 
 A law outside its (P, T, dIW) range is evaluated at the given point, not clamped, and
 flagged with its distance per axis. O and Si are not split: their bulk is the O and Si of
@@ -23,9 +26,10 @@ from .metal import (
     ELEMENTS,
     EXCHANGE_ELEMENTS,
     KLB1,
+    PartitionTableError,
+    _metal_moles,
     get_law,
     mass_D,
-    out_of_range,
     range_distance,
 )
 
@@ -41,6 +45,8 @@ P_EQ_GPA = 60.0  # Suer et al. 2023 Table 1, deep magma ocean column
 T_EQ_K = 4000.0
 MAX_PASSES = 50
 TOL_W = 1e-12  # relative step of the metal mass fractions that ends the fixed point
+TOL_W_FLOOR = 1e-15  # absolute floor of that step, for an element near 0
+X_S_FES = 0.5  # S mole fraction of FeS
 LEDGER_RTOL = 1e-12
 LEDGER_ATOL = 2 * math.ulp(0.0)  # round-off of a subnormal bulk [kg]
 
@@ -50,8 +56,12 @@ _WARNED = set()
 
 def _check(name, value, positive=False, signed=False):
     """A finite real number (not a boolean), >= 0 (or > 0, or of any sign)."""
-    ok = isinstance(value, numbers.Real) and not isinstance(value, bool)
-    ok = ok and math.isfinite(value) and (signed or value > 0 or (value == 0 and not positive))
+    try:
+        ok = isinstance(value, numbers.Real) and not isinstance(value, bool)
+        ok = ok and math.isfinite(value)
+    except OverflowError:  # an int beyond the float range
+        ok = False
+    ok = ok and (signed or value > 0 or (value == 0 and not positive))
     if not ok:
         rule = 'finite' if signed else ('finite and > 0' if positive else 'finite and >= 0')
         raise ValueError(f'{name} must be {rule}, got {value!r}')
@@ -60,9 +70,9 @@ def _check(name, value, positive=False, signed=False):
 
 def _masses(bulk, d, m_metal, m_sil):
     """Core and mantle masses [kg] of each element at fixed mass-basis D."""
-    if m_metal == 0.0:
-        return {el: 0.0 for el in bulk}, dict(bulk)
     total = {el: m_sil + d[el] * m_metal for el in bulk}
+    for el in (el for el, t in total.items() if not math.isfinite(t)):
+        raise ValueError(f'{el!r}: M_silicate + D M_metal is not finite (D {d[el]!r})')
     core = {el: d[el] * m_metal / total[el] * m for el, m in bulk.items()}
     return core, {el: m_sil / total[el] * m for el, m in bulk.items()}
 
@@ -112,16 +122,20 @@ def split_core_mantle(
         Core and mantle mass [kg] of each element of ``bulk_kg``; their sum is the bulk to
         1e-12 relative plus 2 ulp of 0 (asserted).
     flags : dict
-        Per element: ``out_of_range`` (0 or 1, as :func:`calliope.metal.out_of_range`) and
-        the distances ``P_GPa``, ``T_K``, ``dIW`` of :func:`calliope.metal.range_distance`.
+        Per element: ``out_of_range`` (1 when a distance is not 0) and the distances
+        ``P_GPa``, ``T_K``, ``dIW`` of :func:`calliope.metal.range_distance`. Under
+        ``'metal'``: the mole fractions ``x_light`` (all light elements) and ``x_S`` of the
+        metal, and ``beyond_FeS`` (1 when ``x_S`` is above 0.5, the S of FeS; no clamp).
 
     Raises
     ------
     ValueError
-        An input outside its domain (named), O or Si in ``bulk_kg``, an element without a
-        law, or a metal with no iron left.
+        An input outside its domain (named), O or Si in ``bulk_kg``, a key of ``laws``
+        outside ``bulk_kg``, a D that overflows with ``M_metal``, or a metal with no iron
+        left (naming the split).
     calliope.metal.PartitionTableError
-        A law name that is not held.
+        A law name that is not held, or a law in ``laws`` that is not a D law of its
+        element.
     RuntimeError
         A metal composition that does not settle in :data:`MAX_PASSES` passes, or a split
         that breaks the element ledger.
@@ -150,17 +164,37 @@ def split_core_mantle(
             raise ValueError(f'w_fixed[{el!r}] = {w!r} must be below 1')
     if sum(fixed.values()) >= 1.0:
         raise ValueError(f'w_fixed {fixed} leaves no iron in the metal')
-    names = {**DEFAULT_LAWS, **(laws or {})}
-    entries = {
-        el: get_law(el, names[el]) if isinstance(names[el], str) else names[el] for el in bulk
-    }
+    extra = sorted(set(laws or {}) - set(bulk))
+    if extra:
+        raise ValueError(f'laws names elements outside bulk_kg: {extra}')
+    names, entries = {**DEFAULT_LAWS, **(laws or {})}, {}
+    for el in bulk:
+        entry = get_law(el, names[el]) if isinstance(names[el], str) else names[el]
+        if not (
+            isinstance(entry, dict)
+            and entry.get('element') == el
+            and entry.get('form') in ('log10_linear', 'callable')
+        ):
+            raise PartitionTableError(
+                f'laws[{el!r}] must be a law name or a D-law entry of {el}, got {names[el]!r}'
+            )
+        entries[el] = entry
     w, w_melt = {**fixed, **dict.fromkeys(bulk, 0.0)}, {}
     for _ in range(MAX_PASSES):
-        d = {el: mass_D(entries[el], p_eq, t_eq, d_iw, w, w_melt, oxides, nbo_t) for el in bulk}
+        try:
+            total, n = _metal_moles(w)
+            free = total - n.get('H', 0.0) - n.get('C', 0.0)
+            x_feo = (total - sum(n.values())) / free * 10.0 ** (d_iw / 2.0)
+            d = {
+                el: mass_D(entries[el], p_eq, t_eq, d_iw, w, w_melt, oxides, nbo_t, x_feo)
+                for el in bulk
+            }
+        except ValueError as err:
+            raise ValueError(f'split of {", ".join(bulk)}: {err}') from err
         core, mantle = _masses(bulk, d, m_metal, m_sil)
         new = {**fixed, **{el: core[el] / m_metal if m_metal else 0.0 for el in bulk}}
         w_melt = {el: mantle[el] / m_sil for el in ('H', 'C') if el in bulk}
-        settled = all(abs(new[el] - w[el]) <= TOL_W * abs(new[el]) + 1e-15 for el in bulk)
+        settled = all(abs(new[el] - w[el]) <= TOL_W * abs(new[el]) + TOL_W_FLOOR for el in bulk)
         w = new
         if settled:
             break
@@ -176,15 +210,23 @@ def split_core_mantle(
                 f'{el} ledger of the split fails: core {core[el]!r} + mantle {mantle[el]!r} kg '
                 f'against bulk {m!r} kg'
             )
-    flags = {}
+    total, n = _metal_moles(w)
+    flags = {
+        'metal': {
+            'x_light': sum(n.values()) / total,
+            'x_S': n.get('S', 0.0) / total,
+            'beyond_FeS': int(n.get('S', 0.0) / total > X_S_FES),
+        }
+    }
     for el, entry in entries.items():
-        flags[el] = {'out_of_range': int(out_of_range(entry, p_eq, t_eq, d_iw))}
-        flags[el] |= range_distance(entry, p_eq, t_eq, d_iw)
-        key = (el, names[el] if isinstance(names[el], str) else f'entry of {el}')
+        dist = range_distance(entry, p_eq, t_eq, d_iw)
+        flags[el] = {'out_of_range': int(any(v != 0.0 for v in dist.values())), **dist}
+        key = (el, names[el] if isinstance(names[el], str) else entry['source'])
         if flags[el]['out_of_range'] and key not in _WARNED:
             _WARNED.add(key)
+            shown = {k: round(v, 3) for k, v in dist.items()}
             log.warning(
                 f'{el} partition law {key[1]} evaluated outside its range: P_eq {p_eq:g} GPa, '
-                f'T_eq {t_eq:g} K, dIW {d_iw:g} (distance {flags[el]})'
+                f'T_eq {t_eq:g} K, dIW {d_iw:g} (distance {shown})'
             )
     return core, mantle, flags
