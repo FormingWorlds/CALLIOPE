@@ -732,3 +732,61 @@ def test_coupled_s_rich_split_reaches_the_damped_reference():
     core, mantle, _ = split_core_mantle(bulk, 1e22, 1e20, dIW=-3.0, w_fixed={'O': 0.1})
     assert {el: core[el] / 1e22 for el in bulk} == pytest.approx(ref, rel=1e-9)
     assert all(abs(core[el] + mantle[el] - m) <= 1e-12 * m for el, m in bulk.items())
+
+
+def test_steep_step_above_the_grid_tolerance_is_not_accepted():
+    """A move within 2 ulp does not end the passes while the step is 2e-6 of g: the next pass settles on w."""
+    w1 = 0.5 + math.ulp(0.5)
+    script = iter([w1, w1 - 1e-6])
+
+    def evaluate(w, w_melt):
+        g_s = next(script, w['S'])
+        return {}, {}, {'A': 0.2, 'S': g_s}, {}
+
+    _, _, w = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': 0.5}, {}, False)
+    assert w['A'] == 0.2
+    assert abs(w['S'] - w1) <= 2 * math.ulp(w1)
+
+
+def test_relaxed_passes_wait_for_the_melt_basis_to_settle():
+    """g settled on the start, the melt H new on pass 1 and moved on pass 2: pass 3 must confirm it."""
+    calls = []
+    melts = iter([{'H': 0.1}, {'H': 0.2}])
+
+    def evaluate(w, w_melt):
+        calls.append(dict(w_melt))
+        return {}, {}, dict(w), next(melts, {'H': 0.2})
+
+    core_split._relaxed_passes(evaluate, {'S': 0.3}, {}, False)
+    assert calls == [{}, {'H': 0.1}, {'H': 0.2}]
+
+
+def test_common_step_settles_a_split_that_the_per_element_passes_do_not():
+    """Sweep case 1870: the per-element passes run first and do not settle; the smallest common lam does."""
+    calls = []
+    real = core_split.mass_D
+
+    def count(*args, **kwargs):
+        calls.append(1)
+        return real(*args, **kwargs)
+
+    m = 1.4793984719876185e24
+    bulk = {
+        'H': 0.0013584026541234068 * m,
+        'C': 0.004212317293360554 * m,
+        'S': 1.4239059823940543 * m,
+    }
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(core_split, 'mass_D', count)
+        core, mantle, _ = split_core_mantle(
+            bulk, m, 7.608546877446469e18, dIW=-4.682711923437374, w_fixed={'O': 0.1}
+        )
+    assert len(calls) > len(bulk) * (core_split.MAX_PASSES + core_split.MAX_RELAXED_PASSES)
+    assert core['S'] == pytest.approx(1.264557613090235e24, rel=1e-9)
+    assert all(core[el] + mantle[el] == pytest.approx(bulk[el], rel=1e-12) for el in bulk)
+
+
+def test_metal_with_no_iron_outside_h_by_round_off_raises_by_name():
+    """w_H = 1 - 2**-53 leaves exactly 0 mol outside H: the named ValueError, not a division by 0."""
+    with pytest.raises(ValueError, match='no iron left outside H and C'):
+        mass_D(get_law('H', 'tagawa2021_eq2'), 60.0, 4000.0, -2.0, {'H': 1 - 2**-53}, {})
