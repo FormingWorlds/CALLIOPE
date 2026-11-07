@@ -63,3 +63,45 @@ def janaf_log_k():
         return T, np.array([rows[t] for t in T])
 
     return per_mole
+
+
+def _legend_clear(fig):
+    """Assert that no legend box covers a line (sampled every pixel) or a filled band."""
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    for ax in fig.axes:
+        leg = ax.get_legend()
+        if leg is None:
+            continue
+        box = leg.get_window_extent(renderer)
+
+        def covered(p, b=box):
+            return (
+                (p[:, 0] >= b.x0) & (p[:, 0] <= b.x1) & (p[:, 1] >= b.y0) & (p[:, 1] <= b.y1)
+            ).any()
+
+        for line in ax.get_lines():
+            xy = line.get_transform().transform(line.get_xydata())
+            for a, b in zip(xy[:-1], xy[1:]):
+                n = int(np.hypot(*(b - a))) + 2
+                pts = a + np.linspace(0.0, 1.0, n)[:, None] * (b - a)
+                assert not covered(pts), f'legend covers {line.get_label()!r}'
+            if line.get_marker() not in ('None', None, '') and len(xy):
+                assert not covered(xy), f'legend covers {line.get_label()!r}'
+        corners = np.array(
+            [
+                [x, y]
+                for x in np.linspace(box.x0, box.x1, 20)
+                for y in np.linspace(box.y0, box.y1, 20)
+            ]
+        )
+        for coll in ax.collections:
+            for path in coll.get_paths():
+                inside = path.contains_points(corners, transform=coll.get_transform())
+                assert not inside.any(), f'legend covers {coll.get_label()!r}'
+
+
+@pytest.fixture
+def legend_clear():
+    """The check of :func:`_legend_clear` for a test that makes a plot."""
+    return _legend_clear

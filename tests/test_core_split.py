@@ -57,7 +57,7 @@ def _ledger(bulk, core, mantle):
 
 @pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
-def test_constant_d_gives_the_closed_form_core_fraction(validation_plot):
+def test_constant_d_gives_the_closed_form_core_fraction(validation_plot, legend_clear):
     """Mass balance: a constant D puts D x / (1 + D x) of the bulk into the core."""
     x = M_METAL / M_SIL
     ds = [0.1, 1.0, 10.0, 100.0, 1000.0]
@@ -91,6 +91,7 @@ def test_constant_d_gives_the_closed_form_core_fraction(validation_plot):
         fig.tight_layout()
         return fig
 
+    legend_clear(figure())
     validation_plot(figure, 'core_split_fraction')
 
 

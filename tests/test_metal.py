@@ -334,7 +334,7 @@ class TestMalformedFile:
         with pytest.raises(PartitionTableError, match='placeholder'):
             load_partition_table(_write(tmp_path, no_flag))
 
-    @pytest.mark.parametrize('key', ['esp', 'f'])
+    @pytest.mark.parametrize('key', ['esp', 'g'])
     def test_unknown_key_in_an_entry_is_refused(self, tmp_path, key):
         """A key outside the schema (a misspelt eps, an extra coefficient) is refused."""
         entry = dict(_H, **{key: '{ O = 1.0 }' if key == 'esp' else '7.0'})
@@ -847,7 +847,7 @@ class TestSuer2017:
 
     @pytest.mark.physics_invariant
     @pytest.mark.reference_pinned
-    def test_runs_of_table_1_against_eq7(self, validation_plot):
+    def test_runs_of_table_1_against_eq7(self, validation_plot, legend_clear):
         """V3: each run of Suer 2017 Table 1 within V3_TOL_DEX of Eq. 7, except V3_MISSES."""
         s = get_law('S', 'suer2017_eq7')
         xs = {run: V3_XFEO.get(run, x) for run, _, _, _, _, x, _, _ in SUER_RUNS}
@@ -859,15 +859,17 @@ class TestSuer2017:
             abs(xs[r] - x_fe * 10 ** (iw / 2)) < 0.005
             for r, _, _, _, iw, _, x_fe, _ in SUER_RUNS
         )
-        # a = -3.30 (the Eq. 8 print) moves every residual by +0.2 dex
-        assert sum(resid.values()) / 9 == pytest.approx(0.229, abs=5e-4)
+        # the model lies above the runs on average (C_S of pyrolite, not of the run melts)
+        assert sum(resid.values()) / 9 == pytest.approx(0.2272, abs=1e-4)
+        # a = -3.30 of the Eq. 8 print moves every residual by +0.2 dex: 5 runs miss
+        assert {r for r, d in resid.items() if abs(d + 0.2) > V3_TOL_DEX} == {1, 3, 4, 7, 9}
 
         def figure():
             import matplotlib.pyplot as plt
 
             meas = [math.log10(r[3]) for r in SUER_RUNS]
             fig, ax = plt.subplots()
-            lim = [0.4, 2.4]
+            lim = [0.5, 2.25]
             ax.fill_between(
                 lim,
                 [v - V3_TOL_DEX for v in lim],
@@ -876,17 +878,28 @@ class TestSuer2017:
                 label=f'1:1 $\\pm$ {V3_TOL_DEX} dex',
             )
             ax.plot(lim, lim, ls='--', color=plt.rcParams['text.color'], label='1:1')
-            ax.plot(model, meas, 'o', label='runs 1 to 9')
+            hit = [k for k, r in enumerate(SUER_RUNS) if r[0] not in V3_MISSES]
+            miss = [k for k, r in enumerate(SUER_RUNS) if r[0] in V3_MISSES]
+            ax.plot([model[k] for k in hit], [meas[k] for k in hit], 'o', label='runs within')
+            ax.plot(
+                [model[k] for k in miss],
+                [meas[k] for k in miss],
+                'o',
+                mfc='none',
+                label=f'run {", ".join(str(SUER_RUNS[k][0]) for k in miss)} (miss)',
+            )
             ax.set(
                 xlim=lim,
                 ylim=lim,
                 xlabel=r'Eq. 7 $\log_{10} D_\mathrm{S}$',
                 ylabel=r'measured $\log_{10} D_\mathrm{S}$',
             )
+            ax.set(xticks=[0.5, 1.0, 1.5, 2.0], yticks=[0.5, 1.0, 1.5, 2.0])
             ax.legend(loc='upper left')
             fig.tight_layout()
             return fig
 
+        legend_clear(figure())
         validation_plot(figure, 'metal_suer2017_s_runs')
 
     def test_feo_term_needs_a_melt_feo_fraction(self):
