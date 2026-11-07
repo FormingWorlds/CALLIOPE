@@ -1055,3 +1055,50 @@ def test_iron_floor_can_stop_a_split_that_has_a_root_with_iron():
             w_fixed={'O': 0.1},
         )
     assert type(info.value) is ValueError
+
+
+@pytest.mark.parametrize(
+    'bulk, m_metal, m_sil, diw, w_fixed',
+    [
+        (
+            {'H': 1.026913291017055e16, 'N': 2.0745447651584106e17, 'S': 4.908478118313359e21},
+            4.1883763504334535e21,
+            7.758815031595311e17,
+            -0.7860190639804525,
+            {'O': 0.02},
+        ),
+        (
+            {'N': 1.385645895332543e20, 'S': 6.831823027319011e24},
+            2.9383194256916654e24,
+            1.9975254165041137e18,
+            -1.2177369244970537,
+            {'O': 0.1},
+        ),
+    ],
+    ids=['broad-1695', 'small-silicate-786'],
+)
+def test_common_passes_that_do_not_settle_after_an_iron_out_raise_the_iron_error(
+    bulk, m_metal, m_sil, diw, w_fixed
+):
+    """The per-element passes run out of iron and the common passes do not settle: the iron ValueError stands."""
+    with pytest.raises(ValueError, match='a pass leaves iron below 1e-08') as info:
+        split_core_mantle(bulk, m_metal, m_sil, dIW=diw, w_fixed=w_fixed)
+    assert type(info.value) is ValueError
+
+
+def test_return_at_the_evaluated_metal_keeps_every_mantle_non_negative():
+    """A grid accept with a mantle below core (w - g) / g is not returned at w: the passes go on to the root."""
+    w0 = 0.5
+    w1 = math.nextafter(math.nextafter(w0, 1.0), 1.0)
+    root = math.nextafter(w1, 0.0)
+    k = 1e-12 / (w1 - root)
+    calls = []
+
+    def evaluate(w, w_melt):
+        calls.append(w['S'])
+        g_s = w1 if len(calls) == 1 else w['S'] - k * (w['S'] - root)
+        return {'A': 0.2, 'S': g_s}, {'A': 0.8, 'S': 1e-13}, {'A': 0.2, 'S': g_s}, {}
+
+    core, mantle, w = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': w0}, {}, False)
+    assert min(mantle.values()) >= 0.0
+    assert w['S'] == pytest.approx(root, rel=1e-15)
