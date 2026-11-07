@@ -47,7 +47,7 @@ P_EQ_GPA = 60.0  # Suer et al. 2023 Table 1, deep magma ocean column
 T_EQ_K = 4000.0
 MAX_PASSES = 50
 MAX_RELAXED_PASSES = 1000
-IRON_FLOOR = 1e-8  # iron mass fraction below which the relaxed passes find no root
+IRON_FLOOR = 1e-8  # iron mass fraction below which a relaxed pass raises ValueError
 GRID_RTOL = 1e-9  # step of a steep g that the float grid of w cannot resolve further
 TOL_W = 1e-12  # relative step of the metal mass fractions that ends the fixed point
 TOL_W_FLOOR = 1e-15  # absolute floor of that step, for an element near 0
@@ -128,8 +128,8 @@ def _relaxed_passes(evaluate, start, fixed, common):
     The melt H and C of the pass must have settled too, since they set the silicate units of
     the mole bases. A pass adds at most half of the iron left. An element has settled when its step meets the
     settle test, or when g falls with w, its move is within 2 ulp of w and its step within
-    GRID_RTOL of g (the float grid of a steep g). Iron below IRON_FLOOR means that no root with
-    iron exists (ValueError).
+    GRID_RTOL of g (the float grid of a steep g). A pass that leaves iron below IRON_FLOOR
+    raises ValueError: the iron runs out.
     """
     w, w_melt, last = start, {}, {}
     for _ in range(MAX_RELAXED_PASSES):
@@ -161,7 +161,7 @@ def _relaxed_passes(evaluate, start, fixed, common):
         w = {**w, **{el: w[el] + v for el, v in move.items()}}
         if 1.0 - sum(w.values()) < IRON_FLOOR:
             raise ValueError(
-                f'the metal has no iron left: no root with iron above {IRON_FLOOR:g} by mass '
+                f'the metal has no iron left: a pass leaves iron below {IRON_FLOOR:g} by mass '
                 f'for this bulk and metal mass ({w})'
             )
     return None

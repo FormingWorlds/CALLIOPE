@@ -694,8 +694,8 @@ def test_relaxed_step_takes_at_most_half_of_the_iron_left():
     ],
     ids=['carbon-fills-the-metal', 'nitrogen-beyond-the-metal'],
 )
-def test_bulk_with_no_root_with_iron_raises_by_name(bulk, m_metal, m_sil, diw, w_fixed):
-    """A bulk the metal cannot hold with any iron left raises the named ValueError, not another error."""
+def test_bulk_whose_iron_runs_out_raises_by_name(bulk, m_metal, m_sil, diw, w_fixed):
+    """A bulk whose passes leave the metal without iron raises the named ValueError, not another error."""
     with pytest.raises(ValueError, match='no iron left') as info:
         split_core_mantle(bulk, m_metal, m_sil, dIW=diw, w_fixed=w_fixed)
     assert type(info.value) is ValueError
@@ -824,3 +824,56 @@ def test_plain_split_with_a_small_silicate_settles_the_melt_basis(
         d = mass_D(get_law(el, DEFAULT_LAWS[el]), 60.0, 4000.0, diw, w, w_melt)
         assert core[el] / m_metal == pytest.approx(d * mantle[el] / m_sil, rel=1e-9), el
     assert all(core[el] + mantle[el] == pytest.approx(bulk[el], rel=1e-12) for el in bulk)
+
+
+@pytest.mark.parametrize(
+    'bulk, m_metal, m_sil, diw, w_fixed',
+    [
+        (
+            {'S': 1.0152954463428923e23},
+            5.53739704857299e22,
+            1.5858640020848288e17,
+            -1.4382133911099835,
+            {'O': 0.0},
+        ),
+        (
+            {'C': 9.68644358404661e22, 'S': 4.157184340766592e17},
+            4.485866476890163e22,
+            4.377813186132594e18,
+            -0.661571639511006,
+            {'O': 0.0},
+        ),
+        (
+            {'N': 3.9377888855367536e21, 'S': 6.698036413445549e21},
+            4.933646958854052e21,
+            1.5066317385381114e17,
+            -0.6260226487946895,
+            {'O': 0.1},
+        ),
+    ],
+    ids=[
+        'sweep-359-root-at-fe-1.5e-8',
+        'sweep-2268-root-at-fe-1.8e-5',
+        'sweep-849-no-root-on-a-grid',
+    ],
+)
+def test_iron_poor_split_that_does_not_settle_raises_runtime_error(
+    bulk, m_metal, m_sil, diw, w_fixed
+):
+    """S- or C-rich, iron-poor splits whose relaxed passes do not settle raise RuntimeError by name.
+
+    359 and 2268 have a root with iron that the float grid of the metal does not resolve (one ulp of w
+    moves the returned metal by a D residual of at least 8e-2 and 1e-5); 849 has no root on a grid scan.
+    """
+    calls = []
+    real = core_split.mass_D
+
+    def count(*args, **kwargs):
+        calls.append(1)
+        return real(*args, **kwargs)
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(core_split, 'mass_D', count)
+        with pytest.raises(RuntimeError, match='did not settle in 2 x 1000 relaxed passes'):
+            split_core_mantle(bulk, m_metal, m_sil, dIW=diw, w_fixed=w_fixed)
+    assert len(calls) >= len(bulk) * 2 * core_split.MAX_RELAXED_PASSES
