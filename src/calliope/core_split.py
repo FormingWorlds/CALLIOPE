@@ -46,7 +46,9 @@ DEFAULT_LAWS = {
 P_EQ_GPA = 60.0  # Suer et al. 2023 Table 1, deep magma ocean column
 T_EQ_K = 4000.0
 MAX_PASSES = 50
-MAX_RELAXED_PASSES = 200
+MAX_RELAXED_PASSES = 1000
+IRON_FLOOR = 1e-8  # iron mass fraction below which the relaxed passes find no root
+GRID_RTOL = 1e-9  # step of a steep g that the float grid of w cannot resolve further
 TOL_W = 1e-12  # relative step of the metal mass fractions that ends the fixed point
 TOL_W_FLOOR = 1e-15  # absolute floor of that step, for an element near 0
 LEDGER_RTOL = 1e-12
@@ -99,28 +101,66 @@ def _plain_fixed_point(evaluate, start, fixed):
 
 
 def _relaxed_fixed_point(evaluate, start, fixed):
-    """Relaxed substitution where g falls with w: each element moves 1/(1 - s) of its step.
+    """Relaxed passes, first with a step factor per element, then with one for all elements.
 
-    s is the secant slope of g against w over the last 2 passes when negative (1 otherwise), as
-    in the metal reservoir of calliope.solve; a pass adds at most half of the iron left.
+    Each element moves lam = 1/(1 + |s|) of its step g - w, s being the secant slope of g against
+    w of the element over its last 2 passes (as in the metal reservoir of calliope.solve for a
+    falling g; a rising slope from the coupling of elements is damped the same way). If those
+    passes do not settle, they start again from ``start`` with the smallest lam for every
+    element, which keeps coupled moves in step. Raises RuntimeError when neither settles.
+    """
+    for common in (False, True):
+        out = _relaxed_passes(evaluate, start, fixed, common)
+        if out is not None:
+            return out
+    raise RuntimeError(
+        f'the metal of the split did not settle in 2 x {MAX_RELAXED_PASSES} relaxed passes'
+    )
+
+
+def _relaxed_passes(evaluate, start, fixed, common):
+    """Relaxed passes from ``start``; None when they do not settle in MAX_RELAXED_PASSES.
+
+    The melt H and C of the pass must have settled too, since they set the silicate units of
+    the mole bases. A pass adds at most half of the iron left. An element has settled when its step meets the
+    settle test, or when g falls with w, its move is within 2 ulp of w and its step within
+    GRID_RTOL of g (the float grid of a steep g). Iron below IRON_FLOOR means that no root with
+    iron exists (ValueError).
     """
     w, w_melt, last = start, {}, {}
     for _ in range(MAX_RELAXED_PASSES):
-        core, mantle, g, w_melt = evaluate(w, w_melt)
-        if _settled(g, w):
-            return core, mantle, {**fixed, **g}
-        move = {}
+        core, mantle, g, new_melt = evaluate(w, w_melt)
+        melt_settled = _settled(new_melt, w_melt) if w_melt else not new_melt
+        w_melt = new_melt
+        slope = {}
         for el, gv in g.items():
-            lam = 1.0
+            slope[el] = 0.0
             if el in last and w[el] != last[el][0]:
-                lam = 1.0 / (1.0 - min((gv - last[el][1]) / (w[el] - last[el][0]), 0.0))
-            last[el], move[el] = (w[el], gv), lam * (gv - w[el])
+                slope[el] = (gv - last[el][1]) / (w[el] - last[el][0])
+            last[el] = (w[el], gv)
+        lam = {el: 1.0 / (1.0 + abs(s)) for el, s in slope.items()}
+        if common:
+            lam = dict.fromkeys(lam, min(lam.values()))
+        move = {el: lam[el] * (gv - w[el]) for el, gv in g.items()}
+        if melt_settled and all(
+            _settled({el: g[el]}, {el: w[el]})
+            or (
+                slope[el] < 0.0
+                and abs(move[el]) <= 2.0 * math.ulp(w[el])
+                and abs(g[el] - w[el]) <= GRID_RTOL * abs(g[el])
+            )
+            for el in g
+        ):
+            return core, mantle, {**fixed, **g}
         while sum(move.values()) > 0.5 * (1.0 - sum(w.values())):
             move = {el: 0.5 * v for el, v in move.items()}
         w = {**w, **{el: w[el] + v for el, v in move.items()}}
-    raise RuntimeError(
-        f'the metal of the split did not settle in {MAX_RELAXED_PASSES} relaxed passes: {w}'
-    )
+        if 1.0 - sum(w.values()) < IRON_FLOOR:
+            raise ValueError(
+                f'the metal has no iron left: no root with iron above {IRON_FLOOR:g} by mass '
+                f'for this bulk and metal mass ({w})'
+            )
+    return None
 
 
 def split_core_mantle(

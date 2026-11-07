@@ -208,18 +208,21 @@ def test_unknown_element_or_law_is_refused():
 
 
 def test_fixed_point_that_does_not_settle_raises(monkeypatch):
-    """A D that alternates call by call never settles: 50 plain and 200 relaxed passes, then RuntimeError."""
-    calls = []
+    """Plain passes that swing, then relaxed passes from the start metal; past the limits RuntimeError."""
+    seen = []
+    real = core_split.mass_D
 
-    def flip(entry, p, t, d_iw, w, *rest):
-        calls.append(w['S'])
-        return 10.0 if len(calls) % 2 else 20.0
+    def spy(entry, p, t, d_iw, w, *rest):
+        seen.append(w['S'])
+        return real(entry, p, t, d_iw, w, *rest)
 
-    monkeypatch.setattr(core_split, 'mass_D', flip)
-    with pytest.raises(RuntimeError, match='200 relaxed passes'):
-        split_core_mantle({'S': 1e20}, M_METAL, M_SIL, dIW=-2.0)
-    assert len(calls) == 250
-    assert calls[50] == 0.0  # the relaxed passes start again from the start metal
+    monkeypatch.setattr(core_split, 'mass_D', spy)
+    monkeypatch.setattr(core_split, 'MAX_PASSES', 3)
+    monkeypatch.setattr(core_split, 'MAX_RELAXED_PASSES', 4)
+    with pytest.raises(RuntimeError, match='4 relaxed passes'):
+        split_core_mantle({'S': 2e22}, 1e22, 4e24, dIW=-1.5)
+    assert len(seen) == 3 + 2 * 4
+    assert seen[3] == seen[7] == 0.0  # each relaxed sweep starts again from the start metal
 
 
 def test_broken_ledger_raises(monkeypatch):
@@ -665,13 +668,11 @@ def _scripted(g_of_w):
     return evaluate, seen
 
 
-def test_relaxed_passes_take_plain_steps_on_a_rising_map():
-    """g = 0.5 w + 0.1 rises: the relaxed passes take the full step (0, 0.1, 0.15, ...) to 0.2."""
+def test_relaxed_passes_damp_a_rising_map():
+    """g = 0.5 w + 0.1 rises with s = 0.5: the second move is 1/(1 + 0.5) of its step, 0.1 -> 0.1333."""
     evaluate, seen = _scripted(lambda w: 0.5 * w + 0.1)
     core, _, w = core_split._relaxed_fixed_point(evaluate, {'S': 0.0}, {})
-    assert seen[:3] == pytest.approx(
-        [0.0, 0.1, 0.15], rel=1e-12
-    )  # 2.0 x for a lam of 2 would give 0.2
+    assert seen[:3] == pytest.approx([0.0, 0.1, 0.1 + 0.05 / 1.5], rel=1e-12)  # full step: 0.15
     assert w['S'] == pytest.approx(0.2, rel=1e-11)
 
 

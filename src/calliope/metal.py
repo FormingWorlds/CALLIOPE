@@ -554,6 +554,8 @@ def mass_D(entry, p_gpa, t_k, d_iw, w_metal, w_melt, oxides=KLB1, nbo_t=2.6):
         _need_form(entry, 'log10_linear')
     total, n = _metal_moles(w_metal)
     free = total - n.get('H', 0.0) - n.get('C', 0.0)
+    if not free > 0.0:
+        raise ValueError(f'the metal has no iron left outside H and C: {w_metal}')
     x_metal = {el: v / free for el, v in n.items()}
     x_sil = None
     if entry['form'] == 'callable':
