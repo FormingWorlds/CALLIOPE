@@ -641,9 +641,11 @@ def test_converging_cases_equal_the_stored_split():
             T_eq=c.get('t', 4000.0),
             w_fixed=c['w_fixed'],
         )
-        for part, got in (('core', core), ('mantle', mantle), ('metal', flags['metal'])):
+        metal = {k: flags['metal'][k] for k in ref['metal']}
+        for part, got in (('core', core), ('mantle', mantle), ('metal', metal)):
             want = ref[part]
             assert got == (want if same else pytest.approx(want, rel=1e-12, abs=0.0)), name
+        assert flags['metal']['root_rule'] == 0, name
 
 
 @pytest.mark.physics_invariant
@@ -678,7 +680,7 @@ def _scripted(g_of_w):
 def test_relaxed_passes_damp_a_rising_map():
     """g = 0.5 w + 0.1 rises with s = 0.5: the second move is 1/(1 + 0.5) of its step, 0.1 -> 0.1333."""
     evaluate, seen = _scripted(lambda w: 0.5 * w + 0.1)
-    core, _, w = core_split._relaxed_fixed_point(evaluate, {'S': 0.0}, {})
+    core, _, w, _ = core_split._relaxed_fixed_point(evaluate, {'S': 0.0}, {})
     assert seen[:3] == pytest.approx([0.0, 0.1, 0.1 + 0.05 / 1.5], rel=1e-12)  # full step: 0.15
     assert w['S'] == pytest.approx(0.2, rel=1e-11)
 
@@ -1235,6 +1237,7 @@ def test_iron_poor_split_with_2_roots_returns_the_root_with_more_iron(start):
         max(_d_residuals(bulk, m_metal, m_sil, diw, {'O': 0.02}, core, mantle).values()) <= 1e-9
     )
     assert flags['metal']['beyond_FeS'] == 1
+    assert flags['metal']['root_rule'] == 1
 
 
 def _relaxed_out(iron, at_w=True):
@@ -1294,7 +1297,8 @@ def test_more_iron_takes_the_damped_root_only_with_more_iron(iron, at_w, damped,
     ran = at_w and iron < 0.635
     assert calls == ([('ev', {'S': 0.0}, {'O': 0.02}, True, 0.02, 20000)] if ran else [])
     iron_d = damped[0] if isinstance(damped, tuple) else damped
-    assert got == (out[:3] if want == 'out' else ({'S': 0.1}, {'S': 0.9}, {'S': 1.0 - iron_d}))
+    damped_out = ({'S': 0.1}, {'S': 0.9}, {'S': 1.0 - iron_d}, 1) if want == 'damped' else None
+    assert got == ((*out[:3], 0) if want == 'out' else damped_out)
     assert (core_split.DAMPED_LAM, core_split.MAX_DAMPED_PASSES) == (0.02, 20000)
 
 
@@ -1315,7 +1319,7 @@ def test_relaxed_fixed_point_sends_each_return_to_more_iron(first):
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(core_split, '_relaxed_passes', passes)
         got = core_split._relaxed_fixed_point('ev', {'S': 0.0}, {})
-    assert got == ({'S': 0.1}, {'S': 0.9}, {'S': 0.8})
+    assert got == ({'S': 0.1}, {'S': 0.9}, {'S': 0.8}, 1)
     common = [(True, None)] if first == 'common' else []
     assert calls == [(False, None), *common, (True, 0.02)]
 
@@ -1367,6 +1371,7 @@ def test_split_past_fes_keeps_its_root_when_the_damped_passes_do_not_settle():
             bulk, m_metal, m_sil, dIW=diw, w_fixed={'O': 0.02}
         )
     assert seen == [None]
+    assert flags['metal']['root_rule'] == 0
     assert 0.0 < 0.98 - sum(core.values()) / m_metal < 1e-6
     assert flags['metal']['beyond_FeS'] == 1
     assert (
@@ -1407,9 +1412,8 @@ def test_more_iron_counts_the_fixed_metal_in_the_fes_test(w, ran):
             'ev', {'S': 0.0}, {'O': 0.01}, ({'S': 0.3}, {'S': 0.7}, w, True)
         )
     assert len(calls) == int(ran)
-    want = (
-        ({'S': 0.1}, {'S': 0.9}, {'S': 0.1, 'O': 0.01}) if ran else ({'S': 0.3}, {'S': 0.7}, w)
-    )
+    damped_out = ({'S': 0.1}, {'S': 0.9}, {'S': 0.1, 'O': 0.01}, 1)
+    want = damped_out if ran else ({'S': 0.3}, {'S': 0.7}, w, 0)
     assert got == want
 
 
@@ -1426,4 +1430,4 @@ def test_relaxed_fixed_point_skips_the_common_passes_after_a_per_element_root():
         mp.setattr(core_split, '_relaxed_passes', passes)
         got = core_split._relaxed_fixed_point('ev', {'S': 0.0}, {})
     assert calls == [False]
-    assert got == ({'S': 0.3}, {'S': 0.7}, {'S': 0.3})
+    assert got == ({'S': 0.3}, {'S': 0.7}, {'S': 0.3}, 0)
