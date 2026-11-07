@@ -151,8 +151,9 @@ def _more_iron(evaluate, start, fixed, out):
 
     A return at w (``out[3]``) whose metal holds more S than Fe in moles can sit on a root
     with little iron where an iron-rich root exists too; passes at lam DAMPED_LAM for every
-    element (melt undamped) reach the iron-rich root. This prefers that root; it does not
-    prove the root unique. Damped passes that leave no iron or do not settle keep ``out``.
+    element (melt undamped) reach the iron-rich root. Their root, settled or returned at w,
+    replaces ``out`` when it holds more iron. This prefers that root; it does not prove the
+    root unique. Damped passes that do not settle or raise ValueError (no iron, a law) keep out.
     """
     core, mantle, w, at_w = out
     if not at_w or w.get('S', 0.0) / _mass('S') <= _iron(w) / _mass('Fe'):
@@ -193,7 +194,7 @@ def _relaxed_passes(evaluate, start, fixed, common, lam_all=None, passes=None):
     iron below IRON_FLOOR raises _IronOut.
     """
     w, w_melt, last = start, {}, {}
-    for _ in range(passes or MAX_RELAXED_PASSES):
+    for _ in range(MAX_RELAXED_PASSES if passes is None else passes):
         core, mantle, g, new_melt = evaluate(w, w_melt)
         melt_settled = _settled(new_melt, w_melt) if w_melt else not new_melt
         w_melt_prev, w_melt = w_melt, new_melt
@@ -289,7 +290,8 @@ def split_core_mantle(
         ``P_GPa``, ``T_K``, ``dIW`` of :func:`calliope.metal.range_distance`. Under
         ``'metal'``: the mole fractions ``x_light`` (all light elements) and ``x_S`` over
         the whole metal, ``S_over_Fe`` (moles), and ``beyond_FeS`` (1 when the metal holds
-        more S than Fe, past FeS; no clamp). Per element also ``D_residual``: |w - D w_sil| / w
+        more S than Fe, past FeS; no clamp). A relaxed split past FeS prefers the root with
+        more iron (see the metal page). Per element also ``D_residual``: |w - D w_sil| / w
         at the returned split, with w = core / M_metal and w_sil = mantle / M_silicate (0 for
         no core mass).
 
