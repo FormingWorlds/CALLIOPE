@@ -1555,3 +1555,30 @@ def test_more_iron_skips_a_metal_without_sulfur():
         got = core_split._more_iron('ev', {'C': 0.0, 'H': 0.0}, {}, out)
     assert calls == []
     assert got == (*out, 0)
+
+
+@pytest.mark.parametrize(
+    'w, damped, want',
+    [
+        ({'S': 0.9}, {'S': 0.9 - 0.9e-10}, 'out'),
+        ({'S': 0.9}, {'S': 0.9 - 0.8e-9}, 'out'),
+        ({'S': 0.9}, {'S': 0.9 - 0.9e-8}, 'damped'),
+        ({'S': 0.9, 'C': 0.0}, {'S': 0.9 - 1e-11, 'C': 5e-16}, 'out'),
+        ({'S': 0.9, 'C': 0.0}, {'S': 0.9 - 1e-11, 'C': 5e-15}, 'damped'),
+    ],
+    ids=[
+        'S-apart-1e-10',
+        'S-apart-9e-10',
+        'S-apart-1e-8',
+        'C-within-the-floor',
+        'C-past-the-floor',
+    ],
+)
+def test_same_metal_test_takes_grid_rtol_and_the_absolute_floor(w, damped, want):
+    """A damped root with more iron is the same metal within 1e-9 of each element plus 1e-15."""
+    out = ({'S': 0.3}, {'S': 0.7}, w)
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(core_split, '_relaxed_passes', lambda *a: ({'S': 0.1}, {'S': 0.9}, damped))
+        got = core_split._more_iron('ev', {'S': 0.0}, {}, out)
+    assert core_split._iron(damped) > core_split._iron(w)
+    assert got == ((*out, 0) if want == 'out' else ({'S': 0.1}, {'S': 0.9}, damped, 1))
