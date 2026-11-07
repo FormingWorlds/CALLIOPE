@@ -85,16 +85,20 @@ def _settled(g, w):
 
 
 def _plain_fixed_point(evaluate, start, fixed):
-    """Plain substitution w <- g(w); an error after the first pass or no settling raises _Unsettled."""
+    """Plain substitution w <- g(w) until the metal and the melt H and C settle.
+
+    An error after the first pass or no settling in MAX_PASSES raises _Unsettled.
+    """
     w, w_melt = start, {}
     for k in range(MAX_PASSES):
         try:
-            core, mantle, g, w_melt = evaluate(w, w_melt)
+            core, mantle, g, new_melt = evaluate(w, w_melt)
         except ValueError:
             if k == 0:
                 raise
             raise _Unsettled from None
-        settled, w = _settled(g, w), {**fixed, **g}
+        melt_settled = _settled(new_melt, w_melt) if w_melt else not new_melt
+        settled, w, w_melt = _settled(g, w) and melt_settled, {**fixed, **g}, new_melt
         if settled:
             return core, mantle, w
     raise _Unsettled
