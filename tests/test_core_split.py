@@ -791,3 +791,36 @@ def test_metal_with_no_iron_outside_h_by_round_off_raises_by_name():
     """w_H = 1 - 2**-53 leaves exactly 0 mol outside H: the named ValueError, not a division by 0."""
     with pytest.raises(ValueError, match='no iron left outside H and C'):
         mass_D(get_law('H', 'tagawa2021_eq2'), 60.0, 4000.0, -2.0, {'H': 1 - 2**-53}, {})
+
+
+@pytest.mark.parametrize(
+    'bulk, m_metal, m_sil, diw, w_fixed',
+    [
+        (
+            {'H': 8.234751575583354e23, 'N': 8.141738774031332e22},
+            3.0594828320755087e24,
+            2.436509988289884e16,
+            -0.8658248542625239,
+            {'O': 0.1},
+        ),
+        (
+            {'H': 9.153087750914148e23, 'N': 4.6589689694365475e19, 'S': 1.2152201420659063e20},
+            2.3336975758573758e24,
+            2.129139491150588e16,
+            -2.3214007087220727,
+            {'O': 0.02},
+        ),
+    ],
+    ids=['sweep-1532-H', 'sweep-1721-S'],
+)
+def test_plain_split_with_a_small_silicate_settles_the_melt_basis(
+    bulk, m_metal, m_sil, diw, w_fixed
+):
+    """The melt H sets the silicate units of D: at the returned split D reproduces the core of every element."""
+    core, mantle, _ = split_core_mantle(bulk, m_metal, m_sil, dIW=diw, w_fixed=w_fixed)
+    w = {**w_fixed, **{el: core[el] / m_metal for el in bulk}}
+    w_melt = {el: mantle[el] / m_sil for el in ('H', 'C') if el in bulk}
+    for el in bulk:
+        d = mass_D(get_law(el, DEFAULT_LAWS[el]), 60.0, 4000.0, diw, w, w_melt)
+        assert core[el] / m_metal == pytest.approx(d * mantle[el] / m_sil, rel=1e-9), el
+    assert all(core[el] + mantle[el] == pytest.approx(bulk[el], rel=1e-12) for el in bulk)
