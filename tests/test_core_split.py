@@ -1284,7 +1284,10 @@ def test_more_iron_takes_the_damped_root_only_with_more_iron(iron, at_w, damped,
     out = _relaxed_out(iron, at_w)
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(core_split, '_relaxed_passes', passes)
-        got = core_split._more_iron('ev', {'S': 0.0}, {'O': 0.02}, out)
+        try:
+            got = core_split._more_iron('ev', {'S': 0.0}, {'O': 0.02}, out)
+        except ValueError as err:
+            pytest.fail(f'an error of the damped passes escaped: {err!r}')
     ran = at_w and iron < 0.635
     assert calls == ([('ev', {'S': 0.0}, {'O': 0.02}, True, 0.02, 20000)] if ran else [])
     assert got == (out[:3] if want == 'out' else ({'S': 0.1}, {'S': 0.9}, {'S': 1.0 - damped}))
