@@ -86,7 +86,7 @@ The optional metal reservoir ([Metal reservoir](metal.md)). `load_partition_tabl
 
 ### `core_split.py`
 
-`split_core_mantle` splits the bulk H, C, N and S of a planet between core and mantle at one equilibration point ([Core and mantle split](metal.md#core-and-mantle-split-at-an-equilibration-point)). It takes its laws by name from `metal.get_law`, runs a fixed point on the metal composition through `metal.mass_D`, checks the element ledger of every split and flags each law outside its range with `metal.out_of_range` and `metal.range_distance`. No other module calls it.
+`split_core_mantle` splits the bulk H, C, N and S of a planet between core and mantle at one equilibration point ([Core and mantle split](metal.md#core-and-mantle-split-at-an-equilibration-point)). It takes its laws by name from `metal.get_law`, runs a fixed point on the metal composition through `metal.mass_D`, checks the element ledger of every split and flags each law outside its range from the distances of `metal.range_distance`. No other module calls it.
 
 ### `structure.py`
 

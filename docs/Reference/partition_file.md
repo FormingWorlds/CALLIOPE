@@ -100,7 +100,7 @@ Suer et al. (2023) give an uncertainty of up to 20 % on their Table 1 values. In
 | Input | Unit | Rule |
 |---|---|---|
 | `bulk_kg` | kg | bulk mass per element of H, C, N, S; finite and >= 0; O and Si raise `ValueError` |
-| `M_metal`, `M_silicate` | kg | finite; `M_metal` >= 0, `M_silicate` > 0 |
+| `M_metal`, `M_silicate` | kg | finite; `M_metal` >= 0, `M_silicate` > 0; with `M_metal` 0 no law is evaluated, the core is 0 and the mantle the bulk |
 | `dIW` | log10 units | finite, no default; with a law that has an FeO term (the default S law) at most $-2\log_{10} x'_\mathrm{Fe}$ of the start metal (`w_fixed`; +0.06 for 2 wt% O, +0.11 for 2 wt% O and 3 wt% Si), else `ValueError`; below about -600 `ValueError` (X_FeO underflows) |
 | `P_eq`, `T_eq` | GPa, K | finite and > 0 |
 | `laws` | | law per element of `bulk_kg`, a name or a D-law entry of that element; elements not given take `tagawa2021_eq2`, `fischer2020_eq1`, `suer2023_line`, `suer2017_eq7`; `laws` itself must be a dict, and a key outside `bulk_kg` raises `ValueError`; a value that is not a law name or an entry that passes `check_law` raises `PartitionTableError` |

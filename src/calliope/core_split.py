@@ -46,6 +46,7 @@ DEFAULT_LAWS = {
 P_EQ_GPA = 60.0  # Suer et al. 2023 Table 1, deep magma ocean column
 T_EQ_K = 4000.0
 MAX_PASSES = 50
+MAX_RELAXED_PASSES = 200
 TOL_W = 1e-12  # relative step of the metal mass fractions that ends the fixed point
 TOL_W_FLOOR = 1e-15  # absolute floor of that step, for an element near 0
 LEDGER_RTOL = 1e-12
@@ -73,6 +74,55 @@ def _masses(bulk, d, m_metal, m_sil):
     return core, {el: m_sil / total[el] * m for el, m in bulk.items()}
 
 
+class _Unsettled(Exception):
+    """Plain substitution left the metal with no iron or did not settle."""
+
+
+def _settled(g, w):
+    return all(abs(g[el] - w[el]) <= TOL_W * abs(g[el]) + TOL_W_FLOOR for el in g)
+
+
+def _plain_fixed_point(evaluate, start, fixed):
+    """Plain substitution w <- g(w); an error after the first pass or no settling raises _Unsettled."""
+    w, w_melt = start, {}
+    for k in range(MAX_PASSES):
+        try:
+            core, mantle, g, w_melt = evaluate(w, w_melt)
+        except ValueError:
+            if k == 0:
+                raise
+            raise _Unsettled from None
+        settled, w = _settled(g, w), {**fixed, **g}
+        if settled:
+            return core, mantle, w
+    raise _Unsettled
+
+
+def _relaxed_fixed_point(evaluate, start, fixed):
+    """Relaxed substitution where g falls with w: each element moves 1/(1 - s) of its step.
+
+    s is the secant slope of g against w over the last 2 passes when negative (1 otherwise), as
+    in the metal reservoir of calliope.solve; a pass adds at most half of the iron left.
+    """
+    w, w_melt, last = start, {}, {}
+    for _ in range(MAX_RELAXED_PASSES):
+        core, mantle, g, w_melt = evaluate(w, w_melt)
+        if _settled(g, w):
+            return core, mantle, {**fixed, **g}
+        move = {}
+        for el, gv in g.items():
+            lam = 1.0
+            if el in last and w[el] != last[el][0]:
+                lam = 1.0 / (1.0 - min((gv - last[el][1]) / (w[el] - last[el][0]), 0.0))
+            last[el], move[el] = (w[el], gv), lam * (gv - w[el])
+        while sum(move.values()) > 0.5 * (1.0 - sum(w.values())):
+            move = {el: 0.5 * v for el, v in move.items()}
+        w = {**w, **{el: w[el] + v for el, v in move.items()}}
+    raise RuntimeError(
+        f'the metal of the split did not settle in {MAX_RELAXED_PASSES} relaxed passes: {w}'
+    )
+
+
 def split_core_mantle(
     bulk_kg,
     M_metal,
@@ -94,7 +144,8 @@ def split_core_mantle(
         Bulk mass [kg] of each element to split, H, C, N or S (or any element of
         :data:`calliope.metal.ELEMENTS` with a D law); O and Si are refused.
     M_metal : float
-        Mass of the equilibrating metal [kg], >= 0.
+        Mass of the equilibrating metal [kg], >= 0; 0 evaluates no law and returns the bulk
+        as mantle.
     M_silicate : float
         Mass of the equilibrating silicate [kg], > 0.
     dIW : float
@@ -135,8 +186,8 @@ def split_core_mantle(
         A law name that is not held, or a law in ``laws`` that is not a D law of its
         element.
     RuntimeError
-        A metal composition that does not settle in :data:`MAX_PASSES` passes, or a split
-        that breaks the element ledger.
+        A metal composition that settles neither in :data:`MAX_PASSES` plain passes nor in
+        :data:`MAX_RELAXED_PASSES` relaxed passes, or a split that breaks the element ledger.
     """
     bulk = {}
     for el, m in bulk_kg.items():
@@ -174,8 +225,9 @@ def split_core_mantle(
             entries[el] = check_law(get_law(el, spec) if isinstance(spec, str) else spec, el)
         except PartitionTableError as err:
             raise PartitionTableError(f'laws[{el!r}] = {spec!r:.60}: {err}') from err
-    w, w_melt = {**fixed, **dict.fromkeys(bulk, 0.0)}, {}
-    for _ in range(MAX_PASSES):
+    start = {**fixed, **dict.fromkeys(bulk, 0.0)}
+
+    def evaluate(w, w_melt):
         d = {}
         for el in bulk:
             try:
@@ -183,14 +235,16 @@ def split_core_mantle(
             except ValueError as err:
                 raise ValueError(f'split of {el}: {err}') from err
         core, mantle = _masses(bulk, d, m_metal, m_sil)
-        new = {**fixed, **{el: core[el] / m_metal if m_metal else 0.0 for el in bulk}}
-        w_melt = {el: mantle[el] / m_sil for el in ('H', 'C') if el in bulk}
-        settled = all(abs(new[el] - w[el]) <= TOL_W * abs(new[el]) + TOL_W_FLOOR for el in bulk)
-        w = new
-        if settled:
-            break
+        g = {el: core[el] / m_metal for el in bulk}
+        return core, mantle, g, {el: mantle[el] / m_sil for el in ('H', 'C') if el in bulk}
+
+    if m_metal == 0.0:
+        core, mantle, w = dict.fromkeys(bulk, 0.0), dict(bulk), start
     else:
-        raise RuntimeError(f'the metal of the split did not settle in {MAX_PASSES} passes: {w}')
+        try:
+            core, mantle, w = _plain_fixed_point(evaluate, start, fixed)
+        except _Unsettled:
+            core, mantle, w = _relaxed_fixed_point(evaluate, start, fixed)
     for el, m in bulk.items():
         if not (
             core[el] >= 0.0
