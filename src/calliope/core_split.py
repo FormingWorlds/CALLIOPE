@@ -80,6 +80,10 @@ class _Unsettled(Exception):
     """Plain substitution left the metal with no iron or did not settle."""
 
 
+class _IronOut(ValueError):
+    """A relaxed pass left the metal with iron below IRON_FLOOR."""
+
+
 def _settled(g, w):
     return all(abs(g[el] - w[el]) <= TOL_W * abs(g[el]) + TOL_W_FLOOR for el in g)
 
@@ -107,60 +111,94 @@ def _plain_fixed_point(evaluate, start, fixed):
 def _relaxed_fixed_point(evaluate, start, fixed):
     """Relaxed passes, first with a step factor per element, then with one for all elements.
 
-    Each element moves lam = 1/(1 + |s|) of its step g - w, s being the secant slope of g against
-    w of the element over its last 2 passes (as in the metal reservoir of calliope.solve for a
-    falling g; a rising slope from the coupling of elements is damped the same way). If those
-    passes do not settle, they start again from ``start`` with the smallest lam for every
-    element, which keeps coupled moves in step. Raises RuntimeError when neither settles.
+    Each element moves lam = 1/(1 - min(s, 0)) of its step g - w, s being the secant slope of g
+    against w of the element over its last 2 passes (as in the metal reservoir of calliope.solve):
+    a falling g is damped, a rising g takes its full step. If those passes do not settle or leave
+    no iron, they start again from ``start`` with the smallest lam for every element, which keeps
+    coupled moves in step. Raises ValueError when the common passes leave no iron and
+    RuntimeError when they do not settle.
     """
-    for common in (False, True):
-        out = _relaxed_passes(evaluate, start, fixed, common)
-        if out is not None:
-            return out
+    try:
+        out = _relaxed_passes(evaluate, start, fixed, False)
+    except _IronOut:
+        out = None
+    if out is not None:
+        return out
+    try:
+        out = _relaxed_passes(evaluate, start, fixed, True)
+    except _IronOut as err:
+        raise ValueError(str(err)) from None
+    if out is not None:
+        return out
     raise RuntimeError(
         f'the metal of the split did not settle in 2 x {MAX_RELAXED_PASSES} relaxed passes'
     )
+
+
+def _bracketed(evaluate, w, w_melt, el, ulps=4):
+    """g - w of element el changes sign from + to - across ``ulps`` floats each side of w[el]."""
+
+    def excess(x):
+        try:
+            return evaluate({**w, el: x}, w_melt)[2][el] - x
+        except ValueError:
+            return math.nan
+
+    step = ulps * math.ulp(w[el])
+    return excess(w[el] - step) > 0.0 > excess(w[el] + step)
 
 
 def _relaxed_passes(evaluate, start, fixed, common):
     """Relaxed passes from ``start``; None when they do not settle in MAX_RELAXED_PASSES.
 
     The melt H and C of the pass must have settled too, since they set the silicate units of
-    the mole bases. A pass adds at most half of the iron left. An element has settled when its step meets the
-    settle test, or when g falls with w, its move is within 2 ulp of w and its step within
-    GRID_RTOL of g (the float grid of a steep g). A pass that leaves iron below IRON_FLOOR
-    raises ValueError: the iron runs out.
+    the mole bases. A pass adds at most half of the iron left. An element has settled when its
+    step meets the settle test, or when g falls with w, its move at its own lam is within 2 ulp
+    of w and its step within GRID_RTOL of g (the float grid of a steep g); such a pass is
+    returned only when one more pass at its metal moves no element by more than GRID_RTOL, so
+    D at the returned split meets GRID_RTOL. A pass that leaves iron below IRON_FLOOR raises
+    _IronOut.
     """
     w, w_melt, last = start, {}, {}
     for _ in range(MAX_RELAXED_PASSES):
         core, mantle, g, new_melt = evaluate(w, w_melt)
         melt_settled = _settled(new_melt, w_melt) if w_melt else not new_melt
-        w_melt = new_melt
+        w_melt_prev, w_melt = w_melt, new_melt
         slope = {}
         for el, gv in g.items():
             slope[el] = 0.0
             if el in last and w[el] != last[el][0]:
                 slope[el] = (gv - last[el][1]) / (w[el] - last[el][0])
             last[el] = (w[el], gv)
-        lam = {el: 1.0 / (1.0 + abs(s)) for el, s in slope.items()}
-        if common:
-            lam = dict.fromkeys(lam, min(lam.values()))
+        own = {el: 1.0 / (1.0 + abs(s)) for el, s in slope.items()}
+        lam = dict.fromkeys(own, min(own.values())) if common else own
         move = {el: lam[el] * (gv - w[el]) for el, gv in g.items()}
         if melt_settled and all(
             _settled({el: g[el]}, {el: w[el]})
             or (
                 slope[el] < 0.0
-                and abs(move[el]) <= 2.0 * math.ulp(w[el])
+                and own[el] * abs(g[el] - w[el]) <= 2.0 * math.ulp(w[el])
                 and abs(g[el] - w[el]) <= GRID_RTOL * abs(g[el])
             )
             for el in g
         ):
-            return core, mantle, {**fixed, **g}
+            if _settled(g, w):
+                return core, mantle, {**fixed, **g}
+            if all(
+                _settled({el: g[el]}, {el: w[el]}) or _bracketed(evaluate, w, w_melt_prev, el)
+                for el in g
+            ):
+                at_w = {el: w[el] * core[el] / g[el] if g[el] else 0.0 for el in g}
+                return (
+                    at_w,
+                    {el: core[el] + mantle[el] - at_w[el] for el in g},
+                    {**fixed, **{el: w[el] for el in g}},
+                )
         while sum(move.values()) > 0.5 * (1.0 - sum(w.values())):
             move = {el: 0.5 * v for el, v in move.items()}
         w = {**w, **{el: w[el] + v for el, v in move.items()}}
         if 1.0 - sum(w.values()) < IRON_FLOOR:
-            raise ValueError(
+            raise _IronOut(
                 f'the metal has no iron left: a pass leaves iron below {IRON_FLOOR:g} by mass '
                 f'for this bulk and metal mass ({w})'
             )
@@ -309,9 +347,16 @@ def split_core_mantle(
             'beyond_FeS': int(n_s > n_fe),
         }
     }
+    w_melt = {el: mantle[el] / m_sil for el in ('H', 'C') if el in bulk}
     for el, entry in entries.items():
         dist = range_distance(entry, p_eq, t_eq, d_iw)
         flags[el] = {'out_of_range': int(any(v != 0.0 for v in dist.values())), **dist}
+        flags[el]['D_residual'] = 0.0
+        if core[el] > 0.0:
+            d = mass_D(entry, p_eq, t_eq, d_iw, w, w_melt, oxides, nbo_t)
+            flags[el]['D_residual'] = (
+                abs(core[el] - d * mantle[el] * m_metal / m_sil) / core[el]
+            )
         label = names[el] if isinstance(names[el], str) else f'entry ({entry["source"][:40]})'
         ranges = tuple(entry[r] for r in ('P_range_GPa', 'T_range_K', 'dIW_range'))
         key = (el, label, entry['source']) + ranges

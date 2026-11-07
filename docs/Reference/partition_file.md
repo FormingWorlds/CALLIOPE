@@ -115,5 +115,6 @@ Suer et al. (2023) give an uncertainty of up to 20 % on their Table 1 values. In
 | `flags['metal']['S_over_Fe']` | | S to Fe mole ratio of the metal |
 | `flags['metal']['beyond_FeS']` | | 1 when the metal holds more S than Fe, past FeS (flag only, no clamp) |
 | `flags[e]['P_GPa']`, `['T_K']`, `['dIW']` | GPa, K, log10 units | distance outside each range, 0 inside, NaN for an unknown range |
+| `flags[e]['D_residual']` | | relative difference between the core mass fraction of `e` in the metal and $D$ at the returned split times its silicate mass fraction, 0 for no core mass |
 
 A bool, a string, NaN or inf raises `ValueError` with the name of the input. A metal composition that does not settle in 50 passes, or a broken ledger, raises `RuntimeError`.

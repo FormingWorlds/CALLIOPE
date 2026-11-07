@@ -140,7 +140,13 @@ def test_out_of_range_is_evaluated_unclamped_and_flagged(caplog):
             {'S': 1e20}, M_METAL, M_SIL, dIW=-1.5, P_eq=300.0, T_eq=5500.0
         )
         split_core_mantle({'S': 1e20}, M_METAL, M_SIL, dIW=-1.5, P_eq=300.0, T_eq=5500.0)
-    assert flags['S'] == {'out_of_range': 1, 'P_GPa': 209.0, 'T_K': 1400.0, 'dIW': 0.0}
+    assert {k: v for k, v in flags['S'].items() if k != 'D_residual'} == {
+        'out_of_range': 1,
+        'P_GPa': 209.0,
+        'T_K': 1400.0,
+        'dIW': 0.0,
+    }
+    assert 0.0 <= flags['S']['D_residual'] <= 1e-12
     w = {'S': core['S'] / M_METAL}
     d = mass_D(get_law('S', 'suer2017_eq7'), 300.0, 5500.0, -1.5, w, {})
     assert core['S'] / mantle['S'] == pytest.approx(d * M_METAL / M_SIL, rel=1e-10)
@@ -893,24 +899,22 @@ def test_plain_passes_check_the_melt_basis_of_the_first_pass():
 
 
 def test_grid_rule_accepts_a_move_of_up_to_2_ulp():
-    """A steep falling g after a 2-ulp step: the move lies between 1 and 2 ulp, so pass 2 ends the passes."""
+    """A steep falling g after a 2-ulp step, root 1 ulp below w: pass 2 brackets it and returns the metal at w."""
     w0 = 0.5
     w1 = math.nextafter(math.nextafter(w0, 1.0), 1.0)
-    g1 = w1 - 1e-12
-    script = iter([w1, g1])
-
-    def evaluate(w, w_melt):
-        return {}, {}, {'A': 0.2, 'S': next(script, w['S'])}, {}
-
+    root = math.nextafter(w1, 0.0)
+    k = 1e-12 / (w1 - root)
     calls = []
 
-    def counted(w, w_melt):
+    def evaluate(w, w_melt):
         calls.append(w['S'])
-        return evaluate(w, w_melt)
+        g_s = w1 if len(calls) == 1 else w['S'] - k * (w['S'] - root)
+        return {'A': 0.2, 'S': g_s}, {'A': 0.8, 'S': 1.0 - g_s}, {'A': 0.2, 'S': g_s}, {}
 
-    _, _, w = core_split._relaxed_passes(counted, {'A': 0.1, 'S': w0}, {}, False)
-    assert calls == [w0, w1]
-    assert w['S'] == g1
+    _, _, w = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': w0}, {}, False)
+    step = 4 * math.ulp(w1)
+    assert calls == [w0, w1, w1 - step, w1 + step]
+    assert w['S'] == w1
 
 
 def test_grid_rule_of_the_common_step_judges_each_element_at_its_own_lam():
@@ -983,3 +987,55 @@ def test_relaxed_split_reaches_the_damped_root_with_iron(bulk, m_metal, m_sil, d
     assert (
         max(_d_residuals(bulk, m_metal, m_sil, diw, {'O': 0.02}, core, mantle).values()) <= 1e-9
     )
+
+
+@pytest.mark.parametrize(
+    'iron, raises', [(5e-9, True), (2e-8, False)], ids=['iron-5e-9-raises', 'iron-2e-8-returns']
+)
+def test_iron_floor_is_1e_8_of_the_metal(iron, raises):
+    """A map that keeps the metal at iron 5e-9 runs out of iron; one at iron 2e-8 settles there."""
+
+    def evaluate(w, w_melt):
+        return {}, {}, {'S': 1.0 - iron}, {}
+
+    if raises:
+        with pytest.raises(ValueError, match='below 1e-08 by mass'):
+            core_split._relaxed_passes(evaluate, {'S': 0.0}, {}, False)
+    else:
+        _, _, w = core_split._relaxed_passes(evaluate, {'S': 0.0}, {}, False)
+        assert w['S'] == 1.0 - iron
+    assert core_split.IRON_FLOOR == pytest.approx(1e-8, rel=0.0)
+
+
+def test_plain_passes_check_a_carbon_only_melt_basis():
+    """The melt C alone moves on pass 2: the plain passes take pass 3 to confirm it."""
+    calls = []
+    melts = iter([{'C': 0.1}, {'C': 0.2}])
+
+    def evaluate(w, w_melt):
+        calls.append(dict(w_melt))
+        return {}, {}, dict(w), next(melts, {'C': 0.2})
+
+    _, _, w = core_split._plain_fixed_point(evaluate, {'S': 0.3}, {})
+    assert calls == [{}, {'C': 0.1}, {'C': 0.2}]
+    assert w == {'S': 0.3}
+
+
+def test_grid_rule_refuses_a_move_of_more_than_2_ulp():
+    """After a 4-ulp secant step the move is about 4 ulp: the passes go on to the root 1 ulp below w."""
+    w0 = 0.5
+    w1 = w0
+    for _ in range(4):
+        w1 = math.nextafter(w1, 1.0)
+    root = math.nextafter(w1, 0.0)
+    k = 1e-12 / (w1 - root)
+    calls = []
+
+    def evaluate(w, w_melt):
+        calls.append(w['S'])
+        g_s = w1 if len(calls) == 1 else w['S'] - k * (w['S'] - root)
+        return {'A': 0.2, 'S': g_s}, {'A': 0.8, 'S': 1.0 - g_s}, {'A': 0.2, 'S': g_s}, {}
+
+    _, _, w = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': w0}, {}, False)
+    assert w['S'] == root
+    assert calls[:2] == [w0, w1] and w1 + 4 * math.ulp(w1) not in calls
