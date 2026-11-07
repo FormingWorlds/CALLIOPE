@@ -13,7 +13,10 @@ with metal O present, in 'fixed' and 'partition' mode alike.
 
 from __future__ import annotations
 
+import json
 import math
+import platform
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -925,3 +928,41 @@ def test_equal_d_identity_plot(validation_plot):
         return fig
 
     validation_plot(figure, 'metal_equal_d_larger_melt')
+
+
+MAIN_OUTPUTS = Path(__file__).parent / 'data' / 'main_outputs_75faea5.json'
+MAIN_CASES = {
+    'no_metal': {},
+    'metal_parameter': {'metal_mass': 1.9e24, 'P_eq': 50.0, 'T_eq': 3500.0, 'dIW_eq': -2.0},
+    'metal_from_feo': {
+        'metal_mass': 1.9e24,
+        'P_eq': 50.0,
+        'T_eq': 3500.0,
+        'dIW_eq_mode': 'from_FeO',
+        'w_O_core': 0.01,
+    },
+}
+
+
+@pytest.mark.parametrize('case', sorted(MAIN_CASES))
+def test_solve_outputs_equal_those_of_main(case):
+    """The solve without metal and with the placeholder metal give the outputs of main.
+
+    Equal to the bit on the platform that stored them (meta.platform, meta.machine); on
+    another platform the libm round-off of log10 and exp can differ, so there rel 1e-12.
+    """
+    stored = json.loads(MAIN_OUTPUTS.read_text())
+    np.random.seed(0)
+    out = equilibrium_atmosphere(
+        TARGET, {**_ddict(), **MAIN_CASES[case]}, p_guess=dict(P_GUESS)
+    )
+    got = {
+        k: float(v) for k, v in sorted(out.items()) if isinstance(v, int | float | np.number)
+    }
+    want = stored['solves'][case]
+    assert sorted(got) == sorted(want)
+    same = (platform.system(), platform.machine()) == (
+        stored['meta']['platform'],
+        stored['meta']['machine'],
+    )
+    assert got == (want if same else pytest.approx(want, rel=1e-12, abs=0.0))
