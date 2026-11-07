@@ -125,14 +125,6 @@ def test_default_laws_split_an_earth_like_bulk():
     alt3, _, _ = split_core_mantle(BULK, M_METAL, M_SIL, dIW=-3.0, laws={'S': 'suer2023_line'})
     ref3, _, _ = split_core_mantle(BULK, M_METAL, M_SIL, dIW=-3.0)
     assert abs(alt3['S'] - ref3['S']) > 0.01 * BULK['S']
-    alt, _, _ = split_core_mantle(
-        BULK,
-        M_METAL,
-        M_SIL,
-        dIW=-1.5,
-        laws={'S': 'suer2023_line'},
-        w_fixed={'O': 0.02, 'Si': 0.03},
-    )
     # at 60 GPa and 4000 K the S law is inside its range, the H law (dIW -1.33 to -0.88) is not
     assert flags['S']['out_of_range'] == 0 and flags['H']['out_of_range'] == 1
 
@@ -273,40 +265,46 @@ def test_registered_callable_is_used_by_the_split():
     assert log10_D(get_law('S', 'test_d100'), 1.0, 2000.0, 0.0) == pytest.approx(2.0, rel=1e-12)
 
 
+S_ENTRY = get_law('S', 'suer2017_eq7')
+PTE = metal.PartitionTableError
+
+
 @pytest.mark.parametrize(
-    'laws, err',
+    'laws, err, word',
     [
-        ({'S': 'suer2023_line', 's': 'none'}, ValueError),
-        ({'S': None}, metal.PartitionTableError),
-        ({'S': lambda *a: 1.0}, metal.PartitionTableError),
-        ({'S': 'N-entry'}, metal.PartitionTableError),
+        ({'S': 'suer2023_line', 's': 'none'}, ValueError, 'outside bulk_kg'),
+        ([], ValueError, 'must be a dict'),
+        (['S'], ValueError, 'must be a dict'),
+        ({'S': None}, PTE, 'needs a law entry'),
+        ({'S': lambda *a: 1.0}, PTE, 'needs a law entry'),
+        ({'S': 'N-entry'}, PTE, 'needs a law entry'),
+        ({'S': {'element': 'S', 'form': 'log10_linear'}}, PTE, "'quantity'"),
+        ({'S': {'element': 'S', 'form': 'callable'}}, PTE, 'func'),
+        ({'S': {**S_ENTRY, 'a': '1'}}, PTE, "'a' must be a finite number"),
+        ({'S': {**S_ENTRY, 'T_range_K': 5}}, PTE, "'T_range_K' must be"),
+        ({'S': {**S_ENTRY, 'T_range_K': {1873.0: 0, 4100.0: 0}}}, PTE, "'T_range_K' must be"),
     ],
-    ids=['typo-key', 'none', 'bare-callable', 'other-element-entry'],
+    ids=[
+        'typo-key',
+        'empty-list',
+        'list',
+        'none',
+        'bare-callable',
+        'other-element-entry',
+        'entry-without-coefficients',
+        'callable-without-func',
+        'string-coefficient',
+        'scalar-range',
+        'dict-range',
+    ],
 )
-def test_laws_argument_is_checked(laws, err):
-    """A law key outside bulk_kg, None, a bare callable or a law of another element raises."""
-    if laws.get('S') == 'N-entry':
+def test_laws_argument_is_checked(laws, err, word):
+    """A bad laws argument or a bad law raises its own error type naming the fault."""
+    if laws == {'S': 'N-entry'}:
         laws = {'S': get_law('N', 'suer2023_line')}
-    with pytest.raises(err, match='laws') as info:
+    with pytest.raises(err, match=word) as info:
         split_core_mantle({'S': 1e20}, M_METAL, M_SIL, dIW=-1.5, laws=laws)
     assert type(info.value) is err
-    assert core_split._WARNED == set()
-
-
-@pytest.mark.parametrize(
-    'laws',
-    [
-        ['S'],
-        {'S': {'element': 'S', 'form': 'log10_linear'}},
-        {'S': {'element': 'S', 'form': 'callable'}},
-        {'S': {**get_law('S', 'suer2017_eq7'), 'a': '1'}},
-    ],
-    ids=['list', 'entry-without-coefficients', 'callable-without-func', 'string-coefficient'],
-)
-def test_hand_made_laws_are_checked_by_name(laws):
-    """A list, or an entry without coefficients, function or with a string value, raises ValueError."""
-    with pytest.raises(ValueError, match='laws|entry|must'):
-        split_core_mantle({'S': 1e20}, M_METAL, M_SIL, dIW=-1.5, laws=laws)
     assert core_split._WARNED == set()
 
 
@@ -456,3 +454,46 @@ def test_beyond_fes_compares_s_with_fe_also_with_o_and_si():
         out.append(flags['metal'])
     assert out[0]['beyond_FeS'] == 0 and out[0]['S_over_Fe'] < 1.0
     assert out[1]['beyond_FeS'] == 1 and out[1]['x_S'] < 0.5 < out[1]['S_over_Fe']
+
+
+def _limit(w):
+    """-2 log10 x'_Fe of a metal of light-element mass fractions w (no H, no C)."""
+    n = sum(v / metal._mass(el) for el, v in w.items())
+    n_fe = (1.0 - sum(w.values())) / metal._mass('Fe')
+    return -2.0 * math.log10(n_fe / (n_fe + n))
+
+
+def test_diw_limit_is_that_of_the_start_metal():
+    """The first pass has no S in the metal, so dIW may reach -2 log10 x'_Fe of w_fixed, not more."""
+    lim = _limit({'O': 0.02})
+    assert 0.0 < lim < 0.2
+    core, _, _ = split_core_mantle(
+        {'S': 1e15}, M_METAL, M_SIL, dIW=lim - 1e-9, w_fixed={'O': 0.02}
+    )
+    assert core['S'] > 0.99e15
+    with pytest.raises(ValueError, match='ideal-mixing limit'):
+        split_core_mantle({'S': 1e15}, M_METAL, M_SIL, dIW=lim + 1e-9, w_fixed={'O': 0.02})
+
+
+def test_very_reduced_diw_and_a_metal_with_iron_at_round_off_raise_by_name():
+    """dIW -700 underflows X_FeO: ValueError naming dIW; Fe at round-off gives finite flags."""
+    with pytest.raises(ValueError, match='dIW -700.*underflow'):
+        split_core_mantle({'S': 1e15}, M_METAL, M_SIL, dIW=-700.0)
+    fixed = {'O': 0.5, 'Si': 0.5 - 1e-15}
+    core, mantle, flags = split_core_mantle({'N': 0.0}, M_METAL, M_SIL, dIW=-2.0, w_fixed=fixed)
+    assert math.isfinite(flags['metal']['S_over_Fe'])
+    assert core['N'] == 0.0 and mantle['N'] == 0.0
+
+
+@pytest.mark.physics_invariant
+def test_s_share_of_the_tutorial_planet_against_diw():
+    """The S core shares quoted on the Explanation page: 0.871, 0.974, 0.992 at dIW -3, -1.5, -0.5."""
+    bulk = {'H': 1.5e20, 'C': 1.5e19, 'N': 8.0e18, 'S': 8.0e20}
+    share = []
+    for diw in (-3.0, -1.5, -0.5):
+        core, _, _ = split_core_mantle(
+            bulk, M_METAL, M_SIL, dIW=diw, w_fixed={'O': 0.02, 'Si': 0.03}
+        )
+        share.append(core['S'] / bulk['S'])
+    assert share == pytest.approx([0.8714, 0.9744, 0.9918], abs=5e-5)
+    assert share[0] < share[1] < share[2]

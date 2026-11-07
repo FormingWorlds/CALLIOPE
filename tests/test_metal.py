@@ -1150,11 +1150,8 @@ class TestRegistry:
 
     def test_callable_is_shared_not_copied(self):
         """get_law returns the registered function object itself, so its state is kept."""
-        import threading
 
         class Law:
-            lock = threading.Lock()
-
             def __call__(self, *args):
                 return 1.0
 
@@ -1193,3 +1190,24 @@ class TestRegistry:
         d = mass_D(n, 20.0, 3000.0, -2.0, {}, {}, oxides={'FeO': 8.0, 'MnO': 0.1})
         assert d == pytest.approx(10 ** log10_D(n, 20.0, 3000.0, -2.0), rel=1e-12)
         assert d > 1.0  # D_N of the line at dIW -2 is about 3.4
+
+
+@pytest.mark.physics_invariant
+def test_feo_of_a_law_with_f_comes_from_diw_and_inverts_the_from_feo_diw():
+    """mass_D gives the S law X_FeO = x'_Fe 10^(dIW/2); at the dIW that the reservoir derives
+    from the melt FeO (from_FeO mode) it evaluates the law at that same melt FeO."""
+    from calliope.solve import _metal_diw
+
+    s = get_law('S', 'suer2017_eq7')
+    w = {'O': 0.03, 'Si': 0.02, 'S': 0.04, 'H': 0.001}
+    n = {el: v / metal._mass(el) for el, v in w.items()}
+    n_fe = (1 - sum(w.values())) / metal._mass('Fe')
+    free = n_fe + n['O'] + n['Si'] + n['S']
+    units = (n_fe + sum(n.values())) / metal.silicate_units_per_kg()
+    for diw in (-2.5, -1.2):
+        want = 10 ** _suer(s, 60.0, 4000.0, n_fe / free * 10 ** (diw / 2), n['O'] / free)
+        assert mass_D(s, 60.0, 4000.0, diw, w, {}) == pytest.approx(want * units, rel=1e-12)
+    diw_back = _metal_diw({'dIW_eq_mode': 'from_FeO'}, w, metal.KLB1)
+    melt = metal.cation_fraction(metal.KLB1, 'FeO')
+    want = 10 ** _suer(s, 60.0, 4000.0, melt, n['O'] / free) * units
+    assert mass_D(s, 60.0, 4000.0, diw_back, w, {}) == pytest.approx(want, rel=1e-12)
