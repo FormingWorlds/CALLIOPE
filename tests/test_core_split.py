@@ -211,14 +211,15 @@ def test_fixed_point_that_does_not_settle_raises(monkeypatch):
     """A D that alternates call by call never settles: 50 plain and 200 relaxed passes, then RuntimeError."""
     calls = []
 
-    def flip(*a, **k):
-        calls.append(1)
+    def flip(entry, p, t, d_iw, w, *rest):
+        calls.append(w['S'])
         return 10.0 if len(calls) % 2 else 20.0
 
     monkeypatch.setattr(core_split, 'mass_D', flip)
     with pytest.raises(RuntimeError, match='200 relaxed passes'):
         split_core_mantle({'S': 1e20}, M_METAL, M_SIL, dIW=-2.0)
     assert len(calls) == 250
+    assert calls[50] == 0.0  # the relaxed passes start again from the start metal
 
 
 def test_broken_ledger_raises(monkeypatch):
@@ -650,3 +651,35 @@ def test_s_law_ranges_and_their_flags():
         )
         assert flags['S']['out_of_range'] == 1
         assert flags['S']['dIW'] == pytest.approx(dist, abs=1e-12)
+
+
+def _scripted(g_of_w):
+    """An evaluate of _relaxed_fixed_point whose metal S is g_of_w(w_S); records each w_S."""
+    seen = []
+
+    def evaluate(w, w_melt):
+        seen.append(w['S'])
+        g = {'S': g_of_w(w['S'])}
+        return {'S': g['S']}, {'S': 1.0 - g['S']}, g, {}
+
+    return evaluate, seen
+
+
+def test_relaxed_passes_take_plain_steps_on_a_rising_map():
+    """g = 0.5 w + 0.1 rises: the relaxed passes take the full step (0, 0.1, 0.15, ...) to 0.2."""
+    evaluate, seen = _scripted(lambda w: 0.5 * w + 0.1)
+    core, _, w = core_split._relaxed_fixed_point(evaluate, {'S': 0.0}, {})
+    assert seen[:3] == pytest.approx(
+        [0.0, 0.1, 0.15], rel=1e-12
+    )  # 2.0 x for a lam of 2 would give 0.2
+    assert w['S'] == pytest.approx(0.2, rel=1e-11)
+
+
+def test_relaxed_step_takes_at_most_half_of_the_iron_left():
+    """g = 10 asks for 10 of S: the first move halves until it is at most 0.5, so w_S = 0.3125."""
+    evaluate, seen = _scripted(lambda w: 0.4 if w > 0.0 else 10.0)
+    core_split._relaxed_fixed_point(evaluate, {'S': 0.0}, {})
+    assert seen[1] == pytest.approx(
+        0.3125, rel=1e-15
+    )  # 10 halved 5 times; 0.625 for a cap of 1
+    assert seen[:1] == [0.0]
