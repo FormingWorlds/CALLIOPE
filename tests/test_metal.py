@@ -944,7 +944,9 @@ class TestOptionalTerms:
                 for p, t, d in stored['meta']['grid']
             ]
             want = stored['law'][el]
-            assert got == (want if same else pytest.approx(want, rel=1e-12, abs=0.0)), el
+            flat = [x for pair in want for x in pair]
+            got_flat = [x for pair in got for x in pair]
+            assert got_flat == (flat if same else pytest.approx(flat, rel=1e-12, abs=0.0)), el
             assert 'f' not in table[el] and 'log10_C_S' not in table[el]
 
     @pytest.mark.parametrize(

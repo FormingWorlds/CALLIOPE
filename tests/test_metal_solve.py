@@ -948,8 +948,9 @@ REFERENCE_CASES = {
 def test_solve_outputs_match_the_stored_reference(case):
     """The solve without metal and with the placeholder metal give the stored outputs.
 
-    Equal to the bit on the platform that stored them (meta.platform, meta.machine); on
-    another platform the libm round-off of log10 and exp can differ, so there rel 1e-12.
+    Equal to the bit on the platform that stored them (meta.platform, meta.machine). On
+    another platform the libm round-off moves the root within the acceptance rtol 1e-5 of
+    the solve, so there rel 1e-4, without the round-off residuals ``*_res``.
     """
     stored = json.loads(REFERENCE_OUTPUTS.read_text())
     np.random.seed(0)
@@ -965,4 +966,8 @@ def test_solve_outputs_match_the_stored_reference(case):
         stored['meta']['platform'],
         stored['meta']['machine'],
     )
-    assert got == (want if same else pytest.approx(want, rel=1e-12, abs=0.0))
+    if same:
+        assert got == want
+    else:
+        keys = [k for k in want if not k.endswith('_res')]
+        assert {k: got[k] for k in keys} == pytest.approx({k: want[k] for k in keys}, rel=1e-4)
