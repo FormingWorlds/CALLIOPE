@@ -119,7 +119,8 @@ def _relaxed_fixed_point(evaluate, start, fixed):
     passes do not settle or leave no iron, they start again from ``start`` with the smallest lam
     for every element, which keeps coupled moves in step. Raises ValueError when the common
     passes leave no iron, or do not settle after the first passes left no iron, and RuntimeError
-    when neither settles. A return at w with the metal beyond FeS goes to _more_iron.
+    when neither settles. A return at w with the metal beyond FeS goes to _more_iron; the 4th
+    item is 1 when its damped root replaced the first root, else 0.
     """
     iron_out = None
     try:
@@ -157,14 +158,14 @@ def _more_iron(evaluate, start, fixed, out):
     """
     core, mantle, w, at_w = out
     if not at_w or w.get('S', 0.0) / _mass('S') <= _iron(w) / _mass('Fe'):
-        return core, mantle, w
+        return core, mantle, w, 0
     try:
         damped = _relaxed_passes(evaluate, start, fixed, True, DAMPED_LAM, MAX_DAMPED_PASSES)
     except ValueError:
         damped = None
     if damped is not None and _iron(damped[2]) > _iron(w):
-        return damped[:3]
-    return core, mantle, w
+        return (*damped[:3], 1)
+    return core, mantle, w, 0
 
 
 def _bracketed(evaluate, w, w_melt, el, ulps=4):
@@ -291,7 +292,8 @@ def split_core_mantle(
         ``'metal'``: the mole fractions ``x_light`` (all light elements) and ``x_S`` over
         the whole metal, ``S_over_Fe`` (moles), and ``beyond_FeS`` (1 when the metal holds
         more S than Fe, past FeS; no clamp). A relaxed split past FeS prefers the root with
-        more iron (see the metal page). Per element also ``D_residual``: |w - D w_sil| / w
+        more iron (see the metal page); ``root_rule`` is 1 when that rule replaced the first
+        root, else 0. Per element also ``D_residual``: |w - D w_sil| / w
         at the returned split, with w = core / M_metal and w_sil = mantle / M_silicate (0 for
         no core mass).
 
@@ -359,13 +361,14 @@ def split_core_mantle(
         g = {el: core[el] / m_metal for el in bulk}
         return core, mantle, g, {el: mantle[el] / m_sil for el in ('H', 'C') if el in bulk}
 
+    root_rule = 0
     if m_metal == 0.0:
         core, mantle, w = dict.fromkeys(bulk, 0.0), dict(bulk), start
     else:
         try:
             core, mantle, w = _plain_fixed_point(evaluate, start, fixed)
         except _Unsettled:
-            core, mantle, w = _relaxed_fixed_point(evaluate, start, fixed)
+            core, mantle, w, root_rule = _relaxed_fixed_point(evaluate, start, fixed)
     for el, m in bulk.items():
         if not (
             core[el] >= 0.0
@@ -385,6 +388,7 @@ def split_core_mantle(
             'x_S': n_s / total,
             'S_over_Fe': n_s / n_fe,
             'beyond_FeS': int(n_s > n_fe),
+            'root_rule': root_rule,
         }
     }
     w_melt = {el: mantle[el] / m_sil for el in ('H', 'C') if el in bulk}

@@ -68,7 +68,7 @@ dIW -3.0: S core share 0.871, metal 0
 dIW -0.5: S core share 0.992, metal 0
 ```
 
-At dIW -1.5 (Step 1) the share is 0.974. Both points lie outside the dIW range of the S law (-1.7 to -1.0), so each is flagged; the warning comes once per law and process. `flags['metal']` holds the light-element and S mole fractions of the metal and its S to Fe mole ratio, `S_over_Fe`; `beyond_FeS` is 1 when the metal holds more S than Fe, past FeS, which a large bulk S on a small metal mass can give.
+At dIW -1.5 (Step 1) the share is 0.974. Both points lie outside the dIW range of the S law (-1.7 to -1.0), so each is flagged; the warning comes once per law and process. `flags['metal']` holds the light-element and S mole fractions of the metal and its S to Fe mole ratio, `S_over_Fe`; `beyond_FeS` is 1 when the metal holds more S than Fe, past FeS, which a large bulk S on a small metal mass can give. `root_rule` is 1 when such a split returns the root with more Fe of 2 roots (see the [metal page](../Explanations/metal.md#core-and-mantle-split-at-an-equilibration-point)).
 
 ## Step 3: a point at a core-mantle boundary pressure
 
