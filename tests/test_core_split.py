@@ -1030,11 +1030,12 @@ def test_plain_passes_check_a_carbon_only_melt_basis():
     assert w == {'S': 0.3}
 
 
-def test_grid_rule_refuses_a_move_of_more_than_2_ulp():
-    """After a 4-ulp secant step the move is about 4 ulp: the passes go on to the root 1 ulp below w."""
+@pytest.mark.parametrize('ulps', [3, 4])
+def test_grid_rule_refuses_a_move_of_more_than_2_ulp(ulps):
+    """After a 3- or 4-ulp secant step the move is above 2 ulp: no accept at w, the passes end within 4 ulp of the root."""
     w0 = 0.5
     w1 = w0
-    for _ in range(4):
+    for _ in range(ulps):
         w1 = math.nextafter(w1, 1.0)
     root = math.nextafter(w1, 0.0)
     k = 1e-12 / (w1 - root)
@@ -1046,7 +1047,7 @@ def test_grid_rule_refuses_a_move_of_more_than_2_ulp():
         return {'A': 0.2, 'S': g_s}, {'A': 0.8, 'S': 1.0 - g_s}, {'A': 0.2, 'S': g_s}, {}
 
     _, _, w = core_split._relaxed_passes(evaluate, {'A': 0.1, 'S': w0}, {}, False)
-    assert w['S'] == root
+    assert w['S'] != w1 and abs(w['S'] - root) <= 4 * math.ulp(root)
     assert calls[:2] == [w0, w1] and w1 + 4 * math.ulp(w1) not in calls
 
 
@@ -1157,3 +1158,49 @@ def test_d_residual_is_taken_at_the_metal_of_the_returned_core():
     at_core = residual({'S': core['S'] / m_metal})
     assert flags['S']['D_residual'] == pytest.approx(at_core, rel=1e-6)
     assert abs(residual(got['w']) - at_core) > 0.1 * at_core  # the 2 metals give different D
+
+
+def _steep_stub(fail_at=(), zero_element=False):
+    """The 2-ulp grid stub: root 1 ulp below w1; ValueError at the metals in ``fail_at``."""
+    w0 = 0.5
+    w1 = math.nextafter(math.nextafter(w0, 1.0), 1.0)
+    root = math.nextafter(w1, 0.0)
+    k = 1e-12 / (w1 - root)
+    calls = []
+
+    def evaluate(w, w_melt):
+        calls.append(w['S'])
+        if w['S'] in fail_at:
+            raise ValueError('law outside its domain')
+        g_s = w1 if len(calls) == 1 else w['S'] - k * (w['S'] - root)
+        g = {'A': 0.2, 'S': g_s, **({'B': 0.0} if zero_element else {})}
+        return (
+            dict(g),
+            {'A': 0.8, 'S': 1.0 - g_s, **({'B': 0.0} if zero_element else {})},
+            g,
+            {},
+        )
+
+    start = {'A': 0.1, 'S': w0, **({'B': 0.0} if zero_element else {})}
+    return evaluate, start, calls, w1, root
+
+
+@pytest.mark.parametrize('sides', ['both', 'upper'])
+def test_bracket_end_that_raises_is_no_bracket(sides):
+    """A ValueError at a bracket end reads as no sign change: no return at w, the passes go on to the root."""
+    w1 = math.nextafter(math.nextafter(0.5, 1.0), 1.0)
+    step = 4 * math.ulp(w1)
+    fail_at = (w1 - step, w1 + step) if sides == 'both' else (w1 + step,)
+    evaluate, start, calls, w1, root = _steep_stub(fail_at)
+    _, _, w = core_split._relaxed_passes(evaluate, start, {}, False)
+    assert w['S'] != w1
+    assert w['S'] == pytest.approx(root, rel=1e-15, abs=0.0)
+
+
+def test_return_at_w_takes_a_zero_mantle():
+    """An element with no mass has rest 0 at w: the grid accept returns at w all the same."""
+    evaluate, start, calls, w1, root = _steep_stub(zero_element=True)
+    core, mantle, w = core_split._relaxed_passes(evaluate, start, {}, False)
+    step = 4 * math.ulp(w1)
+    assert calls == [0.5, w1, w1 - step, w1 + step]
+    assert (core['B'], mantle['B'], w['S']) == (0.0, 0.0, w1)
