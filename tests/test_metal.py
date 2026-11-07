@@ -839,7 +839,7 @@ class TestSuer2017:
         val = _suer(s, 60.0, 4000.0, x_feo, 0.0)
         assert val == pytest.approx(-3.50 + 0.75 + 0.495 + math.log10(x_feo) + 5.372, rel=1e-12)
         assert 1.5 < val < 2.2  # D_S of 30 to 160 (molar)
-        # Eq. 8 as printed (ln on the composition terms) lands more than 1 dex lower
+        # Eq. 8 as printed (ln on the composition terms) lands more than 1 dex away (5.4 dex higher)
         ln_read = -3.50 + 0.75 + 0.495 + math.log(x_feo) + 5.372 * math.log(10)
         assert abs(ln_read - val) > 1.0
         # X_O 0.1 lowers log10 D by 14 log10(0.9) = -0.641; the dIW argument is not read
@@ -948,6 +948,13 @@ class TestOptionalTerms:
             got_flat = [x for pair in got for x in pair]
             assert got_flat == (flat if same else pytest.approx(flat, rel=1e-12, abs=0.0)), el
             assert 'f' not in table[el] and 'log10_C_S' not in table[el]
+        got = [
+            list(exchange_metal(table, p, t, d, check=False).values())
+            for p, t, d in stored['meta']['grid']
+        ]
+        flat = [x for pair in stored['law']['OSi'] for x in pair]
+        got_flat = [x for pair in got for x in pair]
+        assert got_flat == (flat if same else pytest.approx(flat, rel=1e-12, abs=0.0))
 
     @pytest.mark.parametrize(
         'key, value',

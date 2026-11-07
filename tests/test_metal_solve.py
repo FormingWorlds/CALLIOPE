@@ -970,4 +970,6 @@ def test_solve_outputs_match_the_stored_reference(case):
         assert got == want
     else:
         keys = [k for k in want if not k.endswith('_res')]
-        assert {k: got[k] for k in keys} == pytest.approx({k: want[k] for k in keys}, rel=1e-4)
+        assert {k: got[k] for k in keys} == pytest.approx(
+            {k: want[k] for k in keys}, rel=1e-4, abs=0.0
+        )

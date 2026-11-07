@@ -10,8 +10,11 @@ use ``derandomize=True``. Commands: docs/How-to/build_tests.md.
 
 from __future__ import annotations
 
+import json
 import logging
 import math
+import platform
+from pathlib import Path
 
 import pytest
 
@@ -561,3 +564,85 @@ def test_ledger_undershoot_raises(monkeypatch):
     with pytest.raises(RuntimeError, match='S ledger'):
         split_core_mantle({'S': 1e20}, M_METAL, M_SIL, dIW=-1.5)
     assert core_split._WARNED == set()
+
+
+SPLIT_REFERENCE = Path(__file__).parent / 'data' / 'split_reference.json'
+
+
+def _bisect_s_root(bulk, m_metal, m_sil, diw):
+    """Root of w = D(w) w_sil(w) M/M_metal for an S-only metal, by bisection on (0, 1)."""
+    law = get_law('S', 'suer2017_eq7')
+
+    def excess(w):
+        d = mass_D(law, 60.0, 4000.0, diw, {'S': w}, {})
+        return d * m_metal / (m_sil + d * m_metal) * bulk / m_metal - w
+
+    lo, hi = 0.0, 1.0 - 1e-12
+    assert excess(lo) > 0.0 > excess(hi)
+    for _ in range(200):
+        mid = 0.5 * (lo + hi)
+        lo, hi = (mid, hi) if excess(mid) > 0.0 else (lo, mid)
+    return 0.5 * (lo + hi)
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.parametrize(
+    'bulk, m_metal, m_sil',
+    [(2e22, 1e22, 4e24), (3e22, 1e22, 4e24), (1e22, 1e22, 1e22)],
+    ids=['s2e22', 's3e22', 'small-silicate'],
+)
+def test_s_rich_metal_poor_split_finds_the_root(bulk, m_metal, m_sil):
+    """Where plain substitution oscillates, the split returns the bisection root past FeS."""
+    root = _bisect_s_root(bulk, m_metal, m_sil, -1.5)
+    core, mantle, flags = split_core_mantle({'S': bulk}, m_metal, m_sil, dIW=-1.5)
+    assert core['S'] / m_metal == pytest.approx(root, rel=1e-9)
+    assert abs(core['S'] + mantle['S'] - bulk) <= 1e-12 * bulk
+    assert flags['metal']['beyond_FeS'] == 1
+
+
+def test_no_metal_returns_the_bulk_at_any_diw():
+    """M_metal 0 uses no D: an oxidised dIW past the FeO limit still gives core 0, mantle = bulk."""
+    core, mantle, _ = split_core_mantle({'S': 1e20}, 0.0, M_SIL, dIW=0.5)
+    assert core == {'S': 0.0}
+    assert mantle == {'S': 1e20}
+
+
+def test_converging_cases_equal_the_stored_split():
+    """32 splits that converge by plain substitution (tutorial, trace S, a grid) give the stored outputs.
+
+    Equal to the bit on the platform that stored them; elsewhere rel 1e-12 (libm round-off).
+    """
+    stored = json.loads(SPLIT_REFERENCE.read_text())
+    meta = stored.pop('meta')
+    same = (platform.system(), platform.machine()) == (meta['platform'], meta['machine'])
+    for name, ref in stored.items():
+        c = ref['case']
+        core, mantle, flags = split_core_mantle(
+            c['bulk'],
+            c['m_metal'],
+            c['m_sil'],
+            dIW=c['diw'],
+            P_eq=c.get('p', 60.0),
+            T_eq=c.get('t', 4000.0),
+            w_fixed=c['w_fixed'],
+        )
+        got = {'core': core, 'mantle': mantle, 'metal': flags['metal']}
+        want = {k: ref[k] for k in got}
+        assert got == (want if same else pytest.approx(want, rel=1e-12, abs=0.0)), name
+
+
+@pytest.mark.physics_invariant
+def test_s_law_ranges_and_their_flags():
+    """Suer 2017: 1-91 GPa, 1873-4100 K, dIW -1.7 to -1.0; dIW -3 and -0.5 lie 1.3 and 0.5 outside."""
+    s = get_law('S', 'suer2017_eq7')
+    assert (s['P_range_GPa'], s['T_range_K'], s['dIW_range']) == (
+        (1.0, 91.0),
+        (1873.0, 4100.0),
+        (-1.7, -1.0),
+    )
+    for diw, dist in ((-3.0, 1.3), (-0.5, 0.5)):
+        _, _, flags = split_core_mantle(
+            {'S': 1e15}, M_METAL, M_SIL, dIW=diw, w_fixed={'O': 0.02}
+        )
+        assert flags['S']['out_of_range'] == 1
+        assert flags['S']['dIW'] == pytest.approx(dist, abs=1e-12)
