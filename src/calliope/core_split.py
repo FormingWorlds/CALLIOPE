@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import logging
 import math
-import numbers
 
 from .metal import (
     ELEMENTS,
@@ -28,6 +27,8 @@ from .metal import (
     KLB1,
     PartitionTableError,
     _metal_moles,
+    _real,
+    check_law,
     get_law,
     mass_D,
     range_distance,
@@ -46,7 +47,6 @@ T_EQ_K = 4000.0
 MAX_PASSES = 50
 TOL_W = 1e-12  # relative step of the metal mass fractions that ends the fixed point
 TOL_W_FLOOR = 1e-15  # absolute floor of that step, for an element near 0
-X_S_FES = 0.5  # S mole fraction of FeS
 LEDGER_RTOL = 1e-12
 LEDGER_ATOL = 2 * math.ulp(0.0)  # round-off of a subnormal bulk [kg]
 
@@ -56,12 +56,7 @@ _WARNED = set()
 
 def _check(name, value, positive=False, signed=False):
     """A finite real number (not a boolean), >= 0 (or > 0, or of any sign)."""
-    try:
-        ok = isinstance(value, numbers.Real) and not isinstance(value, bool)
-        ok = ok and math.isfinite(value)
-    except OverflowError:  # an int beyond the float range
-        ok = False
-    ok = ok and (signed or value > 0 or (value == 0 and not positive))
+    ok = _real(value) and (signed or value > 0 or (value == 0 and not positive))
     if not ok:
         rule = 'finite' if signed else ('finite and > 0' if positive else 'finite and >= 0')
         raise ValueError(f'{name} must be {rule}, got {value!r}')
@@ -112,7 +107,8 @@ def split_core_mantle(
         Metal mass fractions of elements that are not split (O, Si), each in [0, 1) with a
         sum below 1.
     oxides : dict
-        Silicate composition in oxide wt% (X_FeO and the silicate units of mole bases).
+        Silicate composition in oxide wt%: the silicate units of the mole bases and the
+        melt a callable law gets (the FeO of a law with an FeO term comes from ``dIW``).
     nbo_t : float
         NBO/T of the silicate.
 
@@ -124,8 +120,9 @@ def split_core_mantle(
     flags : dict
         Per element: ``out_of_range`` (1 when a distance is not 0) and the distances
         ``P_GPa``, ``T_K``, ``dIW`` of :func:`calliope.metal.range_distance`. Under
-        ``'metal'``: the mole fractions ``x_light`` (all light elements) and ``x_S`` of the
-        metal, and ``beyond_FeS`` (1 when ``x_S`` is above 0.5, the S of FeS; no clamp).
+        ``'metal'``: the mole fractions ``x_light`` (all light elements) and ``x_S`` over
+        the whole metal, ``S_over_Fe`` (moles), and ``beyond_FeS`` (1 when the metal holds
+        more S than Fe, past FeS; no clamp).
 
     Raises
     ------
@@ -164,33 +161,26 @@ def split_core_mantle(
             raise ValueError(f'w_fixed[{el!r}] = {w!r} must be below 1')
     if sum(fixed.values()) >= 1.0:
         raise ValueError(f'w_fixed {fixed} leaves no iron in the metal')
+    if not isinstance(laws or {}, dict):
+        raise ValueError(f'laws must be a dict of element to law, got {laws!r}')
     extra = sorted(set(laws or {}) - set(bulk))
     if extra:
         raise ValueError(f'laws names elements outside bulk_kg: {extra}')
     names, entries = {**DEFAULT_LAWS, **(laws or {})}, {}
     for el in bulk:
-        entry = get_law(el, names[el]) if isinstance(names[el], str) else names[el]
-        if not (
-            isinstance(entry, dict)
-            and entry.get('element') == el
-            and entry.get('form') in ('log10_linear', 'callable')
-        ):
-            raise PartitionTableError(
-                f'laws[{el!r}] must be a law name or a D-law entry of {el}, got {names[el]!r}'
-            )
-        entries[el] = entry
+        spec = names[el]
+        try:
+            entries[el] = check_law(get_law(el, spec) if isinstance(spec, str) else spec, el)
+        except PartitionTableError as err:
+            raise PartitionTableError(f'laws[{el!r}] = {spec!r:.60}: {err}') from err
     w, w_melt = {**fixed, **dict.fromkeys(bulk, 0.0)}, {}
     for _ in range(MAX_PASSES):
-        try:
-            total, n = _metal_moles(w)
-            free = total - n.get('H', 0.0) - n.get('C', 0.0)
-            x_feo = (total - sum(n.values())) / free * 10.0 ** (d_iw / 2.0)
-            d = {
-                el: mass_D(entries[el], p_eq, t_eq, d_iw, w, w_melt, oxides, nbo_t, x_feo)
-                for el in bulk
-            }
-        except ValueError as err:
-            raise ValueError(f'split of {", ".join(bulk)}: {err}') from err
+        d = {}
+        for el in bulk:
+            try:
+                d[el] = mass_D(entries[el], p_eq, t_eq, d_iw, w, w_melt, oxides, nbo_t)
+            except ValueError as err:
+                raise ValueError(f'split of {el}: {err}') from err
         core, mantle = _masses(bulk, d, m_metal, m_sil)
         new = {**fixed, **{el: core[el] / m_metal if m_metal else 0.0 for el in bulk}}
         w_melt = {el: mantle[el] / m_sil for el in ('H', 'C') if el in bulk}
@@ -211,22 +201,25 @@ def split_core_mantle(
                 f'against bulk {m!r} kg'
             )
     total, n = _metal_moles(w)
+    n_s, n_fe = n.get('S', 0.0), total - sum(n.values())
     flags = {
         'metal': {
             'x_light': sum(n.values()) / total,
-            'x_S': n.get('S', 0.0) / total,
-            'beyond_FeS': int(n.get('S', 0.0) / total > X_S_FES),
+            'x_S': n_s / total,
+            'S_over_Fe': n_s / n_fe,
+            'beyond_FeS': int(n_s > n_fe),
         }
     }
     for el, entry in entries.items():
         dist = range_distance(entry, p_eq, t_eq, d_iw)
         flags[el] = {'out_of_range': int(any(v != 0.0 for v in dist.values())), **dist}
-        key = (el, names[el] if isinstance(names[el], str) else entry['source'])
+        label = names[el] if isinstance(names[el], str) else f'entry ({entry["source"][:40]})'
+        key = (el, label) + tuple(entry[r] for r in ('P_range_GPa', 'T_range_K', 'dIW_range'))
         if flags[el]['out_of_range'] and key not in _WARNED:
             _WARNED.add(key)
             shown = {k: round(v, 3) for k, v in dist.items()}
             log.warning(
-                f'{el} partition law {key[1]} evaluated outside its range: P_eq {p_eq:g} GPa, '
+                f'{el} partition law {label} evaluated outside its range: P_eq {p_eq:g} GPa, '
                 f'T_eq {t_eq:g} K, dIW {d_iw:g} (distance {shown})'
             )
     return core, mantle, flags

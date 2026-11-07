@@ -118,9 +118,8 @@ def test_default_laws_split_an_earth_like_bulk():
     # the D of the returned metal and melt reproduce the returned split
     w = {'O': 0.02, 'Si': 0.03, **{el: core[el] / M_METAL for el in BULK}}
     w_melt = {el: mantle[el] / M_SIL for el in ('H', 'C')}
-    x_feo = _x_fe(w) * 10**-0.75
     for el in BULK:
-        d = mass_D(get_law(el, DEFAULT_LAWS[el]), 60.0, 4000.0, -1.5, w, w_melt, x_feo=x_feo)
+        d = mass_D(get_law(el, DEFAULT_LAWS[el]), 60.0, 4000.0, -1.5, w, w_melt)
         assert core[el] / M_METAL == pytest.approx(d * mantle[el] / M_SIL, rel=1e-10)
     # S follows Suer 2017, not the Suer 2023 line of the placeholder file (D 10 to 173)
     alt3, _, _ = split_core_mantle(BULK, M_METAL, M_SIL, dIW=-3.0, laws={'S': 'suer2023_line'})
@@ -148,11 +147,10 @@ def test_out_of_range_is_evaluated_unclamped_and_flagged(caplog):
         split_core_mantle({'S': 1e20}, M_METAL, M_SIL, dIW=-1.5, P_eq=300.0, T_eq=5500.0)
     assert flags['S'] == {'out_of_range': 1, 'P_GPa': 209.0, 'T_K': 1400.0, 'dIW': 0.0}
     w = {'S': core['S'] / M_METAL}
-    x_feo = _x_fe(w) * 10**-0.75
-    d = mass_D(get_law('S', 'suer2017_eq7'), 300.0, 5500.0, -1.5, w, {}, x_feo=x_feo)
+    d = mass_D(get_law('S', 'suer2017_eq7'), 300.0, 5500.0, -1.5, w, {})
     assert core['S'] / mantle['S'] == pytest.approx(d * M_METAL / M_SIL, rel=1e-10)
     # a clamp to (91 GPa, 4100 K) gives a different D
-    clamped = mass_D(get_law('S', 'suer2017_eq7'), 91.0, 4100.0, -1.5, w, {}, x_feo=x_feo)
+    clamped = mass_D(get_law('S', 'suer2017_eq7'), 91.0, 4100.0, -1.5, w, {})
     assert abs(math.log10(clamped / d)) > 0.1
     assert sum('outside its range' in r.message for r in caplog.records) == 1
 
@@ -446,8 +444,8 @@ def test_beyond_fes_compares_s_with_fe_also_with_o_and_si():
     """With O and Si in the metal, S/Fe > 1 sets beyond_FeS although x_S < 0.5; S/Fe < 1 does not."""
     fixed = {'O': 0.05, 'Si': 0.05}
     out = []
-    for bulk_s in (5e21, 2e22):
-        core, _, flags = split_core_mantle({'S': bulk_s}, 1e22, M_SIL, dIW=-2.0, w_fixed=fixed)
+    for bulk_s in (3e22, 5e22):  # S/Fe 0.65 and 1.26 at dIW -1
+        core, _, flags = split_core_mantle({'S': bulk_s}, 1e22, M_SIL, dIW=-1.0, w_fixed=fixed)
         w_s = core['S'] / 1e22
         n = {'S': w_s / 32.06, 'O': 0.05 / 15.999, 'Si': 0.05 / 28.085}
         n_fe = (1 - w_s - 0.1) / 55.845

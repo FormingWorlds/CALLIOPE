@@ -79,6 +79,8 @@ def _legend_clear(fig):
 
 
 def _check_legend(ax, box):
+    """Assert that the legend box of ``ax`` (display units) covers no mark of ``ax``."""
+
     def covered(p):
         return (
             (p[:, 0] >= box.x0)
@@ -97,10 +99,8 @@ def _check_legend(ax, box):
     grid = np.meshgrid(np.linspace(box.x0, box.x1, 20), np.linspace(box.y0, box.y1, 20))
     corners = np.reshape(grid, (2, -1)).T
     for coll in ax.collections:
-        offsets = coll.get_offsets()
-        if len(offsets) and coll.get_offset_transform() is not None:
-            pts = coll.get_offset_transform().transform(offsets)
-            assert not covered(pts), f'legend covers {coll.get_label()!r}'
+        pts = coll.get_offset_transform().transform(coll.get_offsets())
+        assert not covered(pts), f'legend covers {coll.get_label()!r}'
         for path in coll.get_paths():
             inside = path.contains_points(corners, transform=coll.get_transform())
             assert not inside.any(), f'legend covers {coll.get_label()!r}'

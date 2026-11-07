@@ -6,6 +6,7 @@ By the end of it you will:
 
 - have split an Earth-like bulk at the default point, 60 GPa and 4000 K;
 - know how to read the out-of-range flag and the distance outside each range;
+- have seen how $\Delta\mathrm{IW}$ sets the S split and what the metal flag says;
 - have seen what a point at a core-mantle boundary pressure does to the S split;
 - have added your own S law by name and used it in the split;
 - have checked the element ledger, bulk = core + mantle.
@@ -119,11 +120,11 @@ A function law gets the pressure in GPa, the temperature in K, $\Delta\mathrm{IW
 ## Step 5: the element ledger
 
 ```python
-print(max(abs(core[el] + mantle[el] - bulk[el]) / bulk[el] for el in bulk))
+print(max(abs(core[el] + mantle[el] - bulk[el]) / bulk[el] for el in bulk) < 1e-12)
 ```
 
 ```console
-2.1845333333333333e-16
+True
 ```
 
-The split checks this ledger itself on every call and raises `RuntimeError` above $10^{-12}$; here the largest error is 2e-16 of the bulk, the round-off of one addition.
+The split checks this ledger itself on every call and raises `RuntimeError` above $10^{-12}$; here the largest error is of the order of 1e-16 of the bulk, the round-off of one addition.

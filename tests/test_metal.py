@@ -1095,14 +1095,6 @@ class TestRegistry:
         with pytest.raises(ValueError, match='nan_law.*50 GPa'):
             log10_D(get_law('N', 'nan_law'), 50.0, 3000.0, -2.0)
 
-
-class TestCallableAndRegistryChecks:
-    """Arguments passed to a registered callable, its return check, and registry copies."""
-
-    @pytest.fixture(autouse=True)
-    def _own_registry(self, monkeypatch):
-        monkeypatch.setattr(metal, '_LAWS', dict(metal._LAWS))
-
     def test_callable_receives_conditions_compositions_and_nbo_t(self):
         """The callable gets P [GPa], T [K], dIW, x' of the metal, melt cation fractions, NBO/T."""
         seen = []
@@ -1122,7 +1114,9 @@ class TestCallableAndRegistryChecks:
         assert x_sil['FeO'] == pytest.approx(0.05724206711840065, rel=1e-12)
 
     @pytest.mark.parametrize(
-        'ret', [True, math.inf, -math.inf, math.nan, '1.0', None, 10**400, 1j]
+        'ret',
+        [True, math.inf, -math.inf, math.nan, '1.0', None, 10**400, 1j],
+        ids=['bool', 'inf', '-inf', 'nan', 'str', 'none', 'huge-int', 'complex'],
     )
     def test_callable_return_must_be_a_finite_real(self, ret):
         """A bool, inf, NaN, string, None, an int past the float range or a complex raises by name."""
@@ -1189,12 +1183,12 @@ class TestCallableAndRegistryChecks:
 
     def test_incomplete_entry_is_refused(self):
         """An entry dict without the coefficients of a law raises at registration."""
-        with pytest.raises(PartitionTableError, match='missing'):
+        with pytest.raises(PartitionTableError, match="'quantity' must be one of"):
             register_law('N', 'bare', {'element': 'N', 'form': 'log10_linear'})
         assert ('N', 'bare') not in metal._LAWS
 
     def test_mass_law_does_not_read_the_melt_oxides(self):
-        """A mass-basis law without an FeO term gives D for any oxide keys, as on main."""
+        """A mass-basis law without an FeO term gives its D for any oxide keys of the melt."""
         n = load_partition_table()['N']
         d = mass_D(n, 20.0, 3000.0, -2.0, {}, {}, oxides={'FeO': 8.0, 'MnO': 0.1})
         assert d == pytest.approx(10 ** log10_D(n, 20.0, 3000.0, -2.0), rel=1e-12)
