@@ -497,3 +497,67 @@ def test_s_share_of_the_tutorial_planet_against_diw():
         share.append(core['S'] / bulk['S'])
     assert share == pytest.approx([0.8714, 0.9744, 0.9918], abs=5e-5)
     assert share[0] < share[1] < share[2]
+
+
+@pytest.mark.parametrize(
+    'w_fixed, word',
+    [({'O': 1.0}, 'must be below 1'), ({'O': 0.5, 'Si': 0.5}, 'leaves no iron')],
+)
+def test_fixed_metal_messages_name_the_rule(w_fixed, word):
+    """An element at 1 names the per-element rule; a sum at 1 names the missing iron."""
+    with pytest.raises(ValueError, match=word):
+        split_core_mantle({'S': 1e20}, M_METAL, M_SIL, dIW=-2.0, w_fixed=w_fixed)
+    assert core_split._WARNED == set()
+
+
+def test_unknown_law_name_is_named_with_its_element():
+    """laws={'H': 'nope'} raises PartitionTableError that names laws['H'] and the name."""
+    with pytest.raises(PTE, match=r"laws\['H'\] = 'nope'") as info:
+        split_core_mantle({'H': 1e15}, M_METAL, M_SIL, dIW=-1.5, laws={'H': 'nope'})
+    assert type(info.value) is PTE
+
+
+def test_subnormal_bulk_closes_within_two_ulp():
+    """D 1 and M_metal = M_silicate halve a bulk of 5e-324 kg: both parts round to 0, within 2 ulp."""
+    core, mantle, _ = split_core_mantle(
+        {'N': 5e-324}, 1e20, 1e20, dIW=-2.0, laws={'N': _const('one', 0.0)}
+    )
+    assert core['N'] + mantle['N'] < 5e-324
+    assert abs(core['N'] + mantle['N'] - 5e-324) <= 2 * math.ulp(0.0)
+
+
+def test_iron_moles_come_from_the_iron_mass():
+    """With 1e-13 of Fe by mass the S/Fe flag uses the Fe moles of the Fe mass, not a difference."""
+    register_law('S', 'd1', lambda *a: 0.0, **DECL)
+    fixed = {'O': 1 - 1e-12}
+    core, _, flags = split_core_mantle(
+        {'S': 1e9}, 1e22, 1e22, dIW=-2.0, laws={'S': 'd1'}, w_fixed=fixed
+    )
+    w_s = core['S'] / 1e22
+    n_fe = (1.0 - (fixed['O'] + w_s)) / metal._mass('Fe')  # the order of the code's sum
+    assert flags['metal']['S_over_Fe'] == pytest.approx(
+        w_s / metal._mass('S') / n_fe, rel=1e-12
+    )
+    assert flags['metal']['beyond_FeS'] == 0  # S/Fe about 0.09
+
+
+def test_unknown_range_is_flagged_out_of_range():
+    """A callable law with an empty T range is always out of range: flag 1 and distance NaN."""
+    register_law('N', 'no_t', lambda *a: 1.0, **{**DECL, 'T_range_K': ()})
+    _, _, flags = split_core_mantle({'N': 1e19}, M_METAL, M_SIL, dIW=-2.0, laws={'N': 'no_t'})
+    assert flags['N']['out_of_range'] == 1
+    assert math.isnan(flags['N']['T_K'])
+
+
+def test_ledger_undershoot_raises(monkeypatch):
+    """A mantle 1e-9 short of the bulk breaks the ledger as an excess does."""
+    real = core_split._masses
+
+    def short(bulk, d, m_metal, m_sil):
+        core, mantle = real(bulk, d, m_metal, m_sil)
+        return core, {el: (1 - 1e-9) * v for el, v in mantle.items()}
+
+    monkeypatch.setattr(core_split, '_masses', short)
+    with pytest.raises(RuntimeError, match='S ledger'):
+        split_core_mantle({'S': 1e20}, M_METAL, M_SIL, dIW=-1.5)
+    assert core_split._WARNED == set()

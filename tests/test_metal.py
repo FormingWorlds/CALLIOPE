@@ -1211,3 +1211,29 @@ def test_feo_of_a_law_with_f_comes_from_diw_and_inverts_the_from_feo_diw():
     melt = metal.cation_fraction(metal.KLB1, 'FeO')
     want = 10 ** _suer(s, 60.0, 4000.0, melt, n['O'] / free) * units
     assert mass_D(s, 60.0, 4000.0, diw_back, w, {}) == pytest.approx(want, rel=1e-12)
+
+
+class TestRangeAndFeoBounds:
+    """Range shapes, and the FeO bounds of mass_D at a pure Fe metal (x'_Fe = 1)."""
+
+    def test_point_range_is_accepted_and_three_values_refused(self):
+        """A range [20, 20] (one point) loads; [1, 2, 3] raises PartitionTableError by name."""
+        assert metal._range([20.0, 20.0], 'N', 'P_range_GPa') == (20.0, 20.0)
+        with pytest.raises(PartitionTableError, match='P_range_GPa'):
+            metal._range([1.0, 2.0, 3.0], 'N', 'P_range_GPa')
+
+    def test_feo_of_one_is_allowed_and_beyond_raises(self):
+        """Pure Fe at dIW 0 gives X_FeO = 1 exactly, a finite D; dIW 1e-9 above raises."""
+        s = get_law('S', 'suer2017_eq7')
+        d = mass_D(s, 60.0, 4000.0, 0.0, {}, {})
+        assert math.isfinite(d) and d > 0.0
+        assert 10 ** log10_D(s, 60.0, 4000.0, 0.0, {}, x_silicate={'FeO': 1.0}) > 0.0
+        with pytest.raises(ValueError, match='ideal-mixing limit'):
+            mass_D(s, 60.0, 4000.0, 1e-9, {}, {})
+
+    def test_underflow_bound_is_at_x_feo_1e_minus_300(self):
+        """Pure Fe at dIW -600 gives X_FeO = 1e-300, still finite; dIW -600.01 raises by name."""
+        s = get_law('S', 'suer2017_eq7')
+        assert mass_D(s, 60.0, 4000.0, -600.0, {}, {}) > 0.0
+        with pytest.raises(ValueError, match='underflow'):
+            mass_D(s, 60.0, 4000.0, -600.01, {}, {})
