@@ -133,7 +133,9 @@ def _relaxed_fixed_point(evaluate, start, fixed):
     if out is not None:
         return out
     if iron_out is not None:
-        raise ValueError(str(iron_out)) from None
+        raise ValueError(
+            f'{iron_out}; the common passes then did not settle in {MAX_RELAXED_PASSES} passes'
+        ) from None
     raise RuntimeError(
         f'the metal of the split did not settle in 2 x {MAX_RELAXED_PASSES} relaxed passes'
     )
@@ -267,13 +269,15 @@ def split_core_mantle(
     ValueError
         An input outside its domain (named), O or Si in ``bulk_kg``, a key of ``laws``
         outside ``bulk_kg``, a D that overflows with ``M_metal``, or a metal with no iron
-        left (naming the split).
+        left (naming the split), also when the common relaxed passes do not settle after
+        the per-element passes ran out of iron.
     calliope.metal.PartitionTableError
         A law name that is not held, or a law in ``laws`` that is not a D law of its
         element.
     RuntimeError
         A metal composition that settles neither in :data:`MAX_PASSES` plain passes nor in
-        :data:`MAX_RELAXED_PASSES` relaxed passes, or a split that breaks the element ledger.
+        2 x :data:`MAX_RELAXED_PASSES` relaxed passes, or a split that breaks the element
+        ledger.
     """
     bulk = {}
     for el, m in bulk_kg.items():
@@ -341,8 +345,9 @@ def split_core_mantle(
                 f'{el} ledger of the split fails: core {core[el]!r} + mantle {mantle[el]!r} kg '
                 f'against bulk {m!r} kg'
             )
-    total, n = _metal_moles(w)
-    n_s, n_fe = n.get('S', 0.0), (1.0 - sum(w.values())) / _mass('Fe')
+    w_ret = {**fixed, **{el: core[el] / m_metal for el in bulk}} if m_metal else w
+    total, n = _metal_moles(w_ret)
+    n_s, n_fe = n.get('S', 0.0), (1.0 - sum(w_ret.values())) / _mass('Fe')
     flags = {
         'metal': {
             'x_light': sum(n.values()) / total,
@@ -351,7 +356,6 @@ def split_core_mantle(
             'beyond_FeS': int(n_s > n_fe),
         }
     }
-    w_ret = {**fixed, **{el: core[el] / m_metal for el in bulk}} if m_metal else w
     w_melt = {el: mantle[el] / m_sil for el in ('H', 'C') if el in bulk}
     for el, entry in entries.items():
         dist = range_distance(entry, p_eq, t_eq, d_iw)

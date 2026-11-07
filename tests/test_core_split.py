@@ -1132,3 +1132,28 @@ def test_bracket_uses_the_melt_basis_of_the_evaluated_metal():
     step = 4 * math.ulp(w1)
     assert calls == [w0, w1, w1 - step, w1 + step]
     assert w['S'] == w1
+
+
+def test_d_residual_is_taken_at_the_metal_of_the_returned_core():
+    """S 1.5 x M_metal returns at an evaluated metal 1 ulp from core / M_metal: the flag uses core / M_metal."""
+    got = {}
+    real = core_split._relaxed_fixed_point
+
+    def capture(*args):
+        out = real(*args)
+        got['w'] = out[2]
+        return out
+
+    m_metal, m_sil = 1.3e22, 1.3e18
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(core_split, '_relaxed_fixed_point', capture)
+        core, mantle, flags = split_core_mantle({'S': 1.5 * m_metal}, m_metal, m_sil, dIW=-1.5)
+    law = get_law('S', DEFAULT_LAWS['S'])
+
+    def residual(w):
+        x = core['S'] / m_metal
+        return abs(x - mass_D(law, 60.0, 4000.0, -1.5, w, {}) * mantle['S'] / m_sil) / x
+
+    at_core = residual({'S': core['S'] / m_metal})
+    assert flags['S']['D_residual'] == pytest.approx(at_core, rel=1e-6)
+    assert abs(residual(got['w']) - at_core) > 0.1 * at_core  # the 2 metals give different D
