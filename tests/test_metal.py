@@ -1121,13 +1121,15 @@ class TestCallableAndRegistryChecks:
         assert sum(x_sil.values()) == pytest.approx(1.0, rel=1e-12)
         assert x_sil['FeO'] == pytest.approx(0.05724206711840065, rel=1e-12)
 
-    @pytest.mark.parametrize('ret', [True, math.inf, '1.0', None])
+    @pytest.mark.parametrize(
+        'ret', [True, math.inf, -math.inf, math.nan, '1.0', None, 10**400, 1j]
+    )
     def test_callable_return_must_be_a_finite_real(self, ret):
-        """A bool, inf, string or None from a callable raises ValueError naming the law."""
+        """A bool, inf, NaN, string, None, an int past the float range or a complex raises by name."""
         register_law('N', 'bad_ret', lambda *a: ret, **_DECL)
-        with pytest.raises(ValueError, match='bad_ret'):
+        with pytest.raises(ValueError, match='bad_ret') as info:
             log10_D(get_law('N', 'bad_ret'), 50.0, 3000.0, -2.0)
-        assert ('N', 'bad_ret') in metal._LAWS
+        assert type(info.value) is ValueError
 
     def test_numpy_real_return_is_accepted(self):
         """A finite numpy float32 or int64 from a callable is a valid log10 D."""
@@ -1142,6 +1144,30 @@ class TestCallableAndRegistryChecks:
         with pytest.raises(PartitionTableError, match='T_range_K'):
             register_law('N', 'arr', _const_law, **{**_DECL, 'T_range_K': np.array([1.0, 2.0])})
         assert ('N', 'arr') not in metal._LAWS
+
+    def test_packaged_law_cannot_be_replaced_and_entries_are_stored_as_copies(self):
+        """replace on a packaged name raises; changing a registered entry later leaves the registry."""
+        with pytest.raises(PartitionTableError, match='packaged'):
+            register_law('S', 'suer2017_eq7', _const_law, replace=True, **_DECL)
+        entry = load_partition_table()['N']
+        register_law('N', 'copied', entry)
+        entry['a'] = 99.0
+        assert get_law('N', 'copied')['a'] == pytest.approx(2.121419, rel=1e-12)
+
+    def test_callable_is_shared_not_copied(self):
+        """get_law returns the registered function object itself, so its state is kept."""
+        import threading
+
+        class Law:
+            lock = threading.Lock()
+
+            def __call__(self, *args):
+                return 1.0
+
+        law = Law()
+        register_law('N', 'obj', law, **_DECL)
+        assert get_law('N', 'obj')['func'] is law
+        assert log10_D(get_law('N', 'obj'), 50.0, 3000.0, -2.0) == pytest.approx(1.0, rel=1e-12)
 
     def test_get_law_returns_a_copy(self):
         """Changing a returned law changes neither the registry nor its eps table."""

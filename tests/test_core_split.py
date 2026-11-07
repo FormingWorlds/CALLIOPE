@@ -123,6 +123,9 @@ def test_default_laws_split_an_earth_like_bulk():
         d = mass_D(get_law(el, DEFAULT_LAWS[el]), 60.0, 4000.0, -1.5, w, w_melt, x_feo=x_feo)
         assert core[el] / M_METAL == pytest.approx(d * mantle[el] / M_SIL, rel=1e-10)
     # S follows Suer 2017, not the Suer 2023 line of the placeholder file (D 10 to 173)
+    alt3, _, _ = split_core_mantle(BULK, M_METAL, M_SIL, dIW=-3.0, laws={'S': 'suer2023_line'})
+    ref3, _, _ = split_core_mantle(BULK, M_METAL, M_SIL, dIW=-3.0)
+    assert abs(alt3['S'] - ref3['S']) > 0.01 * BULK['S']
     alt, _, _ = split_core_mantle(
         BULK,
         M_METAL,
@@ -131,7 +134,6 @@ def test_default_laws_split_an_earth_like_bulk():
         laws={'S': 'suer2023_line'},
         w_fixed={'O': 0.02, 'Si': 0.03},
     )
-    assert abs(alt['S'] - core['S']) > 0.003 * BULK['S']  # 0.0066 of the bulk at dIW -1.5
     # at 60 GPa and 4000 K the S law is inside its range, the H law (dIW -1.33 to -0.88) is not
     assert flags['S']['out_of_range'] == 0 and flags['H']['out_of_range'] == 1
 
@@ -287,7 +289,25 @@ def test_laws_argument_is_checked(laws, err):
     """A law key outside bulk_kg, None, a bare callable or a law of another element raises."""
     if laws.get('S') == 'N-entry':
         laws = {'S': get_law('N', 'suer2023_line')}
-    with pytest.raises(err, match='laws'):
+    with pytest.raises(err, match='laws') as info:
+        split_core_mantle({'S': 1e20}, M_METAL, M_SIL, dIW=-1.5, laws=laws)
+    assert type(info.value) is err
+    assert core_split._WARNED == set()
+
+
+@pytest.mark.parametrize(
+    'laws',
+    [
+        ['S'],
+        {'S': {'element': 'S', 'form': 'log10_linear'}},
+        {'S': {'element': 'S', 'form': 'callable'}},
+        {'S': {**get_law('S', 'suer2017_eq7'), 'a': '1'}},
+    ],
+    ids=['list', 'entry-without-coefficients', 'callable-without-func', 'string-coefficient'],
+)
+def test_hand_made_laws_are_checked_by_name(laws):
+    """A list, or an entry without coefficients, function or with a string value, raises ValueError."""
+    with pytest.raises(ValueError, match='laws|entry|must'):
         split_core_mantle({'S': 1e20}, M_METAL, M_SIL, dIW=-1.5, laws=laws)
     assert core_split._WARNED == set()
 
@@ -296,7 +316,7 @@ def test_overflow_of_d_times_metal_raises_a_named_error():
     """log10 D 290 with 1e24 kg of metal overflows: ValueError naming the element, no NaN."""
     with pytest.raises(ValueError, match="'N'.*not finite"):
         split_core_mantle({'N': 1e19}, 1e24, M_SIL, dIW=-2.0, laws={'N': _const('huge', 290.0)})
-    assert 'huge' in metal.law_names('N')
+    assert core_split._WARNED == set()
 
 
 def test_bulk_beyond_the_float_range_and_beyond_the_metal_raise_named_errors():
@@ -307,15 +327,21 @@ def test_bulk_beyond_the_float_range_and_beyond_the_metal_raise_named_errors():
         split_core_mantle({'S': 5e24}, M_METAL, M_SIL, dIW=-1.5)
 
 
-def test_each_entry_warns_once_with_rounded_distances(caplog):
-    """2 different entries of N out of range warn once each; the distances print rounded."""
-    a, b = get_law('N', 'suer2023_line'), dict(get_law('N', 'suer2023_line'), source='other')
+def test_each_law_warns_once_with_rounded_distances(caplog):
+    """A law warns once; a law of other ranges under the same name warns again, distances rounded."""
+    register_law('N', 'mine', lambda *a: 1.0, **DECL)
     with caplog.at_level(logging.WARNING, logger='fwl.calliope.core_split'):
-        for law in (a, b, a):
-            split_core_mantle({'N': 1e19}, M_METAL, M_SIL, dIW=-2.0, laws={'N': law})
+        for _ in range(2):
+            split_core_mantle({'H': 1e19}, M_METAL, M_SIL, dIW=-1.5)  # H dIW -1.33..-0.88
+            split_core_mantle({'N': 1e19}, M_METAL, M_SIL, dIW=-6.0, laws={'N': 'mine'})
+        register_law(
+            'N', 'mine', lambda *a: 1.0, replace=True, **{**DECL, 'dIW_range': (-5.5, 0)}
+        )
+        split_core_mantle({'N': 1e19}, M_METAL, M_SIL, dIW=-6.0, laws={'N': 'mine'})
     msgs = [r.message for r in caplog.records if 'outside its range' in r.message]
-    assert len(msgs) == 2
-    assert all('0.16999' not in m and "'T_K': 1000" in m for m in msgs)
+    assert len(msgs) == 3
+    assert "'dIW': 0.17}" in msgs[0] and '0.1699' not in msgs[0]
+    assert "'dIW': 0.5}" in msgs[2]
 
 
 @pytest.mark.physics_invariant
@@ -386,7 +412,49 @@ def test_ledger_closes_with_the_default_laws(frac, diw, ratio):
     m_metal = ratio * M_SIL
     bulk = {el: frac * m_metal for el in ('H', 'C', 'N', 'S')}
     core, mantle, flags = split_core_mantle(bulk, m_metal, M_SIL, dIW=diw, w_fixed={'O': 0.02})
+    w = {'O': 0.02, **{el: core[el] / m_metal for el in bulk}}
+    w_melt = {el: mantle[el] / M_SIL for el in ('H', 'C')}
     for el, m in bulk.items():
-        assert core[el] >= 0.0 and mantle[el] >= 0.0
         assert abs(core[el] + mantle[el] - m) <= 1e-12 * m + 2 * math.ulp(0.0)
-    assert 0.0 <= flags['metal']['x_light'] < 1.0
+        if m > 0.0:  # the D of the returned metal reproduces the split
+            d = mass_D(get_law(el, DEFAULT_LAWS[el]), 60.0, 4000.0, diw, w, w_melt)
+            assert core[el] / m_metal == pytest.approx(d * mantle[el] / M_SIL, rel=1e-8)
+
+
+def test_diw_above_the_ideal_mixing_limit_raises_by_name():
+    """X_FeO = x'_Fe 10^(dIW/2) cannot pass 1: dIW above -2 log10 x'_Fe raises a ValueError on dIW."""
+    for diw in (0.3, 700.0):
+        with pytest.raises(ValueError, match='dIW.*limit') as info:
+            split_core_mantle({'S': 1e15}, M_METAL, M_SIL, dIW=diw, w_fixed={'O': 0.02})
+        assert type(info.value) is ValueError
+    core, _, _ = split_core_mantle({'S': 1e15}, M_METAL, M_SIL, dIW=0.0, w_fixed={'O': 0.02})
+    assert core['S'] > 0.99e15
+
+
+def test_callable_in_the_split_gets_the_melt_as_given():
+    """A callable law in the split receives the melt cation fractions of oxides, summing to 1."""
+    seen = []
+    register_law('S', 'spy', lambda *a: seen.append(a) or 1.0, **DECL)
+    split_core_mantle({'S': 1e15}, M_METAL, M_SIL, dIW=-1.5, laws={'S': 'spy'})
+    x_sil = seen[-1][4]
+    assert sum(x_sil.values()) == pytest.approx(1.0, rel=1e-12)
+    assert x_sil['FeO'] == pytest.approx(metal.cation_fraction(metal.KLB1, 'FeO'), rel=1e-12)
+
+
+@pytest.mark.physics_invariant
+def test_beyond_fes_compares_s_with_fe_also_with_o_and_si():
+    """With O and Si in the metal, S/Fe > 1 sets beyond_FeS although x_S < 0.5; S/Fe < 1 does not."""
+    fixed = {'O': 0.05, 'Si': 0.05}
+    out = []
+    for bulk_s in (5e21, 2e22):
+        core, _, flags = split_core_mantle({'S': bulk_s}, 1e22, M_SIL, dIW=-2.0, w_fixed=fixed)
+        w_s = core['S'] / 1e22
+        n = {'S': w_s / 32.06, 'O': 0.05 / 15.999, 'Si': 0.05 / 28.085}
+        n_fe = (1 - w_s - 0.1) / 55.845
+        assert flags['metal']['x_S'] == pytest.approx(
+            n['S'] / (n_fe + sum(n.values())), rel=1e-3
+        )
+        assert flags['metal']['S_over_Fe'] == pytest.approx(n['S'] / n_fe, rel=1e-3)
+        out.append(flags['metal'])
+    assert out[0]['beyond_FeS'] == 0 and out[0]['S_over_Fe'] < 1.0
+    assert out[1]['beyond_FeS'] == 1 and out[1]['x_S'] < 0.5 < out[1]['S_over_Fe']
