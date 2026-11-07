@@ -119,8 +119,8 @@ def _relaxed_fixed_point(evaluate, start, fixed):
     passes do not settle or leave no iron, they start again from ``start`` with the smallest lam
     for every element, which keeps coupled moves in step. Raises ValueError when the common
     passes leave no iron, or do not settle after the first passes left no iron, and RuntimeError
-    when neither settles. A return at w with the metal beyond FeS goes to _more_iron; the 4th
-    item is 1 when its damped root replaced the first root, else 0.
+    when neither settles. Each return goes to _more_iron; the 4th item is 1 when its damped
+    root replaced the first root, else 0.
     """
     iron_out = None
     try:
@@ -148,22 +148,26 @@ def _iron(w):
 
 
 def _more_iron(evaluate, start, fixed, out):
-    """The root of damped passes from ``start`` when it holds more iron than a return at w.
+    """The root of damped passes from ``start`` when it holds more iron than a relaxed return.
 
-    A return at w (``out[3]``) whose metal holds more S than Fe in moles can sit on a root
-    with little iron where an iron-rich root exists too; passes at lam DAMPED_LAM for every
-    element (melt undamped) reach the iron-rich root. Their root, settled or returned at w,
-    replaces ``out`` when it holds more iron. This prefers that root; it does not prove the
-    root unique. Damped passes that do not settle or raise ValueError (no iron, a law) keep out.
+    A relaxed return whose metal holds more S than Fe in moles can sit on a root with little
+    iron where an iron-rich root exists too; passes at lam DAMPED_LAM for every element (melt
+    undamped) reach the iron-rich root. Their root replaces ``out`` when it holds more iron and
+    is another metal (an element apart by more than GRID_RTOL, the widest root acceptance).
+    This prefers that root; it does not prove the root unique. Damped passes that do not settle
+    or raise ValueError (no iron, a law) keep ``out``.
     """
-    core, mantle, w, at_w = out
-    if not at_w or w.get('S', 0.0) / _mass('S') <= _iron(w) / _mass('Fe'):
+    core, mantle, w = out
+    if w.get('S', 0.0) / _mass('S') <= _iron(w) / _mass('Fe'):
         return core, mantle, w, 0
     try:
         damped = _relaxed_passes(evaluate, start, fixed, True, DAMPED_LAM, MAX_DAMPED_PASSES)
     except ValueError:
         damped = None
-    if damped is not None and _iron(damped[2]) > _iron(w):
+    same = damped is not None and all(
+        abs(damped[2][el] - v) <= GRID_RTOL * abs(v) + TOL_W_FLOOR for el, v in w.items()
+    )
+    if damped is not None and not same and _iron(damped[2]) > _iron(w):
         return (*damped[:3], 1)
     return core, mantle, w, 0
 
@@ -182,7 +186,7 @@ def _bracketed(evaluate, w, w_melt, el, ulps=4):
 
 
 def _relaxed_passes(evaluate, start, fixed, common, lam_all=None, passes=None):
-    """Relaxed passes from ``start``: (core, mantle, w, at_w), or None when they do not settle.
+    """Relaxed passes from ``start``: (core, mantle, w), or None when they do not settle.
 
     ``common`` moves every element at one lam, ``lam_all`` or else the smallest own lam;
     ``passes`` caps the passes (default MAX_RELAXED_PASSES).
@@ -191,7 +195,8 @@ def _relaxed_passes(evaluate, start, fixed, common, lam_all=None, passes=None):
     step meets the settle test, or when g falls with w, its move at its own lam is within 2 ulp
     of w and its step within GRID_RTOL of g (the float grid of a steep g), and g - w changes
     sign within 4 ulp each side of the evaluated w; such a pass is returned at w (core mass
-    fractions w, mantle the rest of the bulk) when no mantle is negative. A pass that leaves
+    fractions w of the bracketed elements and g of the settled ones, mantle the rest of the
+    bulk) when no mantle is negative. A pass that leaves
     iron below IRON_FLOOR raises _IronOut.
     """
     w, w_melt, last = start, {}, {}
@@ -220,15 +225,14 @@ def _relaxed_passes(evaluate, start, fixed, common, lam_all=None, passes=None):
             for el in g
         ):
             if _settled(g, w):
-                return core, mantle, {**fixed, **g}, False
-            if all(
-                _settled({el: g[el]}, {el: w[el]}) or _bracketed(evaluate, w, w_melt_prev, el)
-                for el in g
-            ):
-                at_w = {el: w[el] * core[el] / g[el] if g[el] else 0.0 for el in g}
+                return core, mantle, {**fixed, **g}
+            done = {el for el in g if _settled({el: g[el]}, {el: w[el]})}
+            if all(el in done or _bracketed(evaluate, w, w_melt_prev, el) for el in g):
+                w_at = {el: g[el] if el in done else w[el] for el in g}
+                at_w = {el: w_at[el] * core[el] / g[el] if g[el] else 0.0 for el in g}
                 rest = {el: core[el] + mantle[el] - at_w[el] for el in g}
                 if min(rest.values()) >= 0.0:
-                    return at_w, rest, {**fixed, **{el: w[el] for el in g}}, True
+                    return at_w, rest, {**fixed, **w_at}
         while sum(move.values()) > 0.5 * (1.0 - sum(w.values())):
             move = {el: 0.5 * v for el, v in move.items()}
         w = {**w, **{el: w[el] + v for el, v in move.items()}}

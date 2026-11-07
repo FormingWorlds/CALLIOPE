@@ -987,7 +987,7 @@ def _d_residuals(bulk, m_metal, m_sil, diw, w_fixed, core, mantle):
     ids=['H-C-iron-floor-before-the-common-step', 'S-C-H-N-root-with-5-percent-iron'],
 )
 def test_relaxed_split_reaches_the_damped_root_with_iron(bulk, m_metal, m_sil, diw, ref):
-    """Iron-poor H-C and S-C-H-N splits: the root that a damped iteration (lam 0.005) reaches, with D settled.
+    """Iron-poor H-C and S-C-H-N splits: the root that the damped passes (lam 0.02) reach, with D settled.
 
     The S-C-H-N split has a second root with iron 6e-7; the split prefers the one with more iron.
     """
@@ -1056,7 +1056,7 @@ def test_grid_rule_refuses_a_move_of_more_than_2_ulp(ulps):
 def test_iron_floor_can_stop_a_split_that_has_a_root_with_iron():
     """Small-silicate sweep 1078 (H-N): the passes drain the iron to the floor and raise ValueError.
 
-    A damped iteration (lam 0.005) reaches a root with Fe 2.87e-2 by mass; the relaxed passes do not.
+    Damped passes (lam 0.02) reach a root with Fe 2.87e-2 by mass; the relaxed passes do not.
     """
     with pytest.raises(ValueError, match='a pass leaves iron below 1e-08') as info:
         split_core_mantle(
