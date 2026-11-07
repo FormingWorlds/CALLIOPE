@@ -208,7 +208,7 @@ def test_unknown_element_or_law_is_refused():
 
 
 def test_fixed_point_that_does_not_settle_raises(monkeypatch):
-    """A D that alternates with the metal composition never settles: RuntimeError after 50 passes."""
+    """A D that alternates call by call never settles: 50 plain and 200 relaxed passes, then RuntimeError."""
     calls = []
 
     def flip(*a, **k):
@@ -216,9 +216,9 @@ def test_fixed_point_that_does_not_settle_raises(monkeypatch):
         return 10.0 if len(calls) % 2 else 20.0
 
     monkeypatch.setattr(core_split, 'mass_D', flip)
-    with pytest.raises(RuntimeError, match='50 passes'):
+    with pytest.raises(RuntimeError, match='200 relaxed passes'):
         split_core_mantle({'S': 1e20}, M_METAL, M_SIL, dIW=-2.0)
-    assert len(calls) == 50
+    assert len(calls) == 250
 
 
 def test_broken_ledger_raises(monkeypatch):
@@ -318,12 +318,15 @@ def test_overflow_of_d_times_metal_raises_a_named_error():
     assert core_split._WARNED == set()
 
 
-def test_bulk_beyond_the_float_range_and_beyond_the_metal_raise_named_errors():
-    """A bulk of 10**400 kg raises ValueError naming it; a bulk the metal cannot hold names the split."""
+def test_bulk_beyond_the_float_range_raises_and_a_bulk_above_the_metal_mass_settles():
+    """A bulk of 10**400 kg raises ValueError naming it; S above the metal mass finds its root past FeS."""
     with pytest.raises(ValueError, match='bulk_kg'):
         split_core_mantle({'S': 10**400}, M_METAL, M_SIL, dIW=-1.5)
-    with pytest.raises(ValueError, match='split of S'):
-        split_core_mantle({'S': 5e24}, M_METAL, M_SIL, dIW=-1.5)
+    core, mantle, flags = split_core_mantle({'S': 5e24}, M_METAL, M_SIL, dIW=-1.5)
+    assert core['S'] / M_METAL == pytest.approx(
+        _bisect_s_root(5e24, M_METAL, M_SIL, -1.5), rel=1e-9
+    )
+    assert flags['metal']['beyond_FeS'] == 1
 
 
 def test_each_law_warns_once_with_rounded_distances(caplog):
@@ -615,6 +618,7 @@ def test_converging_cases_equal_the_stored_split():
     stored = json.loads(SPLIT_REFERENCE.read_text())
     meta = stored.pop('meta')
     same = (platform.system(), platform.machine()) == (meta['platform'], meta['machine'])
+    assert len(stored) == 32  # every stored case is compared
     for name, ref in stored.items():
         c = ref['case']
         core, mantle, flags = split_core_mantle(
@@ -626,9 +630,9 @@ def test_converging_cases_equal_the_stored_split():
             T_eq=c.get('t', 4000.0),
             w_fixed=c['w_fixed'],
         )
-        got = {'core': core, 'mantle': mantle, 'metal': flags['metal']}
-        want = {k: ref[k] for k in got}
-        assert got == (want if same else pytest.approx(want, rel=1e-12, abs=0.0)), name
+        for part, got in (('core', core), ('mantle', mantle), ('metal', flags['metal'])):
+            want = ref[part]
+            assert got == (want if same else pytest.approx(want, rel=1e-12, abs=0.0)), name
 
 
 @pytest.mark.physics_invariant
