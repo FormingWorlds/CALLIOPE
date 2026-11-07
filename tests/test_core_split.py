@@ -911,3 +911,75 @@ def test_grid_rule_accepts_a_move_of_up_to_2_ulp():
     _, _, w = core_split._relaxed_passes(counted, {'A': 0.1, 'S': w0}, {}, False)
     assert calls == [w0, w1]
     assert w['S'] == g1
+
+
+def test_grid_rule_of_the_common_step_judges_each_element_at_its_own_lam():
+    """A steep A sets a tiny common lam; B (slope -0.5) is 4.5e-10 off its root and must keep moving."""
+    a0 = 0.5
+    a1 = math.nextafter(math.nextafter(a0, 1.0), 1.0)
+    script_a = iter([a1, a1 - 5e-10])
+
+    def evaluate(w, w_melt):
+        return {}, {}, {'A': next(script_a, w['A']), 'B': 0.2 - 0.5 * (w['B'] - 0.2)}, {}
+
+    _, _, w = core_split._relaxed_passes(evaluate, {'A': a0, 'B': 0.2 * (1 + 6e-10)}, {}, True)
+    assert w['B'] == pytest.approx(0.2, rel=1e-13, abs=0.0)
+    assert w['A'] == pytest.approx(a1, rel=1e-9)
+
+
+def _d_residuals(bulk, m_metal, m_sil, diw, w_fixed, core, mantle):
+    """|w - D(w, w_melt) w_sil| / w of each element at a returned split."""
+    w = {**w_fixed, **{el: core[el] / m_metal for el in bulk}}
+    w_melt = {el: mantle[el] / m_sil for el in ('H', 'C') if el in bulk}
+    return {
+        el: abs(
+            w[el]
+            - mass_D(get_law(el, DEFAULT_LAWS[el]), 60.0, 4000.0, diw, w, w_melt)
+            * mantle[el]
+            / m_sil
+        )
+        / w[el]
+        for el in bulk
+    }
+
+
+@pytest.mark.parametrize(
+    'bulk, m_metal, m_sil, diw, ref',
+    [
+        (
+            {'H': 1.9363249777556582e23, 'C': 8.163503547150277e22},
+            1.84443083841283e23,
+            1.7931639051646671e18,
+            -3.6689582794162297,
+            {'H': 0.4316511365896101, 'C': 0.44260285373610686},
+        ),
+        (
+            {
+                'S': 1.6351025151692482e24,
+                'H': 4.026924495995128e22,
+                'C': 2.0258800008695458e24,
+                'N': 3.113694670982211e23,
+            },
+            2.6777700956688316e24,
+            4.869342993603356e19,
+            -0.9403058010523511,
+            {
+                'S': 0.5580179768265563,
+                'H': 0.014249695242000643,
+                'C': 0.2417249413734452,
+                'N': 0.11627933728438677,
+            },
+        ),
+    ],
+    ids=['G1-iron-floor-before-the-common-step', 'G3-root-with-5-percent-iron'],
+)
+def test_relaxed_split_reaches_the_damped_root_with_iron(bulk, m_metal, m_sil, diw, ref):
+    """Iron-poor H-C and S-C-H-N splits: the root that a damped iteration (lam 0.005) reaches, with D settled.
+
+    The root is the only one with iron that damped iterations at lam 0.05 to 0.005 and 40 random starts find.
+    """
+    core, mantle, _ = split_core_mantle(bulk, m_metal, m_sil, dIW=diw, w_fixed={'O': 0.02})
+    assert {el: core[el] / m_metal for el in bulk} == pytest.approx(ref, rel=1e-9)
+    assert (
+        max(_d_residuals(bulk, m_metal, m_sil, diw, {'O': 0.02}, core, mantle).values()) <= 1e-9
+    )
