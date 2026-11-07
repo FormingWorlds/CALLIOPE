@@ -683,3 +683,51 @@ def test_relaxed_step_takes_at_most_half_of_the_iron_left():
         0.3125, rel=1e-15
     )  # 10 halved 5 times; 0.625 for a cap of 1
     assert seen[:1] == [0.0]
+
+
+@pytest.mark.parametrize(
+    'bulk, m_metal, m_sil, diw, w_fixed',
+    [
+        ({'C': 1.5e22}, 1e22, 1e18, -1.5, None),
+        ({'N': 0.959e22}, 1e22, 1.26e16, -5.0, {'O': 0.02, 'Si': 0.03}),
+    ],
+    ids=['carbon-fills-the-metal', 'nitrogen-beyond-the-metal'],
+)
+def test_bulk_with_no_root_with_iron_raises_by_name(bulk, m_metal, m_sil, diw, w_fixed):
+    """A bulk the metal cannot hold with any iron left raises the named ValueError, not another error."""
+    with pytest.raises(ValueError, match='no iron left') as info:
+        split_core_mantle(bulk, m_metal, m_sil, dIW=diw, w_fixed=w_fixed)
+    assert type(info.value) is ValueError
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.parametrize(
+    'bulk, m_metal, m_sil, diw',
+    [(1.5e22, 1e22, 1e18, -1.5), (1e23, 1e22, 1e21, -0.5)],
+    ids=['iron-1e-6', 'iron-2e-5'],
+)
+def test_near_pure_s_root_on_the_float_grid(bulk, m_metal, m_sil, diw):
+    """Roots with 1e-6 to 2e-5 of iron, where g falls by about 1e6 per unit w, match bisection."""
+    root = _bisect_s_root(bulk, m_metal, m_sil, diw)
+    core, mantle, flags = split_core_mantle({'S': bulk}, m_metal, m_sil, dIW=diw)
+    assert core['S'] / m_metal == pytest.approx(root, rel=1e-9)
+    assert abs(core['S'] + mantle['S'] - bulk) <= 1e-12 * bulk
+    assert flags['metal']['beyond_FeS'] == 1
+
+
+@pytest.mark.physics_invariant
+def test_coupled_s_rich_split_reaches_the_damped_reference():
+    """S, C, H and N at 2.5 % iron (dIW -3, O 0.1): the root of a damped plain iteration (lam 0.05).
+
+    Reference from ~1000 passes of w <- w + 0.05 (g(w) - w) to a relative step below 1e-13.
+    """
+    bulk = {'S': 8e21, 'C': 2e21, 'H': 2e21, 'N': 1e21}
+    ref = {
+        'S': 0.413987228997558,
+        'C': 0.16177301812214018,
+        'H': 0.1997038436197129,
+        'N': 0.09970598652514251,
+    }
+    core, mantle, _ = split_core_mantle(bulk, 1e22, 1e20, dIW=-3.0, w_fixed={'O': 0.1})
+    assert {el: core[el] / 1e22 for el in bulk} == pytest.approx(ref, rel=1e-9)
+    assert all(abs(core[el] + mantle[el] - m) <= 1e-12 * m for el, m in bulk.items())
