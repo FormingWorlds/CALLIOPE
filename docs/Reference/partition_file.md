@@ -57,6 +57,7 @@ with $T$ in K, $P$ in GPa, NBO/T the ratio of non-bridging O to tetrahedral cati
 | `basis` | `mass`, `mole`, `mole_xprime_noHC`; `mole` for `exchange_KD` | Metal basis of $D$; `mole_xprime_noHC` is the mole fraction over the metal without H and C |
 | `silicate_basis` | `single_cation` | Melt basis of a mole-basis law (not read for `mass`) |
 | `a`, `b`, `c`, `d`, `e`, `dIW_factor` | finite numbers | Coefficients of the law; an `exchange_KD` law uses a, b and c only, with d and e 0 and `dIW_factor` 1 |
+| `f`, `log10_C_S` | finite numbers, optional | Add $f \log_{10} X_\mathrm{FeO} - \log_{10} C_\mathrm{S}$, with $X_\mathrm{FeO}$ the FeO of the melt on the single-cation basis; without the keys the law has no such terms; refused for `exchange_KD` |
 | `eps` | table of element to number | The $\varepsilon_j$ terms; empty for `exchange_KD` |
 | `covariance` | empty, or a square matrix | Covariance of a, b, c, d, e and the eps terms in name order; symmetric and positive semidefinite; stored, not used by the solve |
 | `P_range_GPa`, `T_range_K`, `dIW_range` | `[low, high]` | Range of the source data, P and T at 0 or above; an empty T or dIW range means unknown, and every use is flagged out of range |
@@ -79,3 +80,37 @@ The packaged file `src/calliope/data/partition_coefficients_placeholder.toml` ha
 | Si | As O | 35-74 GPa; T and dIW unknown | Always flagged out of range |
 
 Suer et al. (2023) give an uncertainty of up to 20 % on their Table 1 values. In `'partition'` mode O and Si use ideal activities in metal and melt. Badro et al. (2015) fit their Si law together with activity coefficients from interaction parameters; leaving those terms out changes $D_\mathrm{Si}$ by about an order of magnitude at the end of their accretion paths, so the Si mode gives a first estimate, not a calibrated value.
+
+## Named laws and the core split
+
+`calliope.metal.get_law(element, name)` returns a law by name; `law_names(element)` lists the names held. The packaged names:
+
+| Element | Name | Law | File |
+|---|---|---|---|
+| H | `tagawa2021_eq2` | the H law above | `partition_coefficients_placeholder.toml` |
+| C | `fischer2020_eq1` | the C law above | `partition_coefficients_placeholder.toml` |
+| N | `suer2023_line` | the N law above | `partition_coefficients_placeholder.toml` |
+| S | `suer2023_line` | the S law above | `partition_coefficients_placeholder.toml` |
+| S | `suer2017_eq7` | [Suer et al. (2017)](https://doi.org/10.1016/j.epsl.2017.04.016) Eq. 7 with log10 in every term: a -3.50, b 3000, c 33 (Table 3), f 1, `log10_C_S` -5.372 (Fig. 6, pyrolite), eps O 14; mole basis (their Eq. 1), single-cation melt basis assumed; 1-91 GPa, 1873-4100 K (p. 91), dIW -1.7 to -1.0 (p. 90) | `partition_laws_core.toml` |
+
+`calliope.metal.register_law(element, name, law, ...)` adds a law of H, C, N or S under a new name. `law` is either a `log10_linear` entry of a loaded partition file, or a function `f(p_gpa, t_k, d_iw, x_metal, x_silicate)` that returns $\log_{10} D$, with the keywords `basis`, `silicate_basis` (for a mole basis), `P_range_GPa`, `T_range_K`, `dIW_range`, `source` and `doi`. `x_metal` holds the metal mole fractions on the $x'$ basis and `x_silicate` the melt fractions of each oxide on the single-cation basis. A taken name, an unknown element or basis, O or Si, or a declaration that breaks the schema raises `PartitionTableError`; a function that returns a value that is not finite raises `ValueError` with the law name and the point.
+
+`calliope.core_split.split_core_mantle(bulk_kg, M_metal, M_silicate, *, dIW, P_eq=60.0, T_eq=4000.0, laws=None, w_fixed=None, oxides=KLB1, nbo_t=2.6)` returns `(core_kg, mantle_kg, flags)`.
+
+| Input | Unit | Rule |
+|---|---|---|
+| `bulk_kg` | kg | bulk mass per element of H, C, N, S; finite and >= 0; O and Si raise `ValueError` |
+| `M_metal`, `M_silicate` | kg | finite; `M_metal` >= 0, `M_silicate` > 0 |
+| `dIW` | log10 units | finite, no default |
+| `P_eq`, `T_eq` | GPa, K | finite and > 0 |
+| `laws` | | law per element, a name or an entry; elements not given take `tagawa2021_eq2`, `fischer2020_eq1`, `suer2023_line`, `suer2017_eq7` |
+| `w_fixed` | kg per kg | metal mass fractions of elements outside `bulk_kg` (O, Si), each in [0, 1), sum below 1 |
+| `oxides`, `nbo_t` | wt%, none | melt composition and NBO/T |
+
+| Output | Unit | Meaning |
+|---|---|---|
+| `core_kg[e]`, `mantle_kg[e]` | kg | core and mantle mass of element `e`; their sum is the bulk to 1e-12 relative (plus 1e-323 kg for the round-off of a subnormal bulk) |
+| `flags[e]['out_of_range']` | | 1 when the law of `e` runs outside a range or on an unknown range |
+| `flags[e]['P_GPa']`, `['T_K']`, `['dIW']` | GPa, K, log10 units | distance outside each range, 0 inside, NaN for an unknown range |
+
+A bool, a string, NaN or inf raises `ValueError` with the name of the input. A metal composition that does not settle in 50 passes, or a broken ledger, raises `RuntimeError`.

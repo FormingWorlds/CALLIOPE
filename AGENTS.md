@@ -3,7 +3,7 @@
 CALLIOPE computes the equilibrium between a magma ocean and its atmosphere: the partial pressures of H2O, CO2, O2, H2, CO, CH4, N2, S2, SO2, H2S, NH3 and the noble gases, the volatiles dissolved in the melt, and optionally a metal reservoir in equilibrium with the melt. PROTEUS calls it in the outgassing step (`outgas.module = 'calliope'`); it also runs standalone for equilibrium-chemistry studies. Before a first edit:
 
 - Tests for `src/calliope/<file>.py` go in `tests/test_<file>.py`; the test rules are in `tests/AGENTS.md`.
-- Physics sources: `chemistry.py`, `metal.py`, `oxygen_fugacity.py`, `solubility.py`, `solve.py`, `structure.py`. Utility sources: `__init__.py`, `_version.py`, `constants.py`. The [API reference](docs/Reference/api/index.md) describes each module.
+- Physics sources: `chemistry.py`, `core_split.py`, `metal.py`, `oxygen_fugacity.py`, `solubility.py`, `solve.py`, `structure.py`. Utility sources: `__init__.py`, `_version.py`, `constants.py`. The [API reference](docs/Reference/api/index.md) describes each module.
 - These commands decide whether a change is ready (CI runs the tests, the structure check, the test-quality lint, the agent-file check and pre-commit):
 
 ```bash

@@ -12,7 +12,8 @@ src/calliope/
 ├── chemistry.py         # ModifiedKeq (six redox couples)
 ├── solubility.py        # Solubility{H2O,CO2,CO,CH4,N2,S2}
 ├── solve.py             # equilibrium_atmosphere() and supporting functions
-├── metal.py             # partition file reader, partition laws, metal reservoir masses
+├── metal.py             # partition file reader, partition laws, named laws, metal reservoir masses
+├── core_split.py        # split_core_mantle() core and mantle split of a bulk inventory
 └── structure.py         # calculate_mantle_mass() simple core/mantle split
 ```
 
@@ -37,6 +38,11 @@ src/calliope/
 ### Oxygen fugacity
 
 - [`calliope.oxygen_fugacity`](calliope.oxygen_fugacity.md) - `OxygenFugacity` class with three model methods (`hirschmann` default, `fischer`, `oneill`). Returns $\log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T) + \Delta\mathrm{IW}$.
+
+### Metal and core split
+
+- [`calliope.metal`](calliope.metal.md) - partition file reader, the partition laws, named laws (`get_law`, `register_law`) and the metal reservoir masses.
+- [`calliope.core_split`](calliope.core_split.md) - `split_core_mantle()`, the core and mantle split of a bulk inventory at one equilibration point.
 
 ### Structure
 

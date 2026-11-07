@@ -55,6 +55,8 @@ with $T$ = `T_eq` in K, $P$ = `P_eq` in GPa and $\Delta\mathrm{IW}$ = `dIW_eq`. 
 
 The field `basis` of each law says what the law gives: a mass-basis $D$, a mole-basis $D$, or a mole-basis $D$ on the $x'$ basis. `calliope.metal.mass_D` converts a mole-basis $D$ to the mass basis with the moles per kg of metal and of melt: $D_w = D\,N_\mathrm{metal}/N_\mathrm{melt}$. The melt moles come from `silicate_oxides` (the KLB-1 composition by default), plus the H and C dissolved in the melt. With a mole basis, $D_w$ therefore depends on the metal composition, which is one more reason for the fixed point.
 
+A law can carry 2 more terms, $f \log_{10} X_\mathrm{FeO} - \log_{10} C_\mathrm{S}$, with $X_\mathrm{FeO}$ the FeO mole fraction of the melt on the single-cation basis and $C_\mathrm{S}$ the sulfide capacity of the melt (file keys `f` and `log10_C_S`). A law without these keys does not have the terms. The S law of [Suer et al. (2017)](https://doi.org/10.1016/j.epsl.2017.04.016), Eq. 7, uses them: S enters the metal as FeS in exchange for the FeO of the melt, so $D_\mathrm{S}$ rises with the melt FeO.
+
 ## The oxygen fugacity of the metal-melt equilibrium
 
 `dIW_eq_mode` selects how CALLIOPE sets $\Delta\mathrm{IW}$ for the laws:
@@ -126,6 +128,24 @@ The O also enters the C law through its composition term, and $D_\mathrm{C}$ ris
 
 Steps 1, 2 and 4 of the [metal reservoir tutorial](../Tutorials/metal_reservoir.md) run this case and print these numbers.
 
+## Core and mantle split at an equilibration point
+
+The metal reservoir above takes a melt at one moment of a run. When the core forms, the bulk mass of each element must be divided once between the core and the silicate mantle. `calliope.core_split.split_core_mantle` does this split. It takes the bulk mass $M_i$ of each element (kg), the metal mass $M_\mathrm{metal}$ and the silicate mass $M_\mathrm{silicate}$ that equilibrate, and one equilibration point $(P_\mathrm{eq}, T_\mathrm{eq}, \Delta\mathrm{IW})$.
+
+**The split.** With a mass-basis $D_i$, the silicate holds the mass fraction
+
+$$
+w_i = \frac{M_i}{M_\mathrm{silicate} + D_i\,M_\mathrm{metal}},
+$$
+
+the core holds $D_i M_\mathrm{metal} w_i$ and the mantle $M_\mathrm{silicate} w_i$. Their sum is $M_i$. The split checks this element ledger for each element on every call, to $10^{-12}$ of the bulk, and raises `RuntimeError` when it fails. $D_i$ depends on the metal composition (the $\varepsilon_j$ terms and the mole bases), so the split is a fixed point on the metal composition, as in the metal reservoir: it ends when no metal mass fraction changes by more than $10^{-12}$ of its value, and raises `RuntimeError` after 50 passes.
+
+**The equilibration point.** The default point is 60 GPa and 4000 K, the deep magma ocean column of [Suer et al. (2023)](https://doi.org/10.3389/feart.2023.1159412) Table 1; $\Delta\mathrm{IW}$ has no default. The S law is inside its range there. The core-mantle boundary is not a good default: the Earth's is at about 136 GPa, above the data of every packaged law (at most 91 GPa), and larger planets have higher pressures there.
+
+**Outside the range of a law.** The split evaluates each law at the given point. It does not clamp the point to the edge of the range, because a clamp would hide the temperature dependence that dominates $D_\mathrm{S}$ (Suer et al. 2017, p. 91). For each element the result carries `out_of_range` (0 or 1) and the distance outside each range: `P_GPa` in GPa, `T_K` in K and `dIW` in log10 units, 0 inside the range and NaN for an unknown range (`calliope.metal.range_distance`). A law outside its range logs a warning once per process.
+
+**Laws by name.** The split takes its laws by name from `calliope.metal.get_law`. The default laws are `tagawa2021_eq2` (H), `fischer2020_eq1` (C), `suer2023_line` (N) and `suer2017_eq7` (S). The S law of the metal reservoir, `suer2023_line`, is a line in $\Delta\mathrm{IW}$ at one pressure and temperature; the split uses the Suer et al. (2017) law because it has a pressure and a temperature term. `calliope.metal.register_law` adds a law under a new name: a checked entry of a partition file, or a Python function of $(P, T, \Delta\mathrm{IW}, x^\mathrm{metal}, x^\mathrm{silicate})$ that returns $\log_{10} D$, declared with its basis, its ranges and its source. The [core split tutorial](../Tutorials/core_split.md) runs both.
+
 ## Limits
 
 - **Placeholder laws.** The packaged file has `placeholder = true`, and each solve with it logs one warning per process. The N and S laws have no pressure or temperature term; the O and Si laws have no known temperature and $\Delta\mathrm{IW}$ range. Replace a law with a fitted law from a source you have read: see [Add a new partition law](../Tutorials/partition_law.md).
@@ -136,6 +156,9 @@ Steps 1, 2 and 4 of the [metal reservoir tutorial](../Tutorials/metal_reservoir.
     - O and Si both in `'partition'` mode converge at 5500 K and raise `ValueError` at 6000 to 7500 K: the O and Si mole fractions of the exchange fill the whole metal (no Fe left), and their sum did not fall since the pass before.
     - O alone in `'partition'` mode converges up to 8480 K. From 8490 to 9700 K the passes end at the 30-pass cap with `RuntimeError`, and from 9720 K the solve raises the same `ValueError`. For O alone the exchange asks for $x_\mathrm{O} = K_D(\mathrm{O})\,x_\mathrm{FeO}/(1 - x_\mathrm{O})$, which has a root only while $K_D(\mathrm{O})\,x_\mathrm{FeO} \le 1/4$ (here up to 9470 K). The [partition file reference](../Reference/partition_file.md#inputs-in-ddict) gives the exact stop rules.
 - **`metal_mass` is held fixed.** Fe that moves into or out of the metal through the O and Si exchange does not change `metal_mass`.
+- **O and Si are not split.** Their bulk is the O and Si of the rock, which CALLIOPE does not hold; `split_core_mantle` refuses them in its bulk and takes their metal mass fractions as fixed values (`w_fixed`). A split of O and Si by their exchange $K_D$ is not part of the code.
+- **Silicate basis of the S law.** Suer et al. (2017) count moles but do not name the melt basis on the pages read. CALLIOPE assumes the single-cation basis. On that basis the FeO of their Table 2 gives the $X_\mathrm{FeO}$ of Table 1 to 0.01 for runs 3 to 9, but not for runs 1 and 2 (0.13 and 0.23 against 0.10 and 0.14).
+- **One $C_\mathrm{S}$.** The S law uses $\log_{10} C_\mathrm{S} = -5.372$ of a pyrolite melt (Suer et al. 2017, Fig. 6) for every melt.
 - **PROTEUS does not pass `metal_mass`.** A PROTEUS run has no metal reservoir. The reservoir is available in standalone CALLIOPE runs (see [Coupling to PROTEUS](proteus_coupling.md)).
 
 **Where this is checked.** The [metal reservoir validation page](../Validation/metal.md) checks the metal term against mass balance, the full solve against a solve with a larger melt, the O bookkeeping of the authoritative-O solve, and the laws against published laboratory values.

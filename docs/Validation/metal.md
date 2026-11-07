@@ -158,3 +158,55 @@ Inputs, outputs and the placeholder laws are on the [metal reservoir page](../Re
     - Tolerance: Eq. 2 at its 4 printed decimals; $D_\mathrm{C}$ 5e-4; the Suer lines relative 1e-5; the O exchange relative 1e-12 and the Si exchange relative 1e-3 (the KLB-1 single-cation units by hand).
     - Test id: `tests/test_metal.py::TestLaw::test_tagawa_eq2_values`, `tests/test_metal.py::TestLaw::test_fischer_eq1_single_stage_value`, `tests/test_metal.py::TestLaw::test_suer_lines`, `tests/test_metal.py::TestExchange::test_ideal_exchange_mole_fractions` (unit tier)
     - Command: `pytest tests/test_metal.py -k "eq2_values or eq1_single or suer_lines or ideal_exchange"`
+
+## Suer et al. (2017) S runs
+
+**Why this check exists.** The core and mantle split takes S from the law of [Suer et al. (2017)](https://doi.org/10.1016/j.epsl.2017.04.016). A wrong term in that law, for example a natural log where the paper means log10, moves $D_\mathrm{S}$ by more than a factor of 10.
+
+**What it tests.** The law is evaluated at the 9 diamond anvil cell runs of their Table 1 (46 to 91 GPa, 3100 to 4100 K) and compared with the measured $D_\mathrm{S}$. The law is their Eq. 7 with log10 in every term and the coefficients of their Table 3:
+
+$$
+\log_{10} D_\mathrm{S} = -3.50 + \frac{3000}{T} + 33\,\frac{P}{T} + \log_{10} X_\mathrm{FeO} - \log_{10} C_\mathrm{S} + 14 \log_{10}(1 - X_\mathrm{O}),
+$$
+
+with $T$ in K, $P$ in GPa, $X_\mathrm{FeO}$ the mole fraction of FeO in the silicate melt, $X_\mathrm{O}$ the mole fraction of O in the metal and $C_\mathrm{S}$ the sulfide capacity of the melt. $D_\mathrm{S}$ is a ratio of mole fractions (their Eq. 1). Each run uses its own $X_\mathrm{FeO}$ and $X_\mathrm{O}$ from Table 1, and $\log_{10} C_\mathrm{S} = -5.372$, the value of their Fig. 6 for a pyrolite mantle. Table 1 does not list the $C_\mathrm{S}$ of each run.
+
+For run 7, Table 1 prints $X_\mathrm{FeO}$ = 0.02. The same row gives IW -1.06, and with $\mathrm{IW} = 2\log_{10}(X_\mathrm{FeO}/X_\mathrm{Fe})$ and $X_\mathrm{Fe}$ = 0.68 that needs $X_\mathrm{FeO}$ = 0.20. The FeO of 25.62 wt% in their Table 2 also gives 0.20. The test therefore uses 0.20 for run 7. For the other 8 runs the IW column and $X_\mathrm{FeO}$ agree to 0.005.
+
+**How we know the right answer.** The measured $D_\mathrm{S}$ of each run is in Table 1. The tolerance is 0.47 dex, the 1-sigma uncertainty that Table 3 gives for the coefficient $a$.
+
+**Why it matters.** The S law sets how much of the S goes into the core and how much stays in the mantle, where it can later reach the atmosphere.
+
+![Measured log10 D_S of the 9 runs of Suer et al. (2017) against Eq. 7](../assets/validation/metal_suer2017_s_runs.svg#only-light){ width="80%" }
+![Measured log10 D_S of the 9 runs of Suer et al. (2017) against Eq. 7](../assets/validation/metal_suer2017_s_runs_dark.svg#only-dark){ width="80%" }
+
+**How to read the plot.** The x-axis is $\log_{10} D_\mathrm{S}$ from Eq. 7 and the y-axis the measured value. The dashed line is 1:1 and the band is $\pm$0.47 dex around it. Filled points are runs within the band; the open point is run 7. A pass means that 8 runs lie in the band and run 7 lies outside it.
+
+The residual (model minus measurement) is +0.30, -0.12, +0.42, +0.42, +0.03, -0.03, +0.50, +0.15 and +0.38 dex for runs 1 to 9, with a mean of +0.23 dex. Run 7 misses the band by 0.025 dex. With the printed $X_\mathrm{FeO}$ of 0.02 it would miss by 0.04 dex on the other side (-0.51 dex). A possible cause of the mean offset is the $C_\mathrm{S}$ value: it is for a pyrolite melt, while the runs use MORB and KLB-1 melts (Table 1). With $a = -3.30$, the value printed in their Eq. 8, every residual is 0.2 dex larger and 5 runs miss.
+
+??? info "Test details"
+    - Reference: Suer et al. (2017), Eq. 7, Table 1 (runs), Table 3 (coefficients), Fig. 6 ($\log_{10} C_\mathrm{S}$).
+    - Tolerance: 0.47 dex per run, run 7 a stated miss; the law at the default point relative 1e-12; Eq. 8 read with natural logs lies more than 1 dex away.
+    - Test id: `tests/test_metal.py::TestSuer2017::test_runs_of_table_1_against_eq7`, `tests/test_metal.py::TestSuer2017::test_eq7_value_at_the_default_point` (unit tier)
+    - Command: `pytest tests/test_metal.py -k TestSuer2017`
+
+## Core and mantle split
+
+**Why this check exists.** `calliope.core_split.split_core_mantle` puts the bulk mass of each element into the core or the mantle. A wrong factor in the split, or a mantle mass that is not computed from the same melt fraction as the core mass, creates or destroys mass.
+
+**What it tests.** With a constant mass-basis $D$ and $x = M_\mathrm{metal}/M_\mathrm{silicate}$ (here 1.94/4.03, the masses of Earth's core and mantle), the core must hold the fraction $Dx/(1 + Dx)$ of the bulk, for $D$ from 0.1 to 1000. A second test checks the element ledger, bulk = core + mantle with both parts at 0 or above, for random $D$ from $10^{-6}$ to $10^6$ and masses from $10^{15}$ to $10^{24}$ kg. The split itself checks the same ledger on every call and raises `RuntimeError` when it fails.
+
+**How we know the right answer.** Mass balance: an element is either in the metal or in the silicate, and $D$ sets the ratio of its mass fractions.
+
+**Why it matters.** The split sets the light-element mass of the core and the volatile mass left in the mantle, which can later reach the atmosphere.
+
+![Core fraction of an element against D](../assets/validation/core_split_fraction.svg#only-light){ width="80%" }
+![Core fraction of an element against D](../assets/validation/core_split_fraction_dark.svg#only-dark){ width="80%" }
+
+**How to read the plot.** The x-axis is $D$ on a log scale and the y-axis the core fraction of the bulk. The line is $Dx/(1 + Dx)$ and the points are the values of `split_core_mantle`. A pass means that the points lie on the line.
+
+??? info "Test details"
+    - Reference: the mass balance of metal and silicate (analytical).
+    - Tolerance: relative 1e-12 for the core fraction and the ledger; $f = Dx$ without the back-reaction lies more than 10 % above it from $D = 1$ on.
+    - Test id: `tests/test_core_split.py::test_constant_d_gives_the_closed_form_core_fraction`, `tests/test_core_split.py::test_ledger_closes_over_the_domain` (unit tier)
+    - Command: `pytest tests/test_core_split.py -k "closed_form or ledger_closes"`

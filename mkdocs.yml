@@ -26,6 +26,7 @@ nav:
       - Coupled-loop driver: Tutorials/coupled_loop.md
       - Metal reservoir: Tutorials/metal_reservoir.md
       - Add a new partition law: Tutorials/partition_law.md
+      - Core and mantle split: Tutorials/core_split.md
       - Reproducing the Earth fiducial: Tutorials/earth_fiducial.md
       - Mars-like atmosphere: Tutorials/mars_fiducial.md
 
@@ -57,6 +58,7 @@ nav:
           - Overview: Reference/api/index.md
           - Solve: Reference/api/calliope.solve.md
           - Metal: Reference/api/calliope.metal.md
+          - Core split: Reference/api/calliope.core_split.md
           - Chemistry: Reference/api/calliope.chemistry.md
           - Solubility: Reference/api/calliope.solubility.md
           - Oxygen fugacity: Reference/api/calliope.oxygen_fugacity.md

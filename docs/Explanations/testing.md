@@ -77,7 +77,7 @@ A unit test on any physics source must assert at least one of four invariant fam
 Tests that meet one or more of these are tagged `@pytest.mark.physics_invariant`.
 The marker is per-function, not module-level: structural tests in the same file (for example, an ordering or pass-through-assignment check) should not carry it.
 
-Physics sources in CALLIOPE are the six files `chemistry.py`, `metal.py`, `oxygen_fugacity.py`, `solubility.py`, `solve.py`, `structure.py`.
+Physics sources in CALLIOPE are the seven files `chemistry.py`, `core_split.py`, `metal.py`, `oxygen_fugacity.py`, `solubility.py`, `solve.py`, `structure.py`.
 Utility sources (`__init__.py`, `_version.py`, `constants.py`) are exempt from the invariant requirement but remain subject to the anti-happy-path rules below.
 
 ## Reference-pinned validation
@@ -95,6 +95,7 @@ The current anchors:
 | Source | Anchor | Test |
 |---|---|---|
 | `chemistry.py` | JANAF Thermochemical Tables [^cite-chase1998] (4th ed.), $K_{eq}$ for $\mathrm{H_2O} \to \mathrm{H_2} + 0.5\,\mathrm{O_2}$ at 2000 K with the O'Neill & Eggins 2002 [^cite-oneilleggins2002] buffer | `tests/test_chemistry.py::test_modified_keq_janaf_H2_matches_closed_form_at_2000K_with_oneill` |
+| `core_split.py` | Mass balance of metal and silicate: the core fraction $Dx/(1 + Dx)$ at constant $D$ | `tests/test_core_split.py::test_constant_d_gives_the_closed_form_core_fraction` |
 | `metal.py` | [Tagawa et al. 2021](https://doi.org/10.1038/s41467-021-22035-0): the H law of their Eq. 2 against the 6 runs of their SI Table 1 | `tests/test_metal.py::test_tagawa_runs_lie_within_one_sigma_of_eq2` |
 | `oxygen_fugacity.py` | Cross-implementation check of the coded Fischer et al. 2011 [^cite-fischer2011] (EPSL 304, 496) IW expression against the O'Neill & Eggins 2002 [^cite-oneilleggins2002] buffer at 2000 K; no independent pin of the Fischer 1-bar fit exists | `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_cross_check_and_regression` |
 | `solubility.py` | Sossi et al. 2023 [^cite-sossi2023] peridotite H$_2$O fit; Gaillard et al. 2022 [^cite-gaillard2022] (EPSL 117255) S$_2$ fit | `tests/test_solubility.py::TestSolubilityH2O::test_peridotite_default_matches_sossi_2023_fit` and `TestSolubilityS2_xFeO::test_default_call_matches_gaillard_2022_earth_mantle_value` |
@@ -110,6 +111,7 @@ Each source file in `src/calliope/` has a same-named companion in `tests/`:
 | Source | Test |
 |---|---|
 | `src/calliope/chemistry.py` | `tests/test_chemistry.py` |
+| `src/calliope/core_split.py` | `tests/test_core_split.py` |
 | `src/calliope/metal.py` | `tests/test_metal.py` |
 | `src/calliope/oxygen_fugacity.py` | `tests/test_oxygen_fugacity.py` |
 | `src/calliope/solubility.py` | `tests/test_solubility.py` |
