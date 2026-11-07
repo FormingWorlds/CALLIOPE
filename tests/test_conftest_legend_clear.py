@@ -43,5 +43,6 @@ def test_legend_over_a_mark_fails(legend_clear, kind):
 def test_clear_legend_passes_and_closes_the_figure(legend_clear):
     """A legend in the centre above a line near the bottom passes and closes the figure."""
     fig = _figure('clear')
+    assert fig.axes[0].get_legend() is not None
     legend_clear(fig)
     assert not plt.fignum_exists(fig.number)

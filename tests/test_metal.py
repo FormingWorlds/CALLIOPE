@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import math
+import platform
 from importlib import resources
 from pathlib import Path
 
@@ -43,8 +44,8 @@ from hypothesis import strategies as st  # noqa: E402
 
 pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 
-# outputs of main 75faea5 (commit and platform in the file meta) for the default-invariance checks
-MAIN_OUTPUTS = Path(__file__).parent / 'data' / 'main_outputs_75faea5.json'
+# stored outputs of the solve and the packaged laws (commit and platform in the file meta)
+REFERENCE_OUTPUTS = Path(__file__).parent / 'data' / 'reference_outputs.json'
 
 # Tagawa et al. 2021 Eq. 2 for H, the shape every entry of the file has
 _H = {
@@ -814,12 +815,12 @@ SUER_RUNS = [
     (8, 85.0, 4000.0, 15.30, -1.47, 0.14, 0.74, 0.17),
     (9, 91.0, 4100.0, 7.96, -1.55, 0.12, 0.71, 0.17),
 ]
-# V3 settings: the 1-sigma of a (Table 3), the X_FeO read for run 7 and the runs stated as misses
-V3_TOL_DEX = 0.47
+# Suer 2017 runs: the 1-sigma of a (Table 3), the X_FeO read for run 7 and the runs stated as misses
+SUER_TOL_DEX = 0.47
 # Run 7: Table 1 (p. 91) prints X_FeO 0.02, a misprint of 0.20: its IW -1.06 implies 0.2007
 # and its Table 2 (p. 92) FeO of 25.62 wt% gives 0.204 on the single-cation basis
-V3_XFEO = {7: 0.20}
-V3_MISSES = {7}
+SUER_XFEO = {7: 0.20}
+SUER_MISSES = {7}
 
 
 def _suer(entry, p, t, x_feo, x_o):
@@ -851,17 +852,17 @@ class TestSuer2017:
     @pytest.mark.physics_invariant
     @pytest.mark.reference_pinned
     def test_runs_of_table_1_against_eq7(self, validation_plot, legend_clear):
-        """V3: 8 runs of Suer 2017 Table 1 within 0.47 dex of Eq. 7; run 7 a stated miss at +0.495 dex.
+        """8 runs of Suer 2017 Table 1 within 0.47 dex of Eq. 7; run 7 a stated miss at +0.495 dex.
 
         Run 7 uses X_FeO 0.20, not the printed 0.02 (Table 1, journal p. 91): with X_Fe 0.68 its
         IW of -1.06 implies 0.2007, and its FeO of 25.62 wt% in Table 2 (p. 92) gives 0.204. With
         0.2007 the residual would be +0.497 dex, with the printed 0.02 it is -0.505 dex.
         """
         s = get_law('S', 'suer2017_eq7')
-        xs = {run: V3_XFEO.get(run, x) for run, _, _, _, _, x, _, _ in SUER_RUNS}
+        xs = {run: SUER_XFEO.get(run, x) for run, _, _, _, _, x, _, _ in SUER_RUNS}
         model = [_suer(s, p, t, xs[run], xo) for run, p, t, _, _, _, _, xo in SUER_RUNS]
         resid = {r[0]: m - math.log10(r[3]) for r, m in zip(SUER_RUNS, model)}
-        assert {run for run, d in resid.items() if abs(d) > V3_TOL_DEX} == V3_MISSES
+        assert {run for run, d in resid.items() if abs(d) > SUER_TOL_DEX} == SUER_MISSES
         assert resid[7] == pytest.approx(0.495, abs=5e-4)
         # the X_FeO read of each run agrees with its IW = 2 log10(X_FeO / X_Fe) to 0.005
         assert all(
@@ -871,7 +872,7 @@ class TestSuer2017:
         # the model lies above the runs on average (C_S of pyrolite, not of the run melts)
         assert sum(resid.values()) / 9 == pytest.approx(0.2272, abs=1e-4)
         # a = -3.30 of the Eq. 8 print moves every residual by +0.2 dex: 5 runs miss
-        assert {r for r, d in resid.items() if abs(d + 0.2) > V3_TOL_DEX} == {1, 3, 4, 7, 9}
+        assert {r for r, d in resid.items() if abs(d + 0.2) > SUER_TOL_DEX} == {1, 3, 4, 7, 9}
 
         def figure():
             import matplotlib.pyplot as plt
@@ -881,14 +882,14 @@ class TestSuer2017:
             lim = [0.5, 2.25]
             ax.fill_between(
                 lim,
-                [v - V3_TOL_DEX for v in lim],
-                [v + V3_TOL_DEX for v in lim],
+                [v - SUER_TOL_DEX for v in lim],
+                [v + SUER_TOL_DEX for v in lim],
                 alpha=0.15,
-                label=f'1:1 $\\pm$ {V3_TOL_DEX} dex',
+                label=f'1:1 $\\pm$ {SUER_TOL_DEX} dex',
             )
             ax.plot(lim, lim, ls='--', color=plt.rcParams['text.color'], label='1:1')
-            hit = [k for k, r in enumerate(SUER_RUNS) if r[0] not in V3_MISSES]
-            miss = [k for k, r in enumerate(SUER_RUNS) if r[0] in V3_MISSES]
+            hit = [k for k, r in enumerate(SUER_RUNS) if r[0] not in SUER_MISSES]
+            miss = [k for k, r in enumerate(SUER_RUNS) if r[0] in SUER_MISSES]
             ax.plot([model[k] for k in hit], [meas[k] for k in hit], 'o', label='runs within')
             ax.plot(
                 [model[k] for k in miss],
@@ -922,9 +923,15 @@ class TestSuer2017:
 class TestOptionalTerms:
     """The f (log10 X_FeO) and log10_C_S keys of a log10_linear entry."""
 
-    def test_entries_without_the_keys_evaluate_as_on_main(self):
-        """Every packaged law and its mass D on the stored grid equal the values of main exactly."""
-        stored = json.loads(MAIN_OUTPUTS.read_text())
+    def test_entries_without_the_keys_match_the_stored_reference(self):
+        """Every packaged law and its mass D on the stored grid equal the stored reference.
+
+        Equal to the bit on the platform that stored them; elsewhere the libm round-off of
+        log10 and pow can differ, so there rel 1e-12.
+        """
+        stored = json.loads(REFERENCE_OUTPUTS.read_text())
+        meta = stored['meta']
+        same = (platform.system(), platform.machine()) == (meta['platform'], meta['machine'])
         table = load_partition_table()
         w_metal = {'O': 0.02, 'Si': 0.01, 'S': 0.03, 'H': 0.002, 'C': 0.004}
         w_melt = {'H': 1e-4, 'C': 5e-5}
@@ -936,7 +943,8 @@ class TestOptionalTerms:
                 ]
                 for p, t, d in stored['meta']['grid']
             ]
-            assert got == stored['law'][el], el
+            want = stored['law'][el]
+            assert got == (want if same else pytest.approx(want, rel=1e-12, abs=0.0)), el
             assert 'f' not in table[el] and 'log10_C_S' not in table[el]
 
     @pytest.mark.parametrize(
@@ -1125,9 +1133,9 @@ class TestCallableAndRegistryChecks:
         """A finite numpy float32 or int64 from a callable is a valid log10 D."""
         for k, ret in enumerate((np.float32(1.5), np.int64(2))):
             register_law('N', f'np{k}', lambda *a, r=ret: r, **_DECL)
-            assert log10_D(get_law('N', f'np{k}'), 50.0, 3000.0, -2.0) == pytest.approx(
-                float(ret), rel=1e-7
-            )
+            val = log10_D(get_law('N', f'np{k}'), 50.0, 3000.0, -2.0)
+            assert val == pytest.approx(float(ret), rel=1e-7)
+            assert type(val) is float
 
     def test_array_range_is_refused_by_name(self):
         """A numpy array as a declared range raises PartitionTableError, not a broadcast error."""

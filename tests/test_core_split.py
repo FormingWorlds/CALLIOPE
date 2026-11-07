@@ -2,7 +2,7 @@
 
 Contract clauses: at fixed mass-basis D the core holds D x / (1 + D x) of each element,
 x = M_metal / M_silicate; the element ledger bulk = core + mantle holds to 1e-12 on every
-split (invariant I3) with core and mantle >= 0; a law outside its range is evaluated
+split with core and mantle >= 0; a law outside its range is evaluated
 there (no clamp) and flagged with its distance per axis; O and Si are refused as bulk
 elements; every input outside its domain raises ValueError naming it. Hypothesis tests
 use ``derandomize=True``. Commands: docs/How-to/build_tests.md.
@@ -170,23 +170,17 @@ def test_exchange_elements_are_refused_as_bulk(el):
         split_core_mantle({el: 1e20}, M_METAL, M_SIL, dIW=-2.0)
 
 
-BAD = [True, 'x', None, math.nan, math.inf, -math.inf]
+BAD = [True, 'x', None, math.nan, math.inf, -math.inf, -1.0]
+OK = {'bulk_kg': {'S': 1e20}, 'M_metal': M_METAL, 'M_silicate': M_SIL, 'dIW': -2.0}
 
 
-@pytest.mark.parametrize('value', BAD + [-1.0])
-@pytest.mark.parametrize('field', ['bulk', 'M_metal', 'M_silicate', 'P_eq', 'T_eq'])
+@pytest.mark.parametrize('value', BAD)
+@pytest.mark.parametrize('field', ['bulk_kg', 'M_metal', 'M_silicate', 'P_eq', 'T_eq'])
 def test_bad_input_is_refused_by_name(field, value):
     """A boolean, string, None, NaN, inf or negative value raises ValueError naming the field."""
-    kw = {'P_eq': 60.0, 'T_eq': 4000.0}
-    args = [{'S': 1e20}, M_METAL, M_SIL]
-    if field == 'bulk':
-        args[0] = {'S': value}
-    elif field in ('M_metal', 'M_silicate'):
-        args[1 if field == 'M_metal' else 2] = value
-    else:
-        kw[field] = value
-    with pytest.raises(ValueError, match=field if field != 'bulk' else 'S'):
-        split_core_mantle(*args, dIW=-2.0, **kw)
+    with pytest.raises(ValueError, match=field):
+        split_core_mantle(**{**OK, field: {'S': value} if field == 'bulk_kg' else value})
+    assert core_split._WARNED == set()
 
 
 @pytest.mark.parametrize(
@@ -195,9 +189,9 @@ def test_bad_input_is_refused_by_name(field, value):
 )
 def test_zero_silicate_pressure_temperature_and_bad_diw_are_refused(field, value):
     """M_silicate, P_eq and T_eq must be above 0; dIW must be a finite number."""
-    kw = {'dIW': -2.0, 'M_silicate': M_SIL, field: value}
     with pytest.raises(ValueError, match=field):
-        split_core_mantle({'S': 1e20}, M_METAL, kw.pop('M_silicate'), **kw)
+        split_core_mantle(**{**OK, field: value})
+    assert core_split._WARNED == set()
 
 
 @pytest.mark.parametrize(
@@ -254,7 +248,7 @@ def test_broken_ledger_raises(monkeypatch):
     m_sil=st.floats(1e15, 1e24),
 )
 def test_ledger_closes_over_the_domain(frac, log10_d, m_metal, m_sil):
-    """I3: bulk = core + mantle to 1e-12, core and mantle >= 0, for D 1e-6 to 1e6 and masses 1e15 to 1e24 kg.
+    """Ledger: bulk = core + mantle to 1e-12, core and mantle >= 0, for D 1e-6 to 1e6 and masses 1e15 to 1e24 kg.
 
     The bulk is ``frac`` M_metal with frac up to 0.5, so the metal keeps its iron; 2 ulp of 0
     cover the round-off of a subnormal bulk.
@@ -374,3 +368,25 @@ def test_metal_beyond_fes_is_flagged_not_clamped():
     assert flags['metal']['beyond_FeS'] == 1
     assert flags['metal']['x_S'] > 0.5
     assert abs(core['S'] + mantle['S'] - 1.5e22) <= 1e-12 * 1.5e22
+
+
+@pytest.mark.physics_invariant
+@settings(derandomize=True, max_examples=60, deadline=None)
+@given(
+    frac=st.floats(0.0, 0.05),
+    diw=st.floats(-3.0, -0.5),
+    ratio=st.floats(0.05, 2.0),
+)
+def test_ledger_closes_with_the_default_laws(frac, diw, ratio):
+    """Ledger with metal feedback: the default H, C, N, S laws, dIW -3 to -0.5, M_metal/M_silicate 0.05 to 2.
+
+    Each element is frac M_metal (frac up to 0.05), so the eps terms and mole bases feed
+    back on D through the metal composition.
+    """
+    m_metal = ratio * M_SIL
+    bulk = {el: frac * m_metal for el in ('H', 'C', 'N', 'S')}
+    core, mantle, flags = split_core_mantle(bulk, m_metal, M_SIL, dIW=diw, w_fixed={'O': 0.02})
+    for el, m in bulk.items():
+        assert core[el] >= 0.0 and mantle[el] >= 0.0
+        assert abs(core[el] + mantle[el] - m) <= 1e-12 * m + 2 * math.ulp(0.0)
+    assert 0.0 <= flags['metal']['x_light'] < 1.0

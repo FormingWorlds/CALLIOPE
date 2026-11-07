@@ -93,7 +93,7 @@ Suer et al. (2023) give an uncertainty of up to 20 % on their Table 1 values. In
 | S | `suer2023_line` | the S law above | `partition_coefficients_placeholder.toml` |
 | S | `suer2017_eq7` | [Suer et al. (2017)](https://doi.org/10.1016/j.epsl.2017.04.016) Eq. 7 with log10 in every term: a -3.50, b 3000, c 33 (Table 3), f 1, `log10_C_S` -5.372 (Fig. 6, pyrolite), eps O 14; mole basis (their Eq. 1), single-cation melt basis assumed; 1-91 GPa, 1873-4100 K (p. 91), dIW -1.7 to -1.0 (p. 90) | `partition_laws_core.toml` |
 
-`calliope.metal.register_law(element, name, law, ...)` adds a law of H, C, N or S under a new name. `law` is either a `log10_linear` entry of a loaded partition file, or a function `f(p_gpa, t_k, d_iw, x_metal, x_silicate)` that returns $\log_{10} D$, with the keywords `basis`, `silicate_basis` (for a mole basis), `P_range_GPa`, `T_range_K`, `dIW_range`, `source` and `doi`. `x_metal` holds the metal mole fractions on the $x'$ basis and `x_silicate` the melt fractions of each oxide on the single-cation basis. A taken name, an unknown element or basis, O or Si, or a declaration that breaks the schema raises `PartitionTableError`; a function that returns a value that is not finite raises `ValueError` with the law name and the point.
+`calliope.metal.register_law(element, name, law, ...)` adds a law of H, C, N or S under a new name (`replace=True` stores it over a law of the same name). `law` is either a `log10_linear` entry of a loaded partition file, or a function `f(p_gpa, t_k, d_iw, x_metal, x_silicate, nbo_t)` that returns $\log_{10} D$, with the keywords `basis`, `silicate_basis` (for a mole basis), `P_range_GPa`, `T_range_K`, `dIW_range`, `source` and `doi`. `x_metal` holds the metal mole fractions on the $x'$ basis, `x_silicate` the melt fractions of each oxide on the single-cation basis and `nbo_t` the NBO/T of the melt. The registry keeps a copy of each law, and `get_law` returns a copy. A taken name, an unknown element or basis, O or Si, an entry with missing fields, or a declaration that breaks the schema raises `PartitionTableError`; a function that returns a value that is not a finite real number (a bool included) raises `ValueError` with the law name and the point.
 
 `calliope.core_split.split_core_mantle(bulk_kg, M_metal, M_silicate, *, dIW, P_eq=60.0, T_eq=4000.0, laws=None, w_fixed=None, oxides=KLB1, nbo_t=2.6)` returns `(core_kg, mantle_kg, flags)`.
 
@@ -103,14 +103,16 @@ Suer et al. (2023) give an uncertainty of up to 20 % on their Table 1 values. In
 | `M_metal`, `M_silicate` | kg | finite; `M_metal` >= 0, `M_silicate` > 0 |
 | `dIW` | log10 units | finite, no default |
 | `P_eq`, `T_eq` | GPa, K | finite and > 0 |
-| `laws` | | law per element, a name or an entry; elements not given take `tagawa2021_eq2`, `fischer2020_eq1`, `suer2023_line`, `suer2017_eq7` |
+| `laws` | | law per element of `bulk_kg`, a name or a D-law entry of that element; elements not given take `tagawa2021_eq2`, `fischer2020_eq1`, `suer2023_line`, `suer2017_eq7`; a key outside `bulk_kg` raises `ValueError`, any other value `PartitionTableError` |
 | `w_fixed` | kg per kg | metal mass fractions of elements outside `bulk_kg` (O, Si), each in [0, 1), sum below 1 |
-| `oxides`, `nbo_t` | wt%, none | melt composition and NBO/T |
+| `oxides`, `nbo_t` | wt%, none | melt composition (silicate units of the mole bases) and NBO/T; the FeO of a law with `f` comes from `dIW`, $X_\mathrm{FeO} = x'_\mathrm{Fe}\,10^{\mathrm{dIW}/2}$ |
 
 | Output | Unit | Meaning |
 |---|---|---|
 | `core_kg[e]`, `mantle_kg[e]` | kg | core and mantle mass of element `e`; their sum is the bulk to 1e-12 relative (plus 1e-323 kg for the round-off of a subnormal bulk) |
 | `flags[e]['out_of_range']` | | 1 when the law of `e` runs outside a range or on an unknown range |
+| `flags['metal']['x_light']`, `['x_S']` | | mole fractions of all light elements and of S in the metal |
+| `flags['metal']['beyond_FeS']` | | 1 when `x_S` is above 0.5, the S of FeS (flag only, no clamp) |
 | `flags[e]['P_GPa']`, `['T_K']`, `['dIW']` | GPa, K, log10 units | distance outside each range, 0 inside, NaN for an unknown range |
 
 A bool, a string, NaN or inf raises `ValueError` with the name of the input. A metal composition that does not settle in 50 passes, or a broken ledger, raises `RuntimeError`.

@@ -182,7 +182,7 @@ For run 7, Table 1 (p. 91) prints $X_\mathrm{FeO}$ = 0.02, which we read as a mi
 
 **How to read the plot.** The x-axis is $\log_{10} D_\mathrm{S}$ from Eq. 7 and the y-axis the measured value. The dashed line is 1:1 and the band is $\pm$0.47 dex around it. Filled points are runs within the band; the open point is run 7. A pass means that 8 runs lie in the band and run 7 lies outside it.
 
-The residual (model minus measurement) is +0.30, -0.12, +0.42, +0.42, +0.03, -0.03, +0.50, +0.15 and +0.38 dex for runs 1 to 9, with a mean of +0.23 dex. Run 7 is a stated miss at +0.495 dex, 0.025 dex outside the band; with the IW value 0.2007 it would be +0.497 dex. With the printed $X_\mathrm{FeO}$ of 0.02 it would miss by 0.04 dex on the other side (-0.51 dex). A possible cause of the mean offset is the $C_\mathrm{S}$ value: it is for a pyrolite melt, while the runs use MORB and KLB-1 melts (Table 1). With $a = -3.30$, the value printed in their Eq. 8, every residual is 0.2 dex larger and 5 runs miss.
+The residual (model minus measurement) is +0.30, -0.12, +0.42, +0.42, +0.03, -0.03, +0.50, +0.15 and +0.38 dex for runs 1 to 9, with a mean of +0.23 dex. Run 7 is a stated miss at +0.495 dex, 0.025 dex outside the band; with the IW value 0.2007 it would be +0.497 dex. With the printed $X_\mathrm{FeO}$ of 0.02 it would miss by 0.035 dex on the other side (-0.505 dex). A possible cause of the mean offset is the $C_\mathrm{S}$ value: it is for a pyrolite melt, while the runs use MORB and KLB-1 melts (Table 1). With $a = -3.30$, the value printed in their Eq. 8, every residual is 0.2 dex larger and 5 runs miss.
 
 ??? info "Test details"
     - Reference: Suer et al. (2017), Eq. 7, Table 1 (runs), Table 3 (coefficients), Fig. 6 ($\log_{10} C_\mathrm{S}$).

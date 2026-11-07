@@ -33,10 +33,10 @@ for el in bulk:
 ```
 
 ```console
-H: core 1.423e+20 kg, mantle 7.706e+18 kg, core share 0.949, out of range 1
+H: core 1.423e+20 kg, mantle 7.705e+18 kg, core share 0.949, out of range 1
 C: core 1.396e+18 kg, mantle 1.360e+19 kg, core share 0.093, out of range 1
 N: core 7.285e+18 kg, mantle 7.146e+17 kg, core share 0.911, out of range 1
-S: core 7.465e+20 kg, mantle 5.354e+19 kg, core share 0.933, out of range 0
+S: core 7.795e+20 kg, mantle 2.047e+19 kg, core share 0.974, out of range 0
 ```
 
 Most of the H, N and S goes into the core, and most of the C stays in the mantle.
@@ -44,14 +44,32 @@ Most of the H, N and S goes into the core, and most of the C stays in the mantle
 The H, C and N laws are flagged, and each logs one warning with its distance outside the range:
 
 ```console
-H partition law tagawa2021_eq2 evaluated outside its range: P_eq 60 GPa, T_eq 4000 K, dIW -1.5 (distance {'out_of_range': 1, 'P_GPa': 0.0, 'T_K': 0.0, 'dIW': 0.16999999999999993})
-C partition law fischer2020_eq1 evaluated outside its range: P_eq 60 GPa, T_eq 4000 K, dIW -1.5 (distance {'out_of_range': 1, 'P_GPa': 1.0, 'T_K': 0.0, 'dIW': 0.0})
-N partition law suer2023_line evaluated outside its range: P_eq 60 GPa, T_eq 4000 K, dIW -1.5 (distance {'out_of_range': 1, 'P_GPa': 40.0, 'T_K': 1000.0, 'dIW': 0.0})
+H partition law tagawa2021_eq2 evaluated outside its range: P_eq 60 GPa, T_eq 4000 K, dIW -1.5 (distance {'P_GPa': 0.0, 'T_K': 0.0, 'dIW': 0.17})
+C partition law fischer2020_eq1 evaluated outside its range: P_eq 60 GPa, T_eq 4000 K, dIW -1.5 (distance {'P_GPa': 1.0, 'T_K': 0.0, 'dIW': 0.0})
+N partition law suer2023_line evaluated outside its range: P_eq 60 GPa, T_eq 4000 K, dIW -1.5 (distance {'P_GPa': 40.0, 'T_K': 1000.0, 'dIW': 0.0})
 ```
 
 **How to read the flags.** The H law comes from runs at dIW -1.33 to -0.88, so dIW -1.5 is 0.17 log10 units outside. The C law has data up to 59 GPa, 1 GPa below the point. The N law is a line at 20 GPa and 3000 K only, so every other point is outside. The split still uses each law at the given point: a flag tells you to read the result with care, it does not change it.
 
-## Step 2: a point at a core-mantle boundary pressure
+## Step 2: the redox state
+
+$\Delta\mathrm{IW}$ is the one redox input of the split. The S law reads the FeO of the melt, and the split takes it from $\Delta\mathrm{IW}$ and the iron of the metal, $X_\mathrm{FeO} = x'_\mathrm{Fe}\,10^{\Delta\mathrm{IW}/2}$, so a more oxidised equilibrium puts more S into the core:
+
+```python
+for diw in (-3.0, -0.5):
+    c, m, f = split_core_mantle(bulk, M_metal, M_silicate, dIW=diw, w_fixed=metal)
+    print(f'dIW {diw}: S core share {c["S"] / bulk["S"]:.3f}, metal {f["metal"]["beyond_FeS"]}')
+```
+
+```console
+S partition law suer2017_eq7 evaluated outside its range: P_eq 60 GPa, T_eq 4000 K, dIW -3 (distance {'P_GPa': 0.0, 'T_K': 0.0, 'dIW': 1.3})
+dIW -3.0: S core share 0.871, metal 0
+dIW -0.5: S core share 0.992, metal 0
+```
+
+At dIW -1.5 (Step 1) the share is 0.974. Both points lie outside the dIW range of the S law (-1.7 to -1.0), so each is flagged; the warning comes once per law and process. `flags['metal']` holds the light-element and S mole fractions of the metal; `beyond_FeS` is 1 when the metal holds more S than FeS, which a large bulk S on a small metal mass can give.
+
+## Step 3: a point at a core-mantle boundary pressure
 
 ```python
 core2, mantle2, flags2 = split_core_mantle(
@@ -61,13 +79,12 @@ print('S at 300 GPa, 5500 K: core share', f'{core2["S"] / bulk["S"]:.3f}', flags
 ```
 
 ```console
-S partition law suer2017_eq7 evaluated outside its range: P_eq 300 GPa, T_eq 5500 K, dIW -1.5 (distance {'out_of_range': 1, 'P_GPa': 209.0, 'T_K': 1400.0, 'dIW': 0.0})
-S at 300 GPa, 5500 K: core share 0.994 {'out_of_range': 1, 'P_GPa': 209.0, 'T_K': 1400.0, 'dIW': 0.0}
+S at 300 GPa, 5500 K: core share 0.998 {'out_of_range': 1, 'P_GPa': 209.0, 'T_K': 1400.0, 'dIW': 0.0}
 ```
 
-The S law now runs 209 GPa and 1400 K beyond its data. From 60 GPa and 4000 K to this point the $cP/T$ term of the law rises by 1.31 and the $b/T$ term falls by 0.20, so $D_\mathrm{S}$ rises and the core takes 99.4 % of the S. No measurement backs this number. This is why the default point is 60 GPa and 4000 K and not the core-mantle boundary.
+The S law now runs 209 GPa and 1400 K beyond its data. From 60 GPa and 4000 K to this point the $cP/T$ term of the law rises by 1.31 and the $b/T$ term falls by 0.20, so $D_\mathrm{S}$ rises and the core takes 99.8 % of the S. No measurement backs this number. This is why the default point is 60 GPa and 4000 K and not the core-mantle boundary.
 
-## Step 3: your own S law
+## Step 4: your own S law
 
 Register a law under a new name. This one is a constant, $D_\mathrm{S} = 100$ on the mass basis, so its result has a closed form.
 
@@ -75,7 +92,7 @@ Register a law under a new name. This one is a constant, $D_\mathrm{S} = 100$ on
 register_law(
     'S',
     'my_constant',
-    lambda p, t, diw, x_metal, x_sil: 2.0,
+    lambda p, t, diw, x_metal, x_sil, nbo: 2.0,
     basis='mass',
     P_range_GPa=(0.0, 400.0),
     T_range_K=(1000.0, 6000.0),
@@ -97,16 +114,16 @@ print(
 S with D = 100: core share 0.9796, closed form 0.9796
 ```
 
-A function law gets the pressure in GPa, the temperature in K, $\Delta\mathrm{IW}$, the metal mole fractions and the melt oxide fractions, and returns $\log_{10} D$. To add a law from a paper as a file entry instead, see [Add a new partition law](partition_law.md) and pass the loaded entry to `register_law`.
+A function law gets the pressure in GPa, the temperature in K, $\Delta\mathrm{IW}$, the metal mole fractions, the melt oxide fractions and the NBO/T of the melt, and returns $\log_{10} D$. A second `register_law` under the same name needs `replace=True`. To add a law from a paper as a file entry instead, see [Add a new partition law](partition_law.md) and pass the loaded entry to `register_law`.
 
-## Step 4: the element ledger
+## Step 5: the element ledger
 
 ```python
 print(max(abs(core[el] + mantle[el] - bulk[el]) / bulk[el] for el in bulk))
 ```
 
 ```console
-0.0
+2.1845333333333333e-16
 ```
 
-The split checks this ledger itself on every call and raises `RuntimeError` above $10^{-12}$; here the error is 0 to the last bit.
+The split checks this ledger itself on every call and raises `RuntimeError` above $10^{-12}$; here the largest error is 2e-16 of the bulk, the round-off of one addition.
