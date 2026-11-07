@@ -42,6 +42,7 @@ T_EQ_K = 4000.0
 MAX_PASSES = 50
 TOL_W = 1e-12  # relative step of the metal mass fractions that ends the fixed point
 LEDGER_RTOL = 1e-12
+LEDGER_ATOL = 2 * math.ulp(0.0)  # round-off of a subnormal bulk [kg]
 
 # (element, law) pairs whose out-of-range warning was given in this process
 _WARNED = set()
@@ -61,9 +62,9 @@ def _masses(bulk, d, m_metal, m_sil):
     """Core and mantle masses [kg] of each element at fixed mass-basis D."""
     if m_metal == 0.0:
         return {el: 0.0 for el in bulk}, dict(bulk)
-    w_sil = {el: m / (m_sil + d[el] * m_metal) for el, m in bulk.items()}
-    core = {el: d[el] * m_metal * w for el, w in w_sil.items()}
-    return core, {el: m_sil * w for el, w in w_sil.items()}
+    total = {el: m_sil + d[el] * m_metal for el in bulk}
+    core = {el: d[el] * m_metal / total[el] * m for el, m in bulk.items()}
+    return core, {el: m_sil / total[el] * m for el, m in bulk.items()}
 
 
 def split_core_mantle(
@@ -109,7 +110,7 @@ def split_core_mantle(
     -------
     core_kg, mantle_kg : dict
         Core and mantle mass [kg] of each element of ``bulk_kg``; their sum is the bulk to
-        1e-12 relative (asserted).
+        1e-12 relative plus 2 ulp of 0 (asserted).
     flags : dict
         Per element: ``out_of_range`` (0 or 1, as :func:`calliope.metal.out_of_range`) and
         the distances ``P_GPa``, ``T_K``, ``dIW`` of :func:`calliope.metal.range_distance`.
@@ -169,7 +170,7 @@ def split_core_mantle(
         if not (
             core[el] >= 0.0
             and mantle[el] >= 0.0
-            and abs(core[el] + mantle[el] - m) <= LEDGER_RTOL * m
+            and abs(core[el] + mantle[el] - m) <= LEDGER_RTOL * m + LEDGER_ATOL
         ):
             raise RuntimeError(
                 f'{el} ledger of the split fails: core {core[el]!r} + mantle {mantle[el]!r} kg '
@@ -179,7 +180,7 @@ def split_core_mantle(
     for el, entry in entries.items():
         flags[el] = {'out_of_range': int(out_of_range(entry, p_eq, t_eq, d_iw))}
         flags[el] |= range_distance(entry, p_eq, t_eq, d_iw)
-        key = (el, entry.get('name', entry['source']))
+        key = (el, names[el] if isinstance(names[el], str) else f'entry of {el}')
         if flags[el]['out_of_range'] and key not in _WARNED:
             _WARNED.add(key)
             log.warning(

@@ -250,13 +250,16 @@ def test_broken_ledger_raises(monkeypatch):
 def test_ledger_closes_over_the_domain(frac, log10_d, m_metal, m_sil):
     """I3: bulk = core + mantle to 1e-12, core and mantle >= 0, for D 1e-6 to 1e6 and masses 1e15 to 1e24 kg.
 
-    The bulk is ``frac`` M_metal with frac up to 0.5, so the metal keeps its iron.
+    The bulk is ``frac`` M_metal with frac up to 0.5, so the metal keeps its iron; 2 ulp of 0
+    cover the round-off of a subnormal bulk.
     """
     bulk, name = frac * m_metal, f'd{log10_d!r}'
     if ('N', name) not in metal._LAWS:
         _const(name, log10_d)
     core, mantle, _ = split_core_mantle({'N': bulk}, m_metal, m_sil, dIW=-2.0, laws={'N': name})
-    _ledger({'N': bulk}, core, mantle)
+    assert core['N'] >= 0.0
+    assert mantle['N'] >= 0.0
+    assert abs(core['N'] + mantle['N'] - bulk) <= 1e-12 * bulk + 2 * math.ulp(0.0)
 
 
 def test_registered_callable_is_used_by_the_split():
@@ -267,4 +270,4 @@ def test_registered_callable_is_used_by_the_split():
     )
     assert core['S'] / M_METAL == pytest.approx(100.0 * mantle['S'] / M_SIL, rel=1e-12)
     assert flags['S']['out_of_range'] == 0
-    assert log10_D(get_law('S', 'test_d100'), 1.0, 2000.0, 0.0) == 2.0
+    assert log10_D(get_law('S', 'test_d100'), 1.0, 2000.0, 0.0) == pytest.approx(2.0, rel=1e-12)

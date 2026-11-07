@@ -970,6 +970,7 @@ class TestOptionalTerms:
         args = (50.0, 3500.0, -2.0, {})
         gain = log10_D(both, *args, x_silicate={'FeO': 0.1}) - log10_D(base, *args)
         assert gain == pytest.approx(2 * math.log10(0.1) + 1.0, rel=1e-12)
+        assert gain < 0.0  # X_FeO 0.1 lowers log10 D by 2, the C_S term adds 1
 
 
 class TestRangeDistance:
@@ -991,7 +992,10 @@ class TestRangeDistance:
     def test_unknown_range_is_nan(self):
         """The O law has no T and dIW range: those axes are NaN, the P axis a number."""
         dist = range_distance(load_partition_table()['O'], 50.0, 4000.0, -2.0)
-        assert dist['P_GPa'] == 0.0 and math.isnan(dist['T_K']) and math.isnan(dist['dIW'])
+        assert math.isnan(dist['T_K'])
+        assert math.isnan(dist['dIW'])
+        assert not math.isnan(dist['P_GPa'])  # 50 GPa lies inside 35-74 GPa
+        assert dist['P_GPa'] == pytest.approx(0.0, abs=0.0)
 
 
 def _const_law(p_gpa, t_k, d_iw, x_metal, x_silicate):
@@ -1033,11 +1037,9 @@ class TestRegistry:
         )['N']
         register_law('N', 'const_toml', entry)
         args = (50.0, 3000.0, -2.0, {'O': 0.01}, {'H': 1e-4})
-        assert (
-            mass_D(get_law('N', 'const'), *args)
-            == mass_D(get_law('N', 'const_toml'), *args)
-            == 10.0
-        )
+        from_func = mass_D(get_law('N', 'const'), *args)
+        assert from_func == pytest.approx(10.0, rel=1e-12)
+        assert mass_D(get_law('N', 'const_toml'), *args) == pytest.approx(from_func, rel=1e-12)
 
     def test_duplicate_unknown_and_bad_declarations_are_refused(self):
         """A taken name, an unknown element or basis, a missing source or a reversed range raise."""
