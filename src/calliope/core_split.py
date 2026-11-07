@@ -26,6 +26,7 @@ from .metal import (
     EXCHANGE_ELEMENTS,
     KLB1,
     PartitionTableError,
+    _mass,
     _metal_moles,
     _real,
     check_law,
@@ -50,7 +51,7 @@ TOL_W_FLOOR = 1e-15  # absolute floor of that step, for an element near 0
 LEDGER_RTOL = 1e-12
 LEDGER_ATOL = 2 * math.ulp(0.0)  # round-off of a subnormal bulk [kg]
 
-# (element, law) pairs whose out-of-range warning was given in this process
+# (element, law, source, ranges) of the out-of-range warnings given in this process
 _WARNED = set()
 
 
@@ -161,7 +162,7 @@ def split_core_mantle(
             raise ValueError(f'w_fixed[{el!r}] = {w!r} must be below 1')
     if sum(fixed.values()) >= 1.0:
         raise ValueError(f'w_fixed {fixed} leaves no iron in the metal')
-    if not isinstance(laws or {}, dict):
+    if laws is not None and not isinstance(laws, dict):
         raise ValueError(f'laws must be a dict of element to law, got {laws!r}')
     extra = sorted(set(laws or {}) - set(bulk))
     if extra:
@@ -201,7 +202,7 @@ def split_core_mantle(
                 f'against bulk {m!r} kg'
             )
     total, n = _metal_moles(w)
-    n_s, n_fe = n.get('S', 0.0), total - sum(n.values())
+    n_s, n_fe = n.get('S', 0.0), (1.0 - sum(w.values())) / _mass('Fe')
     flags = {
         'metal': {
             'x_light': sum(n.values()) / total,
@@ -214,7 +215,8 @@ def split_core_mantle(
         dist = range_distance(entry, p_eq, t_eq, d_iw)
         flags[el] = {'out_of_range': int(any(v != 0.0 for v in dist.values())), **dist}
         label = names[el] if isinstance(names[el], str) else f'entry ({entry["source"][:40]})'
-        key = (el, label) + tuple(entry[r] for r in ('P_range_GPa', 'T_range_K', 'dIW_range'))
+        ranges = tuple(entry[r] for r in ('P_range_GPa', 'T_range_K', 'dIW_range'))
+        key = (el, label, entry['source']) + ranges
         if flags[el]['out_of_range'] and key not in _WARNED:
             _WARNED.add(key)
             shown = {k: round(v, 3) for k, v in dist.items()}

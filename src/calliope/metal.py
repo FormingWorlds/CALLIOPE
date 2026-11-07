@@ -559,12 +559,16 @@ def mass_D(entry, p_gpa, t_k, d_iw, w_metal, w_melt, oxides=KLB1, nbo_t=2.6):
     if entry['form'] == 'callable':
         x_sil = {ox: cation_fraction(oxides, ox) for ox in oxides}
     elif 'f' in entry:
-        log_x = math.log10((total - sum(n.values())) / free) + d_iw / 2.0
+        _finite('dIW', d_iw)
+        n_fe = (1.0 - sum(w_metal.values())) / molar_mass_rock['Fe']
+        log_x = math.log10(n_fe / free) + d_iw / 2.0
         if log_x > 0.0:
             raise ValueError(
                 f'dIW {d_iw:g} is above the ideal-mixing limit {d_iw - 2.0 * log_x:.4g} of '
                 'this metal: X_FeO = x_Fe 10^(dIW/2) would pass 1'
             )
+        if log_x < -300.0:
+            raise ValueError(f'dIW {d_iw:g} makes X_FeO = x_Fe 10^(dIW/2) underflow')
         x_sil = {'FeO': 10.0**log_x}
     label = f'{entry["element"]} law'
     val = log10_D(entry, p_gpa, t_k, d_iw, x_metal, nbo_t, x_silicate=x_sil)
@@ -715,6 +719,19 @@ def get_law(element, name):
 def check_law(entry, element):
     """A checked copy of a D law of ``element``: a ``log10_linear`` entry or a callable law.
 
+    Parameters
+    ----------
+    entry : dict
+        A law as :func:`get_law` returns it, or one made by hand with the same fields.
+    element : str
+        The element the law must be for.
+
+    Returns
+    -------
+    dict
+        The checked law; a ``log10_linear`` entry is checked as an entry of a partition
+        file, a callable law keeps its function.
+
     Raises
     ------
     PartitionTableError
@@ -726,11 +743,11 @@ def check_law(entry, element):
     if entry.get('form') == 'callable':
         if not callable(entry.get('func')):
             raise PartitionTableError(f'{element!r}: a callable law entry needs its func')
-        return _callable_entry(element, entry.get('name'), entry['func'], entry)
+        return _callable_entry(element, entry.get('name') or 'entry', entry['func'], entry)
     if entry.get('form') != 'log10_linear':
         raise PartitionTableError(f'{element!r}: needs a log10_linear or callable entry')
     raw = {k: v for k, v in entry.items() if k not in ('element', 'name')}
-    raw |= {k: [] if raw.get(k) is None else list(raw[k]) for k in RANGES if k in raw}
+    raw |= {k: [] for k in RANGES if k in raw and raw[k] is None}
     return _entry(element, raw)
 
 
@@ -782,7 +799,10 @@ def register_law(
         callable ``f(p_gpa, t_k, d_iw, x_metal, x_silicate, nbo_t) -> log10 D`` with the
         keyword declarations below; ``x_metal`` holds metal mole fractions over the metal
         without H and C, ``x_silicate`` the melt oxide fractions on the single-cation
-        basis, ``nbo_t`` the NBO/T of the melt. The registry keeps a copy.
+        basis, ``nbo_t`` the NBO/T of the melt. The registry keeps a checked copy of an
+        entry and the callable itself. A callable gets the melt fractions of ``oxides`` as
+        they are; one that needs the FeO of the dIW rule of :func:`mass_D` computes it from
+        ``x_metal`` and ``d_iw``.
     basis, silicate_basis : str
         Of a callable: the metal basis of D (one of :data:`BASES`) and, for a mole basis,
         the silicate basis (one of :data:`SILICATE_BASES`).
