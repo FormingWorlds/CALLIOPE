@@ -877,3 +877,37 @@ def test_iron_poor_split_that_does_not_settle_raises_runtime_error(
         with pytest.raises(RuntimeError, match='did not settle in 2 x 1000 relaxed passes'):
             split_core_mantle(bulk, m_metal, m_sil, dIW=diw, w_fixed=w_fixed)
     assert len(calls) >= len(bulk) * 2 * core_split.MAX_RELAXED_PASSES
+
+
+def test_plain_passes_check_the_melt_basis_of_the_first_pass():
+    """g settled on the start but the first melt H is new: the plain passes take a second pass to check it."""
+    calls = []
+
+    def evaluate(w, w_melt):
+        calls.append(dict(w_melt))
+        return {}, {}, dict(w), {'H': 0.1}
+
+    _, _, w = core_split._plain_fixed_point(evaluate, {'S': 0.3}, {'O': 0.02})
+    assert calls == [{}, {'H': 0.1}]
+    assert w == {'O': 0.02, 'S': 0.3}
+
+
+def test_grid_rule_accepts_a_move_of_up_to_2_ulp():
+    """A steep falling g after a 2-ulp step: the move lies between 1 and 2 ulp, so pass 2 ends the passes."""
+    w0 = 0.5
+    w1 = math.nextafter(math.nextafter(w0, 1.0), 1.0)
+    g1 = w1 - 1e-12
+    script = iter([w1, g1])
+
+    def evaluate(w, w_melt):
+        return {}, {}, {'A': 0.2, 'S': next(script, w['S'])}, {}
+
+    calls = []
+
+    def counted(w, w_melt):
+        calls.append(w['S'])
+        return evaluate(w, w_melt)
+
+    _, _, w = core_split._relaxed_passes(counted, {'A': 0.1, 'S': w0}, {}, False)
+    assert calls == [w0, w1]
+    assert w['S'] == g1
