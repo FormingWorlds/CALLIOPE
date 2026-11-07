@@ -1225,19 +1225,34 @@ _SCHN_TWO_ROOTS = (
 
 @pytest.mark.parametrize('start', range(1, 6))
 def test_iron_poor_split_with_2_roots_returns_the_root_with_more_iron(start):
-    """The S-C-H-N split with 2 roots, perturbed at round-off: the root with 5 % iron, not the one with 6e-7."""
+    """The S-C-H-N split with 2 roots, perturbed at round-off: the root with 5 % iron, not the one with 6e-7.
+
+    root_rule is 1 exactly when the relaxed passes reached the root with 6e-7 first.
+    """
     np = pytest.importorskip('numpy')
     eps = np.random.default_rng(3).uniform(-1, 1, (start + 1, 7))[start] * 4e-16
     bulk = {el: m * (1 + e) for (el, m), e in zip(_SCHN_TWO_ROOTS[0].items(), eps)}
     m_metal, m_sil, diw = (v * (1 + e) for v, e in zip(_SCHN_TWO_ROOTS[1:], eps[4:]))
-    core, mantle, flags = split_core_mantle(bulk, m_metal, m_sil, dIW=diw, w_fixed={'O': 0.02})
+    first = []
+    real = core_split._more_iron
+
+    def spy(evaluate, start, fixed, out):
+        first.append(1.0 - sum(out[2].values()))
+        return real(evaluate, start, fixed, out)
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(core_split, '_more_iron', spy)
+        core, mantle, flags = split_core_mantle(
+            bulk, m_metal, m_sil, dIW=diw, w_fixed={'O': 0.02}
+        )
     iron = 0.98 - sum(core.values()) / m_metal
     assert iron == pytest.approx(0.04972804927351793, rel=1e-9)
     assert (
         max(_d_residuals(bulk, m_metal, m_sil, diw, {'O': 0.02}, core, mantle).values()) <= 1e-9
     )
     assert flags['metal']['beyond_FeS'] == 1
-    assert flags['metal']['root_rule'] == 1
+    assert len(first) == 1  # round-off decides which root the relaxed passes reach first
+    assert flags['metal']['root_rule'] == int(first[0] < 1e-4)
 
 
 def _relaxed_out(iron, at_w=True):
