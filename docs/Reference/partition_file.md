@@ -12,7 +12,7 @@ With `metal_mass` above zero, `equilibrium_atmosphere` and `equilibrium_atmosphe
 | `dIW_eq` | log10 units | required for `'parameter'` | Oxygen fugacity of the equilibrium relative to the iron-wustite buffer |
 | `O_mode_core`, `Si_mode_core` | | `'fixed'` | `'fixed'` reads `w_O_core`, `w_Si_core`; `'partition'` uses the exchange $K_D$ of the file at the dIW of each pass |
 | `w_O_core`, `w_Si_core` | mass fraction | 0 | Metal O and Si in `'fixed'` mode, and the start metal of the passes in `'partition'` mode; at least 0, each and their sum below 1 |
-| `silicate_oxides` | wt% | KLB-1 (7 major oxides, Takahashi 1986) | Melt composition for the mole basis of $D$; sums to 95-101 wt% and is used as given, not normalised; Si `'partition'` needs SiO2 above 0 |
+| `silicate_oxides` | wt% | KLB-1 (7 major oxides, Takahashi 1986 [^cite-takahashi1986]) | Melt composition for the mole basis of $D$; sums to 95-101 wt% and is used as given, not normalised; Si `'partition'` needs SiO2 above 0 |
 | `silicate_nbo_t` | | 2.6 | NBO/T of the melt |
 | `partition_table` | | packaged placeholder | A table from `calliope.metal.load_partition_table` |
 | `tol_w_core` | | 1e-6 | Relative stop of the fixed point on each metal mass fraction, above 0 and below 1 |
@@ -48,7 +48,7 @@ $$
 \log_{10} D = a + \frac{b}{T} + c\,\frac{P}{T} + d \cdot \mathrm{dIW\_factor} \cdot \Delta\mathrm{IW} + e\,(\mathrm{NBO/T}) + \sum_j \varepsilon_j \log_{10}(1 - X_j)
 $$
 
-with $T$ in K, $P$ in GPa, NBO/T the ratio of non-bridging O to tetrahedral cations of the melt, and $X_j$ the mole fraction of element $j$ over the metal without H and C, $x'_j = N_j / \sum_{k \ne \mathrm{H,C}} N_k$ (Tagawa et al. 2021, Methods Eq. 4, p. 5). Fischer et al. (2020, p. 8744) fit $X_\mathrm{O}$ and $X_\mathrm{S}$ as mole fractions in metal without H and do not name the elements of the denominator; $x'$ is the choice of CALLIOPE, the metal basis of the H law. The O and Si exchange uses the same $x'$ in the metal and the single-cation basis in the melt, as the fO2 path of the Tagawa et al. (2021) multi-stage model (p. 6).
+with $T$ in K, $P$ in GPa, NBO/T the ratio of non-bridging O to tetrahedral cations of the melt, and $X_j$ the mole fraction of element $j$ over the metal without H and C, $x'_j = N_j / \sum_{k \ne \mathrm{H,C}} N_k$ (Tagawa et al. 2021, Methods Eq. 4, p. 5) [^cite-tagawa2021]. Fischer et al. (2020, p. 8744) [^cite-fischer2020] fit $X_\mathrm{O}$ and $X_\mathrm{S}$ as mole fractions in metal without H and do not name the elements of the denominator; $x'$ is the choice of CALLIOPE, the metal basis of the H law. The O and Si exchange uses the same $x'$ in the metal and the single-cation basis in the melt, as the fO2 path of the Tagawa et al. (2021) [^cite-tagawa2021] multi-stage model (p. 6).
 
 | Field | Values | Meaning |
 |---|---|---|
@@ -72,14 +72,14 @@ The packaged file `src/calliope/data/partition_coefficients_placeholder.toml` ha
 
 | Element | Law | Range of the source data | Note |
 |---|---|---|---|
-| H | [Tagawa et al. (2021)](https://doi.org/10.1038/s41467-021-22035-0) Eq. 2, $K_D$ on the metal without H and C | 30-60 GPa, 3080-4560 K, dIW -1.33 to -0.88 | |
-| C | [Fischer et al. (2020)](https://doi.org/10.1073/pnas.1919930117) Eq. 1, mass basis, with O and S interaction terms | 1-59 GPa, 1618-5200 K, dIW -3.9 to -0.53 | |
-| N | Line in dIW through $D_N$ = 1 at dIW -4 and 39 at dIW -1, the 20 GPa, 3000 K column of [Suer et al. (2023)](https://doi.org/10.3389/feart.2023.1159412) Table 1 | 20 GPa, 3000 K, dIW -4 to -1 | The 5 GPa, 2000 K column gives 5 and 265 at the same dIW; Table 1 has no N value at 60 GPa |
-| S | Line in dIW through $D_S$ = 10 at dIW -4 and 173 at dIW -1, the 60 GPa, 4000 K column of Suer et al. (2023) Table 1 | 60 GPa, 4000 K, dIW -4 to -1 | The oxidized column spans dIW -1 to about +1.3; the line uses -1 |
-| O | Exchange $K_D$ of Tagawa et al. (2021) SI Table 3 for the data of Siebert et al. (2012, 2013) | 35-74 GPa; T and dIW unknown | Always flagged out of range; SI Table 3 states no basis, and the Siebert et al. papers are not read for it |
+| H | Tagawa et al. (2021) [^cite-tagawa2021] Eq. 2, $K_D$ on the metal without H and C | 30-60 GPa, 3080-4560 K, dIW -1.33 to -0.88 | |
+| C | Fischer et al. (2020) [^cite-fischer2020] Eq. 1, mass basis, with O and S interaction terms | 1-59 GPa, 1618-5200 K, dIW -3.9 to -0.53 | |
+| N | Line in dIW through $D_N$ = 1 at dIW -4 and 39 at dIW -1, the 20 GPa, 3000 K column of Suer et al. (2023) [^cite-suer2023] Table 1 | 20 GPa, 3000 K, dIW -4 to -1 | The 5 GPa, 2000 K column gives 5 and 265 at the same dIW; Table 1 has no N value at 60 GPa |
+| S | Line in dIW through $D_S$ = 10 at dIW -4 and 173 at dIW -1, the 60 GPa, 4000 K column of Suer et al. (2023) [^cite-suer2023] Table 1 | 60 GPa, 4000 K, dIW -4 to -1 | The oxidized column spans dIW -1 to about +1.3; the line uses -1 |
+| O | Exchange $K_D$ of Tagawa et al. (2021) [^cite-tagawa2021] SI Table 3 for the data of Siebert et al. (2012, 2013) | 35-74 GPa; T and dIW unknown | Always flagged out of range; SI Table 3 states no basis, and the Siebert et al. papers are not read for it |
 | Si | As O | 35-74 GPa; T and dIW unknown | Always flagged out of range |
 
-Suer et al. (2023) give an uncertainty of up to 20 % on their Table 1 values. In `'partition'` mode O and Si use ideal activities in metal and melt. Badro et al. (2015) fit their Si law together with activity coefficients from interaction parameters; leaving those terms out changes $D_\mathrm{Si}$ by about an order of magnitude at the end of their accretion paths, so the Si mode gives a first estimate, not a calibrated value.
+Suer et al. (2023) [^cite-suer2023] give an uncertainty of up to 20 % on their Table 1 values. In `'partition'` mode O and Si use ideal activities in metal and melt. Badro et al. (2015) [^cite-badro2015] fit their Si law together with activity coefficients from interaction parameters; leaving those terms out changes $D_\mathrm{Si}$ by about an order of magnitude at the end of their accretion paths, so the Si mode gives a first estimate, not a calibrated value.
 
 ## Named laws and the core split
 
@@ -91,7 +91,7 @@ Suer et al. (2023) give an uncertainty of up to 20 % on their Table 1 values. In
 | C | `fischer2020_eq1` | the C law above |
 | N | `suer2023_line` | the N law above |
 | S | `suer2023_line` | the S law above |
-| S | `suer2017_eq7` | [Suer et al. (2017)](https://doi.org/10.1016/j.epsl.2017.04.016) Eq. 7 with log10 in every term: a -3.50, b 3000, c 33 (Table 3), f 1, `log10_C_S` -5.372 (Fig. 6, pyrolite), eps O 14; mole basis (their Eq. 1), single-cation melt basis assumed; 1-91 GPa, 1873-4100 K (p. 91), dIW -1.7 to -1.0 (p. 90) |
+| S | `suer2017_eq7` | Suer et al. (2017) [^cite-suer2017] Eq. 7 with log10 in every term: a -3.50, b 3000, c 33 (Table 3), f 1, `log10_C_S` -5.372 (Fig. 6, pyrolite), eps O 14; mole basis (their Eq. 1), single-cation melt basis assumed; 1-91 GPa, 1873-4100 K (p. 91), dIW -1.7 to -1.0 (p. 90) |
 
 The file `partition_coefficients_placeholder.toml` holds the first 4 laws. The file `partition_laws_core.toml` holds `suer2017_eq7`.
 
@@ -153,3 +153,10 @@ Errors of the split ([how the solver finds the split](../Explanations/metal.md#h
 - The split raises `ValueError` (the iron runs out) when the common passes leave Fe below $10^{-8}$, or when they do not settle after the first passes ran out of iron.
 - A relaxed return with more S than Fe in moles runs up to 20000 damped passes from the start metal (20000 more evaluations of the laws when they do not settle). The split takes their root when it holds more Fe and is another metal.
 - A metal composition that does not settle in 50 plain and 2 x 1000 relaxed passes, or a broken ledger, raises `RuntimeError`.
+
+[^cite-suer2017]: T.-A. Suer, J. Siebert, L. Remusat, N. Menguy, G. Fiquet, *[A sulfur-poor terrestrial core inferred from metal-silicate partitioning experiments](https://doi.org/10.1016/j.epsl.2017.04.016)*, Earth and Planetary Science Letters, 469, 84–97, 2017. [SciX](https://scixplorer.org/abs/2017E%26PSL.469...84S/abstract).
+[^cite-suer2023]: T.-A. Suer, C. Jackson, D. S. Grewal, C. Dalou, T. Lichtenberg, *[The distribution of volatile elements during rocky planet formation](https://doi.org/10.3389/feart.2023.1159412)*, Frontiers in Earth Science, 11, 1159412, 2023. [SciX](https://scixplorer.org/abs/2023FrEaS..1159412S/abstract).
+[^cite-tagawa2021]: S. Tagawa, N. Sakamoto, K. Hirose, S. Yokoo, J. Hernlund, Y. Ohishi, H. Yurimoto, *[Experimental evidence for hydrogen incorporation into Earth's core](https://doi.org/10.1038/s41467-021-22035-0)*, Nature Communications, 12, 2588, 2021. [SciX](https://scixplorer.org/abs/2021NatCo..12.2588T/abstract).
+[^cite-fischer2020]: R. A. Fischer, E. Cottrell, E. Hauri, K. K. M. Lee, M. Le Voyer, *[The carbon content of Earth and its core](https://doi.org/10.1073/pnas.1919930117)*, Proceedings of the National Academy of Sciences, 117(16), 8743–8749, 2020. [SciX](https://scixplorer.org/abs/2020PNAS..117.8743F/abstract).
+[^cite-badro2015]: J. Badro, J. P. Brodholt, H. Piet, J. Siebert, F. J. Ryerson, *[Core formation and core composition from coupled geochemical and geophysical constraints](https://doi.org/10.1073/pnas.1505672112)*, Proceedings of the National Academy of Sciences, 112(40), 12310–12314, 2015. [SciX](https://scixplorer.org/abs/2015PNAS..11212310B/abstract).
+[^cite-takahashi1986]: E. Takahashi, *[Melting of a dry peridotite KLB-1 up to 14 GPa: implications on the origin of peridotitic upper mantle](https://doi.org/10.1029/JB091iB09p09367)*, Journal of Geophysical Research: Solid Earth, 91(B9), 9367–9382, 1986. [SciX](https://scixplorer.org/abs/1986JGR....91.9367T/abstract).
