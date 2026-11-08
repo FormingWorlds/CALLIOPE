@@ -1,6 +1,6 @@
 # Add a partition law to the core split
 
-The [core and mantle split](../Explanations/metal.md#core-and-mantle-split-at-an-equilibration-point) takes one partition law per element, by name. This guide shows how to add your own law for H, C, N or S and use it in `calliope.core_split.split_core_mantle`. It has 2 complete examples that you can copy and run:
+The [core and mantle split](../Explanations/core_split.md) takes one partition law per element, by name. This guide shows how to add your own law for H, C, N or S and use it in `calliope.core_split.split_core_mantle`. It has 2 complete examples that you can copy and run:
 
 - **Example A** adds a law as a **partition file entry**. Use this when the law has the standard form of CALLIOPE (below).
 - **Example B** adds a law as a **Python function**. Use this for any other form.
@@ -11,7 +11,7 @@ You should already know what a partition coefficient is, and you should have don
 
 Write down these 6 things before you write any code. Each one maps onto a field or an argument below.
 
-1. **The element**: H, C, N or S. O and Si are not split (see [Limits](../Explanations/metal.md#limits)).
+1. **The element**: H, C, N or S. O and Si are not split (see [Limits](../Explanations/core_split.md#limits)).
 2. **What the law gives**: $D$, the ratio of the concentration in the metal to the concentration in the silicate melt, or an exchange coefficient $K_D$ that contains $D$.
 3. **The basis of $D$**: a ratio of mass fractions (`mass`), a ratio of mole fractions over the whole metal (`mole`), or a ratio of mole fractions over the metal without H and C (`mole_xprime_noHC`).
 4. **The units**: CALLIOPE takes the pressure in GPa and the temperature in K.
@@ -30,7 +30,7 @@ with $T$ in K, $P$ in GPa, NBO/T the ratio of non-bridging O to tetrahedral cati
 
 ## Example A: a law as a partition file entry
 
-The law is the H law of Tsutsumi et al. (2025) [^cite-tsutsumi2025], *Nature Communications* 16, 10038. The [partition law tutorial](../Tutorials/partition_law.md#step-1-the-published-law) explains how its coefficients map onto the file fields.
+The law is the H law of Tsutsumi et al. (2025)[^cite-tsutsumi2025], *Nature Communications* 16, 10038. The [partition law tutorial](../Tutorials/partition_law.md#step-1-the-published-law) explains how its coefficients map onto the file fields.
 
 ### Step A1: read the law from the paper
 
@@ -40,7 +40,7 @@ $$
 \log_{10} D_\mathrm{H} + \frac{1}{4}\Delta\mathrm{IW} = a + \frac{b}{T} + c\,\frac{P}{T} + d \cdot \log_{10}\left(1 - x'_\mathrm{C}\right),
 $$
 
-with $a = 2.31$, $b = -1542$, $c = -38.9$ and $d = 6.69$ (p. 3). $D_\mathrm{H}$ is a ratio of mole fractions over the metal without H and C (their Eq. 1 and Eq. 10). The ranges are those of the runs of the fit: runs 1 to 5 of their Table 1 (p. 2) and the runs of Tagawa et al. (2021) [^cite-tagawa2021], together 30 to 60 GPa, 3080 to 4760 K and $\Delta\mathrm{IW}$ -1.78 to -0.88.
+with $a = 2.31$, $b = -1542$, $c = -38.9$ and $d = 6.69$ (p. 3). $D_\mathrm{H}$ is a ratio of mole fractions over the metal without H and C (their Eq. 1 and Eq. 10). The ranges are those of the runs of the fit: runs 1 to 5 of their Table 1 (p. 2) and the runs of Tagawa et al. (2021)[^cite-tagawa2021], together 30 to 60 GPa, 3080 to 4760 K and $\Delta\mathrm{IW}$ -1.78 to -0.88.
 
 Move $\frac{1}{4}\Delta\mathrm{IW}$ to the right side. Then $d = -0.25$ in the file, and the paper's $d$ goes into `eps`, the term for the C of the metal.
 
@@ -140,7 +140,7 @@ The split also logs one warning for each law outside its range, as in the [tutor
 
 ## Example B: a law as a Python function
 
-A function law can have any form. The example is the S law of Suer et al. (2017) [^cite-suer2017], Eq. 7. CALLIOPE already holds this law as the entry `suer2017_eq7`, so you can check your function against it. Example B runs on its own: its first block has all the imports it needs.
+A function law can have any form. The example is the S law of Suer et al. (2017)[^cite-suer2017], Eq. 7. CALLIOPE already holds this law as the entry `suer2017_eq7`, so you can check your function against it. Example B runs on its own: its first block has all the imports it needs.
 
 ### Step B1: the arguments of a function law
 
@@ -159,13 +159,13 @@ The function returns $\log_{10} D$ on the basis that you declare in Step B3. Whe
 
 ### Step B2: write the function
 
-Eq. 7 of Suer et al. (2017) [^cite-suer2017], with log10 in every term and the coefficients of their Table 3, is
+Eq. 7 of Suer et al. (2017)[^cite-suer2017], with log10 in every term and the coefficients of their Table 3, is
 
 $$
 \log_{10} D_\mathrm{S} = -3.50 + \frac{3000}{T} + 33\,\frac{P}{T} + \log_{10} X_\mathrm{FeO} - \log_{10} C_\mathrm{S} + 14 \log_{10}(1 - X_\mathrm{O}),
 $$
 
-with $\log_{10} C_\mathrm{S} = -5.372$ (their Fig. 6, a pyrolite melt). The melt FeO comes from $\Delta\mathrm{IW}$ and the Fe of the metal, $X_\mathrm{FeO} = x'_\mathrm{Fe}\,10^{\Delta\mathrm{IW}/2}$ (see [the redox state](../Explanations/metal.md#the-inputs)):
+with $\log_{10} C_\mathrm{S} = -5.372$ (their Fig. 6, a pyrolite melt). The melt FeO comes from $\Delta\mathrm{IW}$ and the Fe of the metal, $X_\mathrm{FeO} = x'_\mathrm{Fe}\,10^{\Delta\mathrm{IW}/2}$ (see [the redox state](../Explanations/core_split.md#the-redox-state)):
 
 ```python
 import math
@@ -266,8 +266,8 @@ Any other exception from the function ends the split at once.
 
 - [Partition file reference](../Reference/partition_file.md#named-laws-and-the-core-split): every argument of `register_law` and `split_core_mantle`.
 - [Add a new partition law](../Tutorials/partition_law.md): a new law for the metal reservoir of the solve, and what to change in the code for a law in a new form.
-- [Core and mantle split](../Explanations/metal.md#core-and-mantle-split-at-an-equilibration-point): the physics of the split.
+- [Core and mantle split](../Explanations/core_split.md): the physics of the split.
 
-[^cite-suer2017]: T.-A. Suer, J. Siebert, L. Remusat, N. Menguy, G. Fiquet, *[A sulfur-poor terrestrial core inferred from metal-silicate partitioning experiments](https://doi.org/10.1016/j.epsl.2017.04.016)*, Earth and Planetary Science Letters, 469, 84–97, 2017. [SciX](https://scixplorer.org/abs/2017E%26PSL.469...84S/abstract).
-[^cite-tagawa2021]: S. Tagawa, N. Sakamoto, K. Hirose, S. Yokoo, J. Hernlund, Y. Ohishi, H. Yurimoto, *[Experimental evidence for hydrogen incorporation into Earth's core](https://doi.org/10.1038/s41467-021-22035-0)*, Nature Communications, 12, 2588, 2021. [SciX](https://scixplorer.org/abs/2021NatCo..12.2588T/abstract).
 [^cite-tsutsumi2025]: Y. Tsutsumi, N. Sakamoto, K. Hirose, S. Mita, S. Yokoo, H. Hsu, H. Yurimoto, *[Origin of Earth's hydrogen and carbon constrained by their core-mantle partitioning and bulk Earth abundance](https://doi.org/10.1038/s41467-025-65729-5)*, Nature Communications, 16, 10038, 2025. [SciX](https://scixplorer.org/abs/2025NatCo..1610038T/abstract).
+[^cite-tagawa2021]: S. Tagawa, N. Sakamoto, K. Hirose, S. Yokoo, J. Hernlund, Y. Ohishi, H. Yurimoto, *[Experimental evidence for hydrogen incorporation into Earth's core](https://doi.org/10.1038/s41467-021-22035-0)*, Nature Communications, 12, 2588, 2021. [SciX](https://scixplorer.org/abs/2021NatCo..12.2588T/abstract).
+[^cite-suer2017]: T.-A. Suer, J. Siebert, L. Remusat, N. Menguy, G. Fiquet, *[A sulfur-poor terrestrial core inferred from metal-silicate partitioning experiments](https://doi.org/10.1016/j.epsl.2017.04.016)*, Earth and Planetary Science Letters, 469, 84-97, 2017. [SciX](https://scixplorer.org/abs/2017E%26PSL.469...84S/abstract).

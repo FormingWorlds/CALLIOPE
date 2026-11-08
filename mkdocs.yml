@@ -39,6 +39,7 @@ nav:
       - Oxygen fugacity: Explanations/oxygen_fugacity.md
       - Mass balance & solver: Explanations/mass_balance.md
       - Metal reservoir: Explanations/metal.md
+      - Core and mantle split: Explanations/core_split.md
       - Authoritative-oxygen mode: Explanations/authoritative_oxygen.md
       - Coupling to PROTEUS: Explanations/proteus_coupling.md
       - Backend comparison: Explanations/cross_backend_comparison.md
@@ -66,6 +67,7 @@ nav:
           - Structure: Reference/api/calliope.structure.md
           - Constants: Reference/api/calliope.constants.md
       - Metal reservoir and partition file: Reference/partition_file.md
+      - Core split solver: Reference/core_split_solver.md
       - Publications: Reference/publications.md
 
   - Community:

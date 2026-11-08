@@ -11,7 +11,7 @@ By the end of it you will:
 - have added a simple S law of your own and used it in the split;
 - have checked the element ledger, bulk = core + mantle.
 
-You should already have done the [metal reservoir tutorial](metal_reservoir.md). The physics is in the section [Core and mantle split at an equilibration point](../Explanations/metal.md#core-and-mantle-split-at-an-equilibration-point). Every input and output is on the [partition file reference](../Reference/partition_file.md#named-laws-and-the-core-split). Run the steps in order in one Python session. The whole tutorial runs in a few seconds.
+You should already have done the [metal reservoir tutorial](metal_reservoir.md). The physics is in the section [Core and mantle split at an equilibration point](../Explanations/core_split.md). Every input and output is on the [partition file reference](../Reference/partition_file.md#named-laws-and-the-core-split). Run the steps in order in one Python session. The whole tutorial runs in a few seconds.
 
 ## Step 1: split at the default point
 
@@ -85,7 +85,7 @@ At dIW -1.5 (Step 1) the share is 0.974. Both points lie outside the dIW range o
 - `x_light` and `x_S` are the mole fractions of all light elements and of S;
 - `S_over_Fe` is the S to Fe mole ratio;
 - `beyond_FeS` is 1 when the metal holds more S than Fe, past FeS. A large bulk S on a small metal mass can give this;
-- `root_rule` is 1 when such a split returns a root with more Fe than the first one it found (see [how the solver finds the split](../Explanations/metal.md#how-the-solver-finds-the-split)).
+- `root_rule` is 1 when such a split returns a root with more Fe than the first one it found (see [how the solver finds the split](../Explanations/core_split.md#how-the-solver-finds-the-split)).
 
 ## Step 3: a point at a core-mantle boundary pressure
 
