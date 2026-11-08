@@ -1620,3 +1620,21 @@ def test_damped_copy_of_the_same_root_keeps_the_first_return():
     w = {el: core[el] / m_metal for el in bulk}
     assert all(abs(seen[0][2][el] - v) <= 1e-9 * v for el, v in w.items())
     assert flags['metal']['root_rule'] == 0
+
+
+def test_return_at_w_adds_no_correction_to_a_settled_mantle():
+    """A settled T with g = w (1 + 5e-13), core and mantle 1e-3: the return at w keeps mantle 1e-3."""
+    evaluate, start, calls, w1, root = _steep_stub()
+
+    def with_t(w, w_melt):
+        core, mantle, g, melt = evaluate(w, w_melt)
+        return (
+            {**core, 'T': 1e-3},
+            {**mantle, 'T': 1e-3},
+            {**g, 'T': w['T'] * (1 + 5e-13)},
+            melt,
+        )
+
+    core, mantle, w = core_split._relaxed_passes(with_t, {**start, 'T': 0.01}, {}, False)
+    assert w['S'] == w1
+    assert (core['T'], mantle['T']) == (1e-3, 1e-3)
