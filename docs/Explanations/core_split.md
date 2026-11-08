@@ -83,7 +83,7 @@ The split evaluates each law at the given point. It does not move the point to t
 
 ## How the solver finds the split
 
-The split starts from the metal of `w_fixed` and repeats this pass until the metal stops changing. If the passes do not settle, it repeats them with smaller steps.
+The split starts from the metal of `w_fixed` and runs one pass after another until the metal stops changing. If the passes do not settle, it repeats them with smaller steps.
 
 Some S-rich, iron-poor metals have 2 roots: 2 metal compositions that both close the mass balance, one with more Fe than the other. When the smaller steps end on a metal with more S than Fe, the split searches again with very small steps from the start metal and keeps the root with more Fe; `root_rule` is 1 when this changes the result.
 
