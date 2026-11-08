@@ -1,13 +1,13 @@
-"""Round-off starts of the S-C-H-N split with 2 roots: the root each start returns, with and without the iron-rich rule.
+"""Round-off starts of the 2-root S-C-H-N split: the root of each, with and without the rule.
 
 Usage, with the calliope under test first on ``sys.path`` (for example ``PYTHONPATH=src``)::
 
     python tools/core_split_two_roots.py
 
-The split (silicate 1.8e-5 of the metal mass, metal O 0.02) has roots at iron 5.0e-2 and 6.2e-7 by
-mass. Each of 30 starts (seed 3) scales every input by 1 + e, e uniform in [-4e-16, 4e-16]; start 0
-is the unperturbed input. The run without the rule replaces ``core_split._more_iron`` by the first
-relaxed return.
+The split (silicate 1.8e-5 of the metal mass, metal O 0.02) has roots at iron 5.0e-2 and
+6.2e-7 by mass. Each of 30 starts (seed 3) scales every input by 1 + e, e uniform in
+[-4e-16, 4e-16]; start 0 is the unperturbed input. The run without the rule replaces
+``core_split._more_iron`` by the first relaxed return.
 """
 
 from __future__ import annotations

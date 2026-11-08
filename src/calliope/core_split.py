@@ -148,7 +148,7 @@ def _iron(w):
 
 
 def _more_iron(evaluate, start, fixed, out):
-    """The root of damped passes from ``start`` when it holds more iron than a relaxed return.
+    """The root of damped passes from ``start`` when it holds more iron than the relaxed return.
 
     A relaxed return whose metal holds more S than Fe in moles can sit on a root with little
     iron where an iron-rich root exists too; passes at lam DAMPED_LAM for every element (melt
@@ -194,10 +194,10 @@ def _relaxed_passes(evaluate, start, fixed, common, lam_all=None, passes=None):
     the mole bases. A pass adds at most half of the iron left. An element has settled when its
     step meets the settle test, or when g falls with w, its move at its own lam is within 2 ulp
     of w and its step within GRID_RTOL of g (the float grid of a steep g), and g - w changes
-    sign within 4 ulp each side of the evaluated w; such a pass is returned at w (core mass
-    fractions w of the bracketed elements and g of the settled ones, mantle the rest of the
-    bulk) when no mantle is negative. A pass that leaves
-    iron below IRON_FLOOR raises _IronOut.
+    sign within 4 ulp each side of the evaluated w; such a pass is returned at w when no mantle
+    is negative: a bracketed element takes core mass fraction w and the rest of its bulk as
+    mantle, a settled element keeps the core and mantle of the pass. A pass that leaves iron
+    below IRON_FLOOR raises _IronOut.
     """
     w, w_melt, last = start, {}, {}
     for _ in range(MAX_RELAXED_PASSES if passes is None else passes):
@@ -229,8 +229,12 @@ def _relaxed_passes(evaluate, start, fixed, common, lam_all=None, passes=None):
             done = {el for el in g if _settled({el: g[el]}, {el: w[el]})}
             if all(el in done or _bracketed(evaluate, w, w_melt_prev, el) for el in g):
                 w_at = {el: g[el] if el in done else w[el] for el in g}
-                at_w = {el: w_at[el] * core[el] / g[el] if g[el] else 0.0 for el in g}
-                rest = {el: core[el] + mantle[el] - at_w[el] for el in g}
+                keep = {el for el in g if el in done or not g[el]}
+                at_w = {el: core[el] if el in keep else w[el] * core[el] / g[el] for el in g}
+                rest = {
+                    el: mantle[el] + (0.0 if el in keep else core[el] * (g[el] - w[el]) / g[el])
+                    for el in g
+                }
                 if min(rest.values()) >= 0.0:
                     return at_w, rest, {**fixed, **w_at}
         while sum(move.values()) > 0.5 * (1.0 - sum(w.values())):
