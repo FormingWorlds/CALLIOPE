@@ -244,5 +244,6 @@ This part is for developers. A law in the `log10_linear` form for one of H, C, N
 ## Where to go next
 
 - [Partition file reference](../Reference/partition_file.md): every field of the file and every input and output key.
+- [Add a partition law to the core split](../How-to/core_split_law.md): register a law by name and use it in `split_core_mantle`.
 - [Metal reservoir](../Explanations/metal.md): the physics and the limits.
 - [Metal reservoir validation](../Validation/metal.md): the published values that the placeholder laws are checked against.
