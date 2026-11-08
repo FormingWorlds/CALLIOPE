@@ -1,26 +1,33 @@
 # Partition laws of the core and mantle split (calliope.core_split) that the placeholder file does not hold.
-# log10 D = a + b/T + c P/T + f log10 X_FeO - log10_C_S + sum_j eps_j log10(1 - X_j)
+# log10 D = a + b/T + c P/T + f log10 X_FeO - log10_C_S + sum_j eps_j log10(1 - X_j), T in K, P in GPa.
+# To add a law of your own, see docs/How-to/core_split_law.md.
 schema_version = 1
 
 [meta]
 name = "core-split-2026-11"
 placeholder = true
 
+# One table per element; calliope.metal names this law suer2017_eq7.
 [S]
 form = "log10_linear"
+# What the law gives (D), and how the metal and the melt are counted (mole fractions).
 quantity = "D"
 basis = "mole"
 silicate_basis = "single_cation"
+# Coefficients of the equation above; d multiplies dIW_factor * dIW and e multiplies NBO/T.
 a = -3.50
 b = 3000.0
 c = 33.0
 d = 0.0
 e = 0.0
+# FeO term: X_FeO = x'_Fe 10^(dIW/2) from the metal, and the sulfide capacity of the melt.
 f = 1.0
 log10_C_S = -5.372
 dIW_factor = 1.0
+# eps_j of the term eps_j log10(1 - X_j) for the light elements j of the metal.
 eps = { O = 14.0 }
 covariance = []
+# Range of the data of the fit; a point outside a range is flagged, not clamped.
 P_range_GPa = [1.0, 91.0]
 T_range_K = [1873.0, 4100.0]
 dIW_range = [-1.7, -1.0]

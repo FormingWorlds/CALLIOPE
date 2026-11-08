@@ -675,7 +675,7 @@ def exchange_metal(table, p_gpa, t_k, d_iw, oxides=KLB1, elements=('O', 'Si'), c
     return x
 
 
-# packaged laws by (element, name): (file, section)
+# packaged laws by (element, name): (file, section); register_law adds to _LAWS, not here
 _PACKAGED = {
     ('H', 'tagawa2021_eq2'): (PLACEHOLDER_FILE, 'H'),
     ('C', 'fischer2020_eq1'): (PLACEHOLDER_FILE, 'C'),
@@ -701,7 +701,7 @@ def law_names(element):
 
 
 def get_law(element, name):
-    """The law of ``element`` named ``name``, packaged or registered.
+    """A copy of the law of ``element`` named ``name``, packaged or registered.
 
     Raises
     ------
@@ -788,7 +788,11 @@ def register_law(
     doi=None,
     replace=False,
 ):
-    """Add a D law of H, C, N or S under a name.
+    """Add a D law of H, C, N or S under a name, for use in the core split.
+
+    After the call, ``get_law(element, name)`` returns the law, and
+    ``split_core_mantle(..., laws={element: name})`` uses it. The guide
+    ``docs/How-to/core_split_law.md`` gives a worked example of each kind of law.
 
     Parameters
     ----------
@@ -797,23 +801,34 @@ def register_law(
     name : str
         A name not yet held for the element, unless ``replace``.
     law : dict or callable
-        A ``log10_linear`` entry of :func:`load_partition_table` for the element, or a
-        callable ``f(p_gpa, t_k, d_iw, x_metal, x_silicate, nbo_t) -> log10 D`` with the
-        keyword declarations below; ``x_metal`` holds metal mole fractions over the metal
-        without H and C, ``x_silicate`` the melt oxide fractions on the single-cation
-        basis, ``nbo_t`` the NBO/T of the melt. The registry keeps a checked copy of an
-        entry and the callable itself. A callable gets the melt fractions of ``oxides`` as
-        they are; one that needs the FeO of the dIW rule of :func:`mass_D` computes it from
-        ``x_metal`` and ``d_iw``.
+        Either a ``log10_linear`` entry of :func:`load_partition_table` for the element,
+        which holds its own basis, ranges and source; or a function
+        ``f(p_gpa, t_k, d_iw, x_metal, x_silicate, nbo_t)`` that returns log10 D on the
+        declared basis, with the keyword declarations below. The function gets:
+
+        - ``p_gpa`` in GPa, ``t_k`` in K and ``d_iw`` in log10 units;
+        - ``x_metal``, a dict of the mole fractions of the light elements in the metal,
+          over the metal without H and C. Fe is not in the dict: it is the rest,
+          ``x'_Fe = 1 - sum(x_metal[j] for j not in ('H', 'C'))``;
+        - ``x_silicate``, a dict of the melt oxide fractions on the single-cation basis,
+          from ``oxides`` as they are; a law that needs the FeO of the dIW rule of
+          :func:`mass_D` computes it from ``x_metal`` and ``d_iw``;
+        - ``nbo_t``, the NBO/T of the melt.
+
+        The function must return a finite real number and raise ``ValueError`` for a
+        point it cannot evaluate. The registry keeps a checked copy of an entry and the
+        function itself.
     basis, silicate_basis : str
-        Of a callable: the metal basis of D (one of :data:`BASES`) and, for a mole basis,
+        Of a function: the metal basis of D (one of :data:`BASES`) and, for a mole basis,
         the silicate basis (one of :data:`SILICATE_BASES`).
     P_range_GPa, T_range_K, dIW_range : sequence of 2 floats
-        Of a callable: the ranges of its source data; an empty T or dIW range is unknown.
+        Of a function: the ranges of its source data, in GPa, K and log10 units; an empty
+        T or dIW range is unknown.
     source, doi : str
-        Of a callable: the source of the law and its DOI.
+        Of a function: the source of the law (paper, equation, page) and its DOI.
     replace : bool
-        Store the law over a law of the same name.
+        Store the law over a registered law of the same name; a packaged law cannot be
+        replaced.
 
     Raises
     ------
