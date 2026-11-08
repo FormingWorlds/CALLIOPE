@@ -50,7 +50,9 @@ A partition file can hold one law. Each field is explained in its comment:
 
 ```python
 from calliope.core_split import split_core_mantle
-from calliope.metal import get_law, load_partition_table, log10_D, register_law
+from calliope.metal import (
+    get_law, law_names, load_partition_table, log10_D, register_law
+)
 
 law_file = '''schema_version = 1
 
@@ -75,7 +77,7 @@ P_range_GPa = [30.0, 60.0] # range of the data of the fit
 T_range_K = [3080.0, 4760.0]
 dIW_range = [-1.78, -0.88]
 P_unit = "GPa"
-source = "Tsutsumi et al. 2025, Nat. Commun. 16, 10038, Eq. 3 (p. 3); ranges of runs 1-5 of their Table 1 and of the Tagawa et al. 2021 runs"
+source = "Tsutsumi et al. 2025, Eq. 3 (p. 3); ranges: Table 1 and Tagawa et al. 2021"
 doi = "10.1038/s41467-025-65729-5"
 '''
 with open('my_laws.toml', 'w') as f:
@@ -91,11 +93,11 @@ The [partition file reference](../Reference/partition_file.md#file-schema) lists
 ```python
 table = load_partition_table('my_laws.toml')
 register_law('H', 'tsutsumi2025_eq3', table['H'])
-print(get_law('H', 'tsutsumi2025_eq3')['source'])
+print(law_names('H'))
 ```
 
 ```console
-Tsutsumi et al. 2025, Nat. Commun. 16, 10038, Eq. 3 (p. 3); ranges of runs 1-5 of their Table 1 and of the Tagawa et al. 2021 runs
+['tagawa2021_eq2', 'tsutsumi2025_eq3']
 ```
 
 ### Step A4: check the law against the paper
@@ -104,7 +106,8 @@ A wrong number in the file is not a format error: it loads without an error and 
 
 ```python
 by_hand = 2.31 - 1542.0 / 3500.0 - 38.9 * 50.0 / 3500.0 - 0.25 * (-1.0)
-by_law = log10_D(get_law('H', 'tsutsumi2025_eq3'), 50.0, 3500.0, -1.0, x_metal={'C': 0.0})
+law = get_law('H', 'tsutsumi2025_eq3')
+by_law = log10_D(law, 50.0, 3500.0, -1.0, x_metal={'C': 0.0})
 print(f'by hand {by_hand:.4f}, by the law {by_law:.4f}')
 ```
 
@@ -124,7 +127,8 @@ for name in ('tagawa2021_eq2', 'tsutsumi2025_eq3'):
     core, mantle, flags = split_core_mantle(
         bulk, M_metal, M_silicate, dIW=-1.5, w_fixed=metal, laws={'H': name}
     )
-    print(f"{name}: H core share {core['H'] / bulk['H']:.3f}, out of range {flags['H']['out_of_range']}")
+    share, flag = core['H'] / bulk['H'], flags['H']['out_of_range']
+    print(f'{name}: H core share {share:.3f}, out of range {flag}')
 ```
 
 ```console
@@ -169,7 +173,8 @@ import math
 
 def suer2017_s(p_gpa, t_k, d_iw, x_metal, x_silicate, nbo_t):
     """log10 D_S of Suer et al. (2017), Eq. 7, on the mole basis."""
-    x_fe = 1.0 - sum(x for el, x in x_metal.items() if el not in ('H', 'C'))  # Fe is the rest
+    # Fe is not in x_metal: it is the rest of the metal without H and C
+    x_fe = 1.0 - sum(x for el, x in x_metal.items() if el not in ('H', 'C'))
     x_feo = x_fe * 10.0 ** (d_iw / 2.0)  # melt FeO from dIW, ideal mixing
     if not 0.0 < x_feo <= 1.0:
         raise ValueError(f'X_FeO {x_feo:g} outside (0, 1] at dIW {d_iw:g}')

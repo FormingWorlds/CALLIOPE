@@ -25,11 +25,14 @@ bulk = {'H': 1.5e20, 'C': 1.5e19, 'N': 8.0e18, 'S': 8.0e20}  # kg
 M_metal, M_silicate = 1.94e24, 4.03e24  # kg, Earth's core and mantle
 metal = {'O': 0.02, 'Si': 0.03}  # metal mass fractions of O and Si
 
-core, mantle, flags = split_core_mantle(bulk, M_metal, M_silicate, dIW=-1.5, w_fixed=metal)
+core, mantle, flags = split_core_mantle(
+    bulk, M_metal, M_silicate, dIW=-1.5, w_fixed=metal
+)
 for el in bulk:
     print(
         f'{el}: core {core[el]:.3e} kg, mantle {mantle[el]:.3e} kg, '
-        f'core share {core[el] / bulk[el]:.3f}, out of range {flags[el]["out_of_range"]}'
+        f'core share {core[el] / bulk[el]:.3f}, '
+        f'out of range {flags[el]["out_of_range"]}'
     )
 ```
 
@@ -65,7 +68,8 @@ $\Delta\mathrm{IW}$ is the one redox input of the split. The S law depends on th
 ```python
 for diw in (-3.0, -0.5):
     c, m, f = split_core_mantle(bulk, M_metal, M_silicate, dIW=diw, w_fixed=metal)
-    print(f'dIW {diw}: S core share {c["S"] / bulk["S"]:.3f}, metal {f["metal"]["beyond_FeS"]}')
+    share, beyond = c['S'] / bulk['S'], f['metal']['beyond_FeS']
+    print(f'dIW {diw}: S core share {share:.3f}, metal {beyond}')
 ```
 
 ```console
@@ -115,7 +119,7 @@ register_law(
     doi='10.0000/none',
 )
 core3, mantle3, _ = split_core_mantle(
-    bulk, M_metal, M_silicate, dIW=-1.5, laws={'S': 'my_constant'}, w_fixed=metal
+    bulk, M_metal, M_silicate, dIW=-1.5, w_fixed=metal, laws={'S': 'my_constant'}
 )
 x = M_metal / M_silicate
 print(

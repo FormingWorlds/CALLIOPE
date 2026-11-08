@@ -85,13 +85,15 @@ Suer et al. (2023) give an uncertainty of up to 20 % on their Table 1 values. In
 
 `calliope.metal.get_law(element, name)` returns a law by name; `law_names(element)` lists the names held. The packaged names:
 
-| Element | Name | Law | File |
-|---|---|---|---|
-| H | `tagawa2021_eq2` | the H law above | `partition_coefficients_placeholder.toml` |
-| C | `fischer2020_eq1` | the C law above | `partition_coefficients_placeholder.toml` |
-| N | `suer2023_line` | the N law above | `partition_coefficients_placeholder.toml` |
-| S | `suer2023_line` | the S law above | `partition_coefficients_placeholder.toml` |
-| S | `suer2017_eq7` | [Suer et al. (2017)](https://doi.org/10.1016/j.epsl.2017.04.016) Eq. 7 with log10 in every term: a -3.50, b 3000, c 33 (Table 3), f 1, `log10_C_S` -5.372 (Fig. 6, pyrolite), eps O 14; mole basis (their Eq. 1), single-cation melt basis assumed; 1-91 GPa, 1873-4100 K (p. 91), dIW -1.7 to -1.0 (p. 90) | `partition_laws_core.toml` |
+| Element | Name | Law |
+|---|---|---|
+| H | `tagawa2021_eq2` | the H law above |
+| C | `fischer2020_eq1` | the C law above |
+| N | `suer2023_line` | the N law above |
+| S | `suer2023_line` | the S law above |
+| S | `suer2017_eq7` | [Suer et al. (2017)](https://doi.org/10.1016/j.epsl.2017.04.016) Eq. 7 with log10 in every term: a -3.50, b 3000, c 33 (Table 3), f 1, `log10_C_S` -5.372 (Fig. 6, pyrolite), eps O 14; mole basis (their Eq. 1), single-cation melt basis assumed; 1-91 GPa, 1873-4100 K (p. 91), dIW -1.7 to -1.0 (p. 90) |
+
+The file `partition_coefficients_placeholder.toml` holds the first 4 laws. The file `partition_laws_core.toml` holds `suer2017_eq7`.
 
 `calliope.metal.register_law(element, name, law, ...)` adds a law of H, C, N or S under a new name. The guide [Add a partition law to the core split](../How-to/core_split_law.md) shows both kinds of law in full.
 
