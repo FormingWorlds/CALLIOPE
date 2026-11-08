@@ -229,10 +229,9 @@ def _relaxed_passes(evaluate, start, fixed, common, lam_all=None, passes=None):
             done = {el for el in g if _settled({el: g[el]}, {el: w[el]})}
             if all(el in done or _bracketed(evaluate, w, w_melt_prev, el) for el in g):
                 w_at = {el: g[el] if el in done else w[el] for el in g}
-                keep = {el for el in g if el in done or not g[el]}
-                at_w = {el: core[el] if el in keep else w[el] * core[el] / g[el] for el in g}
+                at_w = {el: core[el] if el in done else w[el] * core[el] / g[el] for el in g}
                 rest = {
-                    el: mantle[el] + (0.0 if el in keep else core[el] * (g[el] - w[el]) / g[el])
+                    el: mantle[el] + (0.0 if el in done else core[el] * (g[el] - w[el]) / g[el])
                     for el in g
                 }
                 if min(rest.values()) >= 0.0:
