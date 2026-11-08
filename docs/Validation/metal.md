@@ -3,6 +3,7 @@
 ## What this page checks
 
 This page checks how CALLIOPE splits the volatile elements H, C, N and S between gas, silicate melt and metal.
+The first 7 cases check the metal reservoir. The last 3 check the [core and mantle split](../Explanations/core_split.md), which divides the bulk H, C, N and S of a planet between core and mantle at one pressure, temperature and redox state. The last case is a recorded run of a sampler, not a test: it has no tolerance and no pass or fail.
 The metal reservoir stands for the iron that forms a planet's core.
 Validation here means that we run the code on a case where another source gives the right answer.
 The test then checks that the code gives that answer within a stated tolerance.
@@ -100,9 +101,9 @@ Inputs, outputs and the placeholder laws are on the [metal reservoir page](../Re
 
 **Why this check exists.** The placeholder law for H is a fit to laboratory data, and the paper gives more than one fit. Using the wrong one, for example their Eq. 10 instead of Eq. 2, gives a wrong $D$ for H with no other sign.
 
-**What it tests.** The H law is Eq. 2 of [Tagawa et al. (2021)](https://doi.org/10.1038/s41467-021-22035-0). It gives $K_D$, the exchange coefficient of H between metal and silicate, from pressure and temperature. The test compares it with the 6 runs of their SI Table 1. Each run is an experiment in a laser-heated diamond anvil cell, with a measured $\log_{10} K_D$ and its 1 sigma error.
+**What it tests.** The H law is Eq. 2 of Tagawa et al. (2021)[^cite-tagawa2021]. It gives $K_D$, the exchange coefficient of H between metal and silicate, from pressure and temperature. The test compares it with the 6 runs of their SI Table 1. Each run is an experiment in a laser-heated diamond anvil cell, with a measured $\log_{10} K_D$ and its 1 sigma error.
 
-**How we know the right answer.** Tagawa et al. (2021) measured these 6 values in the laboratory.
+**How we know the right answer.** Tagawa et al. (2021)[^cite-tagawa2021] measured these 6 values in the laboratory.
 
 **Why it matters.** The H law sets how much hydrogen the metal takes. Hydrogen in the metal is H that the atmosphere and the water inventory do not get.
 
@@ -112,7 +113,7 @@ Inputs, outputs and the placeholder laws are on the [metal reservoir page](../Re
 **How to read the plot.** The x-axis is $\log_{10} K_D$ from Eq. 2 and the y-axis is the measured value, with its 1 sigma error bar. A pass means that every error bar crosses the dashed 1:1 line.
 
 ??? info "Test details"
-    - Reference: Tagawa et al. (2021), SI Table 1 (published table).
+    - Reference: Tagawa et al. (2021)[^cite-tagawa2021], SI Table 1 (published table).
     - Tolerance: each run inside its 1 sigma (largest 0.61 sigma); their Eq. 10 misses every run by more than 2 sigma.
     - Test id: `tests/test_metal.py::test_tagawa_runs_lie_within_one_sigma_of_eq2` (unit tier)
     - Command: `pytest tests/test_metal.py -k tagawa`
@@ -121,9 +122,9 @@ Inputs, outputs and the placeholder laws are on the [metal reservoir page](../Re
 
 **Why this check exists.** Papers give $D$ in different forms, for example per mole and over a metal without H and C. CALLIOPE must convert each form to its own mass basis. A wrong conversion changes the H and C content of the core.
 
-**What it tests.** [Tsutsumi et al. (2025)](https://doi.org/10.1038/s41467-025-65729-5) give $D$ per mole over the metal without H and C. CALLIOPE converts it with the KLB-1 melt composition of Takahashi (1986). The test uses their 3 single-stage cases: 40 GPa and 3750 K, 50 GPa and 3500 K, 54 GPa and 3350 K. In each case the bulk silicate Earth holds 710 ppm H$_2$O and 120 ppm C. The code must give the core H and C of their SI Table 1.
+**What it tests.** Tsutsumi et al. (2025)[^cite-tsutsumi2025] give $D$ per mole over the metal without H and C. CALLIOPE converts it with the KLB-1 melt composition of Takahashi (1986)[^cite-takahashi1986]. The test uses their 3 single-stage cases: 40 GPa and 3750 K, 50 GPa and 3500 K, 54 GPa and 3350 K. In each case the bulk silicate Earth holds 710 ppm H$_2$O and 120 ppm C. The code must give the core H and C of their SI Table 1.
 
-**How we know the right answer.** Tsutsumi et al. (2025) list the core H and C of each case in their SI Table 1.
+**How we know the right answer.** Tsutsumi et al. (2025)[^cite-tsutsumi2025] list the core H and C of each case in their SI Table 1.
 
 **Why it matters.** This case checks the conversion of $D$ with a full set of published inputs and outputs. The same conversion applies to each law in the partition file that gives $D$ per mole, such as the H law.
 
@@ -133,7 +134,7 @@ Inputs, outputs and the placeholder laws are on the [metal reservoir page](../Re
 **How to read the plot.** The x-axis has the 3 cases and the y-axis is the mass fraction of H and C in the core in wt%. The open markers are the table values and the filled markers are the values of the code. A pass means that each filled marker lies inside its open marker.
 
 ??? info "Test details"
-    - Reference: Tsutsumi et al. (2025), SI Table 1 (published table).
+    - Reference: Tsutsumi et al. (2025)[^cite-tsutsumi2025], SI Table 1 (published table).
     - Tolerance: core H and C equal to the table at its rounding, 0.005 wt%; D times the melt mass fraction without the basis conversion misses the 40 GPa case.
     - Test id: `tests/test_metal.py::TestBasis`, `tests/test_metal.py::test_tsutsumi_core_values_plot` (unit tier)
     - Command: `pytest tests/test_metal.py -k "tsutsumi or Basis"`
@@ -144,10 +145,10 @@ Inputs, outputs and the placeholder laws are on the [metal reservoir page](../Re
 
 **What it tests.** Each law is evaluated at points where its source prints the result:
 
-- Tagawa et al. (2021) Eq. 2 at 3 pressure and temperature points.
-- Fischer et al. (2020) Eq. 1, $D_\mathrm{C}$ = 0.550 for their single-stage case (54 GPa, 4100 K, NBO/T 2.6, IW-2.2, $X_\mathrm{O}$ 0.06, $X_\mathrm{S}$ 0.03; p. 8745). NBO/T is the number of non-bridging oxygens per tetrahedral cation, a measure of how polymerised the melt is. $X_\mathrm{O}$ and $X_\mathrm{S}$ are the mole fractions of O and S in the metal.
-- The lines through the values of Suer et al. (2023) Table 1: $D_\mathrm{N}$ 1 and 39 and $D_\mathrm{S}$ 10 and 173 at dIW -4 and -1.
-- The ideal exchange of O and Si between metal and melt with the $K_D$ of Tagawa et al. (2021) SI Table 3.
+- Tagawa et al. (2021)[^cite-tagawa2021] Eq. 2 at 3 pressure and temperature points.
+- Fischer et al. (2020)[^cite-fischer2020] Eq. 1, $D_\mathrm{C}$ = 0.550 for their single-stage case (54 GPa, 4100 K, NBO/T 2.6, IW-2.2, $X_\mathrm{O}$ 0.06, $X_\mathrm{S}$ 0.03; p. 8745). NBO/T is the number of non-bridging oxygens per tetrahedral cation, a measure of how polymerised the melt is. $X_\mathrm{O}$ and $X_\mathrm{S}$ are the mole fractions of O and S in the metal.
+- The lines through the values of Suer et al. (2023)[^cite-suer2023] Table 1: $D_\mathrm{N}$ 1 and 39 and $D_\mathrm{S}$ 10 and 173 at dIW -4 and -1.
+- The ideal exchange of O and Si between metal and melt with the $K_D$ of Tagawa et al. (2021)[^cite-tagawa2021] SI Table 3.
 
 **How we know the right answer.** The papers print these values.
 
@@ -158,3 +159,110 @@ Inputs, outputs and the placeholder laws are on the [metal reservoir page](../Re
     - Tolerance: Eq. 2 at its 4 printed decimals; $D_\mathrm{C}$ 5e-4; the Suer lines relative 1e-5; the O exchange relative 1e-12 and the Si exchange relative 1e-3 (the KLB-1 single-cation units by hand).
     - Test id: `tests/test_metal.py::TestLaw::test_tagawa_eq2_values`, `tests/test_metal.py::TestLaw::test_fischer_eq1_single_stage_value`, `tests/test_metal.py::TestLaw::test_suer_lines`, `tests/test_metal.py::TestExchange::test_ideal_exchange_mole_fractions` (unit tier)
     - Command: `pytest tests/test_metal.py -k "eq2_values or eq1_single or suer_lines or ideal_exchange"`
+
+## Suer et al. (2017) S runs
+
+**Why this check exists.** The core and mantle split takes the S law of Suer et al. (2017)[^cite-suer2017]. A wrong term in that law can move $D_\mathrm{S}$ by more than a factor of 10. An example is a natural log where the paper means log10.
+
+**What it tests.** The law is evaluated at the 9 diamond anvil cell runs of their Table 1 (46 to 91 GPa, 3100 to 4100 K) and compared with the measured $D_\mathrm{S}$. The law is their Eq. 7 with log10 in every term and the coefficients of their Table 3:
+
+$$
+\log_{10} D_\mathrm{S} = -3.50 + \frac{3000}{T} + 33\,\frac{P}{T} + \log_{10} X_\mathrm{FeO} - \log_{10} C_\mathrm{S} + 14 \log_{10}(1 - X_\mathrm{O}),
+$$
+
+with $T$ in K, $P$ in GPa, $X_\mathrm{FeO}$ the mole fraction of FeO in the silicate melt, $X_\mathrm{O}$ the mole fraction of O in the metal and $C_\mathrm{S}$ the sulfide capacity of the melt. $D_\mathrm{S}$ is a ratio of mole fractions (their Eq. 1). Each run uses its own $X_\mathrm{FeO}$ and $X_\mathrm{O}$ from Table 1, and $\log_{10} C_\mathrm{S} = -5.372$, the value of their Fig. 6 for a pyrolite mantle. Table 1 does not list the $C_\mathrm{S}$ of each run.
+
+For run 7, Table 1 (p. 91) prints $X_\mathrm{FeO}$ = 0.02. We read this as a misprint of 0.20, for 2 reasons. The same row gives IW -1.06, and with $\mathrm{IW} = 2\log_{10}(X_\mathrm{FeO}/X_\mathrm{Fe})$ and $X_\mathrm{Fe}$ = 0.68 that needs $X_\mathrm{FeO}$ = 0.2007. The FeO of 25.62 wt% in their Table 2 (p. 92) gives 0.204 on the single-cation basis. The test uses 0.20 for run 7. For the other 8 runs the IW column and $X_\mathrm{FeO}$ agree to 0.005.
+
+**How we know the right answer.** The measured $D_\mathrm{S}$ of each run is in Table 1. The tolerance is 0.47 dex, the 1-sigma uncertainty that Table 3 gives for the coefficient $a$.
+
+**Why it matters.** The S law sets how much of the S goes into the core and how much stays in the mantle, where it can later reach the atmosphere.
+
+![Measured log10 D_S of the 9 runs of Suer et al. (2017) against Eq. 7](../assets/validation/metal_suer2017_s_runs.svg#only-light){ width="80%" }
+![Measured log10 D_S of the 9 runs of Suer et al. (2017) against Eq. 7](../assets/validation/metal_suer2017_s_runs_dark.svg#only-dark){ width="80%" }
+
+**How to read the plot.** The x-axis is $\log_{10} D_\mathrm{S}$ from Eq. 7 and the y-axis the measured value. The dashed line is 1:1 and the band is $\pm$0.47 dex around it. Filled points are runs within the band; the open point is run 7. A pass means that 8 runs lie in the band and run 7 lies outside it.
+
+The residual (model minus measurement) is +0.30, -0.12, +0.42, +0.42, +0.03, -0.03, +0.50, +0.15 and +0.38 dex for runs 1 to 9. The mean is +0.23 dex.
+
+- Run 7 is a stated miss at +0.495 dex, 0.025 dex outside the band. With the IW value 0.2007 it would be +0.497 dex. With the printed $X_\mathrm{FeO}$ of 0.02 it would miss by 0.035 dex on the other side (-0.505 dex).
+- A possible cause of the mean offset is the $C_\mathrm{S}$ value. It is for a pyrolite melt, while the runs use MORB and KLB-1 melts (Table 1).
+- With $a = -3.30$, the value printed in their Eq. 8, every residual is 0.2 dex larger and 5 runs miss.
+
+**Known limit.** Suer et al. (2017, p. 90)[^cite-suer2017] replace the FeO activity by "$X_\mathrm{FeO}^\mathrm{silicate}$ the molar fraction of FeO in the silicate melt". They define the sulfide capacity with the mole fraction of S in the melt, $C_\mathrm{S} = X_\mathrm{S}^\mathrm{silicate}(f_\mathrm{O_2}/f_\mathrm{S_2})^{1/2}$ (their Eq. 3), computed "following Haughton et al. (1974)"[^cite-haughton1974]. They do not name the mole basis of the melt. Their value $\log_{10} C_\mathrm{S} = -5.372$ is "calculated for a primitive pyrolite mantle composition" (Fig. 6 caption, p. 91), with no basis stated. On the single-cation basis, the FeO of their Table 2 gives the $X_\mathrm{FeO}$ of their Table 1 to 0.012 for runs 3 to 9, with run 7 read as 0.20. It does not for runs 1 and 2 (0.13 and 0.23 against 0.10 and 0.14).
+
+??? info "Test details"
+    - Reference: Suer et al. (2017)[^cite-suer2017], Eq. 7, Table 1 (runs), Table 3 (coefficients), Fig. 6 ($\log_{10} C_\mathrm{S}$).
+    - Tolerance: 0.47 dex per run for 8 runs, run 7 a stated miss pinned at +0.495 dex (5e-4); the law at the default point relative 1e-12; Eq. 8 read with natural logs lies more than 1 dex away.
+    - Test id: `tests/test_metal.py::TestSuer2017::test_runs_of_table_1_against_eq7`, `tests/test_metal.py::TestSuer2017::test_eq7_value_at_the_default_point` (unit tier)
+    - Command: `pytest tests/test_metal.py -k TestSuer2017`
+
+## Core and mantle split
+
+**Why this check exists.** `calliope.core_split.split_core_mantle` puts the bulk mass of each element into the core or the mantle. 2 faults would create or destroy mass: a wrong factor in the split, or a mantle mass that is not computed from the same melt fraction as the core mass.
+
+**What it tests.** With a constant mass-basis $D$ and $x = M_\mathrm{metal}/M_\mathrm{silicate}$ (here 1.94/4.03, the masses of Earth's core and mantle), the core must hold the fraction $Dx/(1 + Dx)$ of the bulk, for $D$ from 0.1 to 1000. A second test checks the element ledger, bulk = core + mantle with both parts at 0 or above, for random $D$ from $10^{-6}$ to $10^6$ and masses from $10^{15}$ to $10^{24}$ kg. The split itself checks the same ledger on every call and raises `RuntimeError` when it fails.
+
+**How we know the right answer.** Mass balance: an element is either in the metal or in the silicate, and $D$ sets the ratio of its mass fractions.
+
+**Why it matters.** The split sets the light-element mass of the core and the volatile mass left in the mantle, which can later reach the atmosphere.
+
+![Core fraction of an element against D](../assets/validation/core_split_fraction.svg#only-light){ width="80%" }
+![Core fraction of an element against D](../assets/validation/core_split_fraction_dark.svg#only-dark){ width="80%" }
+
+**How to read the plot.** The x-axis is $D$ on a log scale and the y-axis the core fraction of the bulk. The line is $Dx/(1 + Dx)$ and the points are the values of `split_core_mantle`. A pass means that the points lie on the line.
+
+??? info "Test details"
+    - Reference: the mass balance of metal and silicate (analytical).
+    - Tolerance: relative 1e-12 for the core fraction and the ledger; $f = Dx$ without the back-reaction lies more than 10 % above it from $D = 1$ on.
+    - Test id: `tests/test_core_split.py::test_constant_d_gives_the_closed_form_core_fraction`, `tests/test_core_split.py::test_ledger_closes_over_the_domain` (unit tier)
+    - Command: `pytest tests/test_core_split.py -k "closed_form or ledger_closes"`
+
+## Core and mantle split over random inputs
+
+**Why this check exists.** The split must find the metal composition for any planet, not only for an Earth-like one. Some inputs, with much S or C and little iron, are hard for the solver ([Core split solver](../Reference/core_split_solver.md)). This check shows how often the split converges, how often it stops with an error, and how well the returned metal meets the laws.
+
+**What it tests.** The sweep sampler `tools/core_split_sweep.py` draws random splits: metal $10^{20}$ to $3 \times 10^{24}$ kg, each element $10^{-6}$ to 2.5 times the metal mass, $\Delta\mathrm{IW}$ -5 to -0.2, and metal O 0, 0.02 or 0.1. It has 2 groups, which differ in the silicate mass (table below). In the table, "past FeS" means that the metal holds more S than Fe in moles; the iron-rich root rule is step 6 of the [core split solver](../Reference/core_split_solver.md#steps). In total, 5074 of the 5500 splits converge, 416 raise `ValueError` and 10 raise `RuntimeError`.
+
+**How we know the right answer.** A converged split must meet its laws: the metal mass fraction of each element must equal $D$ times its silicate mass fraction. `flags[e]['D_residual']` is the relative difference. A split that does not converge raises `ValueError` or `RuntimeError`.
+
+**Why it matters.** A study of a planet unlike the Earth uses the split far from Earth-like inputs. The table says which inputs the split handles and which ones end with an error.
+
+This check has no plot: it is a table of counts from a run of the sampler, not a test of the suite.
+
+| | Broad | Small silicate |
+|---|---|---|
+| Splits (seed) | 3000 (seed 11) | 2500 (seed 12) |
+| Silicate mass | $10^{16}$ to $4 \times 10^{24}$ kg | $10^{18}$ to $10^{20}$ kg |
+| Converge | 2785 | 2289 |
+| Raise `ValueError` | 212 | 204 |
+| Raise `RuntimeError` | 3 | 7 |
+| Splits that needed smaller steps and ended past FeS (the iron-rich root rule ran) | 110 | 116 |
+| The search of the rule ends on the same metal | 66 | 38 |
+| Of these, with a little more Fe | 26 | 21 |
+| Largest `D_residual`, Fe $10^{-4}$ to $10^{-2}$ by mass | $1.9 \times 10^{-9}$ | $1.8 \times 10^{-8}$ |
+| Time with the root rule | about 19 s | about 30 s |
+| Time without the root rule | about 2 s | about 2 s |
+
+The times are for one core of an Apple M1 Ultra; single runs vary by a few percent. The root rule thus costs about 17 s for the 3000 broad splits and 29 s for the 2500 small-silicate splits, up to 20000 more evaluations of the laws for each split that ends past FeS.
+
+What the sweep shows:
+
+- **Accuracy.** The largest `D_residual` of the converged splits depends on the Fe that the metal keeps. It is $2.6 \times 10^{-10}$ above $10^{-2}$ of Fe by mass, $1.9 \times 10^{-9}$ (broad) and $1.8 \times 10^{-8}$ (small silicate) from $10^{-4}$ to $10^{-2}$, and up to $2.4 \times 10^{-7}$ below $10^{-4}$.
+- **The root rule changes no split of the 2 groups.** Its search replaces no returned root. Where it ends on the same metal with a little more Fe, the 2 metals are at most $5.5 \times 10^{-3}$ of the grid tolerance apart. The rule changes a split only where its search reaches another metal with more Fe.
+- **The rule changes the 2-root split of "The iron-rich root rule" ([step 6 of the core split solver](../Reference/core_split_solver.md#steps)).** That S-C-H-N split returns its root at Fe $5.0 \times 10^{-2}$ in 30 of 30 starts perturbed at round-off. Without the rule, 24 of these starts return the root at Fe $6.2 \times 10^{-7}$ (`tools/core_split_two_roots.py`, macOS arm64).
+- **The iron floor can stop a split that has a root with iron.** Small-silicate split 1078 (H and N) raises `ValueError`, while a search with very small steps reaches a root with Fe $2.9 \times 10^{-2}$ by mass.
+- **Some S- or C-rich, iron-poor inputs do not settle.** The split raises `RuntimeError` for them, although a root with iron can exist: 2 such splits of the broad group have a root at Fe $1.5 \times 10^{-8}$ and $1.8 \times 10^{-5}$ by mass.
+
+??? info "Run details"
+    - Reference: the laws themselves (`D_residual`) and the outcome counts of the sampler.
+    - Tool: `tools/core_split_sweep.py` (broad: seed 11, 3000 splits; small silicate: seed 12, 2500 splits) and `tools/core_split_two_roots.py`.
+    - Not a test of the suite: the sweep takes about 50 s on one core.
+
+[^cite-tagawa2021]: S. Tagawa, N. Sakamoto, K. Hirose, S. Yokoo, J. Hernlund, Y. Ohishi, H. Yurimoto, *[Experimental evidence for hydrogen incorporation into Earth's core](https://doi.org/10.1038/s41467-021-22035-0)*, Nature Communications, 12, 2588, 2021. [SciX](https://scixplorer.org/abs/2021NatCo..12.2588T/abstract).
+[^cite-tsutsumi2025]: Y. Tsutsumi, N. Sakamoto, K. Hirose, S. Mita, S. Yokoo, H. Hsu, H. Yurimoto, *[Origin of Earth's hydrogen and carbon constrained by their core-mantle partitioning and bulk Earth abundance](https://doi.org/10.1038/s41467-025-65729-5)*, Nature Communications, 16, 10038, 2025. [SciX](https://scixplorer.org/abs/2025NatCo..1610038T/abstract).
+[^cite-takahashi1986]: E. Takahashi, *[Melting of a dry peridotite KLB-1 up to 14 GPa: implications on the origin of peridotitic upper mantle](https://doi.org/10.1029/JB091iB09p09367)*, Journal of Geophysical Research: Solid Earth, 91(B9), 9367-9382, 1986. [SciX](https://scixplorer.org/abs/1986JGR....91.9367T/abstract).
+[^cite-fischer2020]: R. A. Fischer, E. Cottrell, E. Hauri, K. K. M. Lee, M. Le Voyer, *[The carbon content of Earth and its core](https://doi.org/10.1073/pnas.1919930117)*, Proceedings of the National Academy of Sciences, 117(16), 8743-8749, 2020. [SciX](https://scixplorer.org/abs/2020PNAS..117.8743F/abstract).
+[^cite-suer2023]: T.-A. Suer, C. Jackson, D. S. Grewal, C. Dalou, T. Lichtenberg, *[The distribution of volatile elements during rocky planet formation](https://doi.org/10.3389/feart.2023.1159412)*, Frontiers in Earth Science, 11, 1159412, 2023. [SciX](https://scixplorer.org/abs/2023FrEaS..1159412S/abstract).
+[^cite-suer2017]: T.-A. Suer, J. Siebert, L. Remusat, N. Menguy, G. Fiquet, *[A sulfur-poor terrestrial core inferred from metal-silicate partitioning experiments](https://doi.org/10.1016/j.epsl.2017.04.016)*, Earth and Planetary Science Letters, 469, 84-97, 2017. [SciX](https://scixplorer.org/abs/2017E%26PSL.469...84S/abstract).
+[^cite-haughton1974]: D. R. Haughton, P. L. Roeder, B. J. Skinner, *[Solubility of sulfur in mafic magmas](https://doi.org/10.2113/gsecongeo.69.4.451)*, Economic Geology, 69(4), 451-467, 1974. [SciX](https://scixplorer.org/abs/1974EcGeo..69..451H/abstract).

@@ -16,7 +16,7 @@ You should already have done the [metal reservoir tutorial](metal_reservoir.md).
 
 ### Step 1: the published law
 
-The example law is the H law of [Tsutsumi et al. (2025)](https://doi.org/10.1038/s41467-025-65729-5), *Nature Communications* 16, 10038. They fit their own diamond anvil cell runs together with those of Tagawa et al. (2021), the source of the placeholder H law. Their law adds a term for the C in the metal, which lowers $D_\mathrm{H}$.
+The example law is the H law of Tsutsumi et al. (2025)[^cite-tsutsumi2025], *Nature Communications* 16, 10038. They fit their own diamond anvil cell runs together with those of Tagawa et al. (2021)[^cite-tagawa2021], the source of the placeholder H law. Their law adds a term for the C in the metal, which lowers $D_\mathrm{H}$.
 
 Their Eq. 3 (PDF p. 3) is
 
@@ -52,15 +52,15 @@ The letters of the paper are not the field names of the file: the paper's $d$ mu
 | H in the melt as HO$_{0.5}$ | `silicate_basis` | `"single_cation"` | see below |
 
 
-`silicate_basis`: Tsutsumi et al. count H in the melt as HO$_{0.5}$ units. CALLIOPE counts the melt on the single-cation basis, one unit per cation, and H as HO$_{0.5}$. This is the basis with which CALLIOPE reproduces the single-stage core H and C of Tsutsumi et al. (2025, SI Table 1) on the [validation page](../Validation/metal.md#tsutsumi-et-al-2025-single-stage-cores).
+`silicate_basis`: Tsutsumi et al. count H in the melt as HO$_{0.5}$ units. CALLIOPE counts the melt on the single-cation basis, one unit per cation, and H as HO$_{0.5}$. This is the basis with which CALLIOPE reproduces the single-stage core H and C of Tsutsumi et al. (2025, SI Table 1)[^cite-tsutsumi2025] on the [validation page](../Validation/metal.md#tsutsumi-et-al-2025-single-stage-cores).
 
 The ranges come from the runs of the fit:
 
-- Tsutsumi et al. (2025) Table 1 (p. 2), the 5 runs with a $D_\mathrm{H}$ (runs 1 to 5): 42-56 GPa, 3630-4760 K, $\Delta\mathrm{IW}$ $-1.78$ to $-1.31$.
-- The runs of Tagawa et al. (2021), the other data of the fit: 30-60 GPa, 3080-4560 K, $\Delta\mathrm{IW}$ $-1.33$ to $-0.88$ (the ranges of the placeholder H law).
+- Tsutsumi et al. (2025)[^cite-tsutsumi2025] Table 1 (p. 2), the 5 runs with a $D_\mathrm{H}$ (runs 1 to 5): 42-56 GPa, 3630-4760 K, $\Delta\mathrm{IW}$ $-1.78$ to $-1.31$.
+- The runs of Tagawa et al. (2021)[^cite-tagawa2021], the other data of the fit: 30-60 GPa, 3080-4560 K, $\Delta\mathrm{IW}$ $-1.33$ to $-0.88$ (the ranges of the placeholder H law).
 - Together: 30-60 GPa, 3080-4760 K, $\Delta\mathrm{IW}$ $-1.78$ to $-0.88$.
 
-Tsutsumi et al. give the 1-sigma error of each coefficient, but not the covariance between them. The covariance cannot be built from the errors alone, so `covariance` stays empty (see [Part 2](#part-2-covariance-ranges-and-basis)).
+Tsutsumi et al.[^cite-tsutsumi2025] give the 1-sigma error of each coefficient, but not the covariance between them. The covariance cannot be built from the errors alone, so `covariance` stays empty (see [Part 2](#part-2-covariance-ranges-and-basis)).
 
 ### Step 3: write your own file
 
@@ -202,7 +202,7 @@ The new law gives $D_\mathrm{H}$ = 33.3, 1.5 times the placeholder value, and ha
 
 ## Part 2: covariance, ranges and basis
 
-**Covariance.** `covariance` is the covariance matrix of the coefficients, in the order a, b, c, d, e and then the `eps` terms by element name, so its size is 5 plus the number of `eps` terms. It must be symmetric and positive semidefinite. Fill it only when the source gives it, as Fischer et al. (2020) do for the placeholder C law (their SI Appendix Table S3). Otherwise leave it as `[]`. CALLIOPE stores the covariance with the law and does not use it in the solve.
+**Covariance.** `covariance` is the covariance matrix of the coefficients, in the order a, b, c, d, e and then the `eps` terms by element name, so its size is 5 plus the number of `eps` terms. It must be symmetric and positive semidefinite. Fill it only when the source gives it, as Fischer et al. (2020)[^cite-fischer2020] do for the placeholder C law (their SI Appendix Table S3). Otherwise leave it as `[]`. CALLIOPE stores the covariance with the law and does not use it in the solve.
 
 **Ranges.** `P_range_GPa`, `T_range_K` and `dIW_range` are the `[low, high]` ranges of the data that the law was fitted to, not the range where you want to use the law. Take them from the table of runs of the source. For a fit to several data sets, take the range over all of them. When the source does not give a temperature or $\Delta\mathrm{IW}$ range, write `[]`: the law is then flagged out of range at every use, and the result says so with `<e>_D_out_of_range` = 1. The pressure range cannot be empty.
 
@@ -244,5 +244,10 @@ This part is for developers. A law in the `log10_linear` form for one of H, C, N
 ## Where to go next
 
 - [Partition file reference](../Reference/partition_file.md): every field of the file and every input and output key.
+- [Add a partition law to the core split](../How-to/core_split_law.md): register a law by name and use it in `split_core_mantle`.
 - [Metal reservoir](../Explanations/metal.md): the physics and the limits.
 - [Metal reservoir validation](../Validation/metal.md): the published values that the placeholder laws are checked against.
+
+[^cite-tsutsumi2025]: Y. Tsutsumi, N. Sakamoto, K. Hirose, S. Mita, S. Yokoo, H. Hsu, H. Yurimoto, *[Origin of Earth's hydrogen and carbon constrained by their core-mantle partitioning and bulk Earth abundance](https://doi.org/10.1038/s41467-025-65729-5)*, Nature Communications, 16, 10038, 2025. [SciX](https://scixplorer.org/abs/2025NatCo..1610038T/abstract).
+[^cite-tagawa2021]: S. Tagawa, N. Sakamoto, K. Hirose, S. Yokoo, J. Hernlund, Y. Ohishi, H. Yurimoto, *[Experimental evidence for hydrogen incorporation into Earth's core](https://doi.org/10.1038/s41467-021-22035-0)*, Nature Communications, 12, 2588, 2021. [SciX](https://scixplorer.org/abs/2021NatCo..12.2588T/abstract).
+[^cite-fischer2020]: R. A. Fischer, E. Cottrell, E. Hauri, K. K. M. Lee, M. Le Voyer, *[The carbon content of Earth and its core](https://doi.org/10.1073/pnas.1919930117)*, Proceedings of the National Academy of Sciences, 117(16), 8743-8749, 2020. [SciX](https://scixplorer.org/abs/2020PNAS..117.8743F/abstract).

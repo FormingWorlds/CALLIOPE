@@ -15,6 +15,7 @@ nav:
       - Configuration: How-to/configuration.md
       - Usage: How-to/usage.md
       - Authoritative-oxygen mode: How-to/authoritative_oxygen.md
+      - Add a law to the core split: How-to/core_split_law.md
       - Coupling to PROTEUS: How-to/proteus_coupling.md
       - Build a new test: How-to/build_tests.md
       - Releasing: How-to/releasing.md
@@ -26,6 +27,7 @@ nav:
       - Coupled-loop driver: Tutorials/coupled_loop.md
       - Metal reservoir: Tutorials/metal_reservoir.md
       - Add a new partition law: Tutorials/partition_law.md
+      - Core and mantle split: Tutorials/core_split.md
       - Reproducing the Earth fiducial: Tutorials/earth_fiducial.md
       - Mars-like atmosphere: Tutorials/mars_fiducial.md
 
@@ -37,6 +39,7 @@ nav:
       - Oxygen fugacity: Explanations/oxygen_fugacity.md
       - Mass balance & solver: Explanations/mass_balance.md
       - Metal reservoir: Explanations/metal.md
+      - Core and mantle split: Explanations/core_split.md
       - Authoritative-oxygen mode: Explanations/authoritative_oxygen.md
       - Coupling to PROTEUS: Explanations/proteus_coupling.md
       - Backend comparison: Explanations/cross_backend_comparison.md
@@ -57,12 +60,14 @@ nav:
           - Overview: Reference/api/index.md
           - Solve: Reference/api/calliope.solve.md
           - Metal: Reference/api/calliope.metal.md
+          - Core split: Reference/api/calliope.core_split.md
           - Chemistry: Reference/api/calliope.chemistry.md
           - Solubility: Reference/api/calliope.solubility.md
           - Oxygen fugacity: Reference/api/calliope.oxygen_fugacity.md
           - Structure: Reference/api/calliope.structure.md
           - Constants: Reference/api/calliope.constants.md
       - Metal reservoir and partition file: Reference/partition_file.md
+      - Core split solver: Reference/core_split_solver.md
       - Publications: Reference/publications.md
 
   - Community:

@@ -8,17 +8,25 @@ The metal reservoir is off by default. It is on when `ddict['metal_mass']` is ab
 
 ## Terms used on this page
 
+### Masses and fractions
+
 - **Metal reservoir.** Liquid iron, with light elements dissolved in it, that is in chemical equilibrium with the silicate melt. It stands for the metal that sinks to form the core.
 - **`metal_mass`** (kg), $M_\mathrm{metal}$. The mass of metal that is in equilibrium with the present melt. It is an input; CALLIOPE does not compute it.
 - **Melt mass** (kg), $M_\mathrm{melt} = M_\mathrm{mantle}\,\Phi_\mathrm{global}$. The molten part of the silicate mantle: $M_\mathrm{mantle}$ (`M_mantle`, kg) is the mass of the silicate mantle, and $\Phi_\mathrm{global}$ (`Phi_global`, no unit) the fraction of it that is molten. A metal reservoir needs melt: with `Phi_global` = 0 the solve raises `ValueError`.
 - **Mass fraction** $w_i$ (kg per kg). The mass of element $i$ in a reservoir divided by the mass of that reservoir. $w_i^\mathrm{melt}$ is the value in the melt, $w_i^\mathrm{metal}$ the value in the metal.
 - **Partition coefficient on the mass basis** $D_i = w_i^\mathrm{metal} / w_i^\mathrm{melt}$ (no unit). $D_i = 10$ means that 1 kg of metal holds 10 times as much of element $i$ as 1 kg of melt.
+
+### Bases and exchange coefficients
+
 - **Mole basis.** Some laboratory studies fit the ratio of mole fractions, $x_i^\mathrm{metal} / x_i^\mathrm{melt}$, instead of mass fractions. CALLIOPE converts such a $D$ to the mass basis before it uses it (see below). In the melt, CALLIOPE counts moles on the single-cation basis: one unit per cation (SiO$_2$, MgO, AlO$_{1.5}$, ...).
-- **$x'$ basis.** The mole fraction of an element over the metal without H and C, $x'_j = N_j / \sum_{k \ne \mathrm{H,C}} N_k$, with $N$ the number of moles. [Tagawa et al. (2021)](https://doi.org/10.1038/s41467-021-22035-0) and [Tsutsumi et al. (2025)](https://doi.org/10.1038/s41467-025-65729-5) use this basis; Tsutsumi et al. (2025, Eq. 10, p. 8) give the reason: H and C atoms fill gaps between the Fe atoms of the metal.
+- **$x'$ basis.** The mole fraction of an element over the metal without H and C, $x'_j = N_j / \sum_{k \ne \mathrm{H,C}} N_k$, with $N$ the number of moles. Tagawa et al. (2021)[^cite-tagawa2021] and Tsutsumi et al. (2025)[^cite-tsutsumi2025] use this basis; Tsutsumi et al. (2025, Eq. 10, p. 8)[^cite-tsutsumi2025] give the reason: H and C atoms fill gaps between the Fe atoms of the metal.
 - **$\Delta\mathrm{IW}$ of the metal-melt equilibrium**, `dIW_eq` (log10 units). The oxygen fugacity at which the metal and the melt equilibrate, relative to the iron-wüstite (IW) buffer. It is a separate quantity from `fO2_shift_IW`, the oxygen fugacity of the gas and the melt at the surface.
 - **$K_D$, the exchange coefficient.** Some studies fit the equilibrium of a reaction with FeO, for example $\mathrm{FeO} = \mathrm{Fe} + \mathrm{O}$, instead of $D$ itself. $K_D$ is the ratio of the mole fractions of the products to those of the reactants. For O and Si the file stores $K_D$. For H, C, N and S it stores a law for $D$; when a study fits $K_D$, the file stores the converted law.
 - **The H law as an example of a converted law.** Its source fits $\log_{10} K_D = \log_{10} D + \tfrac{1}{4}\Delta\mathrm{IW}$. The file stores the law for $\log_{10} D = \log_{10} K_D - \tfrac{1}{4}\Delta\mathrm{IW}$, so its $\Delta\mathrm{IW}$ coefficient is $-0.25$.
-- **KLB-1.** A peridotite composition (Takahashi 1986, 7 major oxides in wt%), the default melt composition `silicate_oxides`.
+- **KLB-1.** A peridotite composition of 7 major oxides in wt%, from Takahashi (1986)[^cite-takahashi1986], the default melt composition `silicate_oxides`.
+
+### Solves and the loop
+
 - **Authoritative-O solve.** The solve that takes the O of the gas and the melt as a budget and finds the oxygen fugacity, `equilibrium_atmosphere_authoritative_O` (see [Authoritative-oxygen mode](authoritative_oxygen.md)).
 - **Buffered solve.** The solve that takes the oxygen fugacity `fO2_shift_IW` as an input, `equilibrium_atmosphere`.
 - **Metal share.** The part of the total mass of an element (gas, melt and metal together, the bulk inventory) that is in the metal: `<e>_kg_core` divided by `<e>_kg_total + <e>_kg_core`.
@@ -54,6 +62,8 @@ $$
 with $T$ = `T_eq` in K, $P$ = `P_eq` in GPa and $\Delta\mathrm{IW}$ = `dIW_eq`. $a$, $b$, $c$, $d$ and $e$ are the fitted coefficients of the law, and `dIW_factor` is a fixed multiplier of the $\Delta\mathrm{IW}$ term (1 in the packaged file). $X_j$ is the $x'$ mole fraction of element $j$ in the metal, and $\varepsilon_j$ its fitted coefficient. The last term is the composition term: other light elements in the metal change how much of element $i$ it takes. `calliope.metal.log10_D` evaluates this law.
 
 The field `basis` of each law says what the law gives: a mass-basis $D$, a mole-basis $D$, or a mole-basis $D$ on the $x'$ basis. `calliope.metal.mass_D` converts a mole-basis $D$ to the mass basis with the moles per kg of metal and of melt: $D_w = D\,N_\mathrm{metal}/N_\mathrm{melt}$. The melt moles come from `silicate_oxides` (the KLB-1 composition by default), plus the H and C dissolved in the melt. With a mole basis, $D_w$ therefore depends on the metal composition, which is one more reason for the fixed point.
+
+A law can have 2 more terms, $f \log_{10} X_\mathrm{FeO} - \log_{10} C_\mathrm{S}$. Here $X_\mathrm{FeO}$ is the FeO mole fraction of the melt and $C_\mathrm{S}$ is the sulfide capacity of the melt (file keys `f` and `log10_C_S`). A law without these keys does not have the terms. The S law of Suer et al. (2017)[^cite-suer2017], Eq. 7, uses them: S enters the metal as FeS in exchange for the FeO of the melt, so $D_\mathrm{S}$ rises with the melt FeO. `mass_D` computes that FeO from $\Delta\mathrm{IW}$ and the metal, $X_\mathrm{FeO} = x'_\mathrm{Fe}\,10^{\Delta\mathrm{IW}/2}$ (see [the redox state](core_split.md#the-redox-state) of the core split). It does so in the metal reservoir and in the core split alike. The packaged laws of the metal reservoir have no FeO term.
 
 ## The oxygen fugacity of the metal-melt equilibrium
 
@@ -96,14 +106,14 @@ CALLIOPE does not hold the FeO of the silicate as a reservoir. It reports what t
 
 ## Worked example
 
+### The case
+
 This example puts an Earth-like volatile budget into a fully molten Earth mantle and lets the whole Earth core equilibrate with it once. The inputs:
 
 - Planet and melt as in the [First run tutorial](../Tutorials/firstrun.md): `M_mantle` $4.03 \times 10^{24}$ kg, `Phi_global` 1, `T_magma` 2500 K, `fO2_shift_IW` +0.5, the H of 1 Earth ocean ($1.55 \times 10^{20}$ kg), C/H 0.1 by mass, N 2 ppmw and S 200 ppmw (parts per million of the mantle mass).
 - Metal: `metal_mass` $1.94 \times 10^{24}$ kg (`calliope.constants.M_core_earth`), `P_eq` 50 GPa, `T_eq` 3500 K, `dIW_eq` $-1$ in `'parameter'` mode, no O and Si.
 
-**Why this metal mass.** `metal_mass` is the metal that equilibrates with the present melt. Here it is the whole core, in equilibrium with the whole mantle at one pressure and temperature. This is the single-stage model of Tsutsumi et al. (2025, p. 4). In their words, it assumes "that the entire core and mantle reached chemical equilibrium under a certain P, T, and fO2 condition". Their list of published single-stage conditions includes 50 GPa and 3500 K, the values used here. It gives the effect of a metal of Earth's core mass that meets the whole molten mantle at once, at these conditions. It is not a model of how a core grows: in a planet, metal arrives in portions over time, and each portion meets the melt of its own time.
-
-**Why these conditions.** 50 GPa, 3500 K and $\Delta\mathrm{IW} = -1$ lie inside the data ranges of the placeholder H law ([Tagawa et al. 2021](https://doi.org/10.1038/s41467-021-22035-0): 30-60 GPa, 3080-4560 K, $\Delta\mathrm{IW}$ $-1.33$ to $-0.88$) and of the C law ([Fischer et al. 2020](https://doi.org/10.1073/pnas.1919930117): 1-59 GPa, 1618-5200 K, $\Delta\mathrm{IW}$ $-3.9$ to $-0.53$). The surface value `fO2_shift_IW` = +0.5 and `dIW_eq` = $-1$ differ on purpose: they describe the gas at the surface and the metal at depth.
+### The result
 
 The result is below (with `np.random.seed(0)`, which sets the random start guesses of the solver). The flag is `<e>_D_out_of_range`: it is 1 when the law of the element runs outside the pressure, temperature or $\Delta\mathrm{IW}$ range of the data it was fitted to; [Limits](#limits) says what the solve does then.
 
@@ -116,26 +126,32 @@ The result is below (with `np.random.seed(0)`, which sets the random start guess
 
 The surface pressure falls from 8.7 bar without metal to 7.67 bar with metal. The atmosphere here is mostly C species, and almost no C goes into the metal at these conditions, so the pressure changes little. The H in the gas falls by a factor of about 140, from $2.26 \times 10^{17}$ kg to $1.58 \times 10^{15}$ kg.
 
-**How to read the flags.** N and S have flag 1. Each of their placeholder laws is a straight line in $\Delta\mathrm{IW}$ through 2 values of one column of a table ([Suer et al. 2023](https://doi.org/10.3389/feart.2023.1159412), Table 1). For N this column is at 20 GPa and 3000 K, for S at 60 GPa and 4000 K. Each law is in range only at its one pressure and temperature, so any other `P_eq` or `T_eq` is flagged. No `P_eq` and `T_eq` put N and S in range together. The values of $D_\mathrm{N}$ = 39 and $D_\mathrm{S}$ = 173 here are the table values at $\Delta\mathrm{IW} = -1$, carried to 50 GPa and 3500 K without a pressure or temperature term. Use such a result as an estimate only.
+Steps 1, 2 and 4 of the [metal reservoir tutorial](../Tutorials/metal_reservoir.md) run this case and print these numbers. Its step 1 says why this metal mass and these conditions, step 4 shows the case with O and Si in `'partition'` mode, and step 5 explains the flags of N and S.
 
-**O and Si in `'partition'` mode.** The same case with `O_mode_core` and `Si_mode_core` set to `'partition'` gives 13.7 wt% O and 0.27 wt% Si in the metal. Both flags are 1: the placeholder O and Si laws have no known temperature and $\Delta\mathrm{IW}$ range, so every use is flagged.
+## Core and mantle split
 
-The net exchange (O minus 2 Si) takes $1.62 \times 10^{25}$ mol of FeO, 3.56 times the $4.54 \times 10^{24}$ mol of FeO in the melt, so `FeO_exchange_out_of_range` is 1 as well: there is not enough FeO in the melt for this exchange.
-
-The O also enters the C law through its composition term, and $D_\mathrm{C}$ rises from 0.0828 to 430; 97 % of the C then goes into the metal, and the surface pressure falls to 1.1 bar. This case shows why the flags matter: one flagged input (the metal O) changes a law that is in range (C) by a factor of about 5000.
-
-Steps 1, 2 and 4 of the [metal reservoir tutorial](../Tutorials/metal_reservoir.md) run this case and print these numbers.
+The split of the bulk H, C, N and S between core and mantle when the core forms has its own page: [Core and mantle split](core_split.md).
 
 ## Limits
+
+### The laws
 
 - **Placeholder laws.** The packaged file has `placeholder = true`, and each solve with it logs one warning per process. The N and S laws have no pressure or temperature term; the O and Si laws have no known temperature and $\Delta\mathrm{IW}$ range. Replace a law with a fitted law from a source you have read: see [Add a new partition law](../Tutorials/partition_law.md).
 - **Out-of-range flags.** `<e>_D_out_of_range` is 1 when the law of element `e` runs outside the pressure, temperature or $\Delta\mathrm{IW}$ range of its source data, or when a range is unknown. The solve still returns a result and logs a warning once per process; it does not clamp the law.
 - **Ideal activities for O and Si.** `'partition'` mode leaves out the activity coefficients that published fits of these exchanges include. A solve in this mode logs a warning once per process. Treat its O and Si as a first estimate.
+
+### The solve
+
 - **No FeO reservoir.** The exchange of O and Si does not change the melt FeO, the melt composition or `dIW_eq` of the solve. Above 10 % of the melt FeO, `FeO_exchange_out_of_range` is 1.
-- **Cases that do not converge.** With $\Delta\mathrm{IW}$ from FeO and the input of the worked example below:
+- **Cases that do not converge.** With $\Delta\mathrm{IW}$ from FeO and the input of the worked example above:
     - O and Si both in `'partition'` mode converge at 5500 K and raise `ValueError` at 6000 to 7500 K: the O and Si mole fractions of the exchange fill the whole metal (no Fe left), and their sum did not fall since the pass before.
     - O alone in `'partition'` mode converges up to 8480 K. From 8490 to 9700 K the passes end at the 30-pass cap with `RuntimeError`, and from 9720 K the solve raises the same `ValueError`. For O alone the exchange asks for $x_\mathrm{O} = K_D(\mathrm{O})\,x_\mathrm{FeO}/(1 - x_\mathrm{O})$, which has a root only while $K_D(\mathrm{O})\,x_\mathrm{FeO} \le 1/4$ (here up to 9470 K). The [partition file reference](../Reference/partition_file.md#inputs-in-ddict) gives the exact stop rules.
 - **`metal_mass` is held fixed.** Fe that moves into or out of the metal through the O and Si exchange does not change `metal_mass`.
 - **PROTEUS does not pass `metal_mass`.** A PROTEUS run has no metal reservoir. The reservoir is available in standalone CALLIOPE runs (see [Coupling to PROTEUS](proteus_coupling.md)).
 
 **Where this is checked.** The [metal reservoir validation page](../Validation/metal.md) checks the metal term against mass balance, the full solve against a solve with a larger melt, the O bookkeeping of the authoritative-O solve, and the laws against published laboratory values.
+
+[^cite-tagawa2021]: S. Tagawa, N. Sakamoto, K. Hirose, S. Yokoo, J. Hernlund, Y. Ohishi, H. Yurimoto, *[Experimental evidence for hydrogen incorporation into Earth's core](https://doi.org/10.1038/s41467-021-22035-0)*, Nature Communications, 12, 2588, 2021. [SciX](https://scixplorer.org/abs/2021NatCo..12.2588T/abstract).
+[^cite-tsutsumi2025]: Y. Tsutsumi, N. Sakamoto, K. Hirose, S. Mita, S. Yokoo, H. Hsu, H. Yurimoto, *[Origin of Earth's hydrogen and carbon constrained by their core-mantle partitioning and bulk Earth abundance](https://doi.org/10.1038/s41467-025-65729-5)*, Nature Communications, 16, 10038, 2025. [SciX](https://scixplorer.org/abs/2025NatCo..1610038T/abstract).
+[^cite-takahashi1986]: E. Takahashi, *[Melting of a dry peridotite KLB-1 up to 14 GPa: implications on the origin of peridotitic upper mantle](https://doi.org/10.1029/JB091iB09p09367)*, Journal of Geophysical Research: Solid Earth, 91(B9), 9367-9382, 1986. [SciX](https://scixplorer.org/abs/1986JGR....91.9367T/abstract).
+[^cite-suer2017]: T.-A. Suer, J. Siebert, L. Remusat, N. Menguy, G. Fiquet, *[A sulfur-poor terrestrial core inferred from metal-silicate partitioning experiments](https://doi.org/10.1016/j.epsl.2017.04.016)*, Earth and Planetary Science Letters, 469, 84-97, 2017. [SciX](https://scixplorer.org/abs/2017E%26PSL.469...84S/abstract).

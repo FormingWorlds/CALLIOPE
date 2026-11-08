@@ -63,3 +63,50 @@ def janaf_log_k():
         return T, np.array([rows[t] for t in T])
 
     return per_mole
+
+
+def _legend_clear(fig):
+    """Assert that no legend box covers a line, a marker or a filled band; close the figure."""
+    try:
+        fig.canvas.draw()
+        for ax in fig.axes:
+            if ax.get_legend() is not None:
+                _check_legend(ax, ax.get_legend().get_window_extent(fig.canvas.get_renderer()))
+    finally:
+        import matplotlib.pyplot as plt
+
+        plt.close(fig)
+
+
+def _check_legend(ax, box):
+    """Assert that the legend box of ``ax`` (display units) covers no mark of ``ax``."""
+
+    def covered(p):
+        return (
+            (p[:, 0] >= box.x0)
+            & (p[:, 0] <= box.x1)
+            & (p[:, 1] >= box.y0)
+            & (p[:, 1] <= box.y1)
+        ).any()
+
+    for line in ax.get_lines():
+        xy = line.get_transform().transform(line.get_xydata())
+        for a, b in zip(xy[:-1], xy[1:]):
+            pts = a + np.linspace(0.0, 1.0, int(np.hypot(*(b - a))) + 2)[:, None] * (b - a)
+            assert not covered(pts), f'legend covers {line.get_label()!r}'
+        if line.get_marker() not in ('None', None, '') and len(xy):
+            assert not covered(xy), f'legend covers {line.get_label()!r}'
+    grid = np.meshgrid(np.linspace(box.x0, box.x1, 20), np.linspace(box.y0, box.y1, 20))
+    corners = np.reshape(grid, (2, -1)).T
+    for coll in ax.collections:
+        pts = coll.get_offset_transform().transform(coll.get_offsets())
+        assert not covered(pts), f'legend covers {coll.get_label()!r}'
+        for path in coll.get_paths():
+            inside = path.contains_points(corners, transform=coll.get_transform())
+            assert not inside.any(), f'legend covers {coll.get_label()!r}'
+
+
+@pytest.fixture
+def legend_clear():
+    """The check of :func:`_legend_clear` for a test that makes a plot."""
+    return _legend_clear

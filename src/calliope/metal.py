@@ -8,13 +8,18 @@ metal, together with the quantity the source fits (``D`` or ``K_D``), the metal
 ``basis`` of D (``mass``, ``mole`` or ``mole_xprime_noHC``, the mole fraction over the
 metal without H and C), the ``silicate_basis`` of a mole basis (``single_cation``),
 the ranges of the source data (an empty T or dIW range means unknown), an optional covariance of the coefficients in the
-order a, b, c, d, e and the eps terms by element name, and the source and DOI. The
-packaged file ``data/partition_coefficients_placeholder.toml`` holds placeholder laws.
+order a, b, c, d, e and the eps terms by element name, and the source and DOI. Two optional
+keys add ``f log10 X_FeO - log10_C_S``, with X_FeO the melt FeO on the single-cation basis
+(a sulfide capacity law). The packaged file ``data/partition_coefficients_placeholder.toml``
+holds placeholder laws; :func:`get_law` returns a law by element and name, and
+:func:`register_law` adds a TOML entry or a callable under a new name.
 """
 
 from __future__ import annotations
 
+import copy
 import math
+import numbers
 import tomllib
 from importlib import resources
 from pathlib import Path
@@ -33,8 +38,10 @@ SILICATE_BASES = ('single_cation',)
 COEFFICIENTS = ('a', 'b', 'c', 'd', 'e', 'dIW_factor')
 RANGES = ('P_range_GPa', 'T_range_K', 'dIW_range')
 KEYS = frozenset(('form', 'quantity', 'basis', 'silicate_basis', 'P_unit', 'eps', 'covariance'))
-KEYS = KEYS | set(COEFFICIENTS) | set(RANGES) | {'source', 'doi'}
+KEYS = KEYS | set(COEFFICIENTS) | set(RANGES) | {'source', 'doi', 'f', 'log10_C_S'}
+OPTIONAL_TERMS = ('f', 'log10_C_S')
 PLACEHOLDER_FILE = 'partition_coefficients_placeholder.toml'
+CORE_LAWS_FILE = 'partition_laws_core.toml'
 
 
 class PartitionTableError(ValueError):
@@ -78,19 +85,11 @@ def _entry(el, raw):
     )
     for field in COEFFICIENTS:
         out[field] = _number(raw.get(field), el, field)
+    for field in OPTIONAL_TERMS:
+        if field in raw:
+            out[field] = _number(raw[field], el, field)
     for field in RANGES:
-        pair = raw.get(field)
-        if pair == [] and field != 'P_range_GPa':
-            out[field] = None  # not given by the source: every use is out of range
-            continue
-        if not isinstance(pair, list) or len(pair) != 2:
-            raise PartitionTableError(f'{el!r}: {field!r} must be [low, high], got {pair!r}')
-        lo, hi = (_number(v, el, field) for v in pair)
-        if lo > hi:
-            raise PartitionTableError(f'{el!r}: {field!r} low {lo} above high {hi}')
-        if lo < 0 and field != 'dIW_range':
-            raise PartitionTableError(f'{el!r}: {field!r} must not be negative, got {lo}')
-        out[field] = (lo, hi)
+        out[field] = _range(raw.get(field), el, field)
     eps = raw.get('eps', {})
     if not isinstance(eps, dict) or any(k not in ELEMENTS for k in eps):
         raise PartitionTableError(f'{el!r}: {"eps"!r} keys must be elements of {ELEMENTS}')
@@ -102,6 +101,20 @@ def _entry(el, raw):
         out[field] = raw[field]
     _check_read_values(el, out)
     return out
+
+
+def _range(pair, el, field):
+    """A checked (low, high) range; an empty T or dIW range is None (unknown)."""
+    if isinstance(pair, list | tuple) and not pair and field != 'P_range_GPa':
+        return None  # not given by the source: every use is out of range
+    if not isinstance(pair, list | tuple) or len(pair) != 2:
+        raise PartitionTableError(f'{el!r}: {field!r} must be [low, high], got {pair!r}')
+    lo, hi = (_number(v, el, field) for v in pair)
+    if lo > hi:
+        raise PartitionTableError(f'{el!r}: {field!r} low {lo} above high {hi}')
+    if lo < 0 and field != 'dIW_range':
+        raise PartitionTableError(f'{el!r}: {field!r} must not be negative, got {lo}')
+    return (lo, hi)
 
 
 def _need_form(entry, form):
@@ -129,6 +142,8 @@ def _check_read_values(el, entry):
             )
     if el in EXCHANGE_ELEMENTS and entry['eps']:
         raise PartitionTableError(f'{el!r}: {"eps"!r} must be empty for an exchange law')
+    for field in (f for f in OPTIONAL_TERMS if el in EXCHANGE_ELEMENTS and f in entry):
+        raise PartitionTableError(f'{el!r}: {field!r} is not read by an exchange law')
 
 
 def _covariance(cov, size, el):
@@ -179,7 +194,10 @@ def load_partition_table(path=None):
         text = resources.files('calliope.data').joinpath(PLACEHOLDER_FILE).read_text()
     else:
         text = Path(path).read_text()
-    raw = tomllib.loads(text)
+    return _table(tomllib.loads(text))
+
+
+def _table(raw):
     version = raw.pop('schema_version', None)
     if type(version) is not int or version != SCHEMA_VERSION:
         raise PartitionTableError(f'schema_version must be {SCHEMA_VERSION}, got {version!r}')
@@ -199,6 +217,18 @@ def load_partition_table(path=None):
     return table
 
 
+def _real(value):
+    """A finite real number that is not a boolean."""
+    try:
+        return (
+            isinstance(value, numbers.Real)
+            and not isinstance(value, bool)
+            and math.isfinite(value)
+        )
+    except OverflowError:  # an int beyond the float range
+        return False
+
+
 def _finite(name, value, positive=False):
     if not math.isfinite(value) or (positive and value <= 0):
         raise ValueError(
@@ -206,7 +236,7 @@ def _finite(name, value, positive=False):
         )
 
 
-def log10_D(entry, p_gpa, t_k, d_iw, x_metal=None, nbo_t=2.6):
+def log10_D(entry, p_gpa, t_k, d_iw, x_metal=None, nbo_t=2.6, x_silicate=None):
     """log10 of the partition coefficient of one entry, in the entry's basis.
 
     Parameters
@@ -223,23 +253,37 @@ def log10_D(entry, p_gpa, t_k, d_iw, x_metal=None, nbo_t=2.6):
         Mole fractions of the elements of the eps terms in the metal; absent is 0.
     nbo_t : float
         NBO/T of the silicate melt.
+    x_silicate : dict or None
+        Melt mole fractions on the single-cation basis by oxide; read for ``FeO`` by a law
+        with ``f`` and passed whole to a registered callable, which also gets ``nbo_t``.
 
     Returns
     -------
     float
-        ``a + b/T + c P/T + d dIW_factor dIW + e NBO/T + sum_j eps_j log10(1 - X_j)``.
+        ``a + b/T + c P/T + d dIW_factor dIW + e NBO/T + sum_j eps_j log10(1 - X_j)``, plus
+        ``f log10 X_FeO - log10_C_S`` when the entry has those keys; the value of the
+        callable for a registered callable.
 
     Raises
     ------
     ValueError
-        P, dIW or NBO/T not finite, T not finite and positive, or an X_j of an eps term
-        outside [0, 1).
+        P, dIW or NBO/T not finite, T not finite and positive, an X_j of an eps term
+        outside [0, 1), X_FeO outside (0, 1] for a law with ``f``, or a callable that
+        returns a value that is not finite (naming the law and the point).
     """
     _finite('P [GPa]', p_gpa)
     _finite('T [K]', t_k, positive=True)
     _finite('dIW', d_iw)
     _finite('NBO/T', nbo_t)
     x_metal = x_metal or {}
+    if entry['form'] == 'callable':
+        val = entry['func'](p_gpa, t_k, d_iw, x_metal, x_silicate or {}, nbo_t)
+        if not _real(val):
+            raise ValueError(
+                f'{entry["name"]} law of {entry["element"]} returned {val!r} at P {p_gpa:g} GPa, '
+                f'T {t_k:g} K, dIW {d_iw:g}'
+            )
+        return float(val)
     val = entry['a'] + entry['b'] / t_k + entry['c'] * p_gpa / t_k
     val += entry['d'] * entry['dIW_factor'] * d_iw + entry['e'] * nbo_t
     for el, eps in entry['eps'].items():
@@ -247,7 +291,41 @@ def log10_D(entry, p_gpa, t_k, d_iw, x_metal=None, nbo_t=2.6):
         if not 0.0 <= x < 1.0:
             raise ValueError(f'X_{el} in the metal must be in [0, 1), got {x!r}')
         val += eps * math.log10(1.0 - x)
+    if 'f' in entry:
+        x = (x_silicate or {}).get('FeO')
+        if not _real(x) or not 0.0 < x <= 1.0:
+            raise ValueError(f'X_FeO of the melt must be in (0, 1], got {x!r}')
+        val += entry['f'] * math.log10(x)
+    if 'log10_C_S' in entry:
+        val -= entry['log10_C_S']
     return val
+
+
+def range_distance(entry, p_gpa, t_k, d_iw):
+    """Distance of (P, T, dIW) outside each range of the entry.
+
+    Parameters
+    ----------
+    entry : dict
+        One law of :func:`load_partition_table` or :func:`get_law`.
+    p_gpa, t_k, d_iw : float
+        Equilibration pressure [GPa], temperature [K] and dIW [log10 units].
+
+    Returns
+    -------
+    dict
+        ``P_GPa`` [GPa], ``T_K`` [K] and ``dIW`` [log10 units]: 0 inside the closed range,
+        the distance to the nearer edge outside it, NaN on an unknown range.
+    """
+    axes = (
+        ('P_GPa', p_gpa, 'P_range_GPa'),
+        ('T_K', t_k, 'T_range_K'),
+        ('dIW', d_iw, 'dIW_range'),
+    )
+    return {
+        key: math.nan if entry[r] is None else max(entry[r][0] - v, v - entry[r][1], 0.0)
+        for key, v, r in axes
+    }
 
 
 def _pow10(x, label, p_gpa, t_k, d_iw):
@@ -454,24 +532,49 @@ def mass_D(entry, p_gpa, t_k, d_iw, w_metal, w_melt, oxides=KLB1, nbo_t=2.6):
     Raises
     ------
     PartitionTableError
-        An entry whose form is not ``log10_linear``.
+        An entry whose form is not ``log10_linear`` or a registered callable.
     ValueError
         A metal with no iron left, a D beyond the float range (naming the law and its P,
-        T and dIW), or an invalid input of :func:`log10_D`.
+        T and dIW), a dIW above the ideal-mixing limit of a law with ``f``, or an invalid
+        input of :func:`log10_D`.
 
     Notes
     -----
+    A law with ``f`` takes the melt FeO from dIW and the metal, ``X_FeO = x'_Fe
+    10^(dIW/2)`` (ideal mixing, Suer et al. 2017 p. 90), so dIW is its one redox input;
+    above ``dIW = -2 log10 x'_Fe`` no melt has that FeO, and the call raises. A
+    registered callable gets the melt fractions of ``oxides`` as they are.
+
     The X_j of the eps terms are ``x'_j = N_j / sum_{k != H, C} N_k``, the metal basis of
     Tagawa et al. (2021, Methods Eq. 4) and of the H law. Fischer et al. (2020, p. 8744)
     fit X_O and X_S as mole fractions in metal without H and do not name the elements of
     the denominator; x' is the choice of this module.
     """
-    _need_form(entry, 'log10_linear')
+    if entry['form'] != 'callable':
+        _need_form(entry, 'log10_linear')
     total, n = _metal_moles(w_metal)
     free = total - n.get('H', 0.0) - n.get('C', 0.0)
+    if not free > 0.0:
+        raise ValueError(f'the metal has no iron left outside H and C: {w_metal}')
     x_metal = {el: v / free for el, v in n.items()}
+    x_sil = None
+    if entry['form'] == 'callable':
+        x_sil = {ox: cation_fraction(oxides, ox) for ox in oxides}
+    elif 'f' in entry:
+        _finite('dIW', d_iw)
+        n_fe = (1.0 - sum(w_metal.values())) / molar_mass_rock['Fe']
+        log_x = math.log10(n_fe / free) + d_iw / 2.0
+        if log_x > 0.0:
+            raise ValueError(
+                f'dIW {d_iw:g} is above the ideal-mixing limit {d_iw - 2.0 * log_x:.4g} of '
+                'this metal: X_FeO = x_Fe 10^(dIW/2) would pass 1'
+            )
+        if log_x < -300.0:
+            raise ValueError(f'dIW {d_iw:g} makes X_FeO = x_Fe 10^(dIW/2) underflow')
+        x_sil = {'FeO': 10.0**log_x}
     label = f'{entry["element"]} law'
-    d = _pow10(log10_D(entry, p_gpa, t_k, d_iw, x_metal, nbo_t), label, p_gpa, t_k, d_iw)
+    val = log10_D(entry, p_gpa, t_k, d_iw, x_metal, nbo_t, x_silicate=x_sil)
+    d = _pow10(val, label, p_gpa, t_k, d_iw)
     if entry['basis'] == 'mass':
         return d
     n_metal = free if entry['basis'] == 'mole_xprime_noHC' else total
@@ -570,3 +673,202 @@ def exchange_metal(table, p_gpa, t_k, d_iw, oxides=KLB1, elements=('O', 'Si'), c
     if check and total >= 1.0:
         raise ValueError(f'O and Si leave the metal with no iron: {x}')
     return x
+
+
+# packaged laws by (element, name): (file, section); register_law adds to _LAWS, not here
+_PACKAGED = {
+    ('H', 'tagawa2021_eq2'): (PLACEHOLDER_FILE, 'H'),
+    ('C', 'fischer2020_eq1'): (PLACEHOLDER_FILE, 'C'),
+    ('N', 'suer2023_line'): (PLACEHOLDER_FILE, 'N'),
+    ('S', 'suer2023_line'): (PLACEHOLDER_FILE, 'S'),
+    ('S', 'suer2017_eq7'): (CORE_LAWS_FILE, 'S'),
+}
+
+
+def _packaged_laws():
+    files = {f for f, _ in _PACKAGED.values()}
+    data = resources.files('calliope.data')
+    tables = {f: _table(tomllib.loads(data.joinpath(f).read_text())) for f in files}
+    return {key: tables[f][el] for key, (f, el) in _PACKAGED.items()}
+
+
+_LAWS = _packaged_laws()
+
+
+def law_names(element):
+    """Sorted names of the laws held for ``element``."""
+    return sorted(name for el, name in _LAWS if el == element)
+
+
+def get_law(element, name):
+    """A copy of the law of ``element`` named ``name``, packaged or registered.
+
+    Raises
+    ------
+    PartitionTableError
+        No law of that name for the element.
+    """
+    try:
+        law = _LAWS[(element, name)]
+    except KeyError:
+        raise PartitionTableError(
+            f'no law {name!r} for {element!r}; known: {law_names(element)}'
+        ) from None
+    data = copy.deepcopy({k: v for k, v in law.items() if k != 'func'})
+    return data | ({'func': law['func']} if 'func' in law else {})
+
+
+def check_law(entry, element):
+    """A checked copy of a D law of ``element``: a ``log10_linear`` entry or a callable law.
+
+    Parameters
+    ----------
+    entry : dict
+        A law as :func:`get_law` returns it, or one made by hand with the same fields.
+    element : str
+        The element the law must be for.
+
+    Returns
+    -------
+    dict
+        The checked law; a ``log10_linear`` entry is checked as an entry of a partition
+        file, a callable law keeps its function.
+
+    Raises
+    ------
+    PartitionTableError
+        Not a dict of ``element``, another form, a callable law without its function, or a
+        field that breaks its rule (named, as for a partition file).
+    """
+    if not isinstance(entry, dict) or entry.get('element') != element:
+        raise PartitionTableError(f'{element!r}: needs a law entry of {element!r}')
+    if entry.get('form') == 'callable':
+        if not callable(entry.get('func')):
+            raise PartitionTableError(f'{element!r}: a callable law entry needs its func')
+        return _callable_entry(element, entry.get('name') or 'entry', entry['func'], entry)
+    if entry.get('form') != 'log10_linear':
+        raise PartitionTableError(f'{element!r}: needs a log10_linear or callable entry')
+    raw = {k: v for k, v in entry.items() if k not in ('element', 'name')}
+    raw |= {k: [] for k in RANGES if k in raw and raw[k] is None}
+    return _entry(element, raw)
+
+
+def _callable_entry(element, name, func, decl):
+    """The entry of a callable law, with its declarations checked."""
+    entry = {'element': element, 'name': name, 'form': 'callable', 'func': func}
+    entry |= {'quantity': 'D', 'basis': _choice(decl, element, 'basis', BASES)}
+    entry['silicate_basis'] = (
+        _choice(decl, element, 'silicate_basis', SILICATE_BASES)
+        if entry['basis'] != 'mass'
+        else None
+    )
+    for field in RANGES:
+        pair = decl.get(field)
+        entry[field] = _range(
+            [] if pair is None and field != 'P_range_GPa' else pair, element, field
+        )
+    for field in ('source', 'doi'):
+        if not isinstance(decl.get(field), str) or not decl[field].strip():
+            raise PartitionTableError(f'{element!r}: {field!r} must be a non-empty string')
+        entry[field] = decl[field]
+    return entry
+
+
+def register_law(
+    element,
+    name,
+    law,
+    *,
+    basis=None,
+    silicate_basis=None,
+    P_range_GPa=None,
+    T_range_K=None,
+    dIW_range=None,
+    source=None,
+    doi=None,
+    replace=False,
+):
+    """Add a D law of H, C, N or S under a name, for use in the core split.
+
+    After the call, ``get_law(element, name)`` returns the law, and
+    ``split_core_mantle(..., laws={element: name})`` uses it. The guide
+    ``docs/How-to/core_split_law.md`` gives a worked example of each kind of law.
+
+    Parameters
+    ----------
+    element : str
+        One of H, C, N, S (O and Si use the exchange laws of a partition table).
+    name : str
+        A name not yet held for the element, unless ``replace``.
+    law : dict or callable
+        Either a ``log10_linear`` entry of :func:`load_partition_table` for the element,
+        which holds its own basis, ranges and source; or a function
+        ``f(p_gpa, t_k, d_iw, x_metal, x_silicate, nbo_t)`` that returns log10 D on the
+        declared basis, with the keyword declarations below. The function gets:
+
+        - ``p_gpa`` in GPa, ``t_k`` in K and ``d_iw`` in log10 units;
+        - ``x_metal``, a dict of the mole fractions of the light elements in the metal,
+          over the metal without H and C. Fe is not in the dict: it is the rest,
+          ``x'_Fe = 1 - sum(x_metal[j] for j not in ('H', 'C'))``;
+        - ``x_silicate``, a dict of the melt oxide fractions on the single-cation basis,
+          from ``oxides`` as they are; a law that needs the FeO of the dIW rule of
+          :func:`mass_D` computes it from ``x_metal`` and ``d_iw``;
+        - ``nbo_t``, the NBO/T of the melt.
+
+        The function must return a finite real number and raise ``ValueError`` for a
+        point it cannot evaluate. The registry keeps a checked copy of an entry and the
+        function itself.
+    basis, silicate_basis : str
+        Of a function: the metal basis of D (one of :data:`BASES`) and, for a mole basis,
+        the silicate basis (one of :data:`SILICATE_BASES`).
+    P_range_GPa, T_range_K, dIW_range : sequence of 2 floats
+        Of a function: the ranges of its source data, in GPa, K and log10 units; an empty
+        T or dIW range is unknown.
+    source, doi : str
+        Of a function: the source of the law (paper, equation, page) and its DOI.
+    replace : bool
+        Store the law over a registered law of the same name; a packaged law cannot be
+        replaced.
+
+    Raises
+    ------
+    PartitionTableError
+        An unknown or exchange element, a taken or empty name, an entry of another form or
+        element or with missing fields, declarations given with an entry, or a
+        declaration that breaks its rule.
+    """
+    if element not in ELEMENTS or element in EXCHANGE_ELEMENTS:
+        raise PartitionTableError(
+            f'register_law takes D laws of H, C, N, S, got {element!r} (O and Si use the '
+            'exchange laws of a partition table)'
+        )
+    if (
+        not isinstance(name, str)
+        or not name.strip()
+        or ((element, name) in _LAWS and not replace)
+    ):
+        raise PartitionTableError(f'{element!r}: law name {name!r} is empty or taken')
+    if (element, name) in _PACKAGED:
+        raise PartitionTableError(
+            f'{element!r}: {name!r} is a packaged law and cannot be replaced'
+        )
+    decl = {
+        'basis': basis,
+        'silicate_basis': silicate_basis,
+        'P_range_GPa': P_range_GPa,
+        'T_range_K': T_range_K,
+        'dIW_range': dIW_range,
+        'source': source,
+        'doi': doi,
+    }
+    if isinstance(law, dict):
+        if any(v is not None for v in decl.values()):
+            raise PartitionTableError(f'{name!r}: an entry carries its own declarations')
+        entry = check_law(law, element)
+    elif callable(law):
+        entry = _callable_entry(element, name, law, decl)
+    else:
+        raise PartitionTableError(f'{name!r}: the law must be an entry or a callable')
+    if entry['form'] == 'callable':
+        entry['name'] = name
+    _LAWS[(element, name)] = entry

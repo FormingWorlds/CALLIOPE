@@ -74,6 +74,7 @@ OPTIONAL_DEPS = {
 # physics_invariant and one reference_pinned test (tests/AGENTS.md).
 PHYSICS_SOURCES = {
     'chemistry.py',
+    'core_split.py',
     'metal.py',
     'oxygen_fugacity.py',
     'solubility.py',

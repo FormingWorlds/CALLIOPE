@@ -13,7 +13,10 @@ with metal O present, in 'fixed' and 'partition' mode alike.
 
 from __future__ import annotations
 
+import json
 import math
+import platform
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -925,3 +928,48 @@ def test_equal_d_identity_plot(validation_plot):
         return fig
 
     validation_plot(figure, 'metal_equal_d_larger_melt')
+
+
+REFERENCE_OUTPUTS = Path(__file__).parent / 'data' / 'reference_outputs.json'
+REFERENCE_CASES = {
+    'no_metal': {},
+    'metal_parameter': {'metal_mass': 1.9e24, 'P_eq': 50.0, 'T_eq': 3500.0, 'dIW_eq': -2.0},
+    'metal_from_feo': {
+        'metal_mass': 1.9e24,
+        'P_eq': 50.0,
+        'T_eq': 3500.0,
+        'dIW_eq_mode': 'from_FeO',
+        'w_O_core': 0.01,
+    },
+}
+
+
+@pytest.mark.parametrize('case', sorted(REFERENCE_CASES))
+def test_solve_outputs_match_the_stored_reference(case):
+    """The solve without metal and with the placeholder metal give the stored outputs.
+
+    Equal to the bit on the platform that stored them (meta.platform, meta.machine). On
+    another platform the libm round-off moves the root within the acceptance rtol 1e-5 of
+    the solve, so there rel 1e-4, without the round-off residuals ``*_res``.
+    """
+    stored = json.loads(REFERENCE_OUTPUTS.read_text())
+    np.random.seed(0)
+    out = equilibrium_atmosphere(
+        TARGET, {**_ddict(), **REFERENCE_CASES[case]}, p_guess=dict(P_GUESS)
+    )
+    got = {
+        k: float(v) for k, v in sorted(out.items()) if isinstance(v, int | float | np.number)
+    }
+    want = stored['solves'][case]
+    assert sorted(got) == sorted(want)
+    same = (platform.system(), platform.machine()) == (
+        stored['meta']['platform'],
+        stored['meta']['machine'],
+    )
+    if same:
+        assert got == want
+    else:
+        keys = [k for k in want if not k.endswith('_res')]
+        assert {k: got[k] for k in keys} == pytest.approx(
+            {k: want[k] for k in keys}, rel=1e-4, abs=0.0
+        )

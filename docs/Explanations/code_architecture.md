@@ -13,9 +13,10 @@ src/calliope/
 ├── chemistry.py             # ModifiedKeq class, six redox couples
 ├── solubility.py            # five solubility classes
 ├── solve.py                 # speciation, mass balance, outer solver
-├── metal.py                 # partition file reader, partition laws, metal reservoir masses
+├── metal.py                 # partition file reader, partition laws, named laws, metal reservoir masses
+├── core_split.py            # core and mantle split of a bulk inventory
 ├── structure.py             # simple core/mantle mass split
-└── data/                    # partition_coefficients_placeholder.toml
+└── data/                    # partition_coefficients_placeholder.toml, partition_laws_core.toml
 ```
 
 Plus the test suite:
@@ -82,6 +83,10 @@ Plus the inner-loop residual functions `func` (four-vector for buffered) and `fu
 ### `metal.py`
 
 The optional metal reservoir ([Metal reservoir](metal.md)). `load_partition_table` reads and checks a partition file; `log10_D` evaluates one law and `mass_D` converts its $D$ to the mass basis; `exchange_metal` gives the O and Si of the metal from their exchange $K_D$; `metal_masses` gives the mass of each element in the metal; `out_of_range` sets the range flags. `solve.py` calls them in 2 places: `_core_masses` (through `metal_masses`) adds the core term to `func` and `func_authoritative_O`, and `_with_metal` runs the fixed point on the metal composition. `equilibrium_atmosphere` and `equilibrium_atmosphere_authoritative_O` call `_with_metal` when `metal_mass` is above zero. The packaged partition file is `src/calliope/data/partition_coefficients_placeholder.toml`.
+
+### `core_split.py`
+
+`split_core_mantle` splits the bulk H, C, N and S of a planet between core and mantle at one equilibration point ([Core and mantle split](core_split.md)). It takes its laws by name from `metal.get_law`, runs a fixed point on the metal composition through `metal.mass_D`, checks the element ledger of every split and flags each law outside its range from the distances of `metal.range_distance`. No other module calls it.
 
 ### `structure.py`
 

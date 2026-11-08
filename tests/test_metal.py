@@ -12,20 +12,30 @@ placeholder file loads and says that it is a placeholder.
 
 from __future__ import annotations
 
+import json
 import math
+import platform
+from importlib import resources
+from pathlib import Path
 
+import numpy as np
 import pytest
 
+from calliope import metal
 from calliope.metal import (
     ELEMENTS,
     PartitionTableError,
     core_light_elements,
     exchange_metal,
+    get_law,
+    law_names,
     load_partition_table,
     log10_D,
     mass_D,
     metal_masses,
     out_of_range,
+    range_distance,
+    register_law,
 )
 
 hypothesis = pytest.importorskip('hypothesis')
@@ -33,6 +43,9 @@ from hypothesis import given, settings  # noqa: E402
 from hypothesis import strategies as st  # noqa: E402
 
 pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
+
+# stored outputs of the solve and the packaged laws (commit and platform in the file meta)
+REFERENCE_OUTPUTS = Path(__file__).parent / 'data' / 'reference_outputs.json'
 
 # Tagawa et al. 2021 Eq. 2 for H, the shape every entry of the file has
 _H = {
@@ -82,6 +95,11 @@ def _with(**changes):
         else:
             fields[k] = v
     return {'H': fields}
+
+
+def _as(el, **changes):
+    """The changed H entry of :func:`_with` under the section of element ``el``."""
+    return {el: _with(**changes)['H']}
 
 
 class TestValidFile:
@@ -318,7 +336,7 @@ class TestMalformedFile:
         with pytest.raises(PartitionTableError, match='placeholder'):
             load_partition_table(_write(tmp_path, no_flag))
 
-    @pytest.mark.parametrize('key', ['esp', 'f'])
+    @pytest.mark.parametrize('key', ['esp', 'g'])
     def test_unknown_key_in_an_entry_is_refused(self, tmp_path, key):
         """A key outside the schema (a misspelt eps, an extra coefficient) is refused."""
         entry = dict(_H, **{key: '{ O = 1.0 }' if key == 'esp' else '7.0'})
@@ -783,3 +801,448 @@ def test_tsutsumi_core_values_plot(validation_plot):
         return fig
 
     validation_plot(figure, 'metal_tsutsumi2025_core_h_c')
+
+
+# Suer et al. 2017 Table 1 (PDF p. 8): run, P [GPa], T [K], D_S (molar), IW, X_FeO, X_Fe, X_O
+SUER_RUNS = [
+    (1, 46.0, 3100.0, 20.94, -1.66, 0.10, 0.70, 0.11),
+    (2, 52.0, 3700.0, 13.59, -1.30, 0.14, 0.61, 0.19),
+    (3, 58.0, 3600.0, 10.34, -1.45, 0.13, 0.70, 0.14),
+    (4, 59.0, 3500.0, 22.12, -1.08, 0.21, 0.73, 0.13),
+    (5, 60.0, 3300.0, 54.47, -1.31, 0.17, 0.78, 0.13),
+    (6, 66.0, 3600.0, 13.60, -1.00, 0.17, 0.55, 0.21),
+    (7, 74.0, 3700.0, 17.04, -1.06, 0.02, 0.68, 0.14),
+    (8, 85.0, 4000.0, 15.30, -1.47, 0.14, 0.74, 0.17),
+    (9, 91.0, 4100.0, 7.96, -1.55, 0.12, 0.71, 0.17),
+]
+# Suer 2017 runs: the 1-sigma of a (Table 3), the X_FeO read for run 7 and the runs stated as misses
+SUER_TOL_DEX = 0.47
+# Run 7: Table 1 (p. 91) prints X_FeO 0.02, a misprint of 0.20: its IW -1.06 implies 0.2007
+# and its Table 2 (p. 92) FeO of 25.62 wt% gives 0.204 on the single-cation basis
+SUER_XFEO = {7: 0.20}
+SUER_MISSES = {7}
+
+
+def _suer(entry, p, t, x_feo, x_o):
+    return log10_D(entry, p, t, -1.0, {'O': x_o}, x_silicate={'FeO': x_feo})
+
+
+class TestSuer2017:
+    """The S law of Suer et al. 2017 Eq. 7 (log10 in every term, a from Table 3)."""
+
+    @pytest.mark.physics_invariant
+    @pytest.mark.reference_pinned
+    def test_eq7_value_at_the_default_point(self):
+        """60 GPa, 4000 K, X_FeO 0.0572 (KLB-1), X_O 0: -3.50 + 3000/T + 33 P/T + log X_FeO + 5.372."""
+        s = get_law('S', 'suer2017_eq7')
+        x_feo = 0.05724206711840065
+        val = _suer(s, 60.0, 4000.0, x_feo, 0.0)
+        assert val == pytest.approx(-3.50 + 0.75 + 0.495 + math.log10(x_feo) + 5.372, rel=1e-12)
+        assert 1.5 < val < 2.2  # D_S of 30 to 160 (molar)
+        # Eq. 8 as printed (ln on the composition terms) lands more than 1 dex away (5.4 dex higher)
+        ln_read = -3.50 + 0.75 + 0.495 + math.log(x_feo) + 5.372 * math.log(10)
+        assert abs(ln_read - val) > 1.0
+        # X_O 0.1 lowers log10 D by 14 log10(0.9) = -0.641; the dIW argument is not read
+        assert _suer(s, 60.0, 4000.0, x_feo, 0.1) - val == pytest.approx(
+            14 * math.log10(0.9), rel=1e-12
+        )
+        assert log10_D(s, 60.0, 4000.0, -3.0, {}, x_silicate={'FeO': x_feo}) == val
+        assert s['basis'] == 'mole' and s['quantity'] == 'D'
+
+    @pytest.mark.physics_invariant
+    @pytest.mark.reference_pinned
+    def test_runs_of_table_1_against_eq7(self, validation_plot, legend_clear):
+        """8 runs of Suer 2017 Table 1 within 0.47 dex of Eq. 7; run 7 a stated miss at +0.495 dex.
+
+        Run 7 uses X_FeO 0.20, not the printed 0.02 (Table 1, journal p. 91): with X_Fe 0.68 its
+        IW of -1.06 implies 0.2007, and its FeO of 25.62 wt% in Table 2 (p. 92) gives 0.204. With
+        0.2007 the residual would be +0.497 dex, with the printed 0.02 it is -0.505 dex.
+        """
+        s = get_law('S', 'suer2017_eq7')
+        xs = {run: SUER_XFEO.get(run, x) for run, _, _, _, _, x, _, _ in SUER_RUNS}
+        model = [_suer(s, p, t, xs[run], xo) for run, p, t, _, _, _, _, xo in SUER_RUNS]
+        resid = {r[0]: m - math.log10(r[3]) for r, m in zip(SUER_RUNS, model)}
+        assert {run for run, d in resid.items() if abs(d) > SUER_TOL_DEX} == SUER_MISSES
+        assert resid[7] == pytest.approx(0.495, abs=5e-4)
+        # the X_FeO read of each run agrees with its IW = 2 log10(X_FeO / X_Fe) to 0.005
+        assert all(
+            abs(xs[r] - x_fe * 10 ** (iw / 2)) < 0.005
+            for r, _, _, _, iw, _, x_fe, _ in SUER_RUNS
+        )
+        # the model lies above the runs on average (C_S of pyrolite, not of the run melts)
+        assert sum(resid.values()) / 9 == pytest.approx(0.2272, abs=1e-4)
+        # a = -3.30 of the Eq. 8 print moves every residual by +0.2 dex: 5 runs miss
+        assert {r for r, d in resid.items() if abs(d + 0.2) > SUER_TOL_DEX} == {1, 3, 4, 7, 9}
+
+        def figure():
+            import matplotlib.pyplot as plt
+
+            meas = [math.log10(r[3]) for r in SUER_RUNS]
+            fig, ax = plt.subplots()
+            lim = [0.5, 2.25]
+            ax.fill_between(
+                lim,
+                [v - SUER_TOL_DEX for v in lim],
+                [v + SUER_TOL_DEX for v in lim],
+                alpha=0.15,
+                label=f'1:1 $\\pm$ {SUER_TOL_DEX} dex',
+            )
+            ax.plot(lim, lim, ls='--', color=plt.rcParams['text.color'], label='1:1')
+            hit = [k for k, r in enumerate(SUER_RUNS) if r[0] not in SUER_MISSES]
+            miss = [k for k, r in enumerate(SUER_RUNS) if r[0] in SUER_MISSES]
+            ax.plot([model[k] for k in hit], [meas[k] for k in hit], 'o', label='runs within')
+            ax.plot(
+                [model[k] for k in miss],
+                [meas[k] for k in miss],
+                'o',
+                mfc='none',
+                label=f'run {", ".join(str(SUER_RUNS[k][0]) for k in miss)} (miss)',
+            )
+            ax.set(
+                xlim=lim,
+                ylim=lim,
+                xlabel=r'Eq. 7 $\log_{10} D_\mathrm{S}$',
+                ylabel=r'measured $\log_{10} D_\mathrm{S}$',
+            )
+            ax.set(xticks=[0.5, 1.0, 1.5, 2.0], yticks=[0.5, 1.0, 1.5, 2.0])
+            ax.legend(loc='upper left')
+            fig.tight_layout()
+            return fig
+
+        legend_clear(figure())
+        validation_plot(figure, 'metal_suer2017_s_runs')
+
+    def test_feo_term_needs_a_melt_feo_fraction(self):
+        """A law with an X_FeO term refuses a missing, zero or above-1 melt X_FeO."""
+        s = get_law('S', 'suer2017_eq7')
+        for xsil in (None, {}, {'FeO': 0.0}, {'FeO': 1.5}, {'FeO': math.nan}, {'FeO': True}):
+            with pytest.raises(ValueError, match='X_FeO'):
+                log10_D(s, 60.0, 4000.0, -1.0, {}, x_silicate=xsil)
+
+
+class TestOptionalTerms:
+    """The f (log10 X_FeO) and log10_C_S keys of a log10_linear entry."""
+
+    def test_entries_without_the_keys_match_the_stored_reference(self):
+        """Every packaged law and its mass D on the stored grid equal the stored reference.
+
+        Equal to the bit on the platform that stored them; elsewhere the libm round-off of
+        log10 and pow can differ, so there rel 1e-12.
+        """
+        stored = json.loads(REFERENCE_OUTPUTS.read_text())
+        meta = stored['meta']
+        same = (platform.system(), platform.machine()) == (meta['platform'], meta['machine'])
+        table = load_partition_table()
+        w_metal = {'O': 0.02, 'Si': 0.01, 'S': 0.03, 'H': 0.002, 'C': 0.004}
+        w_melt = {'H': 1e-4, 'C': 5e-5}
+        for el in ('H', 'C', 'N', 'S'):
+            got = [
+                [
+                    log10_D(table[el], p, t, d, {'O': 0.05, 'S': 0.04}),
+                    mass_D(table[el], p, t, d, w_metal, w_melt),
+                ]
+                for p, t, d in stored['meta']['grid']
+            ]
+            want = stored['law'][el]
+            flat = [x for pair in want for x in pair]
+            got_flat = [x for pair in got for x in pair]
+            assert got_flat == (flat if same else pytest.approx(flat, rel=1e-12, abs=0.0)), el
+            assert 'f' not in table[el] and 'log10_C_S' not in table[el]
+        got = [
+            list(exchange_metal(table, p, t, d, check=False).values())
+            for p, t, d in stored['meta']['grid']
+        ]
+        flat = [x for pair in stored['law']['OSi'] for x in pair]
+        got_flat = [x for pair in got for x in pair]
+        assert got_flat == (flat if same else pytest.approx(flat, rel=1e-12, abs=0.0))
+
+    @pytest.mark.parametrize(
+        'key, value',
+        [
+            ('f', 'true'),
+            ('f', '"1"'),
+            ('f', 'nan'),
+            ('log10_C_S', 'inf'),
+            ('log10_C_S', 'false'),
+        ],
+    )
+    def test_bad_optional_term_is_refused_by_name(self, tmp_path, key, value):
+        """A TOML boolean, string or non-finite value of f or log10_C_S raises naming the key."""
+        path = _write(tmp_path, _text(_as('S', **{key: value})))
+        with pytest.raises(PartitionTableError, match=f"'{key}'"):
+            load_partition_table(path)
+
+    @pytest.mark.parametrize('key', ['f', 'log10_C_S'])
+    @pytest.mark.parametrize('el', ['O', 'Si'])
+    def test_exchange_law_refuses_the_optional_terms(self, tmp_path, el, key):
+        """An exchange_KD entry does not read f or log10_C_S, so either key is refused."""
+        text = (
+            resources.files('calliope.data') / 'partition_coefficients_placeholder.toml'
+        ).read_text()
+        bad = text.replace(
+            f'[{el}]\nform = "exchange_KD"', f'[{el}]\n{key} = 1.0\nform = "exchange_KD"'
+        )
+        assert bad != text
+        with pytest.raises(PartitionTableError, match=f"'{key}'"):
+            load_partition_table(_write(tmp_path, bad))
+        assert load_partition_table(_write(tmp_path, text))[el]['form'] == 'exchange_KD'
+
+    def test_terms_add_f_log_x_feo_and_subtract_log_c_s(self, tmp_path):
+        """f 2, log10_C_S -1: log10 D rises by 2 log10 X_FeO + 1 over the same law without them."""
+        base = load_partition_table(_write(tmp_path, _text(_as('S'))))['S']
+        both = load_partition_table(
+            _write(tmp_path, _text(_as('S', f='2.0', log10_C_S='-1.0')))
+        )['S']
+        args = (50.0, 3500.0, -2.0, {})
+        gain = log10_D(both, *args, x_silicate={'FeO': 0.1}) - log10_D(base, *args)
+        assert gain == pytest.approx(2 * math.log10(0.1) + 1.0, rel=1e-12)
+        assert gain < 0.0  # X_FeO 0.1 lowers log10 D by 2, the C_S term adds 1
+
+
+class TestRangeDistance:
+    """range_distance: 0 inside, the distance to the nearer edge outside, NaN on an unknown range."""
+
+    @pytest.mark.physics_invariant
+    def test_each_axis_gives_its_distance(self):
+        """H law (30-60 GPa, 3080-4560 K, dIW -1.33 to -0.88): the distance per axis in its unit."""
+        h = load_partition_table()['H']
+        assert range_distance(h, 45.0, 4000.0, -1.0) == {'P_GPa': 0.0, 'T_K': 0.0, 'dIW': 0.0}
+        assert range_distance(h, 300.0, 2000.0, -2.33) == pytest.approx(
+            {'P_GPa': 240.0, 'T_K': 1080.0, 'dIW': 1.0}, rel=1e-12
+        )
+        assert range_distance(h, 10.0, 5000.0, 0.12)['P_GPa'] == pytest.approx(20.0)
+        assert range_distance(h, 10.0, 5000.0, 0.12)['dIW'] == pytest.approx(1.0)
+        # the edge itself is inside, as for out_of_range
+        assert range_distance(h, 60.0, 4560.0, -0.88) == {'P_GPa': 0.0, 'T_K': 0.0, 'dIW': 0.0}
+
+    def test_unknown_range_is_nan(self):
+        """The O law has no T and dIW range: those axes are NaN, the P axis a number."""
+        dist = range_distance(load_partition_table()['O'], 50.0, 4000.0, -2.0)
+        assert math.isnan(dist['T_K'])
+        assert math.isnan(dist['dIW'])
+        assert not math.isnan(dist['P_GPa'])  # 50 GPa lies inside 35-74 GPa
+        assert dist['P_GPa'] == pytest.approx(0.0, abs=0.0)
+
+
+def _const_law(p_gpa, t_k, d_iw, x_metal, x_silicate, nbo_t):
+    return 1.0 + 0.0 * p_gpa
+
+
+_DECL = {
+    'basis': 'mass',
+    'P_range_GPa': (0.0, 100.0),
+    'T_range_K': (1000.0, 5000.0),
+    'dIW_range': (-5.0, 0.0),
+    'source': 'constant law of the tests',
+    'doi': '10.0000/none',
+}
+
+
+class TestRegistry:
+    """Named laws: the packaged ones, registered callables and registered TOML entries."""
+
+    @pytest.fixture(autouse=True)
+    def _own_registry(self, monkeypatch):
+        monkeypatch.setattr(metal, '_LAWS', dict(metal._LAWS))
+
+    def test_packaged_names_resolve_to_their_entries(self):
+        """C fischer2020_eq1 is the placeholder C entry; S has the 2017 and the 2023 law."""
+        table = load_partition_table()
+        assert get_law('C', 'fischer2020_eq1') == table['C']
+        assert get_law('S', 'suer2023_line') == table['S']
+        assert get_law('S', 'suer2017_eq7') != table['S']
+        assert set(law_names('S')) == {'suer2017_eq7', 'suer2023_line'}
+
+    def test_callable_and_entry_with_the_same_law_give_the_same_d(self, tmp_path):
+        """A callable returning 1.0 and a mass-basis entry with a = 1 give D = 10 at any point."""
+        register_law('N', 'const', _const_law, **_DECL)
+        entry = load_partition_table(
+            _write(
+                tmp_path, _text(_as('N', a='1.0', b='0.0', c='0.0', d='0.0', basis='"mass"'))
+            )
+        )['N']
+        register_law('N', 'const_toml', entry)
+        args = (50.0, 3000.0, -2.0, {'O': 0.01}, {'H': 1e-4})
+        from_func = mass_D(get_law('N', 'const'), *args)
+        assert from_func == pytest.approx(10.0, rel=1e-12)
+        assert mass_D(get_law('N', 'const_toml'), *args) == pytest.approx(from_func, rel=1e-12)
+
+    def test_duplicate_unknown_and_bad_declarations_are_refused(self):
+        """A taken name, an unknown element or basis, a missing source or a reversed range raise."""
+        register_law('N', 'const', _const_law, **_DECL)
+        with pytest.raises(PartitionTableError, match='const'):
+            register_law('N', 'const', _const_law, **_DECL)
+        with pytest.raises(PartitionTableError, match='Fe'):
+            register_law('Fe', 'x', _const_law, **_DECL)
+        for bad in (
+            {'basis': 'volume'},
+            {'source': ''},
+            {'T_range_K': (5000.0, 1000.0)},
+            {'basis': 'mole'},
+        ):
+            with pytest.raises(PartitionTableError):
+                register_law('N', 'y', _const_law, **{**_DECL, **bad})
+        with pytest.raises(PartitionTableError, match='no law'):
+            get_law('N', 'missing')
+        with pytest.raises(PartitionTableError, match='exchange'):
+            register_law('O', 'z', _const_law, **_DECL)
+
+    def test_entry_registration_refuses_declarations_another_element_and_non_laws(self):
+        """An entry with declarations or of another element, or a law that is neither, raises."""
+        entry = load_partition_table()['N']
+        with pytest.raises(PartitionTableError, match='own declarations'):
+            register_law('N', 'n2', entry, basis='mass')
+        with pytest.raises(PartitionTableError, match="entry of 'S'"):
+            register_law('S', 'n_as_s', entry)
+        with pytest.raises(PartitionTableError, match='entry or a callable'):
+            register_law('N', 'n3', 2.0)
+        assert ('N', 'n2') not in metal._LAWS and ('S', 'n_as_s') not in metal._LAWS
+
+    def test_callable_that_returns_a_non_finite_value_names_the_law(self):
+        """A NaN from a registered law raises ValueError with its name and the point."""
+        register_law('N', 'nan_law', lambda *a: math.nan, **_DECL)
+        with pytest.raises(ValueError, match='nan_law.*50 GPa'):
+            log10_D(get_law('N', 'nan_law'), 50.0, 3000.0, -2.0)
+
+    def test_callable_receives_conditions_compositions_and_nbo_t(self):
+        """The callable gets P [GPa], T [K], dIW, x' of the metal, melt cation fractions, NBO/T."""
+        seen = []
+
+        def spy(*args):
+            seen.append(args)
+            return 1.0
+
+        register_law('N', 'spy', spy, **_DECL)
+        w_metal = {'O': 0.04, 'S': 0.02}
+        mass_D(get_law('N', 'spy'), 52.0, 3700.0, -1.7, w_metal, {}, nbo_t=1.9)
+        p, t, d_iw, x_metal, x_sil, nbo_t = seen[0]
+        assert (p, t, d_iw, nbo_t) == (52.0, 3700.0, -1.7, 1.9)
+        n = {'O': 0.04 / 15.999, 'S': 0.02 / 32.06, 'Fe': 0.94 / 55.845}
+        assert x_metal['O'] == pytest.approx(n['O'] / sum(n.values()), rel=1e-3)
+        assert sum(x_sil.values()) == pytest.approx(1.0, rel=1e-12)
+        assert x_sil['FeO'] == pytest.approx(0.05724206711840065, rel=1e-12)
+
+    @pytest.mark.parametrize(
+        'ret',
+        [True, math.inf, -math.inf, math.nan, '1.0', None, 10**400, 1j],
+        ids=['bool', 'inf', '-inf', 'nan', 'str', 'none', 'huge-int', 'complex'],
+    )
+    def test_callable_return_must_be_a_finite_real(self, ret):
+        """A bool, inf, NaN, string, None, an int past the float range or a complex raises by name."""
+        register_law('N', 'bad_ret', lambda *a: ret, **_DECL)
+        with pytest.raises(ValueError, match='bad_ret') as info:
+            log10_D(get_law('N', 'bad_ret'), 50.0, 3000.0, -2.0)
+        assert type(info.value) is ValueError
+
+    def test_numpy_real_return_is_accepted(self):
+        """A finite numpy float32 or int64 from a callable is a valid log10 D."""
+        for k, ret in enumerate((np.float32(1.5), np.int64(2))):
+            register_law('N', f'np{k}', lambda *a, r=ret: r, **_DECL)
+            val = log10_D(get_law('N', f'np{k}'), 50.0, 3000.0, -2.0)
+            assert val == pytest.approx(float(ret), rel=1e-7)
+            assert type(val) is float
+
+    def test_array_range_is_refused_by_name(self):
+        """A numpy array as a declared range raises PartitionTableError, not a broadcast error."""
+        with pytest.raises(PartitionTableError, match='T_range_K'):
+            register_law('N', 'arr', _const_law, **{**_DECL, 'T_range_K': np.array([1.0, 2.0])})
+        assert ('N', 'arr') not in metal._LAWS
+
+    def test_packaged_law_cannot_be_replaced_and_entries_are_stored_as_copies(self):
+        """replace on a packaged name raises; changing a registered entry later leaves the registry."""
+        with pytest.raises(PartitionTableError, match='packaged'):
+            register_law('S', 'suer2017_eq7', _const_law, replace=True, **_DECL)
+        entry = load_partition_table()['N']
+        register_law('N', 'copied', entry)
+        entry['a'] = 99.0
+        assert get_law('N', 'copied')['a'] == pytest.approx(2.121419, rel=1e-12)
+
+    def test_callable_is_shared_not_copied(self):
+        """get_law returns the registered function object itself, so its state is kept."""
+
+        class Law:
+            def __call__(self, *args):
+                return 1.0
+
+        law = Law()
+        register_law('N', 'obj', law, **_DECL)
+        assert get_law('N', 'obj')['func'] is law
+        assert log10_D(get_law('N', 'obj'), 50.0, 3000.0, -2.0) == pytest.approx(1.0, rel=1e-12)
+
+    def test_get_law_returns_a_copy(self):
+        """Changing a returned law changes neither the registry nor its eps table."""
+        s = get_law('S', 'suer2017_eq7')
+        s['a'], s['eps']['O'] = 0.0, 0.0
+        again = get_law('S', 'suer2017_eq7')
+        assert again['a'] == pytest.approx(-3.50, rel=1e-12)
+        assert again['eps']['O'] == pytest.approx(14.0, rel=1e-12)
+
+    def test_replace_registers_over_a_taken_name(self):
+        """A taken name raises unless replace=True, which stores the new law."""
+        register_law('N', 'twice', _const_law, **_DECL)
+        with pytest.raises(PartitionTableError, match='twice'):
+            register_law('N', 'twice', lambda *a: 2.0, **_DECL)
+        register_law('N', 'twice', lambda *a: 2.0, replace=True, **_DECL)
+        assert log10_D(get_law('N', 'twice'), 50.0, 3000.0, -2.0) == pytest.approx(
+            2.0, rel=1e-12
+        )
+
+    def test_incomplete_entry_is_refused(self):
+        """An entry dict without the coefficients of a law raises at registration."""
+        with pytest.raises(PartitionTableError, match="'quantity' must be one of"):
+            register_law('N', 'bare', {'element': 'N', 'form': 'log10_linear'})
+        assert ('N', 'bare') not in metal._LAWS
+
+    def test_mass_law_does_not_read_the_melt_oxides(self):
+        """A mass-basis law without an FeO term gives its D for any oxide keys of the melt."""
+        n = load_partition_table()['N']
+        d = mass_D(n, 20.0, 3000.0, -2.0, {}, {}, oxides={'FeO': 8.0, 'MnO': 0.1})
+        assert d == pytest.approx(10 ** log10_D(n, 20.0, 3000.0, -2.0), rel=1e-12)
+        assert d > 1.0  # D_N of the line at dIW -2 is about 3.4
+
+
+@pytest.mark.physics_invariant
+def test_feo_of_a_law_with_f_comes_from_diw_and_inverts_the_from_feo_diw():
+    """mass_D gives the S law X_FeO = x'_Fe 10^(dIW/2); at the dIW that the reservoir derives
+    from the melt FeO (from_FeO mode) it evaluates the law at that same melt FeO."""
+    from calliope.solve import _metal_diw
+
+    s = get_law('S', 'suer2017_eq7')
+    w = {'O': 0.03, 'Si': 0.02, 'S': 0.04, 'H': 0.001}
+    n = {el: v / metal._mass(el) for el, v in w.items()}
+    n_fe = (1 - sum(w.values())) / metal._mass('Fe')
+    free = n_fe + n['O'] + n['Si'] + n['S']
+    units = (n_fe + sum(n.values())) / metal.silicate_units_per_kg()
+    for diw in (-2.5, -1.2):
+        want = 10 ** _suer(s, 60.0, 4000.0, n_fe / free * 10 ** (diw / 2), n['O'] / free)
+        assert mass_D(s, 60.0, 4000.0, diw, w, {}) == pytest.approx(want * units, rel=1e-12)
+    diw_back = _metal_diw({'dIW_eq_mode': 'from_FeO'}, w, metal.KLB1)
+    melt = metal.cation_fraction(metal.KLB1, 'FeO')
+    want = 10 ** _suer(s, 60.0, 4000.0, melt, n['O'] / free) * units
+    assert mass_D(s, 60.0, 4000.0, diw_back, w, {}) == pytest.approx(want, rel=1e-12)
+
+
+class TestRangeAndFeoBounds:
+    """Range shapes, and the FeO bounds of mass_D at a pure Fe metal (x'_Fe = 1)."""
+
+    def test_point_range_is_accepted_and_three_values_refused(self):
+        """A range [20, 20] (one point) loads; [1, 2, 3] raises PartitionTableError by name."""
+        assert metal._range([20.0, 20.0], 'N', 'P_range_GPa') == (20.0, 20.0)
+        with pytest.raises(PartitionTableError, match='P_range_GPa'):
+            metal._range([1.0, 2.0, 3.0], 'N', 'P_range_GPa')
+
+    def test_feo_of_one_is_allowed_and_beyond_raises(self):
+        """Pure Fe at dIW 0 gives X_FeO = 1 exactly, a finite D; dIW 1e-9 above raises."""
+        s = get_law('S', 'suer2017_eq7')
+        d = mass_D(s, 60.0, 4000.0, 0.0, {}, {})
+        assert math.isfinite(d) and d > 0.0
+        assert 10 ** log10_D(s, 60.0, 4000.0, 0.0, {}, x_silicate={'FeO': 1.0}) > 0.0
+        with pytest.raises(ValueError, match='ideal-mixing limit'):
+            mass_D(s, 60.0, 4000.0, 1e-9, {}, {})
+
+    def test_underflow_bound_is_at_x_feo_1e_minus_300(self):
+        """Pure Fe at dIW -600 gives X_FeO = 1e-300, still finite; dIW -600.01 raises by name."""
+        s = get_law('S', 'suer2017_eq7')
+        assert mass_D(s, 60.0, 4000.0, -600.0, {}, {}) > 0.0
+        with pytest.raises(ValueError, match='underflow'):
+            mass_D(s, 60.0, 4000.0, -600.01, {}, {})
