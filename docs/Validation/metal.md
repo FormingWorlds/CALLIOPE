@@ -161,7 +161,7 @@ Inputs, outputs and the placeholder laws are on the [metal reservoir page](../Re
 
 ## Suer et al. (2017) S runs
 
-**Why this check exists.** The core and mantle split takes the S law of [Suer et al. (2017)](https://doi.org/10.1016/j.epsl.2017.04.016). A wrong term in that law moves $D_\mathrm{S}$ by more than a factor of 10. An example is a natural log where the paper means log10.
+**Why this check exists.** The core and mantle split takes the S law of [Suer et al. (2017)](https://doi.org/10.1016/j.epsl.2017.04.016). A wrong term in that law can move $D_\mathrm{S}$ by more than a factor of 10. An example is a natural log where the paper means log10.
 
 **What it tests.** The law is evaluated at the 9 diamond anvil cell runs of their Table 1 (46 to 91 GPa, 3100 to 4100 K) and compared with the measured $D_\mathrm{S}$. The law is their Eq. 7 with log10 in every term and the coefficients of their Table 3:
 

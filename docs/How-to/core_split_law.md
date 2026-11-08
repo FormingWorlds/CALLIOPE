@@ -58,7 +58,7 @@ law_file = '''schema_version = 1
 
 [meta]
 name = "my-laws"           # any name for your file
-placeholder = false        # true only for laws that are not fitted to data
+placeholder = false        # true makes each solve with this file log a warning
 
 [H]                        # the element of the law
 form = "log10_linear"      # the standard form above
@@ -88,7 +88,7 @@ The [partition file reference](../Reference/partition_file.md#file-schema) lists
 
 ### Step A3: load the file and register the law
 
-`load_partition_table` reads the file and checks every field. `register_law` stores the law under a name that the split can use:
+`load_partition_table` reads the file and checks every field. `register_law` stores the law under a name that the split can use. A name can be registered once per Python session; to run this step again in the same session, pass `replace=True`:
 
 ```python
 table = load_partition_table('my_laws.toml')
@@ -140,7 +140,7 @@ The split also logs one warning for each law outside its range, as in the [tutor
 
 ## Example B: a law as a Python function
 
-A function law can have any form. The example is the S law of [Suer et al. (2017)](https://doi.org/10.1016/j.epsl.2017.04.016), Eq. 7. CALLIOPE already holds this law as the entry `suer2017_eq7`, so you can check your function against it.
+A function law can have any form. The example is the S law of [Suer et al. (2017)](https://doi.org/10.1016/j.epsl.2017.04.016), Eq. 7. CALLIOPE already holds this law as the entry `suer2017_eq7`, so you can check your function against it. Example B runs on its own: its first block has all the imports it needs.
 
 ### Step B1: the arguments of a function law
 
@@ -169,6 +169,9 @@ with $\log_{10} C_\mathrm{S} = -5.372$ (their Fig. 6, a pyrolite melt). The melt
 
 ```python
 import math
+
+from calliope.core_split import split_core_mantle
+from calliope.metal import get_law, mass_D, register_law
 
 
 def suer2017_s(p_gpa, t_k, d_iw, x_metal, x_silicate, nbo_t):
@@ -209,8 +212,6 @@ register_law(
 Compare the function with the packaged entry of the same law at one metal composition. `mass_D` gives $D$ on the mass basis, as the split uses it:
 
 ```python
-from calliope.metal import mass_D
-
 w_metal = {'O': 0.02, 'Si': 0.03, 'S': 0.02}  # metal mass fractions; the rest is Fe
 mine = mass_D(get_law('S', 'my_suer2017'), 60.0, 4000.0, -1.5, w_metal, {})
 packaged = mass_D(get_law('S', 'suer2017_eq7'), 60.0, 4000.0, -1.5, w_metal, {})
@@ -226,6 +227,9 @@ For a law that CALLIOPE does not hold, check the function against a value of the
 ### Step B5: use the function in the split
 
 ```python
+bulk = {'H': 1.5e20, 'C': 1.5e19, 'N': 8.0e18, 'S': 8.0e20}  # kg
+M_metal, M_silicate = 1.94e24, 4.03e24  # kg, the Earth's core and mantle
+metal = {'O': 0.02, 'Si': 0.03}  # metal mass fractions of O and Si
 for name in ('suer2017_eq7', 'my_suer2017'):
     core, mantle, flags = split_core_mantle(
         bulk, M_metal, M_silicate, dIW=-1.5, w_fixed=metal, laws={'S': name}
@@ -245,9 +249,10 @@ my_suer2017: S core share 0.9744
 | Registered an H entry as a law of S | `PartitionTableError: 'S': needs a law entry of 'S'` | Register the entry under its own element. |
 | Used a name that is already held | `PartitionTableError: 'H': law name 'tagawa2021_eq2' is empty or taken` | Pick a new name, or pass `replace=True` to store over a law that you registered. A packaged law cannot be replaced. |
 | Asked for a name that is not registered | `PartitionTableError: laws['H'] = 'tsutsumi': no law 'tsutsumi' for 'H'; known: ['tagawa2021_eq2']` | Register the law first; the message lists the names held. |
+| Gave the split a law entry of another element | `PartitionTableError: laws['S'] = {...}: 'S': needs a law entry of 'S'` | Give each element a law of that element. |
 | Gave a law for an element that is not in the bulk | `ValueError: laws names elements outside bulk_kg: ['H']` | Give laws only for the elements of `bulk_kg`. |
 | Left out a required declaration of a function law | `PartitionTableError: 'S': 'source' must be a non-empty string` | Give `basis`, `P_range_GPa`, `source`, `doi` and, for a mole basis, `silicate_basis`. |
-| Wrote a function that returns NaN | `ValueError: split of S: nanlaw law of S returned nan at P 60 GPa, T 4000 K, dIW -1.5` | Return a finite number. Where the law cannot be evaluated, raise `ValueError` with a clear message. |
+| Registered a function `nanlaw` that returns NaN | `ValueError: split of S: nanlaw law of S returned nan at P 60 GPa, T 4000 K, dIW -1.5` | Return a finite number. Where the law cannot be evaluated, raise `ValueError` with a clear message. |
 
 A function must raise `ValueError` for a point that it cannot evaluate, as `suer2017_s` does above. What the split then does depends on the pass:
 

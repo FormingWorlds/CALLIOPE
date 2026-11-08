@@ -136,7 +136,7 @@ When a planet forms its core, liquid iron sinks through the magma ocean and take
 
 ### The mass balance
 
-The split takes 4 quantities for each element $i$:
+The mass balance of each element $i$ uses 4 quantities. The split gets the first 3 as inputs and computes $D_i$ from the law of the element:
 
 - $M_i$, the bulk mass of the element, in kg;
 - $M_\mathrm{metal}$, the mass of the metal that equilibrates with the silicate, in kg;
@@ -151,7 +151,7 @@ $$
 
 The mantle holds $M_\mathrm{silicate} w_i$ and the core holds $D_i M_\mathrm{metal} w_i$. With $x = M_\mathrm{metal}/M_\mathrm{silicate}$, the core takes the fraction $D_i x/(1 + D_i x)$ of the bulk.
 
-**Worked example.** The Earth has $M_\mathrm{metal} = 1.94 \times 10^{24}$ kg and $M_\mathrm{silicate} = 4.03 \times 10^{24}$ kg, so $x = 0.481$. An element with a constant $D = 100$ puts $100 \times 0.481 / (1 + 100 \times 0.481) = 0.9796$ of its bulk into the core (Step 4 of the [core split tutorial](../Tutorials/core_split.md)). With the real S law, $D_\mathrm{S}$ depends on the conditions: at $\Delta\mathrm{IW} = -3$ the core of the same planet takes 0.871 of the S.
+**Worked example.** The Earth has $M_\mathrm{metal} = 1.94 \times 10^{24}$ kg and $M_\mathrm{silicate} = 4.03 \times 10^{24}$ kg, so $x = 0.481$. An element with a constant $D = 100$ puts $100 \times 0.481 / (1 + 100 \times 0.481) = 0.9796$ of its bulk into the core (Step 4 of the [core split tutorial](../Tutorials/core_split.md)). With the real S law, $D_\mathrm{S}$ depends on the conditions. For the planet of the tutorial (these masses, with 2 wt% O and 3 wt% Si in the metal), the core takes 0.871 of the S at $\Delta\mathrm{IW} = -3$.
 
 After each split, the code checks for each element that core plus mantle equals the bulk, to $10^{-12}$ of the bulk. It raises `RuntimeError` when this element ledger does not close.
 
