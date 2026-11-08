@@ -60,7 +60,7 @@ The ranges come from the runs of the fit:
 - The runs of Tagawa et al. (2021) [^cite-tagawa2021], the other data of the fit: 30-60 GPa, 3080-4560 K, $\Delta\mathrm{IW}$ $-1.33$ to $-0.88$ (the ranges of the placeholder H law).
 - Together: 30-60 GPa, 3080-4760 K, $\Delta\mathrm{IW}$ $-1.78$ to $-0.88$.
 
-Tsutsumi et al. give the 1-sigma error of each coefficient, but not the covariance between them. The covariance cannot be built from the errors alone, so `covariance` stays empty (see [Part 2](#part-2-covariance-ranges-and-basis)).
+Tsutsumi et al. [^cite-tsutsumi2025] give the 1-sigma error of each coefficient, but not the covariance between them. The covariance cannot be built from the errors alone, so `covariance` stays empty (see [Part 2](#part-2-covariance-ranges-and-basis)).
 
 ### Step 3: write your own file
 
