@@ -1482,14 +1482,11 @@ def test_common_passes_that_run_out_of_iron_raise_value_error():
             raise core_split._IronOut('the metal has no iron left')
         return None
 
-    with pytest.MonkeyPatch.context() as mp:
+    with pytest.MonkeyPatch.context() as mp, pytest.raises(Exception) as info:
         mp.setattr(core_split, '_relaxed_passes', passes)
-        try:
-            core_split._relaxed_fixed_point('ev', {'S': 0.0}, {})
-        except Exception as err:  # the type is the point of the test
-            got = err
-    assert type(got) is ValueError
-    assert 'no iron left' in str(got)
+        core_split._relaxed_fixed_point('ev', {'S': 0.0}, {})
+    assert type(info.value) is ValueError
+    assert 'no iron left' in str(info.value)
 
 
 def test_metal_flags_are_taken_at_the_returned_core():
@@ -1565,6 +1562,8 @@ def test_more_iron_skips_a_metal_without_sulfur():
         ({'S': 0.9}, {'S': 0.9 - 0.9e-8}, 'damped'),
         ({'S': 0.9, 'C': 0.0}, {'S': 0.9 - 1e-11, 'C': 5e-16}, 'out'),
         ({'S': 0.9, 'C': 0.0}, {'S': 0.9 - 1e-11, 'C': 5e-15}, 'damped'),
+        ({'S': 0.5, 'O': 0.01}, {'S': 0.1, 'O': 0.01}, 'damped'),
+        ({'S': 0.5, 'C': 0.25}, {'S': 0.25, 'C': 0.5}, 'out'),
     ],
     ids=[
         'S-apart-1e-10',
@@ -1572,13 +1571,52 @@ def test_more_iron_skips_a_metal_without_sulfur():
         'S-apart-1e-8',
         'C-within-the-floor',
         'C-past-the-floor',
+        'O-equal-S-apart',
+        'other-metal-same-iron',
     ],
 )
 def test_same_metal_test_takes_grid_rtol_and_the_absolute_floor(w, damped, want):
-    """A damped root with more iron is the same metal within 1e-9 of each element plus 1e-15."""
+    """A damped root replaces the return when some element is apart by more than 1e-9 of it plus 1e-15 and it holds more iron."""
     out = ({'S': 0.3}, {'S': 0.7}, w)
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(core_split, '_relaxed_passes', lambda *a: ({'S': 0.1}, {'S': 0.9}, damped))
         got = core_split._more_iron('ev', {'S': 0.0}, {}, out)
-    assert core_split._iron(damped) > core_split._iron(w)
+    assert core_split._iron(damped) >= core_split._iron(w)
     assert got == ((*out, 0) if want == 'out' else ({'S': 0.1}, {'S': 0.9}, damped, 1))
+
+
+def test_return_at_w_returns_core_and_mantle_of_a_settled_element_exactly():
+    """A settled T with g 0.1, core 0.7 and mantle 1e-17: the return at w keeps them bit for bit."""
+    evaluate, start, calls, w1, root = _steep_stub()
+
+    def with_t(w, w_melt):
+        core, mantle, g, melt = evaluate(w, w_melt)
+        return {**core, 'T': 0.7}, {**mantle, 'T': 1e-17}, {**g, 'T': 0.1}, melt
+
+    core, mantle, w = core_split._relaxed_passes(with_t, {**start, 'T': 0.1}, {}, False)
+    assert w['S'] == w1
+    assert (core['T'], mantle['T'], w['T']) == (0.7, 1e-17, 0.1)
+
+
+def test_damped_copy_of_the_same_root_keeps_the_first_return():
+    """Broad split 406 (N-S, iron 0.03): the damped passes settle on the same metal, root_rule stays 0."""
+    seen = []
+    real = core_split._relaxed_passes
+
+    def spy(*args):
+        out = real(*args)
+        if len(args) > 4 and args[4] is not None:
+            seen.append(out)
+        return out
+
+    bulk = {'N': 1.348114751228927e17, 'S': 4.3066463804687136e20}
+    m_metal, m_sil, diw = 3.596599122212297e20, 1.4136240092523026e19, -3.7279181738087535
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(core_split, '_relaxed_passes', spy)
+        core, mantle, flags = split_core_mantle(
+            bulk, m_metal, m_sil, dIW=diw, w_fixed={'O': 0.1}
+        )
+    assert len(seen) == 1 and seen[0] is not None  # the damped passes ran and settled
+    w = {el: core[el] / m_metal for el in bulk}
+    assert all(abs(seen[0][2][el] - v) <= 1e-9 * v for el, v in w.items())
+    assert flags['metal']['root_rule'] == 0
