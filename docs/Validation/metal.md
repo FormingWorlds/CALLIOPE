@@ -219,7 +219,7 @@ The residual (model minus measurement) is +0.30, -0.12, +0.42, +0.42, +0.03, -0.
 
 **Why this check exists.** The split must find the metal composition for any planet, not only for an Earth-like one. Some inputs, with much S or C and little iron, are hard for the solver ([Core split solver](../Reference/core_split_solver.md)). This check shows how often the split converges, how often it stops with an error, and how well the returned metal meets the laws.
 
-**What it tests.** The sweep sampler `tools/core_split_sweep.py` draws random splits: metal $10^{20}$ to $3 \times 10^{24}$ kg, each element $10^{-6}$ to 2.5 times the metal mass, $\Delta\mathrm{IW}$ -5 to -0.2, and metal O 0, 0.02 or 0.1. It has 2 strata, which differ in the silicate mass:
+**What it tests.** The sweep sampler `tools/core_split_sweep.py` draws random splits: metal $10^{20}$ to $3 \times 10^{24}$ kg, each element $10^{-6}$ to 2.5 times the metal mass, $\Delta\mathrm{IW}$ -5 to -0.2, and metal O 0, 0.02 or 0.1. It has 2 strata, which differ in the silicate mass (table below).
 
 **How we know the right answer.** A converged split must meet its laws: the metal mass fraction of each element must equal $D$ times its silicate mass fraction. `flags[e]['D_residual']` is the relative difference. A split that does not converge raises `ValueError` or `RuntimeError`.
 
