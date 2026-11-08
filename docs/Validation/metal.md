@@ -161,7 +161,7 @@ Inputs, outputs and the placeholder laws are on the [metal reservoir page](../Re
 
 ## Suer et al. (2017) S runs
 
-**Why this check exists.** The core and mantle split takes S from the law of [Suer et al. (2017)](https://doi.org/10.1016/j.epsl.2017.04.016). A wrong term in that law, for example a natural log where the paper means log10, moves $D_\mathrm{S}$ by more than a factor of 10.
+**Why this check exists.** The core and mantle split takes the S law of [Suer et al. (2017)](https://doi.org/10.1016/j.epsl.2017.04.016). A wrong term in that law moves $D_\mathrm{S}$ by more than a factor of 10. An example is a natural log where the paper means log10.
 
 **What it tests.** The law is evaluated at the 9 diamond anvil cell runs of their Table 1 (46 to 91 GPa, 3100 to 4100 K) and compared with the measured $D_\mathrm{S}$. The law is their Eq. 7 with log10 in every term and the coefficients of their Table 3:
 
@@ -171,7 +171,7 @@ $$
 
 with $T$ in K, $P$ in GPa, $X_\mathrm{FeO}$ the mole fraction of FeO in the silicate melt, $X_\mathrm{O}$ the mole fraction of O in the metal and $C_\mathrm{S}$ the sulfide capacity of the melt. $D_\mathrm{S}$ is a ratio of mole fractions (their Eq. 1). Each run uses its own $X_\mathrm{FeO}$ and $X_\mathrm{O}$ from Table 1, and $\log_{10} C_\mathrm{S} = -5.372$, the value of their Fig. 6 for a pyrolite mantle. Table 1 does not list the $C_\mathrm{S}$ of each run.
 
-For run 7, Table 1 (p. 91) prints $X_\mathrm{FeO}$ = 0.02, which we read as a misprint of 0.20. The same row gives IW -1.06, and with $\mathrm{IW} = 2\log_{10}(X_\mathrm{FeO}/X_\mathrm{Fe})$ and $X_\mathrm{Fe}$ = 0.68 that needs $X_\mathrm{FeO}$ = 0.2007. The FeO of 25.62 wt% in their Table 2 (p. 92) gives 0.204 on the single-cation basis. The test uses 0.20 for run 7. For the other 8 runs the IW column and $X_\mathrm{FeO}$ agree to 0.005.
+For run 7, Table 1 (p. 91) prints $X_\mathrm{FeO}$ = 0.02. We read this as a misprint of 0.20, for 2 reasons. The same row gives IW -1.06, and with $\mathrm{IW} = 2\log_{10}(X_\mathrm{FeO}/X_\mathrm{Fe})$ and $X_\mathrm{Fe}$ = 0.68 that needs $X_\mathrm{FeO}$ = 0.2007. The FeO of 25.62 wt% in their Table 2 (p. 92) gives 0.204 on the single-cation basis. The test uses 0.20 for run 7. For the other 8 runs the IW column and $X_\mathrm{FeO}$ agree to 0.005.
 
 **How we know the right answer.** The measured $D_\mathrm{S}$ of each run is in Table 1. The tolerance is 0.47 dex, the 1-sigma uncertainty that Table 3 gives for the coefficient $a$.
 
@@ -182,7 +182,11 @@ For run 7, Table 1 (p. 91) prints $X_\mathrm{FeO}$ = 0.02, which we read as a mi
 
 **How to read the plot.** The x-axis is $\log_{10} D_\mathrm{S}$ from Eq. 7 and the y-axis the measured value. The dashed line is 1:1 and the band is $\pm$0.47 dex around it. Filled points are runs within the band; the open point is run 7. A pass means that 8 runs lie in the band and run 7 lies outside it.
 
-The residual (model minus measurement) is +0.30, -0.12, +0.42, +0.42, +0.03, -0.03, +0.50, +0.15 and +0.38 dex for runs 1 to 9, with a mean of +0.23 dex. Run 7 is a stated miss at +0.495 dex, 0.025 dex outside the band; with the IW value 0.2007 it would be +0.497 dex. With the printed $X_\mathrm{FeO}$ of 0.02 it would miss by 0.035 dex on the other side (-0.505 dex). A possible cause of the mean offset is the $C_\mathrm{S}$ value: it is for a pyrolite melt, while the runs use MORB and KLB-1 melts (Table 1). With $a = -3.30$, the value printed in their Eq. 8, every residual is 0.2 dex larger and 5 runs miss.
+The residual (model minus measurement) is +0.30, -0.12, +0.42, +0.42, +0.03, -0.03, +0.50, +0.15 and +0.38 dex for runs 1 to 9. The mean is +0.23 dex.
+
+- Run 7 is a stated miss at +0.495 dex, 0.025 dex outside the band. With the IW value 0.2007 it would be +0.497 dex. With the printed $X_\mathrm{FeO}$ of 0.02 it would miss by 0.035 dex on the other side (-0.505 dex).
+- A possible cause of the mean offset is the $C_\mathrm{S}$ value. It is for a pyrolite melt, while the runs use MORB and KLB-1 melts (Table 1).
+- With $a = -3.30$, the value printed in their Eq. 8, every residual is 0.2 dex larger and 5 runs miss.
 
 ??? info "Test details"
     - Reference: Suer et al. (2017), Eq. 7, Table 1 (runs), Table 3 (coefficients), Fig. 6 ($\log_{10} C_\mathrm{S}$).
@@ -192,7 +196,7 @@ The residual (model minus measurement) is +0.30, -0.12, +0.42, +0.42, +0.03, -0.
 
 ## Core and mantle split
 
-**Why this check exists.** `calliope.core_split.split_core_mantle` puts the bulk mass of each element into the core or the mantle. A wrong factor in the split, or a mantle mass that is not computed from the same melt fraction as the core mass, creates or destroys mass.
+**Why this check exists.** `calliope.core_split.split_core_mantle` puts the bulk mass of each element into the core or the mantle. 2 faults would create or destroy mass: a wrong factor in the split, or a mantle mass that is not computed from the same melt fraction as the core mass.
 
 **What it tests.** With a constant mass-basis $D$ and $x = M_\mathrm{metal}/M_\mathrm{silicate}$ (here 1.94/4.03, the masses of Earth's core and mantle), the core must hold the fraction $Dx/(1 + Dx)$ of the bulk, for $D$ from 0.1 to 1000. A second test checks the element ledger, bulk = core + mantle with both parts at 0 or above, for random $D$ from $10^{-6}$ to $10^6$ and masses from $10^{15}$ to $10^{24}$ kg. The split itself checks the same ledger on every call and raises `RuntimeError` when it fails.
 

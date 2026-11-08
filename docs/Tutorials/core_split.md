@@ -1,6 +1,6 @@
 # Core and mantle split
 
-This tutorial splits the bulk H, C, N and S of a planet between its core and its mantle at one equilibration point, the step at which the core forms. It uses `calliope.core_split.split_core_mantle`.
+When a planet forms its core, the metal takes part of the H, C, N and S with it. This tutorial divides the bulk mass of these elements between the core and the mantle with `calliope.core_split.split_core_mantle`. The split happens once, at one pressure, temperature and redox state: the equilibration point.
 
 By the end of it you will:
 
@@ -8,10 +8,10 @@ By the end of it you will:
 - know how to read the out-of-range flag and the distance outside each range;
 - have seen how $\Delta\mathrm{IW}$ sets the S split and what the metal flag says;
 - have seen what a point at a core-mantle boundary pressure does to the S split;
-- have added your own S law by name and used it in the split;
+- have added a simple S law of your own and used it in the split;
 - have checked the element ledger, bulk = core + mantle.
 
-You should already have done the [metal reservoir tutorial](metal_reservoir.md). The physics is in the section [Core and mantle split at an equilibration point](../Explanations/metal.md#core-and-mantle-split-at-an-equilibration-point), and every input and output is on the [partition file reference](../Reference/partition_file.md#named-laws-and-the-core-split). Run the steps in order in one Python session. The whole tutorial runs in a few seconds.
+You should already have done the [metal reservoir tutorial](metal_reservoir.md). The physics is in the section [Core and mantle split at an equilibration point](../Explanations/metal.md#core-and-mantle-split-at-an-equilibration-point). Every input and output is on the [partition file reference](../Reference/partition_file.md#named-laws-and-the-core-split). Run the steps in order in one Python session. The whole tutorial runs in a few seconds.
 
 ## Step 1: split at the default point
 
@@ -50,11 +50,17 @@ C partition law fischer2020_eq1 evaluated outside its range: P_eq 60 GPa, T_eq 4
 N partition law suer2023_line evaluated outside its range: P_eq 60 GPa, T_eq 4000 K, dIW -1.5 (distance {'P_GPa': 40.0, 'T_K': 1000.0, 'dIW': 0.0})
 ```
 
-**How to read the flags.** The H law comes from runs at dIW -1.33 to -0.88, so dIW -1.5 is 0.17 log10 units outside. The C law has data up to 59 GPa, 1 GPa below the point. The N law is a line at 20 GPa and 3000 K only, so every other point is outside. The split still uses each law at the given point: a flag tells you to read the result with care, it does not change it.
+**How to read the flags.** Each distance says how far the point is outside the data of the law:
+
+- The H law comes from runs at dIW -1.33 to -0.88, so dIW -1.5 is 0.17 log10 units outside.
+- The C law has data up to 59 GPa, 1 GPa below the point.
+- The N law is a line at 20 GPa and 3000 K only, so every other point is outside.
+
+The split still uses each law at the given point. A flag tells you to read the result with care; it does not change the result.
 
 ## Step 2: the redox state
 
-$\Delta\mathrm{IW}$ is the one redox input of the split. The S law reads the FeO of the melt, and the split takes it from $\Delta\mathrm{IW}$ and the iron of the metal, $X_\mathrm{FeO} = x'_\mathrm{Fe}\,10^{\Delta\mathrm{IW}/2}$, so a more oxidised equilibrium puts more S into the core:
+$\Delta\mathrm{IW}$ is the one redox input of the split. The S law depends on the FeO of the melt. The split computes that FeO from $\Delta\mathrm{IW}$ and the iron of the metal, $X_\mathrm{FeO} = x'_\mathrm{Fe}\,10^{\Delta\mathrm{IW}/2}$. A more oxidised equilibrium therefore has more FeO and puts more S into the core:
 
 ```python
 for diw in (-3.0, -0.5):
@@ -68,7 +74,14 @@ dIW -3.0: S core share 0.871, metal 0
 dIW -0.5: S core share 0.992, metal 0
 ```
 
-At dIW -1.5 (Step 1) the share is 0.974. Both points lie outside the dIW range of the S law (-1.7 to -1.0), so each is flagged; the warning comes once per law and process. `flags['metal']` holds the light-element and S mole fractions of the metal and its S to Fe mole ratio, `S_over_Fe`; `beyond_FeS` is 1 when the metal holds more S than Fe, past FeS, which a large bulk S on a small metal mass can give. `root_rule` is 1 when such a split returns a root with more Fe than the first one it found (see the [metal page](../Explanations/metal.md#core-and-mantle-split-at-an-equilibration-point)).
+At dIW -1.5 (Step 1) the share is 0.974. Both points lie outside the dIW range of the S law (-1.7 to -1.0), so each is flagged. The warning comes once per law and process.
+
+`flags['metal']` describes the metal:
+
+- `x_light` and `x_S` are the mole fractions of all light elements and of S;
+- `S_over_Fe` is the S to Fe mole ratio;
+- `beyond_FeS` is 1 when the metal holds more S than Fe, past FeS. A large bulk S on a small metal mass can give this;
+- `root_rule` is 1 when such a split returns a root with more Fe than the first one it found (see [how the solver finds the split](../Explanations/metal.md#how-the-solver-finds-the-split)).
 
 ## Step 3: a point at a core-mantle boundary pressure
 
@@ -83,11 +96,11 @@ print('S at 300 GPa, 5500 K: core share', f'{core2["S"] / bulk["S"]:.3f}', flags
 S at 300 GPa, 5500 K: core share 0.998 {'out_of_range': 1, 'P_GPa': 209.0, 'T_K': 1400.0, 'dIW': 0.0, 'D_residual': 0.0}
 ```
 
-The S law now runs 209 GPa and 1400 K beyond its data. From 60 GPa and 4000 K to this point the $cP/T$ term of the law rises by 1.31 and the $b/T$ term falls by 0.20, so $D_\mathrm{S}$ rises and the core takes 99.8 % of the S. No measurement backs this number. This is why the default point is 60 GPa and 4000 K and not the core-mantle boundary.
+The S law now runs 209 GPa and 1400 K beyond its data. From 60 GPa and 4000 K to this point, the $cP/T$ term of the law rises by 1.31 and the $b/T$ term falls by 0.20. So $D_\mathrm{S}$ rises, and the core takes 99.8 % of the S. No measurement backs this number. This is why the default point is 60 GPa and 4000 K, and not the core-mantle boundary.
 
 ## Step 4: your own S law
 
-Register a law under a new name. This one is a constant, $D_\mathrm{S} = 100$ on the mass basis, so its result has a closed form.
+Register a law under a new name. This one is a constant, $D_\mathrm{S} = 100$ on the mass basis. Its result then has a closed form: the core takes $Dx/(1 + Dx)$ of the bulk, with $x = M_\mathrm{metal}/M_\mathrm{silicate}$.
 
 ```python
 register_law(
@@ -115,7 +128,7 @@ print(
 S with D = 100: core share 0.9796, closed form 0.9796
 ```
 
-A function law gets the pressure in GPa, the temperature in K, $\Delta\mathrm{IW}$, the metal mole fractions, the melt oxide fractions and the NBO/T of the melt, and returns $\log_{10} D$. A second `register_law` under the same name needs `replace=True`. To add a law from a paper as a file entry instead, see [Add a new partition law](partition_law.md) and pass the loaded entry to `register_law`.
+A function law gets the pressure in GPa, the temperature in K, $\Delta\mathrm{IW}$, the metal mole fractions, the melt oxide fractions and the NBO/T of the melt. It returns $\log_{10} D$. A second `register_law` under the same name needs `replace=True`. To add a law from a paper, as a file entry or as a function, follow [Add a partition law to the core split](../How-to/core_split_law.md).
 
 ## Step 5: the element ledger
 
@@ -127,4 +140,4 @@ print(max(abs(core[el] + mantle[el] - bulk[el]) / bulk[el] for el in bulk) < 1e-
 True
 ```
 
-The split checks this ledger itself on every call and raises `RuntimeError` above $10^{-12}$; here the largest error is of the order of 1e-16 of the bulk, the round-off of one addition.
+The split checks this ledger itself on every call and raises `RuntimeError` above $10^{-12}$ of the bulk. Here the largest error is of the order of 1e-16 of the bulk, the round-off of one addition.

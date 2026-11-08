@@ -93,7 +93,33 @@ Suer et al. (2023) give an uncertainty of up to 20 % on their Table 1 values. In
 | S | `suer2023_line` | the S law above | `partition_coefficients_placeholder.toml` |
 | S | `suer2017_eq7` | [Suer et al. (2017)](https://doi.org/10.1016/j.epsl.2017.04.016) Eq. 7 with log10 in every term: a -3.50, b 3000, c 33 (Table 3), f 1, `log10_C_S` -5.372 (Fig. 6, pyrolite), eps O 14; mole basis (their Eq. 1), single-cation melt basis assumed; 1-91 GPa, 1873-4100 K (p. 91), dIW -1.7 to -1.0 (p. 90) | `partition_laws_core.toml` |
 
-`calliope.metal.register_law(element, name, law, ...)` adds a law of H, C, N or S under a new name (`replace=True` stores it over a registered law of the same name; a packaged law cannot be replaced). `law` is either a `log10_linear` entry of a loaded partition file, or a function `f(p_gpa, t_k, d_iw, x_metal, x_silicate, nbo_t)` that returns $\log_{10} D$, with the keywords `basis`, `silicate_basis` (for a mole basis), `P_range_GPa`, `T_range_K`, `dIW_range`, `source` and `doi`. `x_metal` holds the metal mole fractions on the $x'$ basis, `x_silicate` the melt fractions of each oxide on the single-cation basis and `nbo_t` the NBO/T of the melt. The registry keeps a checked copy of each entry, and `get_law` returns a copy of the entry; a function itself is kept and returned as it is, so its state is shared. A taken name, an unknown element or basis, O or Si, an entry field that breaks the schema (as in a partition file), or a declaration that breaks its rule raises `PartitionTableError`; a function that returns a value that is not a finite real number (a bool, a complex or an int past the float range included) raises `ValueError` with the law name and the point. A function must raise `ValueError` for a point it cannot evaluate: the core split handles that error (inside the damped passes of the iron-rich root rule it keeps the first root), while any other exception from the function ends the split, also inside the damped passes. `calliope.metal.check_law(entry, element)` gives the same check for an entry passed to the split.
+`calliope.metal.register_law(element, name, law, ...)` adds a law of H, C, N or S under a new name. The guide [Add a partition law to the core split](../How-to/core_split_law.md) shows both kinds of law in full.
+
+| Argument | Rule |
+|---|---|
+| `element` | H, C, N or S; O and Si raise `PartitionTableError` |
+| `name` | a non-empty name not yet held for the element; `replace=True` stores the law over a registered law of the same name; a packaged law cannot be replaced |
+| `law` | a `log10_linear` entry of a loaded partition file, or a function `f(p_gpa, t_k, d_iw, x_metal, x_silicate, nbo_t)` that returns $\log_{10} D$ |
+| `basis`, `silicate_basis` | function only: the metal basis of $D$ (`mass`, `mole`, `mole_xprime_noHC`) and, for a mole basis, `single_cation` |
+| `P_range_GPa`, `T_range_K`, `dIW_range` | function only: the ranges of the source data; an empty T or dIW range is unknown |
+| `source`, `doi` | function only: non-empty strings |
+
+The arguments of a function law:
+
+| Argument | Holds | Unit |
+|---|---|---|
+| `p_gpa`, `t_k`, `d_iw` | pressure, temperature and $\Delta\mathrm{IW}$ of the point | GPa, K, log10 units |
+| `x_metal` | mole fractions of the light elements of the metal over the metal without H and C ($x'$ basis); Fe is not in the dict, it is the rest, $x'_\mathrm{Fe} = 1 - \sum x'_j$ over the elements other than H and C | none |
+| `x_silicate` | oxide mole fractions of the melt on the single-cation basis | none |
+| `nbo_t` | NBO/T of the melt | none |
+
+Rules of the registry:
+
+- The registry keeps a checked copy of an entry, and `get_law` returns a copy of the entry. A function is kept and returned as it is, so its state is shared.
+- A taken name, an unknown element or basis, O or Si, an entry field that breaks the schema (as in a partition file), or a declaration that breaks its rule raises `PartitionTableError`.
+- A function that returns a value that is not a finite real number (a bool, a complex or an int past the float range included) raises `ValueError` with the law name and the point.
+- A function must raise `ValueError` for a point that it cannot evaluate. The core split handles that error; inside the damped passes of the iron-rich root rule it keeps the first root. Any other exception from the function ends the split, also inside the damped passes.
+- `calliope.metal.check_law(entry, element)` gives the same check for an entry passed to the split.
 
 `calliope.core_split.split_core_mantle(bulk_kg, M_metal, M_silicate, *, dIW, P_eq=60.0, T_eq=4000.0, laws=None, w_fixed=None, oxides=KLB1, nbo_t=2.6)` returns `(core_kg, mantle_kg, flags)`.
 
@@ -118,4 +144,10 @@ Suer et al. (2023) give an uncertainty of up to 20 % on their Table 1 values. In
 | `flags[e]['P_GPa']`, `['T_K']`, `['dIW']` | GPa, K, log10 units | distance outside each range, 0 inside, NaN for an unknown range |
 | `flags[e]['D_residual']` | | relative difference between the core mass fraction of `e` in the metal and $D$ at the returned split times its silicate mass fraction, 0 for no core mass |
 
-A bool, a string, NaN or inf raises `ValueError` with the name of the input. Relaxed passes that leave Fe below $10^{-8}$ by mass start again as common passes; the split raises `ValueError` (the iron runs out) when the common passes leave Fe below $10^{-8}$, or when they do not settle after the first passes ran out of iron. A relaxed return with more S than Fe in moles runs up to 20000 damped passes from the start metal (20000 more evaluations of the laws when they do not settle) and takes their root when it holds more Fe and is another metal; a metal composition that does not settle in 50 plain and 2 x 1000 relaxed passes, or a broken ledger, raises `RuntimeError`.
+Errors of the split ([how the solver finds the split](../Explanations/metal.md#how-the-solver-finds-the-split) gives the steps):
+
+- A bool, a string, NaN or inf as an input raises `ValueError` with the name of the input.
+- Relaxed passes that leave Fe below $10^{-8}$ by mass start again as common passes.
+- The split raises `ValueError` (the iron runs out) when the common passes leave Fe below $10^{-8}$, or when they do not settle after the first passes ran out of iron.
+- A relaxed return with more S than Fe in moles runs up to 20000 damped passes from the start metal (20000 more evaluations of the laws when they do not settle). The split takes their root when it holds more Fe and is another metal.
+- A metal composition that does not settle in 50 plain and 2 x 1000 relaxed passes, or a broken ledger, raises `RuntimeError`.
