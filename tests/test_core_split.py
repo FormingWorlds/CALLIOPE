@@ -1314,9 +1314,12 @@ def test_more_iron_takes_the_damped_root_only_with_more_iron(iron, damped, want)
     assert (core_split.DAMPED_LAM, core_split.MAX_DAMPED_PASSES) == (0.02, 20000)
 
 
-@pytest.mark.parametrize('first', ['per-element', 'common'])
+@pytest.mark.parametrize('first', ['per-element', 'common', 'iron-out'])
 def test_relaxed_fixed_point_sends_each_return_to_more_iron(first):
-    """A return beyond FeS from the per-element or the common passes goes to the damped passes."""
+    """A return beyond FeS from the per-element or the common passes goes to the damped passes.
+
+    'iron-out': the per-element passes run out of iron and the common passes settle.
+    """
 
     calls = []
 
@@ -1324,6 +1327,8 @@ def test_relaxed_fixed_point_sends_each_return_to_more_iron(first):
         calls.append((common, lam_all))
         if lam_all is not None:
             return {'S': 0.1}, {'S': 0.9}, {'S': 0.8}
+        if first == 'iron-out' and not common:
+            raise core_split._IronOut('the metal has no iron left')
         if first == 'per-element' or common:
             return _relaxed_out(0.01)
         return None
@@ -1332,7 +1337,7 @@ def test_relaxed_fixed_point_sends_each_return_to_more_iron(first):
         mp.setattr(core_split, '_relaxed_passes', passes)
         got = core_split._relaxed_fixed_point('ev', {'S': 0.0}, {})
     assert got == ({'S': 0.1}, {'S': 0.9}, {'S': 0.8}, 1)
-    common = [(True, None)] if first == 'common' else []
+    common = [(True, None)] if first != 'per-element' else []
     assert calls == [(False, None), *common, (True, 0.02)]
 
 
@@ -1599,7 +1604,7 @@ def test_return_at_w_returns_core_and_mantle_of_a_settled_element_exactly():
 
 
 def test_damped_copy_of_the_same_root_keeps_the_first_return():
-    """Broad split 406 (N-S, iron 0.03): the damped passes settle on the same metal, root_rule stays 0."""
+    """Broad split 406 (N-S, iron 0.09): the damped passes settle on the same metal, root_rule stays 0."""
     seen = []
     real = core_split._relaxed_passes
 
