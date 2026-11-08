@@ -61,9 +61,13 @@ target = get_target_from_params(ddict)
 
 The metal keys:
 
-- `metal_mass` (kg) is the metal that is in equilibrium with the present melt. Here it is the whole Earth core, in equilibrium with the whole mantle at one pressure and temperature (the single-stage case; the [explanation page](../Explanations/metal.md#worked-example) says why). Any value above 0 turns the metal reservoir on.
+- `metal_mass` (kg) is the metal that is in equilibrium with the present melt. Here it is the whole Earth core, in equilibrium with the whole mantle at one pressure and temperature (the single-stage case; see below). Any value above 0 turns the metal reservoir on.
 - `P_eq` (GPa) and `T_eq` (K) are the pressure and temperature of the metal-melt equilibrium. They are not the surface values: the metal equilibrates deep in the magma ocean.
 - `dIW_eq` (log10 units) is the oxygen fugacity of that equilibrium relative to the iron-wüstite (IW) buffer. It is a separate input from `fO2_shift_IW`, which sets the gas and the melt at the surface.
+
+**Why this metal mass.** `metal_mass` is the metal that equilibrates with the present melt. Here it is the whole core, in equilibrium with the whole mantle at one pressure and temperature. This is the single-stage model of Tsutsumi et al. (2025, p. 4)[^cite-tsutsumi2025]. In their words, it assumes "that the entire core and mantle reached chemical equilibrium under a certain P, T, and fO2 condition". Their list of published single-stage conditions includes 50 GPa and 3500 K, the values used here. It gives the effect of a metal of Earth's core mass that meets the whole molten mantle at once, at these conditions. It is not a model of how a core grows: in a planet, metal arrives in portions over time, and each portion meets the melt of its own time.
+
+**Why these conditions.** 50 GPa, 3500 K and $\Delta\mathrm{IW} = -1$ lie inside the data ranges of the placeholder H law (Tagawa et al. (2021)[^cite-tagawa2021]: 30-60 GPa, 3080-4560 K, $\Delta\mathrm{IW}$ $-1.33$ to $-0.88$) and of the C law (Fischer et al. (2020)[^cite-fischer2020]: 1-59 GPa, 1618-5200 K, $\Delta\mathrm{IW}$ $-3.9$ to $-0.53$). The surface value `fO2_shift_IW` = +0.5 and `dIW_eq` = $-1$ differ on purpose: they describe the gas at the surface and the metal at depth.
 
 The logging line makes the warnings of CALLIOPE visible. The solves of steps 2 to 4 log warnings; step 5 explains each of them.
 
@@ -186,6 +190,12 @@ How to read the exchange:
 
 In `'partition'` mode the metal takes 13.7 wt% O. Net of the Si reaction, the exchange needs 3.56 times the FeO that the melt has, which is not possible. The metal O also enters the C law through its composition term, and $D_\mathrm{C}$ rises from 0.0828 to 430. The O and Si of the metal come from the FeO of the rock, so they never enter the volatile O budget (see step 7).
 
+The same case with `O_mode_core` and `Si_mode_core` set to `'partition'` gives 13.7 wt% O and 0.27 wt% Si in the metal. Both flags are 1: the placeholder O and Si laws have no known temperature and $\Delta\mathrm{IW}$ range, so every use is flagged.
+
+The net exchange (O minus 2 Si) takes $1.62 \times 10^{25}$ mol of FeO, 3.56 times the $4.54 \times 10^{24}$ mol of FeO in the melt, so `FeO_exchange_out_of_range` is 1 as well: there is not enough FeO in the melt for this exchange.
+
+The O also enters the C law through its composition term, and $D_\mathrm{C}$ rises from 0.0828 to 430; 97 % of the C then goes into the metal, and the surface pressure falls to 1.1 bar. This case shows why the flags matter: one flagged input (the metal O) changes a law that is in range (C) by a factor of about 5000.
+
 ## Step 5: read the warnings and the flags
 
 The first solves of this tutorial logged these warnings (each one once per process):
@@ -208,6 +218,8 @@ What each one means, and what to do:
 - **A law outside its range.** `<e>_D_out_of_range` is 1 and the warning names the conditions. The pressure, temperature or $\Delta\mathrm{IW}$ is outside the data that the law was fitted to, or the range is unknown. The placeholder N and S laws are in range only at one pressure and temperature (N: 20 GPa, 3000 K; S: 60 GPa, 4000 K). The placeholder O and Si laws have no known temperature and $\Delta\mathrm{IW}$ range, so they are always flagged. With the packaged file, no `P_eq` and `T_eq` put N and S in range together, so every result with this file has at least one flag. Use a law whose range covers your conditions ([Add a new partition law](partition_law.md)), or move the conditions into the range of the law you have. If you keep a flagged result, say in your text that the law was extrapolated.
 - **The FeO exchange.** More than 10 % of the melt FeO moved. Use less metal O and Si, or apply the exchange to the FeO budget of your own model.
 - **Ideal activities.** `'partition'` mode leaves out the activity coefficients of the published O and Si fits. Treat its O and Si as a first estimate.
+
+**The flags of N and S.** N and S have flag 1. Each of their placeholder laws is a straight line in $\Delta\mathrm{IW}$ through 2 values of one column of a table (Suer et al. (2023)[^cite-suer2023], Table 1). For N this column is at 20 GPa and 3000 K, for S at 60 GPa and 4000 K. Each law is in range only at its one pressure and temperature, so any other `P_eq` or `T_eq` is flagged. No `P_eq` and `T_eq` put N and S in range together. The values of $D_\mathrm{N}$ = 39 and $D_\mathrm{S}$ = 173 here are the table values at $\Delta\mathrm{IW} = -1$, carried to 50 GPa and 3500 K without a pressure or temperature term. Use such a result as an estimate only.
 
 The solve does not stop or clamp a value for any of these: it returns the result with the flags set. The flags are in the result dictionary, so a script can check them; the warnings appear only once per process.
 
@@ -292,3 +304,8 @@ This is a round trip: the O of a buffered solve, given back as a budget, must gi
 - [Add a new partition law](partition_law.md): replace a placeholder law with a law from a paper.
 - [Partition file reference](../Reference/partition_file.md): every input and output key and the file format.
 - [Metal reservoir validation](../Validation/metal.md): how the tests check the metal reservoir.
+
+[^cite-tsutsumi2025]: Y. Tsutsumi, N. Sakamoto, K. Hirose, S. Mita, S. Yokoo, H. Hsu, H. Yurimoto, *[Origin of Earth's hydrogen and carbon constrained by their core-mantle partitioning and bulk Earth abundance](https://doi.org/10.1038/s41467-025-65729-5)*, Nature Communications, 16, 10038, 2025. [SciX](https://scixplorer.org/abs/2025NatCo..1610038T/abstract).
+[^cite-tagawa2021]: S. Tagawa, N. Sakamoto, K. Hirose, S. Yokoo, J. Hernlund, Y. Ohishi, H. Yurimoto, *[Experimental evidence for hydrogen incorporation into Earth's core](https://doi.org/10.1038/s41467-021-22035-0)*, Nature Communications, 12, 2588, 2021. [SciX](https://scixplorer.org/abs/2021NatCo..12.2588T/abstract).
+[^cite-fischer2020]: R. A. Fischer, E. Cottrell, E. Hauri, K. K. M. Lee, M. Le Voyer, *[The carbon content of Earth and its core](https://doi.org/10.1073/pnas.1919930117)*, Proceedings of the National Academy of Sciences, 117(16), 8743-8749, 2020. [SciX](https://scixplorer.org/abs/2020PNAS..117.8743F/abstract).
+[^cite-suer2023]: T.-A. Suer, C. Jackson, D. S. Grewal, C. Dalou, T. Lichtenberg, *[The distribution of volatile elements during rocky planet formation](https://doi.org/10.3389/feart.2023.1159412)*, Frontiers in Earth Science, 11, 1159412, 2023. [SciX](https://scixplorer.org/abs/2023FrEaS..1159412S/abstract).

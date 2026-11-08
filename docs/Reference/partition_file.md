@@ -12,7 +12,7 @@ With `metal_mass` above zero, `equilibrium_atmosphere` and `equilibrium_atmosphe
 | `dIW_eq` | log10 units | required for `'parameter'` | Oxygen fugacity of the equilibrium relative to the iron-wustite buffer |
 | `O_mode_core`, `Si_mode_core` | | `'fixed'` | `'fixed'` reads `w_O_core`, `w_Si_core`; `'partition'` uses the exchange $K_D$ of the file at the dIW of each pass |
 | `w_O_core`, `w_Si_core` | mass fraction | 0 | Metal O and Si in `'fixed'` mode, and the start metal of the passes in `'partition'` mode; at least 0, each and their sum below 1 |
-| `silicate_oxides` | wt% | KLB-1 (7 major oxides, Takahashi 1986[^cite-takahashi1986]) | Melt composition for the mole basis of $D$; sums to 95-101 wt% and is used as given, not normalised; Si `'partition'` needs SiO2 above 0 |
+| `silicate_oxides` | wt% | KLB-1 (7 major oxides, Takahashi (1986)[^cite-takahashi1986]) | Melt composition for the mole basis of $D$; sums to 95-101 wt% and is used as given, not normalised; Si `'partition'` needs SiO2 above 0 |
 | `silicate_nbo_t` | | 2.6 | NBO/T of the melt |
 | `partition_table` | | packaged placeholder | A table from `calliope.metal.load_partition_table` |
 | `tol_w_core` | | 1e-6 | Relative stop of the fixed point on each metal mass fraction, above 0 and below 1 |
@@ -48,7 +48,7 @@ $$
 \log_{10} D = a + \frac{b}{T} + c\,\frac{P}{T} + d \cdot \mathrm{dIW\_factor} \cdot \Delta\mathrm{IW} + e\,(\mathrm{NBO/T}) + \sum_j \varepsilon_j \log_{10}(1 - X_j)
 $$
 
-with $T$ in K, $P$ in GPa, NBO/T the ratio of non-bridging O to tetrahedral cations of the melt, and $X_j$ the mole fraction of element $j$ over the metal without H and C, $x'_j = N_j / \sum_{k \ne \mathrm{H,C}} N_k$ (Tagawa et al. 2021, Methods Eq. 4, p. 5)[^cite-tagawa2021]. Fischer et al. (2020, p. 8744)[^cite-fischer2020] fit $X_\mathrm{O}$ and $X_\mathrm{S}$ as mole fractions in metal without H and do not name the elements of the denominator; $x'$ is the choice of CALLIOPE, the metal basis of the H law. The O and Si exchange uses the same $x'$ in the metal and the single-cation basis in the melt, as the fO2 path of the Tagawa et al. (2021)[^cite-tagawa2021] multi-stage model (p. 6).
+with $T$ in K, $P$ in GPa, NBO/T the ratio of non-bridging O to tetrahedral cations of the melt, and $X_j$ the mole fraction of element $j$ over the metal without H and C, $x'_j = N_j / \sum_{k \ne \mathrm{H,C}} N_k$ (Tagawa et al. (2021)[^cite-tagawa2021], Methods Eq. 4, p. 5). Fischer et al. (2020, p. 8744)[^cite-fischer2020] fit $X_\mathrm{O}$ and $X_\mathrm{S}$ as mole fractions in metal without H and do not name the elements of the denominator; $x'$ is the choice of CALLIOPE, the metal basis of the H law. The O and Si exchange uses the same $x'$ in the metal and the single-cation basis in the melt, as the fO2 path of the Tagawa et al. (2021)[^cite-tagawa2021] multi-stage model (p. 6).
 
 | Field | Values | Meaning |
 |---|---|---|

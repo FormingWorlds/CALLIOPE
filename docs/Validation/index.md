@@ -5,13 +5,13 @@
 Validation means that we run the code on a case where another source gives the right answer, and check that the code gives that answer within a stated tolerance.
 The other source is a published equation, table or measurement, an analytical result, or a second, independent code.
 This tab has one page per process of CALLIOPE, in the menu on the left: chemistry, oxygen fugacity, solubility, the equilibrium solve, the metal reservoir and the mantle mass.
-The table below lists every case once, so you can find a case and open its page.
+The table below lists every tested case once, so you can find a case and open its page.
 
 **How to read the table.** Each row is one case. "Process" links to the page of the case, "Case" says what is checked, and "Test id" names the test that runs it. "Reference" is the source of the right answer, and "Status" says which test tier runs the case and whether it has a plot.
 
 **How the case pages are laid out.** On each page, every case says why the check exists, what it tests, how we know the right answer and why it matters, with the test details in a box. Where a case has worked numbers, a second box gives them.
 
-Each case is a test that has the `reference_pinned` marker, so the CI fails when the code leaves its tolerance. Each page names the test ids and the references of its process.
+Each case is a test that has the `reference_pinned` marker, so the CI fails when the code leaves its tolerance. The one exception is the [sweep of random inputs](metal.md#core-and-mantle-split-over-random-inputs), a recorded run with no test. Each page names the test ids and the references of its process.
 
 This command runs every case:
 

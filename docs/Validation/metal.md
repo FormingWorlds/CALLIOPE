@@ -3,6 +3,7 @@
 ## What this page checks
 
 This page checks how CALLIOPE splits the volatile elements H, C, N and S between gas, silicate melt and metal.
+The first 7 cases check the metal reservoir. The last 3 check the [core and mantle split](../Explanations/core_split.md), which divides the bulk H, C, N and S of a planet between core and mantle at one pressure, temperature and redox state. The last case is a recorded run of a sampler, not a test: it has no tolerance and no pass or fail.
 The metal reservoir stands for the iron that forms a planet's core.
 Validation here means that we run the code on a case where another source gives the right answer.
 The test then checks that the code gives that answer within a stated tolerance.
@@ -188,6 +189,8 @@ The residual (model minus measurement) is +0.30, -0.12, +0.42, +0.42, +0.03, -0.
 - A possible cause of the mean offset is the $C_\mathrm{S}$ value. It is for a pyrolite melt, while the runs use MORB and KLB-1 melts (Table 1).
 - With $a = -3.30$, the value printed in their Eq. 8, every residual is 0.2 dex larger and 5 runs miss.
 
+**Known limit.** Suer et al. (2017, p. 90)[^cite-suer2017] replace the FeO activity by "$X_\mathrm{FeO}^\mathrm{silicate}$ the molar fraction of FeO in the silicate melt". They define the sulfide capacity with the mole fraction of S in the melt, $C_\mathrm{S} = X_\mathrm{S}^\mathrm{silicate}(f_\mathrm{O_2}/f_\mathrm{S_2})^{1/2}$ (their Eq. 3), computed "following Haughton et al. (1974)"[^cite-haughton1974]. They do not name the mole basis of the melt. Their value $\log_{10} C_\mathrm{S} = -5.372$ is "calculated for a primitive pyrolite mantle composition" (Fig. 6 caption, p. 91), with no basis stated. On the single-cation basis, the FeO of their Table 2 gives the $X_\mathrm{FeO}$ of their Table 1 to 0.012 for runs 3 to 9, with run 7 read as 0.20. It does not for runs 1 and 2 (0.13 and 0.23 against 0.10 and 0.14).
+
 ??? info "Test details"
     - Reference: Suer et al. (2017)[^cite-suer2017], Eq. 7, Table 1 (runs), Table 3 (coefficients), Fig. 6 ($\log_{10} C_\mathrm{S}$).
     - Tolerance: 0.47 dex per run for 8 runs, run 7 a stated miss pinned at +0.495 dex (5e-4); the law at the default point relative 1e-12; Eq. 8 read with natural logs lies more than 1 dex away.
@@ -219,7 +222,7 @@ The residual (model minus measurement) is +0.30, -0.12, +0.42, +0.42, +0.03, -0.
 
 **Why this check exists.** The split must find the metal composition for any planet, not only for an Earth-like one. Some inputs, with much S or C and little iron, are hard for the solver ([Core split solver](../Reference/core_split_solver.md)). This check shows how often the split converges, how often it stops with an error, and how well the returned metal meets the laws.
 
-**What it tests.** The sweep sampler `tools/core_split_sweep.py` draws random splits: metal $10^{20}$ to $3 \times 10^{24}$ kg, each element $10^{-6}$ to 2.5 times the metal mass, $\Delta\mathrm{IW}$ -5 to -0.2, and metal O 0, 0.02 or 0.1. It has 2 strata, which differ in the silicate mass (table below).
+**What it tests.** The sweep sampler `tools/core_split_sweep.py` draws random splits: metal $10^{20}$ to $3 \times 10^{24}$ kg, each element $10^{-6}$ to 2.5 times the metal mass, $\Delta\mathrm{IW}$ -5 to -0.2, and metal O 0, 0.02 or 0.1. It has 2 groups, which differ in the silicate mass (table below). In the table, "past FeS" means that the metal holds more S than Fe in moles; the iron-rich root rule is step 6 of the [core split solver](../Reference/core_split_solver.md#steps). In total, 5074 of the 5500 splits converge, 416 raise `ValueError` and 10 raise `RuntimeError`.
 
 **How we know the right answer.** A converged split must meet its laws: the metal mass fraction of each element must equal $D$ times its silicate mass fraction. `flags[e]['D_residual']` is the relative difference. A split that does not converge raises `ValueError` or `RuntimeError`.
 
@@ -245,11 +248,11 @@ The times are for one core of an Apple M1 Ultra; single runs vary by a few perce
 
 What the sweep shows:
 
-- **Accuracy.** The largest `D_residual` of the converged splits is $2.6 \times 10^{-10}$ where the metal keeps more than $10^{-2}$ of Fe by mass, the values of the table for Fe from $10^{-4}$ to $10^{-2}$, and up to $2.4 \times 10^{-7}$ below $10^{-4}$ of Fe.
-- **The root rule changes no split of the 2 strata.** Its search replaces no returned root. Where it ends on the same metal with a little more Fe, the 2 metals are at most $5.5 \times 10^{-3}$ of the grid tolerance apart. The rule changes a split only where its search reaches another metal with more Fe.
+- **Accuracy.** The largest `D_residual` of the converged splits depends on the Fe that the metal keeps. It is $2.6 \times 10^{-10}$ above $10^{-2}$ of Fe by mass, $1.9 \times 10^{-9}$ (broad) and $1.8 \times 10^{-8}$ (small silicate) from $10^{-4}$ to $10^{-2}$, and up to $2.4 \times 10^{-7}$ below $10^{-4}$.
+- **The root rule changes no split of the 2 groups.** Its search replaces no returned root. Where it ends on the same metal with a little more Fe, the 2 metals are at most $5.5 \times 10^{-3}$ of the grid tolerance apart. The rule changes a split only where its search reaches another metal with more Fe.
 - **The rule changes the 2-root split of "The iron-rich root rule" ([step 6 of the core split solver](../Reference/core_split_solver.md#steps)).** That S-C-H-N split returns its root at Fe $5.0 \times 10^{-2}$ in 30 of 30 starts perturbed at round-off. Without the rule, 24 of these starts return the root at Fe $6.2 \times 10^{-7}$ (`tools/core_split_two_roots.py`, macOS arm64).
 - **The iron floor can stop a split that has a root with iron.** Small-silicate split 1078 (H and N) raises `ValueError`, while a search with very small steps reaches a root with Fe $2.9 \times 10^{-2}$ by mass.
-- **Some S- or C-rich, iron-poor inputs do not settle.** The split raises `RuntimeError` for them, although a root with iron can exist: 2 such splits of the broad stratum have a root at Fe $1.5 \times 10^{-8}$ and $1.8 \times 10^{-5}$ by mass.
+- **Some S- or C-rich, iron-poor inputs do not settle.** The split raises `RuntimeError` for them, although a root with iron can exist: 2 such splits of the broad group have a root at Fe $1.5 \times 10^{-8}$ and $1.8 \times 10^{-5}$ by mass.
 
 ??? info "Run details"
     - Reference: the laws themselves (`D_residual`) and the outcome counts of the sampler.
@@ -262,3 +265,4 @@ What the sweep shows:
 [^cite-fischer2020]: R. A. Fischer, E. Cottrell, E. Hauri, K. K. M. Lee, M. Le Voyer, *[The carbon content of Earth and its core](https://doi.org/10.1073/pnas.1919930117)*, Proceedings of the National Academy of Sciences, 117(16), 8743-8749, 2020. [SciX](https://scixplorer.org/abs/2020PNAS..117.8743F/abstract).
 [^cite-suer2023]: T.-A. Suer, C. Jackson, D. S. Grewal, C. Dalou, T. Lichtenberg, *[The distribution of volatile elements during rocky planet formation](https://doi.org/10.3389/feart.2023.1159412)*, Frontiers in Earth Science, 11, 1159412, 2023. [SciX](https://scixplorer.org/abs/2023FrEaS..1159412S/abstract).
 [^cite-suer2017]: T.-A. Suer, J. Siebert, L. Remusat, N. Menguy, G. Fiquet, *[A sulfur-poor terrestrial core inferred from metal-silicate partitioning experiments](https://doi.org/10.1016/j.epsl.2017.04.016)*, Earth and Planetary Science Letters, 469, 84-97, 2017. [SciX](https://scixplorer.org/abs/2017E%26PSL.469...84S/abstract).
+[^cite-haughton1974]: D. R. Haughton, P. L. Roeder, B. J. Skinner, *[Solubility of sulfur in mafic magmas](https://doi.org/10.2113/gsecongeo.69.4.451)*, Economic Geology, 69(4), 451-467, 1974. [SciX](https://scixplorer.org/abs/1974EcGeo..69..451H/abstract).

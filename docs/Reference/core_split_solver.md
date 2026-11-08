@@ -6,6 +6,7 @@ This page lists the steps with which `calliope.core_split.split_core_mantle` fin
 
 - **Pass.** One update of the metal composition: compute $D$ for the present metal, split the bulk, and compute the new metal from the split.
 - **$w$ and $g$.** In a pass, $w$ is the present metal composition and $g$ is the new composition that the pass computes from $w$. A root is a metal with $g = w$.
+- **Past FeS.** The metal holds more S than Fe in moles (flag `beyond_FeS`).
 
 ## Steps
 
