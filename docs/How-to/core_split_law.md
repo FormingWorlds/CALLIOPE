@@ -26,7 +26,7 @@ $$
 \log_{10} D = a + \frac{b}{T} + c\,\frac{P}{T} + d \cdot \mathrm{dIW\_factor} \cdot \Delta\mathrm{IW} + e \cdot \mathrm{NBO/T} + \sum_j \varepsilon_j \log_{10}(1 - X_j),
 $$
 
-with $T$ in K, $P$ in GPa, NBO/T the ratio of non-bridging O to tetrahedral cations in the melt (how polymerised the melt is), and $X_j$ the mole fraction of the light element $j$ in the metal. An entry can add $f \log_{10} X_\mathrm{FeO} - \log_{10} C_\mathrm{S}$, with $X_\mathrm{FeO}$ the FeO mole fraction of the melt and $C_\mathrm{S}$ the sulfide capacity of the melt. If your law fits this form, use Example A. If it does not, use Example B.
+with $T$ in K, $P$ in GPa, NBO/T the ratio of non-bridging O to tetrahedral cations in the melt (how polymerised the melt is), and $X_j$ the mole fraction of the light element $j$ over the metal without H and C (the $x'$ basis). An entry can add $f \log_{10} X_\mathrm{FeO} - \log_{10} C_\mathrm{S}$, with $X_\mathrm{FeO}$ the FeO mole fraction of the melt and $C_\mathrm{S}$ the sulfide capacity of the melt. If your law fits this form, use Example A. If it does not, use Example B.
 
 ## Example A: a law as a partition file entry
 
@@ -117,7 +117,7 @@ by hand 1.5637, by the law 1.5637
 
 ### Step A5: use the law in the split
 
-Pass the name in `laws`. The other elements keep their default laws:
+Pass the name in `laws`. `laws` also takes a loaded entry such as `table['H']` directly, without `register_law`. The other elements keep their default laws:
 
 ```python
 bulk = {'H': 1.5e20, 'C': 1.5e19, 'N': 8.0e18, 'S': 8.0e20}  # kg
@@ -187,7 +187,7 @@ def suer2017_s(p_gpa, t_k, d_iw, x_metal, x_silicate, nbo_t):
 
 ### Step B3: register the function
 
-A function has no file fields, so you declare them as keywords. All of them are needed:
+A function has no file fields, so you declare them as keywords. `basis`, `P_range_GPa`, `source` and `doi` are required, and `silicate_basis` is required for a mole basis. If you leave out `T_range_K` or `dIW_range`, that range is unknown, and every use of the law is flagged out of range:
 
 ```python
 register_law(
@@ -246,10 +246,16 @@ my_suer2017: S core share 0.9744
 | Used a name that is already held | `PartitionTableError: 'H': law name 'tagawa2021_eq2' is empty or taken` | Pick a new name, or pass `replace=True` to store over a law that you registered. A packaged law cannot be replaced. |
 | Asked for a name that is not registered | `PartitionTableError: laws['H'] = 'tsutsumi': no law 'tsutsumi' for 'H'; known: ['tagawa2021_eq2']` | Register the law first; the message lists the names held. |
 | Gave a law for an element that is not in the bulk | `ValueError: laws names elements outside bulk_kg: ['H']` | Give laws only for the elements of `bulk_kg`. |
-| Left out a declaration of a function law | `PartitionTableError: 'S': 'source' must be a non-empty string` | Give every keyword of Step B3. |
+| Left out a required declaration of a function law | `PartitionTableError: 'S': 'source' must be a non-empty string` | Give `basis`, `P_range_GPa`, `source`, `doi` and, for a mole basis, `silicate_basis`. |
 | Wrote a function that returns NaN | `ValueError: split of S: nanlaw law of S returned nan at P 60 GPa, T 4000 K, dIW -1.5` | Return a finite number. Where the law cannot be evaluated, raise `ValueError` with a clear message. |
 
-A function must raise `ValueError` for a point that it cannot evaluate, as `suer2017_s` does above. The split handles that error. Any other exception from the function ends the split.
+A function must raise `ValueError` for a point that it cannot evaluate, as `suer2017_s` does above. What the split then does depends on the pass:
+
+- in the first pass and in the relaxed passes, the split ends with `ValueError`, which names the element;
+- in a later plain pass, the split goes on with relaxed passes;
+- in the damped passes of the iron-rich root rule, the split keeps the first root.
+
+Any other exception from the function ends the split at once.
 
 ## Where to go next
 

@@ -24,7 +24,7 @@ e = 0.0
 f = 1.0
 log10_C_S = -5.372
 dIW_factor = 1.0
-# eps_j of the term eps_j log10(1 - X_j) for the light elements j of the metal.
+# eps_j of the term eps_j log10(1 - X_j); X_j is the mole fraction of j over the metal without H and C.
 eps = { O = 14.0 }
 covariance = []
 # Range of the data of the fit; a point outside a range is flagged, not clamped.

@@ -175,9 +175,9 @@ $X_\mathrm{FeO}$ cannot be larger than 1. Above $\Delta\mathrm{IW} = -2\log_{10}
 
 **The fixed metal elements** `w_fixed`: the metal mass fractions of O and Si. The split does not change them (see [Limits](#limits)).
 
-**The melt** `oxides` and `nbo_t`. The melt composition sets only the silicate units of the mole bases and the melt that a law written as a Python function gets. A function law that needs the melt FeO computes it from $\Delta\mathrm{IW}$ and the metal.
+**The melt** `oxides` and `nbo_t`. The melt composition `oxides` sets only the silicate units of the mole bases and the melt that a law written as a Python function gets. `nbo_t` is the NBO/T of the melt: it enters the NBO/T term of a law (the C law has one), and a function law gets it too. A function law that needs the melt FeO computes it from $\Delta\mathrm{IW}$ and the metal.
 
-**The laws.** The split takes one law per element by name from `calliope.metal.get_law`. The defaults are `tagawa2021_eq2` (H), `fischer2020_eq1` (C), `suer2023_line` (N) and `suer2017_eq7` (S). The S law of the metal reservoir, `suer2023_line`, is a line in $\Delta\mathrm{IW}$ at one pressure and one temperature. The split uses the law of Suer et al. (2017) instead, because it has a pressure and a temperature term. To add your own law, see [Add a partition law to the core split](../How-to/core_split_law.md).
+**The laws.** The split takes one law per element, either by name from `calliope.metal.get_law` or as a loaded law entry. The defaults are `tagawa2021_eq2` (H), `fischer2020_eq1` (C), `suer2023_line` (N) and `suer2017_eq7` (S). The S law of the metal reservoir, `suer2023_line`, is a line in $\Delta\mathrm{IW}$ at one pressure and one temperature. The split uses the law of Suer et al. (2017) instead, because it has a pressure and a temperature term. To add your own law, see [Add a partition law to the core split](../How-to/core_split_law.md).
 
 ### What the output flags mean
 
