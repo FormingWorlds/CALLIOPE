@@ -2,7 +2,7 @@
 
 CALLIOPE is a 0-D **equilibrium outgassing** solver for the magma-ocean atmosphere coupling. It treats the silicate mantle and the overlying gas-phase atmosphere as a single thermodynamic system in equilibrium at the surface, and asks: for a given total elemental inventory and a given magma-ocean state, what surface partial pressures and dissolved-volatile masses simultaneously satisfy (i) gas-phase chemical equilibrium, (ii) gas-melt solubility equilibrium, and (iii) elemental mass conservation?
 
-This page summarises the model assumptions, the variables it solves for, and how it relates to the upstream papers (Bower et al. (2019)[^cite-bower2019], 2022 [^cite-bower2022]; Nicholls et al. (2024)[^cite-nicholls2024]). Each component has its own dedicated page.
+This page summarises the model assumptions, the variables it solves for, and how it relates to the upstream papers (Bower et al. (2019)[^cite-bower2019], Bower et al. (2022)[^cite-bower2022]; Nicholls et al. (2024)[^cite-nicholls2024]). Each component has its own dedicated page.
 
 ## What is in the model
 
@@ -38,7 +38,7 @@ This page summarises the model assumptions, the variables it solves for, and how
 CALLIOPE assembles one mass-conservation equation per solved element. Each equation has the structure
 
 $$
-\underbrace{m_e^{\mathrm{atm}}(p_{\mathrm{H_2O}}, p_{\mathrm{CO_2}}, p_{\mathrm{N_2}}, p_{\mathrm{S_2}})}_{\text{Bower 2019 Eq. 2 summed over all species}} + \underbrace{m_e^{\mathrm{melt}}(p_{\mathrm{H_2O}}, p_{\mathrm{CO_2}}, p_{\mathrm{N_2}}, p_{\mathrm{S_2}})}_{\text{Henry's law summed over all species}} = m_e^{\mathrm{target}}.
+\underbrace{m_e^{\mathrm{atm}}(p_{\mathrm{H_2O}}, p_{\mathrm{CO_2}}, p_{\mathrm{N_2}}, p_{\mathrm{S_2}})}_{\text{Bower et al. (2019) Eq. 2 summed over all species}} + \underbrace{m_e^{\mathrm{melt}}(p_{\mathrm{H_2O}}, p_{\mathrm{CO_2}}, p_{\mathrm{N_2}}, p_{\mathrm{S_2}})}_{\text{Henry's law summed over all species}} = m_e^{\mathrm{target}}.
 $$
 
 Under the buffered mode the equation set spans $e \in \{\mathrm{H}, \mathrm{C}, \mathrm{N}, \mathrm{S}\}$, the four primary partial pressures are the unknowns, and the $4\times 4$ system is solved with `scipy.optimize.fsolve` (Powell hybrid). Under the authoritative-O mode the equation set spans $e \in \{\mathrm{H}, \mathrm{C}, \mathrm{N}, \mathrm{S}, \mathrm{O}\}$, the unknown vector is extended with $\Delta\mathrm{IW}$, and the $5\times 5$ system is solved with the same outer loop ([Authoritative-oxygen mode](authoritative_oxygen.md)).

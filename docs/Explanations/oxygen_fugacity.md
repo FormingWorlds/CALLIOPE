@@ -18,7 +18,7 @@ $$
 
 which fixes a single curve $\log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T)$ in $T$-$f_{\mathrm{O}_2}$ space. CALLIOPE supports three parameterisations of this curve.
 
-### Hirschmann (2021), `hirschmann` (default) [^cite-hirschmann2021]
+### Hirschmann (2021)[^cite-hirschmann2021], `hirschmann` (default)
 
 An empirical fit to a thermodynamic model of iron coexisting with wüstite of equilibrium stoichiometry $\mathrm{Fe}_{1-y}\mathrm{O}$, valid from 1000 to 3000 K and from 1 bar to 100 GPa. Hirschmann (2021)[^cite-hirschmann2021] finds that the IW buffer computed from the JANAF properties of stoichiometric FeO is too reducing, by 1.1 log units at 1000 K and 0.2 log units at 3000 K. That comparison is against JANAF itself, not against the two-parameter `fischer` fit coded below: at 1 bar the Hirschmann fit sits $0.42$ dex above `fischer` at 1000 K and $0.11$ dex below it at 3000 K. The fit (their Table 1) is
 
@@ -31,7 +31,7 @@ for each parameter $m \in \{a, b, c, d\}$, with $P$ in GPa. Separate coefficient
 
 Implemented as `OxygenFugacity.hirschmann(T, P_bar=1.0)`. The `OxygenFugacity('hirschmann')` dispatcher evaluates the buffer at the 1 bar reference, like the other two buffers, so that $\Delta\mathrm{IW}$ keeps the same meaning. To get the buffer at a given pressure, call the method directly with `P_bar`. Below 1000 K and above 100 GPa the fit is an extrapolation that the paper advises against. Above 3000 K it is not calibrated, though the paper finds that it extrapolates smoothly; magma-ocean runs hotter than 3000 K use the default buffer outside its calibrated range. Above 30 to 50 GPa, the effects of FeO metallisation and low-spin Fe$^{2+}$ are not included, so the buffer there should be treated as a metastable reference.
 
-### Fischer et al. (2011), `fischer` [^cite-fischer2011]
+### Fischer et al. (2011)[^cite-fischer2011], `fischer`
 
 A simpler two-parameter fit of the 1-bar IW buffer. Fischer et al. (2011)[^cite-fischer2011] calculate the 1-bar Fe-FeO curve of their Fig. 6 from Chase (1998)[^cite-chase1998] and give a P-T polynomial in their supplement (Table S2); the source of this 2-term form is not stated in the paper body, and no independent pin of it exists in the test data. Fischer's own high-pressure measurements ($\le$200 GPa) extend the buffer to deep-mantle conditions but are not used by CALLIOPE.
 
@@ -41,7 +41,7 @@ $$
 
 Implemented as `OxygenFugacity.fischer(T)`.
 
-### O'Neill & Eggins (2002), `oneill` (legacy) [^cite-oneilleggins2002]
+### O'Neill & Eggins (2002)[^cite-oneilleggins2002], `oneill` (legacy)
 
 A thermochemically-constrained fit derived from low-temperature equilibrium data, expressed as Bower et al. (2022)[^cite-bower2022] Equation (7):
 
@@ -106,7 +106,7 @@ The optional [metal reservoir](metal.md) has its own $\Delta\mathrm{IW}$, `dIW_e
 
 | Reservoir | $\Delta\mathrm{IW}$ | Source |
 |---|---|---|
-| Mercury surface | IW-2.8 to IW-5.4 (Fe-based: IW-2.8 to IW-4.5; sulphur-based: IW-5.4 via Namur et al. 2016) | Cartier & Wood (2019)[^cite-cartierwood2019] |
+| Mercury surface | IW-2.8 to IW-5.4 (Fe-based: IW-2.8 to IW-4.5; sulphur-based: IW-5.4 via Namur et al. (2016)[^cite-namur2016]) | Cartier & Wood (2019)[^cite-cartierwood2019] |
 | Mars upper mantle (shergottite source) | $\approx$ IW (specifically IW-1.0 to IW-0.3 for QUE 94201) | Wadhwa (2001)[^cite-wadhwa2001] |
 | Mars shergottite parent melts | IW-1.0 to IW+1.9 (variation from crust assimilation) | Wadhwa (2001)[^cite-wadhwa2001] |
 | Iron-wüstite buffer | $0$ | by definition |
@@ -144,3 +144,4 @@ CALLIOPE's PROTEUS-side default is `fO2_shift_IW = 4.0`, consistent with a near-
  [^cite-oneilleggins2002]: H. St. C. O'Neill, S. M. Eggins, *[The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts](https://doi.org/10.1016/S0009-2541(01)00414-4)*, Chemical Geology, 186, 151-181, 2002. [SciX](https://scixplorer.org/abs/2002ChGeo.186..151O/abstract).
  [^cite-sossi2020]: P. A. Sossi, A. D. Burnham, J. Badro, A. Lanzirotti, M. Newville, H. St. C. O'Neill, *[Redox state of Earth's magma ocean and its Venus-like early atmosphere](https://doi.org/10.1126/sciadv.abd1387)*, Science Advances, 6, eabd1387, 2020. [SciX](https://scixplorer.org/abs/2020SciA....6.1387S/abstract).
  [^cite-wadhwa2001]: M. Wadhwa, *[Redox state of Mars' upper mantle and crust from Eu anomalies in shergottite pyroxenes](https://doi.org/10.1126/science.1057594)*, Science, 291, 1527-1530, 2001. [SciX](https://scixplorer.org/abs/2001Sci...291.1527W/abstract).
+ [^cite-namur2016]: O. Namur, B. Charlier, F. Holtz, C. Cartier, C. McCammon, *[Sulfur solubility in reduced mafic silicate melts: implications for the speciation and distribution of sulfur on Mercury](https://doi.org/10.1016/j.epsl.2016.05.024)*, Earth and Planetary Science Letters, 448, 102-114, 2016. [SciX](https://scixplorer.org/abs/2016E%26PSL.448..102N/abstract).

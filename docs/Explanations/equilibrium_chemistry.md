@@ -44,7 +44,7 @@ $$
 \log_{10} K_\mathrm{eq}^{\mathrm{H_2}}(T) = -\frac{13152.4778}{T} + 3.0386
 $$
 
-(`janaf_H2` in `chemistry.py`; JANAF [^cite-chase1998] fit, valid $1500 \le T \le 3000$ K). Bower et al. (2022)[^cite-bower2022] give the equivalent Schaefer & Fegley (2017)[^cite-schaeferfegley2017] fit $-12794/T + 2.7768$ as `schaefer_H`. The two differ by $\sim$1% in the resulting $G_\mathrm{eq}$ across the validation range; CALLIOPE uses the JANAF coefficients by default in `solve.get_partial_pressures`. Stoichiometric coefficient on $f_{\mathrm{O}_2}$ is $+0.5$.
+(`janaf_H2` in `chemistry.py`; JANAF[^cite-chase1998] fit, valid $1500 \le T \le 3000$ K). Bower et al. (2022)[^cite-bower2022] give the equivalent Schaefer & Fegley (2017)[^cite-schaeferfegley2017] fit $-12794/T + 2.7768$ as `schaefer_H`. The two differ by $\sim$1% in the resulting $G_\mathrm{eq}$ across the validation range; CALLIOPE uses the JANAF coefficients by default in `solve.get_partial_pressures`. Stoichiometric coefficient on $f_{\mathrm{O}_2}$ is $+0.5$.
 
 ### CO from CO$_2$ ($\mathrm{CO_2} \rightleftharpoons \mathrm{CO} + \tfrac{1}{2}\,\mathrm{O_2}$)
 
@@ -52,7 +52,7 @@ $$
 \log_{10} K_\mathrm{eq}^{\mathrm{CO}}(T) = -\frac{14467.5114}{T} + 4.3481
 $$
 
-(`janaf_CO`; JANAF [^cite-chase1998] fit). Schaefer & Fegley (2017)[^cite-schaeferfegley2017] equivalent in `schaefer_C`: $-14787/T + 4.5472$. Stoichiometric coefficient $+0.5$.
+(`janaf_CO`; JANAF[^cite-chase1998] fit). Schaefer & Fegley (2017)[^cite-schaeferfegley2017] equivalent in `schaefer_C`: $-14787/T + 4.5472$. Stoichiometric coefficient $+0.5$.
 
 ### CH$_4$ from CO$_2$ + 2H$_2$ ($\mathrm{CO_2} + 2\,\mathrm{H_2} \rightleftharpoons \mathrm{CH_4} + \mathrm{O_2}$)
 

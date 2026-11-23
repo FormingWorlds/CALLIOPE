@@ -5,7 +5,7 @@
 This page checks the iron-wüstite (IW) buffer in CALLIOPE.
 The oxygen fugacity $f\mathrm{O_2}$ \[bar\] measures how oxidising the melt is, in the form of an effective O$_2$ pressure.
 The IW buffer is the $f\mathrm{O_2}$ at which iron metal and wüstite (FeO) are in equilibrium, and CALLIOPE gives the $f\mathrm{O_2}$ of a run as a shift $\Delta\mathrm{IW}$ from it in log10 units.
-`OxygenFugacity` gives $\log_{10} f\mathrm{O_2}$ of the buffer from one of 3 published fits: Hirschmann (2021)[^cite-hirschmann2021], the default, Fischer et al. (2011)[^cite-fischer2011] and O'Neill and Eggins (2002)[^cite-oneilleggins2002].
+`OxygenFugacity` gives $\log_{10} f\mathrm{O_2}$ of the buffer from one of 3 published fits: Hirschmann (2021)[^cite-hirschmann2021], the default, Fischer et al. (2011)[^cite-fischer2011] and O'Neill & Eggins (2002)[^cite-oneilleggins2002].
 Validation means that a test runs the code on a case where another source gives the right answer, and checks the result within a stated tolerance.
 If the buffer is wrong, every reaction with O$_2$ and every solubility law that depends on $f\mathrm{O_2}$ gets a wrong value.
 Each case below says why the check exists, what it tests, how we know the right answer and why it matters, and a box "Test details" ends it.
@@ -23,7 +23,7 @@ Each case below says why the check exists, what it tests, how we know the right 
 
 **What it tests.** At $T$ = 2000 K and 1 bar the code gives $\log_{10} f\mathrm{O_2}$ = -7.14981 for the Fischer fit. The test requires the coded form $6.94059 - 28180.8/T$ to a relative 1e-4. It also requires that the Fischer value lies 0.258 dex above the O'Neill and Eggins value (-7.4078) to 0.02 dex, that it is more than 0.2 dex from that value, and that it lies between -10 and -3.
 
-**How we know the right answer.** This case is a regression check and a cross-check between 2 published fits, not a pin to independent data. Fischer et al. (2011) compute the 1 bar Fe-FeO curve from the JANAF tables of Chase (1998)[^cite-chase1998] (their Fig. 6) and add the pressure integral of their Eq. 2; their supplement (Table S2) gives a P-T polynomial. The paper does not state the source of the 2-term form in the code. Neither the supplement of Fischer et al. nor the JANAF Fe, FeO and O$_2$ tables are in the test data, so the test pins the coded form and its 0.258 dex offset from O'Neill and Eggins (2002).
+**How we know the right answer.** This case is a regression check and a cross-check between 2 published fits, not a pin to independent data. Fischer et al. (2011) compute the 1 bar Fe-FeO curve from the JANAF tables of Chase (1998)[^cite-chase1998] (their Fig. 6) and add the pressure integral of their Eq. 2; their supplement (Table S2) gives a P-T polynomial. The paper does not state the source of the 2-term form in the code. Neither the supplement of Fischer et al. nor the JANAF Fe, FeO and O$_2$ tables are in the test data, so the test pins the coded form and its 0.258 dex offset from O'Neill & Eggins (2002).
 
 **Why it matters.** CALLIOPE uses the Fischer fit when the input dictionary sets `fO2_model = 'fischer'`, and the comparison of CALLIOPE with atmodeller uses it ([cross-code comparison](../Explanations/cross_backend_comparison.md)).
 
@@ -35,7 +35,7 @@ Each case below says why the check exists, what it tests, how we know the right 
 **Known limit.** This case is a regression check of the coded form and of its offset from O'Neill and Eggins; it does not compare the Fischer fit with independent data.
 
 ??? info "Test details"
-    - Reference: Fischer et al. (2011)[^cite-fischer2011]; cross-checked against O'Neill and Eggins (2002)[^cite-oneilleggins2002].
+    - Reference: Fischer et al. (2011)[^cite-fischer2011]; cross-checked against O'Neill & Eggins (2002)[^cite-oneilleggins2002].
     - Tolerance: relative 1e-4 on the coded form; offset 0.258 dex to 0.02 dex; more than 0.2 dex from O'Neill and Eggins; $-10 < \log_{10} f\mathrm{O_2} < -3$.
     - Test id: `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_cross_check_and_regression`
     - Command: `pytest tests/test_oxygen_fugacity.py -k fischer_value_at_2000K`
@@ -53,7 +53,7 @@ Each case below says why the check exists, what it tests, how we know the right 
     log10(fO2) = 6.94059 - 14.0904 = -7.14981
     ```
 
-    O'Neill and Eggins (2002) at the same T:
+    O'Neill & Eggins (2002) at the same T:
 
     ```
     log10(fO2) = 2 * (-244118 + 115.559*T - 8.474*T*ln(T)) / (ln(10) * 8.31441 * T)

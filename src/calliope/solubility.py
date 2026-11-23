@@ -10,16 +10,9 @@ from .oxygen_fugacity import DEFAULT_FO2_MODEL, OxygenFugacity
 
 log = logging.getLogger('fwl.' + __name__)
 
-# Jambon, Weill & Braun (1986), doi:10.1016/0016-7037(86)90193-6. Henry's-law
-# solubility constants for noble gases in tholeiitic basalt melt, in units of
-# cm3 STP per gram of melt per bar of partial pressure, measured between 1250
-# and 1600 C. These are the exact primitives atmodeller uses for its
-# `<gas>_basalt_jambon86` models, so the two backends produce identical Henry
-# constants for all five gases and agree to solver tolerance. Helium keeps the
-# abstract's 56e-5 to match atmodeller: the paper's Table 5 gives a marginally
-# more precise 56.5e-5, but exact cross-backend agreement is more useful here
-# than the sub-percent refinement, since the shared calibration is what makes
-# the coupled cross-backend comparison a true parity test.
+# Jambon, Weber & Braun (1986), doi:10.1016/0016-7037(86)90193-6: noble gas Henry constants in
+# tholeiitic basalt, cm3 STP/g/bar, 1250-1600 C, as atmodeller's `<gas>_basalt_jambon86` uses
+# them. He keeps the abstract's 56e-5 (Table 5: 56.5e-5) so both codes agree exactly.
 JAMBON86_STP_HENRY = {  # cm3 STP / g / bar
     'He': 56e-5,
     'Ne': 25e-5,

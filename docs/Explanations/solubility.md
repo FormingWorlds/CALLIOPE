@@ -18,7 +18,7 @@ This page lists the implemented laws, the experimental sources behind each, and 
 |---|---|---|---:|---:|
 | `peridotite` (default) | $524\, p^{0.5}$ | Sossi et al. (2023)[^cite-sossi2023] | 524 | 2 |
 | `basalt_dixon` | $965\, p^{0.5}$ | Dixon et al. (1995)[^cite-dixon1995], refit by Sossi | 965 | 2 |
-| `basalt_wilson` | $215\, p^{0.7}$ | Hamilton (1964)[^cite-hamilton1964]; Wilson & Head (1981)[^cite-wilsonhead1981] | 215 | 1/0.7 |
+| `basalt_wilson` | $215\, p^{0.7}$ | Hamilton et al. (1964)[^cite-hamilton1964]; Wilson & Head (1981)[^cite-wilsonhead1981] | 215 | 1/0.7 |
 | `anorthite_diopside` | $727\, p^{0.5}$ | Newcombe et al. (2017)[^cite-newcombe2017] | 727 | 2 |
 | `lunar_glass` | $683\, p^{0.5}$ | Newcombe et al. (2017)[^cite-newcombe2017] | 683 | 2 |
 

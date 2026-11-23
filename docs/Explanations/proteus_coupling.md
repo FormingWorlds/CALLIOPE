@@ -38,7 +38,7 @@ PROTEUS runs an iterative loop in which structure, outgassing, atmosphere radiat
    └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-CALLIOPE is the cheapest of the five (a few tens of milliseconds per call vs. seconds-to-minutes for atmosphere and interior), so it runs at every iteration with no skip condition.
+CALLIOPE is the cheapest of the five (a few tens of milliseconds per call vs. seconds-to-minutes for atmosphere and interior), so it runs every iteration, with no update triggers that throttle it.
 
 ## What the wrapper does
 

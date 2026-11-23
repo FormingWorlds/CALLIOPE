@@ -6,7 +6,7 @@ This page checks `calculate_mantle_mass` in `src/calliope/structure.py`.
 It splits the mass of a planet into a core and a mantle, from the planet radius, the planet mass and the core radius as a fraction of the planet radius.
 Validation here means that we run the code on a case where another source gives the right answer.
 The test then checks that the code gives that answer within a stated tolerance.
-Here the right answer is the core mass fraction of the Earth from Wang et al. (2018).
+Here the right answer is the core mass fraction of the Earth from Wang et al. (2018)[^cite-wang2018].
 The mantle mass sets how much melt can hold dissolved volatiles in a standalone CALLIOPE run.
 The case below says why the check exists, what it tests, how we know the right answer and why it matters, and a box "Test details" ends it.
 

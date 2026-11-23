@@ -530,7 +530,7 @@ class TestSolubilityN2_meltComposition:
         values that would overflow the dasgupta exponential (e.g.
         enormous SiO2 of 10.0, well outside any physical mole fraction),
         the libourel law must still evaluate to the Henry-law output.
-        Discriminating: dasfac_2 is gated on composition='dasgupta',
+        Discriminating: dasfac_2 applies only with composition='dasgupta',
         so libourel callers must NOT pay the exp() precompute cost AND
         must NOT see any RuntimeWarning emitted at construction time.
         """
@@ -625,7 +625,7 @@ class TestBackwardCompatibility:
 
 
 # ---------------------------------------------------------------------------
-# SolubilityNobleGas :: Jambon, Weill & Braun (1986) Henry's law
+# SolubilityNobleGas :: Jambon, Weber & Braun (1986) Henry's law
 # ---------------------------------------------------------------------------
 
 
