@@ -35,7 +35,7 @@ Each case below says why the check exists, what it tests, how we know the right 
 **Known limit.** This case is a regression check of the coded form and of its offset from O'Neill and Eggins; it does not compare the Fischer fit with independent data.
 
 ??? info "Test details"
-    - Reference: Fischer et al. (2011)[^cite-fischer2011], EPSL 304, 496 ([doi:10.1016/j.epsl.2011.02.025](https://doi.org/10.1016/j.epsl.2011.02.025)); cross-checked against O'Neill and Eggins (2002)[^cite-oneilleggins2002].
+    - Reference: Fischer et al. (2011)[^cite-fischer2011]; cross-checked against O'Neill and Eggins (2002)[^cite-oneilleggins2002].
     - Tolerance: relative 1e-4 on the coded form; offset 0.258 dex to 0.02 dex; more than 0.2 dex from O'Neill and Eggins; $-10 < \log_{10} f\mathrm{O_2} < -3$.
     - Test id: `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_cross_check_and_regression`
     - Command: `pytest tests/test_oxygen_fugacity.py -k fischer_value_at_2000K`
@@ -80,7 +80,7 @@ Each case below says why the check exists, what it tests, how we know the right 
 **Known limit.** The reference value is read off a figure, so the case catches only changes larger than 0.05 dex.
 
 ??? info "Test details"
-    - Reference: Hirschmann (2021)[^cite-hirschmann2021], GCA 313, 74, Table 1 and Fig. 5 ([doi:10.1016/j.gca.2021.08.039](https://doi.org/10.1016/j.gca.2021.08.039)).
+    - Reference: Hirschmann (2021)[^cite-hirschmann2021], Table 1 and Fig. 5.
     - Tolerance: 0.05 dex (value read from a figure); more than 0.2 dex from Fischer and from O'Neill and Eggins; more than 0.03 dex from the 1 kbar value.
     - Test id: `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_hirschmann_value_at_1473K_matches_published_figure`
     - Command: `pytest tests/test_oxygen_fugacity.py -k hirschmann_value_at_1473K`
@@ -120,6 +120,6 @@ The default IW buffer of CALLIOPE is Hirschmann (2021), `DEFAULT_FO2_MODEL` in `
 ## References
 
 [^cite-fischer2011]: R. A. Fischer, A. J. Campbell, G. A. Shofner, O. T. Lord, P. Dera, V. B. Prakapenka, *[Equation of state and phase diagram of FeO](https://doi.org/10.1016/j.epsl.2011.02.025)*, Earth and Planetary Science Letters, 304, 496-502, 2011. [SciX](https://scixplorer.org/abs/2011E%26PSL.304..496F/abstract).
-[^cite-hirschmann2021]: M. M. Hirschmann, *[Iron-wüstite revisited: A revised calibration accounting for variable stoichiometry and the effects of pressure](https://doi.org/10.1016/j.gca.2021.08.039)*, Geochimica et Cosmochimica Acta, 313, 74-84, 2021.
+[^cite-hirschmann2021]: M. M. Hirschmann, *[Iron-wüstite revisited: a revised calibration accounting for variable stoichiometry and the effects of pressure](https://doi.org/10.1016/j.gca.2021.08.039)*, Geochimica et Cosmochimica Acta, 313, 74-84, 2021. [SciX](https://scixplorer.org/abs/2021GeCoA.313...74H/abstract).
 [^cite-oneilleggins2002]: H. St. C. O'Neill, S. M. Eggins, *[The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts](https://doi.org/10.1016/S0009-2541(01)00414-4)*, Chemical Geology, 186, 151-181, 2002. [SciX](https://scixplorer.org/abs/2002ChGeo.186..151O/abstract). The IW expression of the code uses the free energy of Fe + 0.5 O$_2$ = FeO(liquid) in their Table 6, p. 163.
 [^cite-chase1998]: M. W. Chase, *[NIST-JANAF Thermochemical Tables, 4th edition](https://janaf.nist.gov/)*, Journal of Physical and Chemical Reference Data Monograph 9, 1998.

@@ -63,7 +63,7 @@ Each case below says why the check exists, what it tests, how we know the right 
 **Known limit.** As a regression check, the case fails when a coefficient, the FeO unit or the buffer changes. It does not test the published law itself.
 
 ??? info "Test details"
-    - Reference: Gaillard et al. (2022)[^cite-gaillard2022], EPSL 117255, S2 solubility law with `x_FeO = 10 wt%` Earth-mantle default ([doi:10.1016/j.epsl.2021.117255](https://doi.org/10.1016/j.epsl.2021.117255)); Hirschmann (2021)[^cite-hirschmann2021] IW buffer.
+    - Reference: Gaillard et al. (2022)[^cite-gaillard2022], S2 solubility law with `x_FeO = 10 wt%` Earth-mantle default; Hirschmann (2021)[^cite-hirschmann2021] IW buffer.
     - Tolerance: relative 1e-5; more than 100 ppmw from the Fischer-buffer value.
     - Test id: `tests/test_solubility.py::TestSolubilityS2_xFeO::test_default_call_matches_gaillard_2022_earth_mantle_value`
     - Command: `pytest tests/test_solubility.py -k gaillard_2022_earth_mantle`
@@ -100,7 +100,7 @@ Each case below says why the check exists, what it tests, how we know the right 
 **How to read the plot.** Each grey column is the constant of the code for one gas, and each mark is the literal that the test asserts. A pass means that every mark sits at the top of its column, to a relative 1e-4.
 
 ??? info "Test details"
-    - Reference: Jambon, Weill and Braun (1986)[^cite-jambon1986], noble gas Henry constants in tholeiitic basalt ([doi:10.1016/0016-7037(86)90193-6](https://doi.org/10.1016/0016-7037(86)90193-6)); code in `jambon86_ppmw_per_bar` and `SolubilityNobleGas`.
+    - Reference: Jambon et al. (1986)[^cite-jambon1986], noble gas Henry constants in tholeiitic basalt; code in `jambon86_ppmw_per_bar` and `SolubilityNobleGas`.
     - Tolerance: relative 1e-4 per gas; no match with another gas; $0.01 < \mathrm{constant} < 1$ ppmw bar$^{-1}$.
     - Test id: `tests/test_solubility.py::TestSolubilityNobleGas::test_every_gas_constant_pinned_to_independent_literal`, `tests/test_solubility.py::TestSolubilityNobleGas::test_helium_constant_matches_jambon_1986`
     - Command: `pytest tests/test_solubility.py -k "every_gas_constant_pinned or helium_constant_matches"`
@@ -139,10 +139,10 @@ Each case below says why the check exists, what it tests, how we know the right 
 ## References
 
 [^cite-dasgupta2022]: R. Dasgupta, E. Falksen, A. Pal, C. Sun, *[The fate of nitrogen during parent body partial melting and accretion of the inner Solar System bodies at reducing conditions](https://doi.org/10.1016/j.gca.2022.09.012)*, Geochimica et Cosmochimica Acta, 336, 291-307, 2022. [SciX](https://scixplorer.org/abs/2022GeCoA.336..291D/abstract).
-[^cite-dixon1995]: J. E. Dixon, E. M. Stolper, J. R. Holloway, *[An experimental study of water and carbon dioxide solubilities in mid-ocean ridge basaltic liquids. Part I: Calibration and solubility models](https://doi.org/10.1093/oxfordjournals.petrology.a037267)*, Journal of Petrology, 36(6), 1607-1631, 1995. [SciX](https://scixplorer.org/abs/1995JPet...36.1607D/abstract).
+[^cite-dixon1995]: J. E. Dixon, E. M. Stolper, J. R. Holloway, *[An experimental study of water and carbon dioxide solubilities in mid-ocean ridge basaltic liquids. Part I: Calibration and solubility models](https://doi.org/10.1093/oxfordjournals.petrology.a037267)*, Journal of Petrology, 36, 1607-1631, 1995. [SciX](https://scixplorer.org/abs/1995JPet...36.1607D/abstract).
 [^cite-fischer2011]: R. A. Fischer, A. J. Campbell, G. A. Shofner, O. T. Lord, P. Dera, V. B. Prakapenka, *[Equation of state and phase diagram of FeO](https://doi.org/10.1016/j.epsl.2011.02.025)*, Earth and Planetary Science Letters, 304, 496-502, 2011. [SciX](https://scixplorer.org/abs/2011E%26PSL.304..496F/abstract).
 [^cite-gaillard2022]: F. Gaillard, F. Bernadou, M. Roskosz, M. A. Bouhifd, Y. Marrocchi, G. Iacono-Marziano, M. Moreira, B. Scaillet, G. Rogerie, *[Redox controls during magma ocean degassing](https://doi.org/10.1016/j.epsl.2021.117255)*, Earth and Planetary Science Letters, 577, 117255, 2022. [SciX](https://scixplorer.org/abs/2022E%26PSL.57717255G/abstract).
-[^cite-hirschmann2021]: M. M. Hirschmann, *[Iron-wüstite revisited: A revised calibration accounting for variable stoichiometry and the effects of pressure](https://doi.org/10.1016/j.gca.2021.08.039)*, Geochimica et Cosmochimica Acta, 313, 74-84, 2021.
-[^cite-jambon1986]: A. Jambon, H. Weill, J. Braun, *[Solubility of He, Ne, Ar, Kr and Xe in a basalt melt in the range 1250-1600 C. Geochemical implications](https://doi.org/10.1016/0016-7037(86)90193-6)*, Geochimica et Cosmochimica Acta, 50(3), 401-408, 1986. [SciX](https://scixplorer.org/abs/1986GeCoA..50..401J/abstract).
-[^cite-libourel2003]: G. Libourel, B. Marty, F. Humbert, *[Nitrogen solubility in basaltic melt. Part I. Effect of oxygen fugacity](https://doi.org/10.1016/S0016-7037(03)00259-X)*, Geochimica et Cosmochimica Acta, 67(21), 4123-4135, 2003. [SciX](https://scixplorer.org/abs/2003GeCoA..67.4123L/abstract).
+[^cite-hirschmann2021]: M. M. Hirschmann, *[Iron-wüstite revisited: a revised calibration accounting for variable stoichiometry and the effects of pressure](https://doi.org/10.1016/j.gca.2021.08.039)*, Geochimica et Cosmochimica Acta, 313, 74-84, 2021. [SciX](https://scixplorer.org/abs/2021GeCoA.313...74H/abstract).
+[^cite-jambon1986]: A. Jambon, H. Weber, O. Braun, *[Solubility of He, Ne, Ar, Kr and Xe in a basalt melt in the range 1250-1600 °C. Geochemical implications](https://doi.org/10.1016/0016-7037(86)90193-6)*, Geochimica et Cosmochimica Acta, 50, 401-408, 1986. [SciX](https://scixplorer.org/abs/1986GeCoA..50..401J/abstract).
+[^cite-libourel2003]: G. Libourel, B. Marty, F. Humbert, *[Nitrogen solubility in basaltic melt. Part I. Effect of oxygen fugacity](https://doi.org/10.1016/S0016-7037(03)00259-X)*, Geochimica et Cosmochimica Acta, 67, 4123-4135, 2003. [SciX](https://scixplorer.org/abs/2003GeCoA..67.4123L/abstract).
 [^cite-sossi2023]: P. A. Sossi, P. M. E. Tollan, J. Badro, D. J. Bower, *[Solubility of water in peridotite liquids and the prevalence of steam atmospheres on rocky planets](https://doi.org/10.1016/j.epsl.2022.117894)*, Earth and Planetary Science Letters, 601, 117894, 2023. [SciX](https://scixplorer.org/abs/2023E%26PSL.60117894S/abstract).
