@@ -210,12 +210,6 @@ Both thresholds ratchet toward 90 %, capped at 90 % (`tools/update_coverage_thre
 The PR job has a pre-flight step that fetches the base branch's `pyproject.toml` and rejects any PR that drops `[tool.coverage.report].fail_under` below `min(base, 90.0)`.
 A one-time ratchet down to the 90 % ceiling is allowed; any drop below 90 % is blocked.
 
-## Coverage union estimation
-
-The PR job downloads the most recent `nightly-coverage` artifact from `main` (`coverage.xml + coverage.json + nightly-timestamp.txt`, 14-day retention) and line-ORs the unit-tier coverage with the nightly's full coverage to produce a union estimate.
-The result is written to `$GITHUB_STEP_SUMMARY` as informational output; it does not block the PR.
-A staleness threshold of 48 hours and a grace band of 0.3 % apply to the warn / fail / ok decision.
-
 ## PR validation pipeline
 
 `.github/workflows/tests.yaml` runs the job `CALLIOPE-check` on every pull request to `main` (opened, reopened, updated or marked ready for review), on every push to `main` and on a manual dispatch.
