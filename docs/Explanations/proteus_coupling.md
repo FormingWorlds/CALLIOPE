@@ -38,7 +38,7 @@ PROTEUS runs an iterative loop in which structure, outgassing, atmosphere radiat
    └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-CALLIOPE is the cheapest of the five (a few tens of milliseconds per call vs. seconds-to-minutes for atmosphere and interior), so no update interval limits it: PROTEUS calls it in every iteration except in the [crystallised and desiccated states](#crystallised-vs-desiccated-states).
+CALLIOPE is the cheapest of the five (a few tens of milliseconds per call vs. seconds-to-minutes for atmosphere and interior), so no update interval limits it: PROTEUS calls it in every iteration unless the planet is in a [crystallised or desiccated state](#crystallised-vs-desiccated-states) or, with `outgas.lid_seal.enabled`, the lid seal is closed on that step.
 
 ## What the wrapper does
 

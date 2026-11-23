@@ -10,9 +10,9 @@ from .oxygen_fugacity import DEFAULT_FO2_MODEL, OxygenFugacity
 
 log = logging.getLogger('fwl.' + __name__)
 
-# Jambon, Weber & Braun (1986), doi:10.1016/0016-7037(86)90193-6: noble gas Henry constants in
-# tholeiitic basalt, cm3 STP/g/bar, 1250-1600 C, as atmodeller's `<gas>_basalt_jambon86` uses
-# them. He keeps the abstract's 56e-5 (Table 5: 56.5e-5) so both codes use identical constants.
+# Jambon et al. (1986), doi:10.1016/0016-7037(86)90193-6: noble gas Henry constants in
+# tholeiitic basalt, cm3 STP/g/bar, 1250-1600 °C, as atmodeller's `<gas>_basalt_jambon86`
+# uses them. The He value is the abstract's 56e-5 (Table 5: 56.5e-5) to keep them identical.
 JAMBON86_STP_HENRY = {  # cm3 STP / g / bar
     'He': 56e-5,
     'Ne': 25e-5,
@@ -270,7 +270,7 @@ class SolubilityNobleGas(Solubility):
 
     Notes
     -----
-    The calibration is tholeiitic basalt at 1 bar and 1250-1600 C. Applying
+    The calibration is tholeiitic basalt at 1 bar and 1250-1600 °C. Applying
     it at the high surface pressures of a noble-gas-rich atmosphere is an
     extrapolation of a 1-bar, linear Henry law with no saturation term.
     """
