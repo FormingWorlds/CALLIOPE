@@ -296,7 +296,7 @@ FAST_FAIL_UNDER=$(python -c "import tomllib; print(tomllib.load(open('pyproject.
 pytest -m "(unit or smoke) and not skip" --cov=calliope --cov-fail-under=${FAST_FAIL_UNDER}
 ```
 
-The nightly run enforces `[tool.coverage.report].fail_under` over the full tier set.
+The nightly run passes `--cov-fail-under=90` over the full tier set; it does not read `[tool.coverage.report].fail_under`.
 Both thresholds ratchet upward, capped at 90 % (`tools/update_coverage_threshold.py` enforces `ECOSYSTEM_CEILING = 90.0`); neither may be manually decreased.
 
 ```console

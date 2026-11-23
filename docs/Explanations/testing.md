@@ -204,8 +204,9 @@ Two coverage thresholds are declared in `pyproject.toml`:
 | Threshold | Tests included | Threshold key | Where it runs |
 |---|---|---|---|
 | Fast | `unit + smoke` | `[tool.calliope.coverage_fast].fail_under` | PR `Run unit + smoke tests` step |
-| Full | `unit + smoke + integration + slow` | `[tool.coverage.report].fail_under` | Nightly `coverage report` |
+| Full | `unit + smoke + integration + slow` | `[tool.coverage.report].fail_under` | Nightly `pytest --cov-fail-under=90` |
 
+The nightly run passes `--cov-fail-under=90` as a fixed value and does not read `[tool.coverage.report].fail_under`; the PR pre-flight check guards that key against a decrease.
 Both thresholds ratchet toward 90 %, capped at 90 % (`tools/update_coverage_threshold.py` enforces `ECOSYSTEM_CEILING = 90.0`); neither may be manually decreased.
 The PR job has a pre-flight step that fetches the base branch's `pyproject.toml` and rejects any PR that drops `[tool.coverage.report].fail_under` below `min(base, 90.0)`.
 A one-time ratchet down to the 90 % ceiling is allowed; any drop below 90 % is blocked.
@@ -216,7 +217,7 @@ A one-time ratchet down to the 90 % ceiling is allowed; any drop below 90 % is b
 A draft pull request runs only `ubuntu-latest` with Python 3.12; every other event runs a 2-OS by 2-Python matrix (`ubuntu-latest`, `macos-latest` x `3.12`, `3.13`).
 The steps after the setup:
 
-1. **Validate test markers** (`bash tools/validate_test_structure.sh`): rejects any test file without a module-level `pytestmark`.
+1. **Validate test markers** (`bash tools/validate_test_structure.sh`): rejects a test function with no tier marker (`unit`, `smoke`, `integration`, `slow`) and no `skip`, or with more than one tier marker. The marker can sit on the function, its class or the module.
 2. **Run test-quality lint** (`python tools/check_test_quality.py --check`): blocking; rejects regression against `tools/test_quality_baseline.json`.
 3. **Check agent instruction files** (`python tools/agents/check_agents_md.py`).
 4. **Pre-flight fail_under ratchet check**: rejects any PR that drops `[tool.coverage.report].fail_under` below `min(base, 90.0)`.

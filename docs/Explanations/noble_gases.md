@@ -22,7 +22,7 @@ $$
 
 where $V_\mathrm{STP} = 2.24\times10^{4}$ cm$^3$ mol$^{-1}$ is the molar volume of an ideal gas at standard temperature and pressure and $M_i$ is the molar mass in g mol$^{-1}$.
 
-| Gas | $k$ [cm$^3$ STP g$^{-1}$ bar$^{-1}$] | $\alpha$ [ppmw bar$^{-1}$] |
+| Gas | $k$ (cm$^3$ STP g$^{-1}$ bar$^{-1}$) | $\alpha$ (ppmw bar$^{-1}$) |
 |---|---:|---:|
 | He | $56\times10^{-5}$ | 0.1001 |
 | Ne | $25\times10^{-5}$ | 0.2252 |
