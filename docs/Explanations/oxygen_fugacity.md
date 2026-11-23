@@ -20,7 +20,7 @@ which fixes a single curve $\log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T)$ in $T$-$f
 
 ### Hirschmann (2021), `hirschmann` (default) [^cite-hirschmann2021]
 
-An empirical fit to a thermodynamic model of iron coexisting with wüstite of equilibrium stoichiometry $\mathrm{Fe}_{1-y}\mathrm{O}$, valid from 1000 to 3000 K and from 1 bar to 100 GPa. Hirschmann (2021) [^cite-hirschmann2021] finds that the IW buffer computed from the JANAF properties of stoichiometric FeO is too reducing, by 1.1 log units at 1000 K and 0.2 log units at 3000 K. That comparison is against JANAF itself, not against the two-parameter `fischer` fit coded below: at 1 bar the Hirschmann fit sits $0.42$ dex above `fischer` at 1000 K and $0.11$ dex below it at 3000 K. The fit (their Table 1) is
+An empirical fit to a thermodynamic model of iron coexisting with wüstite of equilibrium stoichiometry $\mathrm{Fe}_{1-y}\mathrm{O}$, valid from 1000 to 3000 K and from 1 bar to 100 GPa. Hirschmann (2021)[^cite-hirschmann2021] finds that the IW buffer computed from the JANAF properties of stoichiometric FeO is too reducing, by 1.1 log units at 1000 K and 0.2 log units at 3000 K. That comparison is against JANAF itself, not against the two-parameter `fischer` fit coded below: at 1 bar the Hirschmann fit sits $0.42$ dex above `fischer` at 1000 K and $0.11$ dex below it at 3000 K. The fit (their Table 1) is
 
 $$
 \log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T, P) = a + b\,T + c\,T \ln T + \frac{d}{T},
@@ -33,7 +33,7 @@ Implemented as `OxygenFugacity.hirschmann(T, P_bar=1.0)`. The `OxygenFugacity('h
 
 ### Fischer et al. (2011), `fischer` [^cite-fischer2011]
 
-A simpler two-parameter fit of the 1-bar IW buffer. Fischer et al. (2011) [^cite-fischer2011] calculate the 1-bar Fe-FeO curve of their Fig. 6 from Chase (1998) [^cite-chase1998] and give a P-T polynomial in their supplement (Table S2); the source of this 2-term form is not stated in the paper body, and no independent pin of it exists in the test data. Fischer's own high-pressure measurements ($\le$200 GPa) extend the buffer to deep-mantle conditions but are not used by CALLIOPE.
+A simpler two-parameter fit of the 1-bar IW buffer. Fischer et al. (2011)[^cite-fischer2011] calculate the 1-bar Fe-FeO curve of their Fig. 6 from Chase (1998)[^cite-chase1998] and give a P-T polynomial in their supplement (Table S2); the source of this 2-term form is not stated in the paper body, and no independent pin of it exists in the test data. Fischer's own high-pressure measurements ($\le$200 GPa) extend the buffer to deep-mantle conditions but are not used by CALLIOPE.
 
 $$
 \log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T) = 6.94059 - \frac{28180.8}{T}.
@@ -43,13 +43,13 @@ Implemented as `OxygenFugacity.fischer(T)`.
 
 ### O'Neill & Eggins (2002), `oneill` (legacy) [^cite-oneilleggins2002]
 
-A thermochemically-constrained fit derived from low-temperature equilibrium data, expressed as Bower et al. (2022) [^cite-bower2022] Equation (7):
+A thermochemically-constrained fit derived from low-temperature equilibrium data, expressed as Bower et al. (2022)[^cite-bower2022] Equation (7):
 
 $$
 \log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T) = \frac{2\left[-244118 + 115.559\,T - 8.474\,T \ln T\right]}{\ln(10)\, R\, T},
 $$
 
-with $R = 8.31441$ J K$^{-1}$ mol$^{-1}$. Bower et al. (2022) [^cite-bower2022] adopted this as the "IW buffer to which $f_{\mathrm{O}_2}$ is referenced". CALLIOPE retains it under the model name `oneill` (function `OxygenFugacity.oneill(T)` in `oxygen_fugacity.py`); keep it as the choice when you need to reproduce results from the older literature line.
+with $R = 8.31441$ J K$^{-1}$ mol$^{-1}$. Bower et al. (2022)[^cite-bower2022] adopted this as the "IW buffer to which $f_{\mathrm{O}_2}$ is referenced". CALLIOPE retains it under the model name `oneill` (function `OxygenFugacity.oneill(T)` in `oxygen_fugacity.py`); keep it as the choice when you need to reproduce results from the older literature line.
 
 !!! note "Choice of buffer"
     CALLIOPE defaults to Hirschmann (2021) because it accounts for the variable stoichiometry of wüstite, which the JANAF-based stoichiometric-FeO fits do not, and because it is the calibration that atmodeller's Hirschmann composite uses above 1000 K. At 1 bar the three buffers differ as follows: Hirschmann is $0.23$ dex more oxidising than Fischer at $T = 1500$ K, $0.10$ dex at 2000 K, within $0.01$ dex near 2500 K, and $0.11$ dex more reducing at 3000 K. Against O'Neill, Hirschmann is $0.22$ dex more reducing at 1500 K, $0.35$ dex more oxidising at 2000 K, and $0.95$ dex more oxidising at 3000 K. The choice therefore matters at the few-tenths-of-a-dex level for inferred partial pressures across most of the magma-ocean range. Fischer and O'Neill are available as `OxygenFugacity('fischer')` and `OxygenFugacity('oneill')`, or as `fO2_model='fischer'` and `fO2_model='oneill'` on a solve. See [Backend comparison](cross_backend_comparison.md) for the cross-backend comparison.
@@ -88,15 +88,15 @@ $$
 G_\mathrm{eq}(T, f_{\mathrm{O}_2}) = 10^{\,\log_{10} K_\mathrm{eq}(T) - n_\mathrm{O_2}\,\log_{10} f_{\mathrm{O}_2}}.
 $$
 
-For the H$_2$O-H$_2$ couple ($n_\mathrm{O_2} = +0.5$), reducing conditions ($f_{\mathrm{O}_2}$ smaller, $\Delta\mathrm{IW}$ more negative) drive $G_\mathrm{eq}$ larger, which in turn drives more H$_2$O to dissociate into H$_2$. This is the redox dependence visible in the redox-sweep tutorial, and it is the mechanism behind the H$_2$-dominated, long-lived magma-ocean atmospheres found in Nicholls et al. (2024) [^cite-nicholls2024] Figure 6 at $\Delta\mathrm{IW} \le -1$.
+For the H$_2$O-H$_2$ couple ($n_\mathrm{O_2} = +0.5$), reducing conditions ($f_{\mathrm{O}_2}$ smaller, $\Delta\mathrm{IW}$ more negative) drive $G_\mathrm{eq}$ larger, which in turn drives more H$_2$O to dissociate into H$_2$. This is the redox dependence visible in the redox-sweep tutorial, and it is the mechanism behind the H$_2$-dominated, long-lived magma-ocean atmospheres found in Nicholls et al. (2024)[^cite-nicholls2024] Figure 6 at $\Delta\mathrm{IW} \le -1$.
 
 ### 3. The S$_2$ Gaillard solubility
 
-The Gaillard et al. (2022) [^cite-gaillard2022] sulfide solubility carries an explicit $\ln f_{\mathrm{O}_2}$ term, so $\Delta\mathrm{IW}$ enters the dissolved-S inventory directly. The implementation in `solubility.SolubilityS2.gaillard` calls back into `OxygenFugacity` with the buffer of the solve to compute the absolute $f_{\mathrm{O}_2}$.
+The Gaillard et al. (2022)[^cite-gaillard2022] sulfide solubility carries an explicit $\ln f_{\mathrm{O}_2}$ term, so $\Delta\mathrm{IW}$ enters the dissolved-S inventory directly. The implementation in `solubility.SolubilityS2.gaillard` calls back into `OxygenFugacity` with the buffer of the solve to compute the absolute $f_{\mathrm{O}_2}$.
 
 ### 4. The N$_2$ Dasgupta solubility
 
-Similarly, the Dasgupta et al. (2022) [^cite-dasgupta2022] N$_2$ solubility includes a $-1.6\,\Delta\mathrm{IW}$ term in its exponent, so reducing conditions sharply increase the dissolved-N inventory. `solubility.SolubilityN2.dasgupta` takes the solve's shift as this $\Delta\mathrm{IW}$ directly, on whichever buffer the solve uses. Dasgupta et al. (2022) define $\Delta\mathrm{IW}$ by the Fe-FeO activity ratio of the melt (their Eq. 2) and name no IW buffer curve, so there is no buffer to convert to. This is the one channel that the `fO2_model` setting does not reach: at a fixed absolute $f_{\mathrm{O}_2}$, switching buffers moves the shift and with it the dissolved N. This is one mechanism by which planet-scale N partitioning is tied to mantle redox; see Nicholls et al. (2026) [^cite-nicholls2026] for an application to L 98-59 d, where the inferred H$_2$-dominated atmosphere with photochemical SO$_2$ implies $\Delta\mathrm{IW}$ between IW-4 and IW-1.
+Similarly, the Dasgupta et al. (2022)[^cite-dasgupta2022] N$_2$ solubility includes a $-1.6\,\Delta\mathrm{IW}$ term in its exponent, so reducing conditions sharply increase the dissolved-N inventory. `solubility.SolubilityN2.dasgupta` takes the solve's shift as this $\Delta\mathrm{IW}$ directly, on whichever buffer the solve uses. Dasgupta et al. (2022) define $\Delta\mathrm{IW}$ by the Fe-FeO activity ratio of the melt (their Eq. 2) and name no IW buffer curve, so there is no buffer to convert to. This is the one channel that the `fO2_model` setting does not reach: at a fixed absolute $f_{\mathrm{O}_2}$, switching buffers moves the shift and with it the dissolved N. This is one mechanism by which planet-scale N partitioning is tied to mantle redox; see Nicholls et al. (2026)[^cite-nicholls2026] for an application to L 98-59 d, where the inferred H$_2$-dominated atmosphere with photochemical SO$_2$ implies $\Delta\mathrm{IW}$ between IW-4 and IW-1.
 
 ## The oxygen fugacity of the metal reservoir
 
@@ -106,22 +106,22 @@ The optional [metal reservoir](metal.md) has its own $\Delta\mathrm{IW}$, `dIW_e
 
 | Reservoir | $\Delta\mathrm{IW}$ | Source |
 |---|---|---|
-| Mercury surface | IW-2.8 to IW-5.4 (Fe-based: IW-2.8 to IW-4.5; sulphur-based: IW-5.4 via Namur et al. 2016) | Cartier & Wood (2019) [^cite-cartierwood2019] |
-| Mars upper mantle (shergottite source) | $\approx$ IW (specifically IW-1.0 to IW-0.3 for QUE 94201) | Wadhwa (2001) [^cite-wadhwa2001] |
-| Mars shergottite parent melts | IW-1.0 to IW+1.9 (variation from crust assimilation) | Wadhwa (2001) [^cite-wadhwa2001] |
+| Mercury surface | IW-2.8 to IW-5.4 (Fe-based: IW-2.8 to IW-4.5; sulphur-based: IW-5.4 via Namur et al. 2016) | Cartier & Wood (2019)[^cite-cartierwood2019] |
+| Mars upper mantle (shergottite source) | $\approx$ IW (specifically IW-1.0 to IW-0.3 for QUE 94201) | Wadhwa (2001)[^cite-wadhwa2001] |
+| Mars shergottite parent melts | IW-1.0 to IW+1.9 (variation from crust assimilation) | Wadhwa (2001)[^cite-wadhwa2001] |
 | Iron-wüstite buffer | $0$ | by definition |
-| Earth's upper mantle (modern) | $\approx$ IW+3.5 | Sossi et al. (2020) [^cite-sossi2020] |
-| Earth upper mantle (range) | FMQ$\,\pm\,2$ ($\approx$ IW+1.5 to IW+5.5) | Frost & McCammon (2008) [^cite-frostmccammon2008] |
-| Earth mantle at $\sim 8$ GPa | $\approx$ FMQ$-5$ ($\approx$ IW-1.5) | Frost & McCammon (2008) [^cite-frostmccammon2008] |
-| Earth transition zone ($\sim$14-23 GPa) | just below IW | Frost & McCammon (2008) [^cite-frostmccammon2008] |
-| Earth lower mantle ($>$23 GPa) | metal-saturated ($\sim$1 wt% Fe$^0$); at or below IW | Frost & McCammon (2008) [^cite-frostmccammon2008] |
+| Earth's upper mantle (modern) | $\approx$ IW+3.5 | Sossi et al. (2020)[^cite-sossi2020] |
+| Earth upper mantle (range) | FMQ$\,\pm\,2$ ($\approx$ IW+1.5 to IW+5.5) | Frost & McCammon (2008)[^cite-frostmccammon2008] |
+| Earth mantle at $\sim 8$ GPa | $\approx$ FMQ$-5$ ($\approx$ IW-1.5) | Frost & McCammon (2008)[^cite-frostmccammon2008] |
+| Earth transition zone ($\sim$14-23 GPa) | just below IW | Frost & McCammon (2008)[^cite-frostmccammon2008] |
+| Earth lower mantle ($>$23 GPa) | metal-saturated ($\sim$1 wt% Fe$^0$); at or below IW | Frost & McCammon (2008)[^cite-frostmccammon2008] |
 
-CALLIOPE's PROTEUS-side default is `fO2_shift_IW = 4.0`, consistent with a near-surface terrestrial composition. Nicholls et al. (2024) [^cite-nicholls2024] Table 2 explored $\Delta\mathrm{IW} \in \{-5, -3, -1, 0, +1, +3, +5\}$ on a 7-point grid and demonstrated that the resulting atmospheric composition spans the full range from H$_2$-dominated reduced atmospheres (TRAPPIST-1 c-like) to H$_2$O/CO$_2$-dominated oxidised atmospheres (Earth-like).
+CALLIOPE's PROTEUS-side default is `fO2_shift_IW = 4.0`, consistent with a near-surface terrestrial composition. Nicholls et al. (2024)[^cite-nicholls2024] Table 2 explored $\Delta\mathrm{IW} \in \{-5, -3, -1, 0, +1, +3, +5\}$ on a 7-point grid and demonstrated that the resulting atmospheric composition spans the full range from H$_2$-dominated reduced atmospheres (TRAPPIST-1 c-like) to H$_2$O/CO$_2$-dominated oxidised atmospheres (Earth-like).
 
 ## Limitations
 
 - **No $f_{\mathrm{O}_2}$ evolution**: $\Delta\mathrm{IW}$ is a constant input, not a state variable. In reality the mantle $f_{\mathrm{O}_2}$ should evolve with degree of crystallisation, fractional crystallisation depth, and atmospheric escape; CALLIOPE does not capture this and the user is responsible for choosing a representative value or sweeping over a grid.
-- **No $f_{\mathrm{O}_2}$ depth profile**: the surface $f_{\mathrm{O}_2}$ alone enters the chemistry. Bower et al. (2022) [^cite-bower2022] §2.3 and Sossi et al. (2020) [^cite-sossi2020] discuss why the *interface* fugacity (rather than the deep-mantle value) is the relevant choice; this assumption is consistent with CALLIOPE's ideal-gas, single-temperature treatment but breaks down if a Fe-FeO equilibrium curve in the deep mantle differs by more than a few dex.
+- **No $f_{\mathrm{O}_2}$ depth profile**: the surface $f_{\mathrm{O}_2}$ alone enters the chemistry. Bower et al. (2022)[^cite-bower2022] §2.3 and Sossi et al. (2020)[^cite-sossi2020] discuss why the *interface* fugacity (rather than the deep-mantle value) is the relevant choice; this assumption is consistent with CALLIOPE's ideal-gas, single-temperature treatment but breaks down if a Fe-FeO equilibrium curve in the deep mantle differs by more than a few dex.
 - **No solid-FeO buffering**: when $\Phi_\mathrm{global} \to 0$, there is no melt to buffer $f_{\mathrm{O}_2}$ against the user-prescribed value. CALLIOPE keeps using the shift regardless of melt fraction, which is a reasonable bookkeeping choice but should not be over-interpreted physically.
 
 ## See also

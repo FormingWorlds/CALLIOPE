@@ -2,7 +2,7 @@
 
 CALLIOPE is a 0-D **equilibrium outgassing** solver for the magma-ocean atmosphere coupling. It treats the silicate mantle and the overlying gas-phase atmosphere as a single thermodynamic system in equilibrium at the surface, and asks: for a given total elemental inventory and a given magma-ocean state, what surface partial pressures and dissolved-volatile masses simultaneously satisfy (i) gas-phase chemical equilibrium, (ii) gas-melt solubility equilibrium, and (iii) elemental mass conservation?
 
-This page summarises the model assumptions, the variables it solves for, and how it relates to the upstream papers (Bower et al. 2019 [^cite-bower2019], 2022 [^cite-bower2022]; Nicholls et al. 2024 [^cite-nicholls2024]). Each component has its own dedicated page.
+This page summarises the model assumptions, the variables it solves for, and how it relates to the upstream papers (Bower et al. (2019)[^cite-bower2019], 2022 [^cite-bower2022]; Nicholls et al. (2024)[^cite-nicholls2024]). Each component has its own dedicated page.
 
 ## What is in the model
 
@@ -12,14 +12,14 @@ This page summarises the model assumptions, the variables it solves for, and how
 
     | Reaction | Source |
     |---|---|
-    | $\mathrm{H_2O} \rightleftharpoons \mathrm{H_2} + \tfrac{1}{2}\,\mathrm{O_2}$ | [JANAF](https://janaf.nist.gov/) (`janaf_H2`) and Schaefer & Fegley 2017 [^cite-schaeferfegley2017] (`schaefer_H`) |
-    | $\mathrm{CO_2} \rightleftharpoons \mathrm{CO} + \tfrac{1}{2}\,\mathrm{O_2}$ | [JANAF](https://janaf.nist.gov/) (`janaf_CO`) and Schaefer & Fegley 2017 [^cite-schaeferfegley2017] (`schaefer_C`) |
-    | $\mathrm{CO_2} + 2\,\mathrm{H_2} \rightleftharpoons \mathrm{CH_4} + \mathrm{O_2}$ | Schaefer & Fegley 2017 [^cite-schaeferfegley2017] (`schaefer_CH4`) |
+    | $\mathrm{H_2O} \rightleftharpoons \mathrm{H_2} + \tfrac{1}{2}\,\mathrm{O_2}$ | [JANAF](https://janaf.nist.gov/) (`janaf_H2`) and Schaefer & Fegley (2017)[^cite-schaeferfegley2017] (`schaefer_H`) |
+    | $\mathrm{CO_2} \rightleftharpoons \mathrm{CO} + \tfrac{1}{2}\,\mathrm{O_2}$ | [JANAF](https://janaf.nist.gov/) (`janaf_CO`) and Schaefer & Fegley (2017)[^cite-schaeferfegley2017] (`schaefer_C`) |
+    | $\mathrm{CO_2} + 2\,\mathrm{H_2} \rightleftharpoons \mathrm{CH_4} + \mathrm{O_2}$ | Schaefer & Fegley (2017)[^cite-schaeferfegley2017] (`schaefer_CH4`) |
     | $\tfrac{1}{2}\,\mathrm{S_2} + \mathrm{O_2} \rightleftharpoons \mathrm{SO_2}$ | JANAF, doubled form (`janaf_SO2`) |
     | $\tfrac{1}{2}\,\mathrm{S_2} + \mathrm{H_2} \rightleftharpoons \mathrm{H_2S}$ | JANAF, doubled form (`janaf_H2S`) |
     | $\tfrac{1}{2}\,\mathrm{N_2} + \tfrac{3}{2}\,\mathrm{H_2} \rightleftharpoons \mathrm{NH_3}$ | JANAF, doubled form (`janaf_NH3`) |
 
-- **One oxygen-fugacity buffer**: Hirschmann (2021) [^cite-hirschmann2021] iron-wüstite (default; matches atmodeller's buffer above 1000 K), Fischer et al. (2011) [^cite-fischer2011], or the legacy O'Neill & Eggins (2002) [^cite-oneilleggins2002] IW. The shift $\Delta\mathrm{IW}$ sets $\log_{10} f_{\mathrm{O}_2}$ relative to the buffer; under the buffered mode it is a user-prescribed input, under the authoritative-O mode it is a solver unknown.
+- **One oxygen-fugacity buffer**: Hirschmann (2021)[^cite-hirschmann2021] iron-wüstite (default; matches atmodeller's buffer above 1000 K), Fischer et al. (2011)[^cite-fischer2011], or the legacy O'Neill & Eggins (2002)[^cite-oneilleggins2002] IW. The shift $\Delta\mathrm{IW}$ sets $\log_{10} f_{\mathrm{O}_2}$ relative to the buffer; under the buffered mode it is a user-prescribed input, under the authoritative-O mode it is a solver unknown.
 - **One solubility law per species** with multiple alternative compositions (peridotite, basalt, lunar glass, anorthite-diopside) selectable via constructor argument.
 - **An optional metal reservoir**: with `metal_mass` above zero, liquid metal in equilibrium with the melt takes part of the H, C, N and S, and O and Si from the silicate FeO. It is off by default. See [Metal reservoir](metal.md).
 
@@ -30,7 +30,7 @@ This page summarises the model assumptions, the variables it solves for, and how
 - **No radiative transfer**: surface partial pressures come out, optical depths and surface temperature come from [AGNI](https://www.h-nicholls.space/AGNI/) or [JANUS](https://proteus-framework.org/JANUS/).
 - **No atmospheric escape**: per-iteration mass loss is computed by the PROTEUS escape module ([ZEPHYRUS](https://proteus-framework.org/ZEPHYRUS/)).
 - **No solid-phase partitioning**: dissolved-mass fields are written into `_kg_solid` slots that always read `0.0`; CALLIOPE only resolves melt and gas reservoirs. The PROTEUS atmosphere modules handle solid-phase trapping if any.
-- **No real-gas EOS**: all species are treated as ideal gases, so partial pressure $\equiv$ fugacity. For non-ideal real-gas effects use [atmodeller](https://atmodeller.readthedocs.io/) (Bower et al. 2025 [^cite-bower2025]).
+- **No real-gas EOS**: all species are treated as ideal gases, so partial pressure $\equiv$ fugacity. For non-ideal real-gas effects use [atmodeller](https://atmodeller.readthedocs.io/) (Bower et al. (2025)[^cite-bower2025]).
 - **No condensation**: every species is in the gas phase. Condensation chemistry happens in AGNI / JANUS.
 
 ## Mathematical statement
@@ -59,10 +59,10 @@ The four pieces of physics decompose cleanly:
 
 ## Lineage
 
-- **Bower et al. (2019) [^cite-bower2019]** introduced the H$_2$O + CO$_2$ mass-balance + Henry's-law treatment that CALLIOPE inherits, including the molar-mass correction $\mu_v / \bar\mu$ in the column-mass relation that earlier studies (Elkins-Tanton 2008 [^cite-elkinstanton2008]; Lebrun et al. 2013 [^cite-lebrun2013]; Salvador et al. 2017 [^cite-salvador2017]; Nikolaou et al. 2019 [^cite-nikolaou2019]) had omitted.
-- **Bower et al. (2022) [^cite-bower2022]** added the H$_2$, CO, CH$_4$ extensions and the explicit Schaefer & Fegley (2017) [^cite-schaeferfegley2017] IVTHANTHERMO / Chase (1998) [^cite-chase1998] JANAF equilibrium constants for the H$_2$O/H$_2$, CO$_2$/CO, and CO$_2$+H$_2$/CH$_4$ couples; also adopted the O'Neill & Eggins (2002) [^cite-oneilleggins2002] IW buffer (their Eq. 7) as the parameterisation of mantle redox state.
-- **Nicholls et al. (2024) [^cite-nicholls2024]** introduced N$_2$ via the Libourel et al. (2003) [^cite-libourel2003] and Dasgupta et al. (2022) [^cite-dasgupta2022] solubility laws, which is the species set in `calliope.solve.equilibrium_atmosphere` today.
-- **Nicholls et al. (2026) [^cite-nicholls2026]** demonstrated the sulfur extension (S$_2$, SO$_2$, H$_2$S) on L 98-59 d, validating the equilibrium constants and the Gaillard et al. (2022) [^cite-gaillard2022] S$_2$ solubility law against in-situ photochemical inferences.
+- **Bower et al. (2019)[^cite-bower2019]** introduced the H$_2$O + CO$_2$ mass-balance + Henry's-law treatment that CALLIOPE inherits, including the molar-mass correction $\mu_v / \bar\mu$ in the column-mass relation that earlier studies (Elkins-Tanton (2008)[^cite-elkinstanton2008]; Lebrun et al. (2013)[^cite-lebrun2013]; Salvador et al. (2017)[^cite-salvador2017]; Nikolaou et al. (2019)[^cite-nikolaou2019]) had omitted.
+- **Bower et al. (2022)[^cite-bower2022]** added the H$_2$, CO, CH$_4$ extensions and the explicit Schaefer & Fegley (2017)[^cite-schaeferfegley2017] IVTHANTHERMO / Chase (1998)[^cite-chase1998] JANAF equilibrium constants for the H$_2$O/H$_2$, CO$_2$/CO, and CO$_2$+H$_2$/CH$_4$ couples; also adopted the O'Neill & Eggins (2002)[^cite-oneilleggins2002] IW buffer (their Eq. 7) as the parameterisation of mantle redox state.
+- **Nicholls et al. (2024)[^cite-nicholls2024]** introduced N$_2$ via the Libourel et al. (2003)[^cite-libourel2003] and Dasgupta et al. (2022)[^cite-dasgupta2022] solubility laws, which is the species set in `calliope.solve.equilibrium_atmosphere` today.
+- **Nicholls et al. (2026)[^cite-nicholls2026]** demonstrated the sulfur extension (S$_2$, SO$_2$, H$_2$S) on L 98-59 d, validating the equilibrium constants and the Gaillard et al. (2022)[^cite-gaillard2022] S$_2$ solubility law against in-situ photochemical inferences.
 
 !!! note "Why four primaries"
     CALLIOPE's prognostic *species* are the four primary partial pressures, not the eleven species partial pressures: the gas-phase chemistry collapses the eleven species into four independent mass-balance constraints. N has only one solved degree of freedom even though it appears in both N$_2$ and NH$_3$. O is either not solved (buffered mode) or carried as an additional scalar unknown $\Delta\mathrm{IW}$ alongside the four pressures (authoritative-O mode); in neither case is a new primary partial pressure introduced. Adding a new oxygen-bearing species (e.g. NO) would not require a new constraint, only a new entry in `get_partial_pressures()` and the corresponding contribution to atmospheric and dissolved mass.
@@ -72,7 +72,7 @@ The four pieces of physics decompose cleanly:
 CALLIOPE is calibrated for surface temperatures of roughly $1000 \le T_\mathrm{magma} \le 4000$ K and surface pressures of roughly $0.1 \le p_\mathrm{surf} \le 5000$ bar. The lower end of the pressure range is set by numerical stability of the speciation walk; the upper end is the loose envelope above which one or more solubility laws extrapolate. Individual solubility laws have tighter calibration windows than the envelope (Dixon CO$_2$: $\le$815 bar; Sossi H$_2$O peridotite: 1 atm; Hamilton H$_2$O basalt: 1-6 kbar; Ardia CH$_4$: 0.7-3 GPa total pressure), see the per-law table in [Solubility laws](solubility.md). Outside the envelope above:
 
 - The JANAF constants for H$_2$ and CO have a use range of only $1500 \le T \le 3000$ K (named in their `chemistry.py` docstrings), so inside the envelope below 1500 K and above 3000 K they are used outside it; the fits for H$_2$S and NH$_3$ cover $700 \le T \le 5000$ K and log one warning per process below 700 K, but both species also depend on the H$_2$ that `janaf_H2` sets, which the warning does not cover (see [Equilibrium chemistry](equilibrium_chemistry.md)). The PROTEUS wrapper enforces a configurable `T_floor` (default 700 K), which clips temperatures below `T_floor` to this value, since thermochemical equilibrium does not necessarily hold at cooler temperatures.
-- Above $T \sim 4000$ K the mantle-atmosphere partitioning approximation breaks down; switch to atmodeller (Bower et al. 2025 [^cite-bower2025]).
+- Above $T \sim 4000$ K the mantle-atmosphere partitioning approximation breaks down; switch to atmodeller (Bower et al. (2025)[^cite-bower2025]).
 - The Sossi et al. (2023)[^cite-sossi2023] peridotite and Newcombe et al. (2017)[^cite-newcombe2017] anorthite-diopside / lunar-glass H$_2$O laws are calibrated at 1 atm. The Dixon et al. (1995)[^cite-dixon1995] basalt fit is calibrated to 717 bar $p_\mathrm{H_2O}$. For surface pressures above $\sim$1 kbar use the Hamilton et al. (1964)[^cite-hamilton1964] basalt fit (1-6 kbar calibration range) or atmodeller for higher-pressure non-ideal behaviour. Applying the Sossi or Newcombe fits at kbar pressures extrapolates the partial-pressure input by 3 orders of magnitude beyond calibration; the resulting dissolved-mass error scales as $p^{0.5}$ for the power-law fits, so the error is a factor of $\sim$30 at 1 kbar.
 - Solid-phase partitioning is ignored; CALLIOPE handles melt and gas, plus the optional metal reservoir. Use it only when $\Phi_\mathrm{global} > 0$, or accept that all dissolved masses will be zero.
 

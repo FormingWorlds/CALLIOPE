@@ -43,7 +43,7 @@ Each case below says why the check exists, what it tests, how we know the right 
     ppmw = 524 * sqrt(100) = 5240
     ```
 
-    The Dixon 1995 basalt constant (`const = 965`) would give 9650, 84 % higher at the same pressure. An exponent of 1.0 would give 52400, 10 times higher.
+    The Dixon et al. (1995) basalt constant (`const = 965`) would give 9650, 84 % higher at the same pressure. An exponent of 1.0 would give 52400, 10 times higher.
 
 ## Sulfur at 2500 K
 
@@ -70,7 +70,7 @@ Each case below says why the check exists, what it tests, how we know the right 
     - Companion tests in `TestSolubilityS2_xFeO` check the closed-form scaling with $x_\mathrm{FeO}$ at 5, 10, 15 and 20 wt%, so the coefficient 0.124 is checked on its own.
 
 ??? note "Worked numbers"
-    At T = 2500 K, p_S2 = 1 bar, x_FeO = 10 wt%, fO2 from the default Hirschmann 2021 IW buffer at 1 bar:
+    At T = 2500 K, p_S2 = 1 bar, x_FeO = 10 wt%, fO2 from the default Hirschmann (2021) IW buffer at 1 bar:
 
     ```
     log10(fO2) = -4.34247 (Hirschmann at T=2500 K, P=1 bar, dIW=0)
@@ -82,7 +82,7 @@ Each case below says why the check exists, what it tests, how we know the right 
     ppmw = exp(9.4917) ~ 13249
     ```
 
-    The test value 13248.67 matches this closed form. The Fischer 2011 buffer (log10(fO2) = -4.3317 at 2500 K) gives 13085.87, 1.2 % lower.
+    The test value 13248.67 matches this closed form. The Fischer et al. (2011) buffer (log10(fO2) = -4.3317 at 2500 K) gives 13085.87, 1.2 % lower.
 
 ## Noble gas Henry constants
 
@@ -133,7 +133,7 @@ Each case below says why the check exists, what it tests, how we know the right 
 
 - `src/calliope/solubility.py` (`SolubilityH2O`): the H2O laws.
 - `src/calliope/solubility.py` (`SolubilityS2`): the S2 law with the `x_FeO` argument.
-- `src/calliope/solubility.py` (`SolubilityN2`): the N2 law with the `x_SiO2`, `x_Al2O3` and `x_TiO2` arguments (Dasgupta et al. 2022[^cite-dasgupta2022]), and Libourel et al. (2003)[^cite-libourel2003] as the law without composition.
+- `src/calliope/solubility.py` (`SolubilityN2`): the N2 law with the `x_SiO2`, `x_Al2O3` and `x_TiO2` arguments (Dasgupta et al. (2022)[^cite-dasgupta2022]), and Libourel et al. (2003)[^cite-libourel2003] as the law without composition.
 - [Solubility](../Explanations/solubility.md): the explanation page, with the range of validity of each law.
 
 ## References

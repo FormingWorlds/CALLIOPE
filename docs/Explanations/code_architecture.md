@@ -69,7 +69,7 @@ The orchestration layer. Two solver entry points, the buffered mode and the auth
 Plus seven shared helpers:
 
 - `get_partial_pressures(pin, ddict)`: walks the eleven-species speciation tree from the four primary pressures.
-- `atmosphere_mass(pin, ddict)`: applies Bower et al. (2019) [^cite-bower2019] Eq. 2 to every species and aggregates atomic-mass tallies per element.
+- `atmosphere_mass(pin, ddict)`: applies Bower et al. (2019)[^cite-bower2019] Eq. 2 to every species and aggregates atomic-mass tallies per element.
 - `dissolved_mass(pin, ddict)`: applies the chosen solubility law for each soluble species and aggregates atomic-mass tallies per element.
 - `get_target_from_params(ddict)`: translates `hydrogen_earth_oceans`, `CH_ratio`, `nitrogen_ppmw`, `sulfur_ppmw` into kg-per-element targets (four-key, for the buffered mode).
 - `get_target_from_pressures(ddict)`: back-computes kg-per-element targets from prescribed initial atmospheric pressures.

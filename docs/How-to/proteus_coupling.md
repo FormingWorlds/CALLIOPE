@@ -1,6 +1,6 @@
 # Coupling to PROTEUS
 
-This page is the **practical recipe** for using CALLIOPE inside a PROTEUS coupled run: which TOML blocks matter, which knobs are documented where, and which combinations are known to be safe.
+This page is the **practical recipe** for using CALLIOPE inside a PROTEUS coupled run: which TOML blocks matter, which settings are documented where, and which combinations are known to be safe.
 
 For the underlying control flow (per-iteration sequence diagram, what the wrapper passes to `equilibrium_atmosphere()`, how warm-starts are constructed, what gets written back into `hf_row`), see the [theory page](../Explanations/proteus_coupling.md).
 
@@ -200,7 +200,7 @@ What the wrapper does on the first call: builds the five-element target $(m_\mat
 
 | Use `user_constant` when | Use `from_O_budget` when |
 |---|---|
-| You want a fixed redox state for a parameter sweep (Nicholls et al. 2024 [^cite-nicholls2024] explored seven $\Delta\mathrm{IW}$ values this way) | You want whole-planet O accounting where escape, ingassing, and the mantle FeO inventory all debit the same O reservoir |
+| You want a fixed redox state for a parameter sweep (Nicholls et al. (2024)[^cite-nicholls2024] explored seven $\Delta\mathrm{IW}$ values this way) | You want whole-planet O accounting where escape, ingassing, and the mantle FeO inventory all debit the same O reservoir |
 | You don't have an independent constraint on the planet's O budget | You have an O constraint from an FeO-content estimate, a chondritic O/Si ratio, or an observational retrieval |
 | Buffered chemistry is good enough for your scientific question | The mantle redox state is itself the unknown you're trying to infer |
 
@@ -208,22 +208,22 @@ The two modes give bit-identical results in the cases where they should: for any
 
 ## Redox state
 
-`fO2_shift_IW` is in $\log_{10}$ units relative to the CALLIOPE default IW buffer, Hirschmann (2021) [^cite-hirschmann2021]. Under `fO2_source = "user_constant"` this value is the buffer offset; under `fO2_source = "from_O_budget"` it is only the initial-guess seed. Common reference values:
+`fO2_shift_IW` is in $\log_{10}$ units relative to the CALLIOPE default IW buffer, Hirschmann (2021)[^cite-hirschmann2021]. Under `fO2_source = "user_constant"` this value is the buffer offset; under `fO2_source = "from_O_budget"` it is only the initial-guess seed. Common reference values:
 
 | $\Delta\mathrm{IW}$ | Description |
 |---|---|
-| $-5$ | Highly reduced (Mercury-like; sulphur-derived estimate IW-5.4, Cartier & Wood 2019 [^cite-cartierwood2019]) |
-| $-3$ | Reduced (e.g. enstatite-chondrite-like; Mercury Fe-based estimate IW-2.8 to IW-4.5, Cartier & Wood 2019 [^cite-cartierwood2019]) |
-| $-1$ | Moderately reduced; near the Mars-mantle source range (Wadhwa 2001 [^cite-wadhwa2001] places the shergottite-source mantle at $\approx$ IW) |
+| $-5$ | Highly reduced (Mercury-like; sulphur-derived estimate IW-5.4, Cartier & Wood (2019)[^cite-cartierwood2019]) |
+| $-3$ | Reduced (e.g. enstatite-chondrite-like; Mercury Fe-based estimate IW-2.8 to IW-4.5, Cartier & Wood (2019)[^cite-cartierwood2019]) |
+| $-1$ | Moderately reduced; near the Mars-mantle source range (Wadhwa (2001)[^cite-wadhwa2001] places the shergottite-source mantle at $\approx$ IW) |
 | $0$  | At iron-wüstite buffer (core formation equilibrium at depth) |
-| $+3.5$ | Sossi et al. (2020) [^cite-sossi2020] preferred Earth's mantle $f_{\mathrm{O}_2}$ |
-| $+4$ | CALLIOPE PROTEUS-side default; near-modern Earth upper mantle (within FMQ$\,\pm\,2$ per Frost & McCammon 2008 [^cite-frostmccammon2008]) |
+| $+3.5$ | Sossi et al. (2020)[^cite-sossi2020] preferred Earth's mantle $f_{\mathrm{O}_2}$ |
+| $+4$ | CALLIOPE PROTEUS-side default; near-modern Earth upper mantle (within FMQ$\,\pm\,2$ per Frost & McCammon (2008)[^cite-frostmccammon2008]) |
 
-Sossi et al. (2020) [^cite-sossi2020] place Earth's modern upper mantle at $\Delta\mathrm{IW} \approx +3.5$; Frost & McCammon (2008) [^cite-frostmccammon2008] report a broader FMQ$\,\pm\,2$ range across mantle settings (approximately IW+1.5 to IW+5.5). CALLIOPE defaults sit at $\Delta\mathrm{IW} = 4.0$, consistent with a modern terrestrial composition.
+Sossi et al. (2020)[^cite-sossi2020] place Earth's modern upper mantle at $\Delta\mathrm{IW} \approx +3.5$; Frost & McCammon (2008)[^cite-frostmccammon2008] report a broader FMQ$\,\pm\,2$ range across mantle settings (approximately IW+1.5 to IW+5.5). CALLIOPE defaults sit at $\Delta\mathrm{IW} = 4.0$, consistent with a modern terrestrial composition.
 
 ## Solver tolerances
 
-The PROTEUS wrapper hard-codes a few solver knobs that override the CALLIOPE library defaults:
+The PROTEUS wrapper hard-codes a few solver settings that override the CALLIOPE library defaults:
 
 | Wrapper override | Value | Reason |
 |---|---|---|
@@ -248,7 +248,7 @@ For `Time > 1` yr, the wrapper builds `p_guess` from the previous-iteration `H2O
 
 - **`Missing required volatile`** at startup: one of H2O / CO2 / N2 / S2 is set to `include = false`. Fix: re-enable it (it can still be set to a tiny initial pressure if you want to suppress its mass).
 - **`Could not find solution for volatile abundances`** mid-run: CALLIOPE exhausted its `nguess` Monte-Carlo restarts. Almost always caused by an upstream NaN or unphysical state in `hf_row` (e.g. `T_magma < T_floor` after AGNI failed, `M_mantle = 0` after a structure-solve failure). Inspect `proteus_00.log` for the iteration immediately before the CALLIOPE failure; do not bump `nguess` blindly.
-- **Atmosphere mass collapses to zero** without escape accounting it: the `check_desiccation` gate in `proteus.outgas.wrapper` will refuse to mark the planet desiccated if the loss is unexplained by cumulative escape. This is by design: a real desiccation event must be supported by tracked atmospheric escape, so the gate firing means an upstream module silently zeroed the atmosphere and the failure is upstream of CALLIOPE.
+- **Atmosphere mass collapses to zero** without escape accounting it: the `check_desiccation` check in `proteus.outgas.wrapper` will refuse to mark the planet desiccated if the loss is unexplained by cumulative escape. This is by design: a real desiccation event must be supported by tracked atmospheric escape, so the check firing means an upstream module silently zeroed the atmosphere and the failure is upstream of CALLIOPE.
 - **`Hydrogen inventory must be > 0`**: `H_budget = 0` or `H_mode` mistyped. CALLIOPE refuses to solve a zero-H system because the speciation is degenerate.
 - **Solubility off but `Phi_global > 0`**: not an error, but the wrapper will silently force `Phi_global = 0` when `[outgas.calliope].solubility = false`, so dissolved masses will all be zero regardless of the live melt fraction.
 

@@ -2,7 +2,7 @@
 
 This page shows the two canonical calling patterns for CALLIOPE: solving from an elemental inventory, and solving from a prescribed initial-pressure atmosphere. Both use the same `equilibrium_atmosphere()` entry point.
 
-For an end-to-end runnable example with explanations, see the [First run tutorial](../Tutorials/firstrun.md). For the schema of each input field, see [Configuration](configuration.md).
+For a complete runnable example with explanations, see the [First run tutorial](../Tutorials/firstrun.md). For the schema of each input field, see [Configuration](configuration.md).
 
 ## Pattern 1 - solve from elemental inventory
 
@@ -86,7 +86,7 @@ target = get_target_from_pressures(ddict)
 result = equilibrium_atmosphere(target, ddict, print_result=True)
 ```
 
-`get_target_from_pressures()` computes the implied total elemental masses by summing atmospheric column mass (Bower et al. (2019) [^cite-bower2019] Eq. 2) and dissolved mass (Henry's law) across every included species at the prescribed initial pressures.
+`get_target_from_pressures()` computes the implied total elemental masses by summing atmospheric column mass (Bower et al. (2019)[^cite-bower2019] Eq. 2) and dissolved mass (Henry's law) across every included species at the prescribed initial pressures.
 
 ## Pattern 3 - add a metal reservoir
 
@@ -130,12 +130,12 @@ To override the default solubility law for a species, instantiate the law explic
 
 | Species | Default class | Default composition | Source |
 |---|---|---|---|
-| H$_2$O | `SolubilityH2O` | `peridotite` | Sossi et al. (2023) [^cite-sossi2023] |
-| CO$_2$ | `SolubilityCO2` | `basalt_dixon` | Dixon et al. (1995) [^cite-dixon1995] |
-| CO | `SolubilityCO` | `mafic_armstrong` | Armstrong et al. (2015) [^cite-armstrong2015] |
-| CH$_4$ | `SolubilityCH4` | `basalt_ardia` | Ardia et al. (2013) [^cite-ardia2013] |
-| N$_2$ | `SolubilityN2` | `dasgupta` (in `dissolved_mass`) | Dasgupta et al. (2022) [^cite-dasgupta2022] |
-| S$_2$ | `SolubilityS2` | `gaillard` | Gaillard et al. (2022) [^cite-gaillard2022] |
+| H$_2$O | `SolubilityH2O` | `peridotite` | Sossi et al. (2023)[^cite-sossi2023] |
+| CO$_2$ | `SolubilityCO2` | `basalt_dixon` | Dixon et al. (1995)[^cite-dixon1995] |
+| CO | `SolubilityCO` | `mafic_armstrong` | Armstrong et al. (2015)[^cite-armstrong2015] |
+| CH$_4$ | `SolubilityCH4` | `basalt_ardia` | Ardia et al. (2013)[^cite-ardia2013] |
+| N$_2$ | `SolubilityN2` | `dasgupta` (in `dissolved_mass`) | Dasgupta et al. (2022)[^cite-dasgupta2022] |
+| S$_2$ | `SolubilityS2` | `gaillard` | Gaillard et al. (2022)[^cite-gaillard2022] |
 
 Alternative compositions (e.g. `SolubilityH2O('basalt_dixon')`, `SolubilityH2O('lunar_glass')`) are documented in the [API reference](../Reference/api/calliope.solubility.md) and discussed in [Solubility laws](../Explanations/solubility.md).
 

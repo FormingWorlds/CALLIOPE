@@ -14,7 +14,7 @@ with the dissolved concentration $X_i^\mathrm{melt}$ in ppmw, the surface partia
 
 ## Solubility constants
 
-The constants come from Jambon, Weill & Braun (1986) [^cite-jambon1986], who measured noble gas solubilities in tholeiitic basalt melt at 1 bar and 1250-1600 C. The tabulated values are Henry constants $k$ in cm$^3$ STP per gram of melt per bar. CALLIOPE converts each to ppmw per bar through
+The constants come from Jambon, Weill & Braun (1986)[^cite-jambon1986], who measured noble gas solubilities in tholeiitic basalt melt at 1 bar and 1250-1600 C. The tabulated values are Henry constants $k$ in cm$^3$ STP per gram of melt per bar. CALLIOPE converts each to ppmw per bar through
 
 $$
 \alpha_i = \frac{k_i}{V_\mathrm{STP}}\, M_i \times 10^{6},

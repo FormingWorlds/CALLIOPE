@@ -57,7 +57,7 @@ A box "Test details" ends each case.
         ~ 2.900e-4
     ```
 
-    The O'Neill 2002 IW buffer at the same T:
+    The O'Neill & Eggins (2002) IW buffer at the same T:
 
     ```
     log10(fO2) = 2 * (-244118 + 115.559 * 2000 - 8.474 * 2000 * ln(2000))

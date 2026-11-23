@@ -1,6 +1,6 @@
 # Reproducing the Earth fiducial
 
-The [Backend comparison](../Explanations/cross_backend_comparison.md) explanation page anchors all of its figures on one shared Earth scenario: Krijt et al. 2023 [^cite-krijt2023] BSE H/C/N/S, $T_\mathrm{magma} = 2000$ K, $\Phi = 1$, and a volatile O reference of $1.26 \times 10^{22}$ kg derived to put CALLIOPE on the Sossi et al. 2020 [^cite-sossi2020] $\Delta\mathrm{IW} = +3.5$ Earth upper-mantle anchor with the Fischer et al. 2011 [^cite-fischer2011] IW buffer, which that page uses throughout. This tutorial walks you through reproducing those numbers from scratch so you can verify the docs are still consistent with the current solver, and so you have the workflow on hand when you want to anchor your own runs to a literature value.
+The [Backend comparison](../Explanations/cross_backend_comparison.md) explanation page anchors all of its figures on one shared Earth scenario: Krijt et al. (2023)[^cite-krijt2023] BSE H/C/N/S, $T_\mathrm{magma} = 2000$ K, $\Phi = 1$, and a volatile O reference of $1.26 \times 10^{22}$ kg derived to put CALLIOPE on the Sossi et al. (2020)[^cite-sossi2020] $\Delta\mathrm{IW} = +3.5$ Earth upper-mantle anchor with the Fischer et al. (2011)[^cite-fischer2011] IW buffer, which that page uses throughout. This tutorial walks you through reproducing those numbers from scratch so you can verify the docs are still consistent with the current solver, and so you have the workflow on hand when you want to anchor your own runs to a literature value.
 
 By the end of it you will:
 
@@ -10,7 +10,7 @@ By the end of it you will:
 
 You should already have completed [Two-mode round-trip](two_modes.md), which introduces both entry points.
 
-## Step 1: pin the Krijt+2023 H/C/N/S budget
+## Step 1: pin the Krijt et al. (2023) H/C/N/S budget
 
 ```python
 import warnings
@@ -71,10 +71,10 @@ H2O               = 5.59 bar
 CO2               = 1557 bar
 ```
 
-This is the canonical Earth volatile-O reference under the Fischer 2011 buffer and matches the value used on the backend-comparison page.
+This is the canonical Earth volatile-O reference under the Fischer et al. (2011) buffer and matches the value used on the backend-comparison page.
 
 !!! note "Running with the default buffer"
-    The library default IW buffer is Hirschmann (2021) [^cite-hirschmann2021]; dropping `'fO2_model': 'fischer'` from `ddict` does not reproduce the backend-comparison numbers. At $T = 2000$ K Hirschmann sits $0.10$ dex above Fischer, so the same $\Delta\mathrm{IW} = +3.5$ is slightly more oxidising and Step 2 prints `O_kg_total = 1.268e+22 kg`, `P_surf = 1777 bar`, `H2O = 5.59 bar`, `CO2 = 1577 bar`. Step 3 still closes the round trip, because the buffered and authoritative-O calls share the same `ddict` and therefore the same buffer. Never mix buffers between the two steps: the derived O budget is only meaningful on the buffer that produced it. See [Oxygen fugacity](../Explanations/oxygen_fugacity.md) for how the three buffers compare.
+    The library default IW buffer is Hirschmann (2021)[^cite-hirschmann2021]; dropping `'fO2_model': 'fischer'` from `ddict` does not reproduce the backend-comparison numbers. At $T = 2000$ K Hirschmann sits $0.10$ dex above Fischer, so the same $\Delta\mathrm{IW} = +3.5$ is slightly more oxidising and Step 2 prints `O_kg_total = 1.268e+22 kg`, `P_surf = 1777 bar`, `H2O = 5.59 bar`, `CO2 = 1577 bar`. Step 3 still closes the round trip, because the buffered and authoritative-O calls share the same `ddict` and therefore the same buffer. Never mix buffers between the two steps: the derived O budget is only meaningful on the buffer that produced it. See [Oxygen fugacity](../Explanations/oxygen_fugacity.md) for how the three buffers compare.
 
 !!! note "Why a CO$_2$-dominated atmosphere here, not steam?"
     The cause is melt solubility, not bulk inventory. Earth's BSE inventory contains $\sim 5.6 \times 10^{23}$ mol H and $\sim 2.6 \times 10^{23}$ mol C, so hydrogen atoms outnumber carbon atoms by a factor of two. But at $\Phi = 1$ most of the H stays *dissolved* in the silicate melt because H$_2$O is roughly two orders of magnitude more soluble in basalt than CO$_2$ is; most of the C outgases. The atmosphere therefore looks CO$_2$-dominated even though the bulk volatile budget is H-rich. See [Speciation phase diagram](phase_diagram.md) for the same regime mapped across $(T, \Delta\mathrm{IW})$.
@@ -99,13 +99,13 @@ print(f'recovered Delta-IW = {auth["fO2_shift_derived"]:+.4f}')
 print(f'residual           = {residual:+.2e} dex')
 ```
 
-Expected output: `residual` $\lesssim 10^{-9}$ dex, i.e. essentially zero (the exact value depends on solver tolerance and starting point). The full provenance chain (Krijt H/C/N/S $\to$ buffered mode $\to$ derived O $\to$ authoritative-O $\to$ $\Delta\mathrm{IW}$) closes at the Sossi 2020 anchor.
+Expected output: `residual` $\lesssim 10^{-9}$ dex, i.e. essentially zero (the exact value depends on solver tolerance and starting point). The full provenance chain (Krijt H/C/N/S $\to$ buffered mode $\to$ derived O $\to$ authoritative-O $\to$ $\Delta\mathrm{IW}$) closes at the Sossi et al. (2020) anchor.
 
 ## The goal of this tutorial
 
 ![Earth fiducial closure](../assets/figures/tutorials/earth_fiducial.png)
 
-*Earth fiducial reproduced from scratch. The cream band represents the Frost & McCammon 2008 [^cite-frostmccammon2008] empirical Earth-mantle range, $\Delta\mathrm{IW} \in [+1, +5]$ (a conversion of their stated FMQ $\pm 2$ dex upper-mantle window onto the IW reference). The dotted vertical is the Sossi et al. 2020 [^cite-sossi2020] upper-mantle anchor, $\Delta\mathrm{IW} = +3.50$. The solid line is the CALLIOPE recovered value after the buffered $\to$ authoritative-O round-trip. The summary box reports the derived O budget, the absolute closure residual (a few parts in $10^9$), and the converged surface pressure. The reproduced CALLIOPE line sits exactly on the Sossi anchor, as it should: the entire workflow is constructed to land on this value.*
+*Earth fiducial reproduced from scratch. The cream band represents the Frost & McCammon (2008)[^cite-frostmccammon2008] empirical Earth-mantle range, $\Delta\mathrm{IW} \in [+1, +5]$ (a conversion of their stated FMQ $\pm 2$ dex upper-mantle window onto the IW reference). The dotted vertical is the Sossi et al. (2020)[^cite-sossi2020] upper-mantle anchor, $\Delta\mathrm{IW} = +3.50$. The solid line is the CALLIOPE recovered value after the buffered $\to$ authoritative-O round-trip. The summary box reports the derived O budget, the absolute closure residual (a few parts in $10^9$), and the converged surface pressure. The reproduced CALLIOPE line sits exactly on the Sossi anchor, as it should: the entire workflow is constructed to land on this value.*
 
 If your reproduced figure does not show the CALLIOPE line on the Sossi anchor, the most likely cause is that you skipped the `canonical_guess` in Step 2 and the buffered solver landed in the spurious H$_2$O-free basin. Add the `p_guess` and re-run.
 
