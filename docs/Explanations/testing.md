@@ -218,15 +218,17 @@ A staleness threshold of 48 hours and a grace band of 0.3 % apply to the warn / 
 
 ## PR validation pipeline
 
-`.github/workflows/tests.yaml` runs on every PR (`if: draft == false`) over a 2-OS by 2-Python matrix (`ubuntu-latest`, `macos-latest` x `3.12`, `3.13`).
-The full step sequence:
+`.github/workflows/tests.yaml` runs the job `CALLIOPE-check` on every pull request to `main` (opened, reopened, updated or marked ready for review), on every push to `main` and on a manual dispatch.
+A draft pull request runs only `ubuntu-latest` with Python 3.12; every other event runs a 2-OS by 2-Python matrix (`ubuntu-latest`, `macos-latest` x `3.12`, `3.13`).
+The steps after the setup:
 
 1. **Validate test markers** (`bash tools/validate_test_structure.sh`): rejects any test file without a module-level `pytestmark`.
 2. **Run test-quality lint** (`python tools/check_test_quality.py --check`): blocking; rejects regression against `tools/test_quality_baseline.json`.
-3. **Pre-flight fail_under ratchet check**: rejects any PR that drops `[tool.coverage.report].fail_under` below `min(base, 90.0)`.
-4. **Run unit + smoke tests**: `pytest -m "(unit or smoke) and not skip" --cov=calliope --cov-fail-under=${FAST_FAIL_UNDER}`, where `FAST_FAIL_UNDER` is read live from `[tool.calliope.coverage_fast].fail_under`.
+3. **Check agent instruction files** (`python tools/agents/check_agents_md.py`).
+4. **Pre-flight fail_under ratchet check**: rejects any PR that drops `[tool.coverage.report].fail_under` below `min(base, 90.0)`.
+5. **Run unit + smoke tests**: `pytest -m "(unit or smoke) and not skip" --cov=calliope --cov-fail-under=${FAST_FAIL_UNDER}`, where `FAST_FAIL_UNDER` is read live from `[tool.calliope.coverage_fast].fail_under`.
 
-Steps 1, 2, and 3 run only on `ubuntu-latest, python 3.12` to avoid four redundant runs; step 4 runs across the full matrix.
+Steps 1 to 4 run only on `ubuntu-latest` with Python 3.12, to avoid four redundant runs; step 5 runs on every matrix entry.
 
 Nightly (`.github/workflows/nightly.yml`) runs the full suite, uploads coverage to Codecov, and enforces `--cov-fail-under=90`.
 
@@ -236,7 +238,7 @@ The repository-wide rules that every PROTEUS-ecosystem submodule follows are at 
 
 ## References
 
- [^cite-chase1998]: M. W. Chase, *[NIST-JANAF Thermochemical Tables, 4th edition](https://janaf.nist.gov/)*, Journal of Physical and Chemical Reference Data Monograph 9, 1998.
+[^cite-chase1998]: M. W. Chase, *[NIST-JANAF Thermochemical Tables, 4th edition](https://janaf.nist.gov/)*, Journal of Physical and Chemical Reference Data Monograph 9, 1998.
 
 [^cite-oneilleggins2002]: H. St. C. O'Neill, S. M. Eggins, *[The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts](https://doi.org/10.1016/S0009-2541(01)00414-4)*, Chemical Geology, 186, 151-181, 2002. [SciX](https://scixplorer.org/abs/2002ChGeo.186..151O/abstract). The IW expression of the code uses the free energy of Fe + 0.5 O$_2$ = FeO(liquid) in their Table 6, p. 163.
 [^cite-tagawa2021]: S. Tagawa, N. Sakamoto, K. Hirose, S. Yokoo, J. Hernlund, Y. Ohishi, H. Yurimoto, *[Experimental evidence for hydrogen incorporation into Earth's core](https://doi.org/10.1038/s41467-021-22035-0)*, Nature Communications, 12, 2588, 2021. [SciX](https://scixplorer.org/abs/2021NatCo..12.2588T/abstract).

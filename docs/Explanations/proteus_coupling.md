@@ -38,7 +38,7 @@ PROTEUS runs an iterative loop in which structure, outgassing, atmosphere radiat
    └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-CALLIOPE is the cheapest of the five (a few tens of milliseconds per call vs. seconds-to-minutes for atmosphere and interior), so no update interval limits it: PROTEUS calls it in every iteration unless the planet is in a [crystallised or desiccated state](#crystallised-vs-desiccated-states) or, with `outgas.lid_seal.enabled`, the lid seal is closed on that step.
+CALLIOPE is the cheapest of the five (a few tens of milliseconds per call vs. seconds-to-minutes for atmosphere and interior), so no update interval limits it. PROTEUS calls it in every iteration, except in a [crystallised or desiccated state](#crystallised-vs-desiccated-states) and, with `outgas.lid_seal.enabled`, while the [lid seal](https://proteus-framework.org/PROTEUS/Explanations/lid_seal.html) holds.
 
 ## What the wrapper does
 
@@ -192,4 +192,4 @@ When `config.interior_struct.zalmoxis.global_miscibility = true` (Zalmoxis radia
 - [Authoritative-oxygen mode](authoritative_oxygen.md) for the augmented mass balance that `from_O_budget` dispatches to.
 - The PROTEUS-side wrapper code: [`src/proteus/outgas/calliope.py`](https://github.com/FormingWorlds/PROTEUS/blob/main/src/proteus/outgas/calliope.py), [`src/proteus/outgas/wrapper.py`](https://github.com/FormingWorlds/PROTEUS/blob/main/src/proteus/outgas/wrapper.py), [`src/proteus/config/_outgas.py`](https://github.com/FormingWorlds/PROTEUS/blob/main/src/proteus/config/_outgas.py).
 
- [^cite-rogers2025]: J. G. Rogers, E. D. Young, H. E. Schlichting, *[Redefining interiors and envelopes: hydrogen-silicate miscibility and its consequences for the structure and evolution of sub-Neptunes](https://doi.org/10.1093/mnras/staf1940)*, Monthly Notices of the Royal Astronomical Society, 544, 3496-3511, 2025. [SciX](https://scixplorer.org/abs/2025MNRAS.544.3496R/abstract).
+[^cite-rogers2025]: J. G. Rogers, E. D. Young, H. E. Schlichting, *[Redefining interiors and envelopes: hydrogen-silicate miscibility and its consequences for the structure and evolution of sub-Neptunes](https://doi.org/10.1093/mnras/staf1940)*, Monthly Notices of the Royal Astronomical Society, 544, 3496-3511, 2025. [SciX](https://scixplorer.org/abs/2025MNRAS.544.3496R/abstract).
