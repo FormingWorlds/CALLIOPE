@@ -12,7 +12,7 @@ log = logging.getLogger('fwl.' + __name__)
 
 # Jambon, Weber & Braun (1986), doi:10.1016/0016-7037(86)90193-6: noble gas Henry constants in
 # tholeiitic basalt, cm3 STP/g/bar, 1250-1600 C, as atmodeller's `<gas>_basalt_jambon86` uses
-# them. He keeps the abstract's 56e-5 (Table 5: 56.5e-5) so both codes agree exactly.
+# them. He keeps the abstract's 56e-5 (Table 5: 56.5e-5) so both codes use identical constants.
 JAMBON86_STP_HENRY = {  # cm3 STP / g / bar
     'He': 56e-5,
     'Ne': 25e-5,
@@ -65,7 +65,7 @@ class SolubilityH2O(Solubility):
         return self.power_law(p, 965, 0.5)
 
     def basalt_wilson(self, p):
-        """Hamilton (1964) and Wilson and Head (1981)"""
+        """Hamilton et al. (1964) and Wilson & Head (1981)"""
         return self.power_law(p, 215, 0.7)
 
     def lunar_glass(self, p):

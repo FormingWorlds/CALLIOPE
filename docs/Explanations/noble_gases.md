@@ -54,7 +54,7 @@ Each of the five noble gases is run through `equilibrium_atmosphere` against a f
 
 ## Validity envelope
 
-The Jambon et al. (1986) constants are a 1 bar, tholeiitic-basalt calibration measured between 1250 and 1600 C, applied as a strictly linear Henry's law with no saturation term. At the high surface pressures of a genuinely noble-gas-rich atmosphere this is an extrapolation on two counts: the pressure lies far above the 1 bar calibration, and the linear form assumes the melt never approaches saturation. The parameterization carries no temperature dependence, so applying it at magma-ocean surface temperatures above the 1600 C calibration ceiling is a further extrapolation. CALLIOPE also applies the single tholeiite calibration to all melt compositions. Results in the high-pressure, high-temperature, noble-gas-dominated regime should be read with these limitations in mind.
+The Jambon et al. (1986) constants are a 1 bar, tholeiitic-basalt calibration measured between 1250 and 1600 °C, applied as a strictly linear Henry's law with no saturation term. At the high surface pressures of a genuinely noble-gas-rich atmosphere this is an extrapolation on two counts: the pressure lies far above the 1 bar calibration, and the linear form assumes the melt never approaches saturation. The parameterization carries no temperature dependence, so applying it at magma-ocean surface temperatures above the 1600 °C calibration ceiling is a further extrapolation. CALLIOPE also applies the single tholeiite calibration to all melt compositions. Results in the high-pressure, high-temperature, noble-gas-dominated regime should be read with these limitations in mind.
 
 ## Where the code lives
 

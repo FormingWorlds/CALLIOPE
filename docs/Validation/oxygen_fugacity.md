@@ -19,9 +19,9 @@ Each case below says why the check exists, what it tests, how we know the right 
 
 ## Fischer buffer at 2000 K
 
-**Why this check exists.** A typo in the coded Fischer expression, a dropped log10, a slip in the temperature unit, or a call that takes the O'Neill and Eggins fit in place of the Fischer fit gives a wrong buffer without an error message.
+**Why this check exists.** A typo in the coded Fischer expression, a dropped log10, a slip in the temperature unit, or a call that takes the O'Neill & Eggins fit in place of the Fischer fit gives a wrong buffer without an error message.
 
-**What it tests.** At $T$ = 2000 K and 1 bar the code gives $\log_{10} f\mathrm{O_2}$ = -7.14981 for the Fischer fit. The test requires the coded form $6.94059 - 28180.8/T$ to a relative 1e-4. It also requires that the Fischer value lies 0.258 dex above the O'Neill and Eggins value (-7.4078) to 0.02 dex, that it is more than 0.2 dex from that value, and that it lies between -10 and -3.
+**What it tests.** At $T$ = 2000 K and 1 bar the code gives $\log_{10} f\mathrm{O_2}$ = -7.14981 for the Fischer fit. The test requires the coded form $6.94059 - 28180.8/T$ to a relative 1e-4. It also requires that the Fischer value lies 0.258 dex above the O'Neill & Eggins value (-7.4078) to 0.02 dex, that it is more than 0.2 dex from that value, and that it lies between -10 and -3.
 
 **How we know the right answer.** This case is a regression check and a cross-check between 2 published fits, not a pin to independent data. Fischer et al. (2011) compute the 1 bar Fe-FeO curve from the JANAF tables of Chase (1998)[^cite-chase1998] (their Fig. 6) and add the pressure integral of their Eq. 2; their supplement (Table S2) gives a P-T polynomial. The paper does not state the source of the 2-term form in the code. Neither the supplement of Fischer et al. nor the JANAF Fe, FeO and O$_2$ tables are in the test data, so the test pins the coded form and its 0.258 dex offset from O'Neill & Eggins (2002).
 
@@ -30,13 +30,13 @@ Each case below says why the check exists, what it tests, how we know the right 
 ![Log10 fO2 of the 3 IW buffers against temperature near 2000 K, with the values at 2000 K](../assets/validation/oxygen_fugacity_fischer_2000k.svg#only-light){ width="80%" }
 ![Log10 fO2 of the 3 IW buffers against temperature near 2000 K, with the values at 2000 K](../assets/validation/oxygen_fugacity_fischer_2000k_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** The lines are the 3 buffers from `OxygenFugacity` at 1 bar and give context; the y-axis is $\log_{10} f\mathrm{O_2}$ in bar. The test asserts the 3 marks at 2000 K: the Fischer code value (circle), the coded form (square) and the O'Neill and Eggins value (cross). A pass means that the circle agrees with the square to a relative 1e-4, too small to see. The circle must also lie 0.258 dex above the cross, to within 0.02 dex.
+**How to read the plot.** The lines are the 3 buffers from `OxygenFugacity` at 1 bar and give context; the y-axis is $\log_{10} f\mathrm{O_2}$ in bar. The test asserts the 3 marks at 2000 K: the Fischer code value (circle), the coded form (square) and the O'Neill & Eggins value (cross). A pass means that the circle agrees with the square to a relative 1e-4, too small to see. The circle must also lie 0.258 dex above the cross, to within 0.02 dex.
 
-**Known limit.** This case is a regression check of the coded form and of its offset from O'Neill and Eggins; it does not compare the Fischer fit with independent data.
+**Known limit.** This case is a regression check of the coded form and of its offset from O'Neill & Eggins; it does not compare the Fischer fit with independent data.
 
 ??? info "Test details"
     - Reference: Fischer et al. (2011)[^cite-fischer2011]; cross-checked against O'Neill & Eggins (2002)[^cite-oneilleggins2002].
-    - Tolerance: relative 1e-4 on the coded form; offset 0.258 dex to 0.02 dex; more than 0.2 dex from O'Neill and Eggins; $-10 < \log_{10} f\mathrm{O_2} < -3$.
+    - Tolerance: relative 1e-4 on the coded form; offset 0.258 dex to 0.02 dex; more than 0.2 dex from O'Neill & Eggins; $-10 < \log_{10} f\mathrm{O_2} < -3$.
     - Test id: `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_fischer_value_at_2000K_cross_check_and_regression`
     - Command: `pytest tests/test_oxygen_fugacity.py -k fischer_value_at_2000K`
 
@@ -66,7 +66,7 @@ Each case below says why the check exists, what it tests, how we know the right 
 
 **Why this check exists.** The Hirschmann fit is the default buffer of CALLIOPE. A change of its Table 1 coefficients that moves the value at 1473 K by more than 0.05 dex, a call at the wrong pressure, or a call that takes another fit gives the wrong default buffer, and this case catches each of them.
 
-**What it tests.** At $T$ = 1473 K and 1 bar the code gives $\log_{10} f\mathrm{O_2}$ = -11.957. The test requires -11.94, with a tolerance of 0.05 dex. It also requires that the value differs by more than 0.2 dex from the Fischer value (-12.191) and from the O'Neill and Eggins value (-11.699). A call at 1 kbar must differ by more than 0.03 dex, so the test catches a call at the wrong pressure. The value must lie between -14 and -10.
+**What it tests.** At $T$ = 1473 K and 1 bar the code gives $\log_{10} f\mathrm{O_2}$ = -11.957. The test requires -11.94, with a tolerance of 0.05 dex. It also requires that the value differs by more than 0.2 dex from the Fischer value (-12.191) and from the O'Neill & Eggins value (-11.699). A call at 1 kbar must differ by more than 0.03 dex, so the test catches a call at the wrong pressure. The value must lie between -14 and -10.
 
 **How we know the right answer.** Fig. 5 of Hirschmann (2021) shows the IW value at 1473 K and 1 bar at about -11.94. The value is read off the figure, so the tolerance is 0.05 dex.
 
@@ -75,13 +75,13 @@ Each case below says why the check exists, what it tests, how we know the right 
 ![Log10 fO2 of the 3 IW buffers against temperature near 1473 K, with the figure value and the code values at 1473 K](../assets/validation/oxygen_fugacity_hirschmann_1473k.svg#only-light){ width="80%" }
 ![Log10 fO2 of the 3 IW buffers against temperature near 1473 K, with the figure value and the code values at 1473 K](../assets/validation/oxygen_fugacity_hirschmann_1473k_dark.svg#only-dark){ width="80%" }
 
-**How to read the plot.** The lines are the 3 buffers from `OxygenFugacity` at 1 bar and give context; the y-axis is $\log_{10} f\mathrm{O_2}$ in bar. The test asserts the marks at 1473 K. The circle is the Hirschmann code value, and the square with its error bar of 0.05 dex is the figure value. The lower cross (x) is the Fischer value and the upper cross (+) is the O'Neill and Eggins value. The triangle is the Hirschmann value at 1 kbar. A pass means that the circle lies inside the error bar and both crosses lie more than 0.2 dex from the circle. The circle must also equal the 1 bar value of the Hirschmann buffer to 1e-12. The triangle lies 0.04 dex above the circle and overlaps it at this scale; the test requires more than 0.03 dex. The square of the figure value sits behind the circle and the triangle.
+**How to read the plot.** The lines are the 3 buffers from `OxygenFugacity` at 1 bar and give context; the y-axis is $\log_{10} f\mathrm{O_2}$ in bar. The test asserts the marks at 1473 K. The circle is the Hirschmann code value, and the square with its error bar of 0.05 dex is the figure value. The lower cross (x) is the Fischer value and the upper cross (+) is the O'Neill & Eggins value. The triangle is the Hirschmann value at 1 kbar. A pass means that the circle lies inside the error bar and both crosses lie more than 0.2 dex from the circle. The circle must also equal the 1 bar value of the Hirschmann buffer to 1e-12. The triangle lies 0.04 dex above the circle and overlaps it at this scale; the test requires more than 0.03 dex. The square of the figure value sits behind the circle and the triangle.
 
 **Known limit.** The reference value is read off a figure, so the case catches only changes larger than 0.05 dex.
 
 ??? info "Test details"
     - Reference: Hirschmann (2021)[^cite-hirschmann2021], Table 1 and Fig. 5.
-    - Tolerance: 0.05 dex (value read from a figure); more than 0.2 dex from Fischer and from O'Neill and Eggins; more than 0.03 dex from the 1 kbar value.
+    - Tolerance: 0.05 dex (value read from a figure); more than 0.2 dex from Fischer and from O'Neill & Eggins; more than 0.03 dex from the 1 kbar value.
     - Test id: `tests/test_oxygen_fugacity.py::test_oxygen_fugacity_hirschmann_value_at_1473K_matches_published_figure`
     - Command: `pytest tests/test_oxygen_fugacity.py -k hirschmann_value_at_1473K`
     - Companion test: `test_oxygen_fugacity_hirschmann_branches_continuous_at_fcc_hcp_boundary` checks the Table 1 coefficients another way. The fit has one branch for fcc/bcc iron and one for hcp iron, which meet at the boundary of Eq. 18. At 1000, 1500, 2000, 2500 and 3000 K the jump between them must be below 0.056 dex, twice the published maximum fit mismatch of 0.028 dex; the fit gives at most 0.0185 dex.
@@ -109,7 +109,7 @@ Each case below says why the check exists, what it tests, how we know the right 
 
 ## Default buffer
 
-The default IW buffer of CALLIOPE is Hirschmann (2021), `DEFAULT_FO2_MODEL` in `src/calliope/oxygen_fugacity.py`. A test that pins an IW value must check it against the other buffers, so that a change of the default, or a config that silently selects another buffer, does not move the reference of the test. The Fischer case checks against O'Neill and Eggins, and the Hirschmann case at 1473 K against both other buffers.
+The default IW buffer of CALLIOPE is Hirschmann (2021), `DEFAULT_FO2_MODEL` in `src/calliope/oxygen_fugacity.py`. A test that pins an IW value must check it against the other buffers, so that a change of the default, or a config that silently selects another buffer, does not move the reference of the test. The Fischer case checks against O'Neill & Eggins, and the Hirschmann case at 1473 K against both other buffers.
 
 ## Related code and pages
 

@@ -38,7 +38,7 @@ PROTEUS runs an iterative loop in which structure, outgassing, atmosphere radiat
    └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-CALLIOPE is the cheapest of the five (a few tens of milliseconds per call vs. seconds-to-minutes for atmosphere and interior), so it runs every iteration, with no update triggers that throttle it.
+CALLIOPE is the cheapest of the five (a few tens of milliseconds per call vs. seconds-to-minutes for atmosphere and interior), so no update interval limits it: PROTEUS calls it in every iteration except in the [crystallised and desiccated states](#crystallised-vs-desiccated-states).
 
 ## What the wrapper does
 

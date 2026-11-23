@@ -79,7 +79,7 @@ class OxygenFugacity:
         return 6.94059 - 28.1808 * 1e3 / T
 
     def oneill(self, T):
-        """O'Neill and Eggins (2002) IW"""
+        """O'Neill & Eggins (2002) IW"""
         # DrG of Fe + 0.5 O2 = FeO(liq): O'Neill & Eggins (2002), Chem. Geol. 186,
         # Table 6, p. 163. Keep the coded gas constant 8.31441 J/mol/K; a change
         # moves every IW value.

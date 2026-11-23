@@ -26,7 +26,7 @@ The case below says why the check exists, what it tests, how we know the right a
 **How to read the plot.** The line is `calculate_mantle_mass` for the Earth against the core radius fraction and gives context. The test asserts the marks at 0.55: the code value (circle), the value $1 - 0.325$ (square) and the result with an $r^2$ core volume (cross). A pass means that the circle agrees with the square to a relative 1e-6, too small to see. The cross must lie more than 0.1 above it on this axis, that is more than 0.1 Earth masses.
 
 ??? info "Test details"
-    - Reference: Wang, Lineweaver and Ireland (2018)[^cite-wang2018], arxiv:1708.08718: Earth core mass fraction 32.5 ± 0.3 wt% ([arxiv:1708.08718](https://arxiv.org/abs/1708.08718)).
+    - Reference: Wang et al. (2018)[^cite-wang2018], arxiv:1708.08718: Earth core mass fraction 32.5 ± 0.3 wt% ([arxiv:1708.08718](https://arxiv.org/abs/1708.08718)).
     - Tolerance: relative 1e-6; more than $0.1\,M_\oplus$ from the $r^2$ result; $10^{24} < M_\mathrm{mantle} < 10^{25}$ kg.
     - Test id: `tests/test_structure.py::test_calculate_mantle_mass_recovers_wang_2018_earth_core_fraction`
     - Command: `pytest tests/test_structure.py -k wang_2018`

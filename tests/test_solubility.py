@@ -1,7 +1,7 @@
 """Tests for `src/calliope/solubility.py`.
 
 Exercises the Henry's-law solubility models for H2O (Sossi 2023 default,
-Dixon 1995, Hamilton 1964 / Wilson and Head 1981, Newcombe 2017), S2
+Dixon 1995, Hamilton et al. 1964 / Wilson & Head 1981, Newcombe 2017), S2
 (Gaillard 2022), and N2 (Dasgupta 2022, Libourel).
 
 - Reference pins: H2O peridotite default against the Sossi et al. (2023)
@@ -126,7 +126,7 @@ class TestSolubilityH2O:
 
     @pytest.mark.physics_invariant
     def test_basalt_wilson_uses_non_half_exponent(self):
-        """Hamilton (1964) / Wilson and Head (1981) basalt: `ppmw = 215 * p^0.7`.
+        """Hamilton et al. (1964) / Wilson & Head (1981) basalt: `ppmw = 215 * p^0.7`.
 
         Non-square-root exponent: discriminating, because a regression
         that defaults all H2O laws to the 0.5 exponent would land at
