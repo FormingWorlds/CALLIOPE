@@ -6,7 +6,7 @@ This page checks `calculate_mantle_mass` in `src/calliope/structure.py`.
 It splits the mass of a planet into a core and a mantle, from the planet radius, the planet mass and the core radius as a fraction of the planet radius.
 Validation here means that we run the code on a case where another source gives the right answer.
 The test then checks that the code gives that answer within a stated tolerance.
-Here the right answer is the core mass fraction of the Earth from Wang et al. (2018).
+Here the right answer is the core mass fraction of the Earth from Wang et al. (2018)[^cite-wang2018].
 The mantle mass sets how much melt can hold dissolved volatiles in a standalone CALLIOPE run.
 The case below says why the check exists, what it tests, how we know the right answer and why it matters, and a box "Test details" ends it.
 
@@ -26,7 +26,7 @@ The case below says why the check exists, what it tests, how we know the right a
 **How to read the plot.** The line is `calculate_mantle_mass` for the Earth against the core radius fraction and gives context. The test asserts the marks at 0.55: the code value (circle), the value $1 - 0.325$ (square) and the result with an $r^2$ core volume (cross). A pass means that the circle agrees with the square to a relative 1e-6, too small to see. The cross must lie more than 0.1 above it on this axis, that is more than 0.1 Earth masses.
 
 ??? info "Test details"
-    - Reference: Wang, Lineweaver and Ireland (2018)[^cite-wang2018], arxiv:1708.08718: Earth core mass fraction 32.5 ± 0.3 wt% ([arxiv:1708.08718](https://arxiv.org/abs/1708.08718)).
+    - Reference: Wang et al. (2018)[^cite-wang2018], arxiv:1708.08718: Earth core mass fraction 32.5 ± 0.3 wt% ([arxiv:1708.08718](https://arxiv.org/abs/1708.08718)).
     - Tolerance: relative 1e-6; more than $0.1\,M_\oplus$ from the $r^2$ result; $10^{24} < M_\mathrm{mantle} < 10^{25}$ kg.
     - Test id: `tests/test_structure.py::test_calculate_mantle_mass_recovers_wang_2018_earth_core_fraction`
     - Command: `pytest tests/test_structure.py -k wang_2018`
@@ -53,4 +53,4 @@ The case below says why the check exists, what it tests, how we know the right a
 
 ## References
 
- [^cite-wang2018]: H. S. Wang, C. H. Lineweaver, T. R. Ireland, *[The elemental abundances (with uncertainties) of the most Earth-like planet](https://doi.org/10.1016/j.icarus.2017.08.024)*, Icarus, 299, 460-474, 2018. [SciX](https://scixplorer.org/abs/2018Icar..299..460W/abstract).
+[^cite-wang2018]: H. S. Wang, C. H. Lineweaver, T. R. Ireland, *[The elemental abundances (with uncertainties) of the most Earth-like planet](https://doi.org/10.1016/j.icarus.2017.08.024)*, Icarus, 299, 460-474, 2018. [SciX](https://scixplorer.org/abs/2018Icar..299..460W/abstract).

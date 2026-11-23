@@ -18,11 +18,11 @@ Contributors writing or modifying tests should read it together with the [Build 
 
 Five layers enforce test rigor across the suite:
 
-1. A four-marker tier scheme (`unit`, `smoke`, `integration`, `slow`) selects what runs in the PR gate versus the nightly.
+1. A four-marker tier scheme (`unit`, `smoke`, `integration`, `slow`) selects what runs in the PR job `CALLIOPE-check` versus the nightly.
 2. Two validation markers (`physics_invariant`, `reference_pinned`) tag tests that carry physical meaning beyond pure code coverage.
 3. A 1:1 mirroring rule pairs every physics source with a same-named test file.
 4. An AST linter (`tools/check_test_quality.py`) rejects seven weak-test patterns on every PR.
-5. A coverage ratchet capped at 90 % keeps the gate moving upward over time.
+5. A coverage ratchet capped at 90 % keeps the threshold moving upward over time.
 
 Layers 1, 4, and 5 are blocking on PRs.
 Layers 2 and 3 are advisory: the linter reports gaps but does not fail the build.
@@ -42,7 +42,7 @@ Every test in the suite carries exactly one tier marker, applied either at modul
 Live counts per tier are shown by the `tests` badge at the top of this page (the total) and by `pytest -m <tier> --collect-only -q` locally.
 
 Tests without a tier marker are invisible to CI.
-The PR gate runs `pytest -m "(unit or smoke) and not skip"`; the nightly runs everything in `(unit or smoke or integration or slow) and not skip`.
+The PR job runs `pytest -m "(unit or smoke) and not skip"`; the nightly runs everything in `(unit or smoke or integration or slow) and not skip`.
 
 ## Module-level marker and timeout
 
@@ -122,7 +122,7 @@ Each source file in `src/calliope/` has a same-named companion in `tests/`:
 
 Cross-cutting tests are the documented exception, not the rule:
 
-- `tests/test_invariants.py`, `tests/test_invariants_hypothesis.py`: contract clauses that span multiple sources (mass closure end-to-end, partial-species behaviour, stoichiometry of an arbitrary recipe).
+- `tests/test_invariants.py`, `tests/test_invariants_hypothesis.py`: contract clauses that span multiple sources (mass closure across the full solve, partial-species behaviour, stoichiometry of an arbitrary recipe).
 - `tests/test_authoritative_O.py`, `tests/test_authoritative_O_validation.py`, `tests/test_authoritative_O_monotonicity.py`: the authoritative-O entry point, which touches `solve.py`, `chemistry.py`, and `oxygen_fugacity.py` together.
 - `tests/test_equilibrium_paths.py`, `tests/test_partial_species.py`, `tests/test_stoichiometry.py`, `tests/test_targets.py`: solver-architecture tests that span the same three files.
 - `tests/test_metal_solve.py`, `tests/test_metal_fields.py`: the metal reservoir in the full solve and the checks of its `ddict` keys, which span `metal.py` and `solve.py`.
@@ -166,7 +166,7 @@ pytest -m unit                              # fast unit tests
 pytest -m smoke                             # minimal-config solver tests
 pytest -m integration                       # full multi-species CHNS solves
 pytest -m slow                              # sweeps and hypothesis fuzz
-pytest -m "(unit or smoke) and not skip"    # PR-gate selection
+pytest -m "(unit or smoke) and not skip"    # PR-job selection
 pytest -m "not skip"                        # everything that should ever run
 ```
 
@@ -189,7 +189,7 @@ python tools/check_test_quality.py --physics-invariant-status
 ## Public-facing badges versus internal taxonomy
 
 Public-facing badges (README, project website) collapse `smoke + integration + slow` into a single `Integration Tests` category, because a four-way taxonomy is confusing to non-developer readers.
-The four-marker internal scheme remains for CI infrastructure granularity: the PR gate runs `(unit or smoke)`, the nightly runs everything, and the test-count badge reads the JSON files published on the repository's `badges` branch.
+The four-marker internal scheme remains for CI infrastructure granularity: the PR job runs `(unit or smoke)`, the nightly runs everything, and the test-count badge reads the JSON files published on the repository's `badges` branch.
 
 ## Badge system
 
@@ -197,36 +197,33 @@ The `Refresh test count badges` workflow (`.github/workflows/publish-test-badges
 The `main` branch requires review for direct pushes, so the badge JSON lives on that separate branch, which shields.io reads by raw URL.
 The counts refresh whenever the test suite or source changes on `main`, so they track the suite without running it.
 
-## Coverage gates
+## Coverage thresholds
 
-Two gates are declared in `pyproject.toml`:
+Two coverage thresholds are declared in `pyproject.toml`:
 
-| Gate | Tests included | Threshold key | Where it runs |
+| Threshold | Tests included | Threshold key | Where it runs |
 |---|---|---|---|
 | Fast | `unit + smoke` | `[tool.calliope.coverage_fast].fail_under` | PR `Run unit + smoke tests` step |
-| Full | `unit + smoke + integration + slow` | `[tool.coverage.report].fail_under` | Nightly `coverage report` |
+| Full | `unit + smoke + integration + slow` | `[tool.coverage.report].fail_under` | Nightly `pytest --cov-fail-under=90` |
 
-Both gates ratchet toward 90 %, capped at 90 % (`tools/update_coverage_threshold.py` enforces `ECOSYSTEM_CEILING = 90.0`); neither may be manually decreased.
-The PR gate has a pre-flight step that fetches the base branch's `pyproject.toml` and rejects any PR that drops `[tool.coverage.report].fail_under` below `min(base, 90.0)`.
+The nightly run passes `--cov-fail-under=90` as a fixed value and does not read `[tool.coverage.report].fail_under`; the PR pre-flight check guards that key against a decrease.
+Both thresholds ratchet toward 90 %, capped at 90 % (`tools/update_coverage_threshold.py` enforces `ECOSYSTEM_CEILING = 90.0`); neither may be manually decreased.
+The PR job has a pre-flight step that fetches the base branch's `pyproject.toml` and rejects any PR that drops `[tool.coverage.report].fail_under` below `min(base, 90.0)`.
 A one-time ratchet down to the 90 % ceiling is allowed; any drop below 90 % is blocked.
-
-## Coverage union estimation
-
-The PR gate downloads the most recent `nightly-coverage` artifact from `main` (`coverage.xml + coverage.json + nightly-timestamp.txt`, 14-day retention) and line-ORs the unit-tier coverage with the nightly's full coverage to produce a union estimate.
-The result is written to `$GITHUB_STEP_SUMMARY` as informational output; it does not gate the PR.
-A staleness threshold of 48 hours and a grace band of 0.3 % apply to the warn / fail / ok decision.
 
 ## PR validation pipeline
 
-`.github/workflows/tests.yaml` runs on every PR (`if: draft == false`) over a 2-OS by 2-Python matrix (`ubuntu-latest`, `macos-latest` x `3.12`, `3.13`).
-The full step sequence:
+`.github/workflows/tests.yaml` runs the job `CALLIOPE-check` on every pull request to `main` (opened, reopened, updated or marked ready for review), on every push to `main` and on a manual dispatch.
+A draft pull request runs only `ubuntu-latest` with Python 3.12; every other event runs a 2-OS by 2-Python matrix (`ubuntu-latest`, `macos-latest` x `3.12`, `3.13`).
+The steps after the setup:
 
-1. **Validate test markers** (`bash tools/validate_test_structure.sh`): rejects any test file without a module-level `pytestmark`.
+1. **Validate test markers** (`bash tools/validate_test_structure.sh`): rejects a test function with no tier marker (`unit`, `smoke`, `integration`, `slow`) and no `skip`, or with more than one tier marker. The marker can sit on the function, its class or the module.
 2. **Run test-quality lint** (`python tools/check_test_quality.py --check`): blocking; rejects regression against `tools/test_quality_baseline.json`.
-3. **Pre-flight fail_under ratchet check**: rejects any PR that drops `[tool.coverage.report].fail_under` below `min(base, 90.0)`.
-4. **Run unit + smoke tests**: `pytest -m "(unit or smoke) and not skip" --cov=calliope --cov-fail-under=${FAST_FAIL_UNDER}`, where `FAST_FAIL_UNDER` is read live from `[tool.calliope.coverage_fast].fail_under`.
+3. **Check agent instruction files** (`python tools/agents/check_agents_md.py`).
+4. **Pre-flight fail_under ratchet check**: rejects any PR that drops `[tool.coverage.report].fail_under` below `min(base, 90.0)`.
+5. **Run unit + smoke tests**: `pytest -m "(unit or smoke) and not skip" --cov=calliope --cov-fail-under=${FAST_FAIL_UNDER}`, where `FAST_FAIL_UNDER` is read live from `[tool.calliope.coverage_fast].fail_under`.
 
-Steps 1, 2, and 3 are gated to `ubuntu-latest, python 3.12` to avoid four redundant runs; step 4 runs across the full matrix.
+Steps 1 to 4 run only on `ubuntu-latest` with Python 3.12, to avoid four redundant runs; step 5 runs on every matrix entry.
 
 Nightly (`.github/workflows/nightly.yml`) runs the full suite, uploads coverage to Codecov, and enforces `--cov-fail-under=90`.
 
@@ -236,11 +233,11 @@ The repository-wide rules that every PROTEUS-ecosystem submodule follows are at 
 
 ## References
 
- [^cite-chase1998]: M. W. Chase, *[NIST-JANAF Thermochemical Tables, 4th edition](https://janaf.nist.gov/)*, Journal of Physical and Chemical Reference Data Monograph 9, 1998.
+[^cite-chase1998]: M. W. Chase, *[NIST-JANAF Thermochemical Tables, 4th edition](https://janaf.nist.gov/)*, Journal of Physical and Chemical Reference Data Monograph 9, 1998.
 
-[^cite-oneilleggins2002]: H. St. C. O'Neill, S. M. Eggins, *[The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts](https://doi.org/10.1016/S0009-2541(01)00414-4)*, Chemical Geology, 186(1-2), 151-181, 2002. [SciX](https://scixplorer.org/abs/2002ChGeo.186..151O/abstract). The IW expression of the code uses the free energy of Fe + 0.5 O$_2$ = FeO(liquid) in their Table 6, p. 163.
+[^cite-oneilleggins2002]: H. St. C. O'Neill, S. M. Eggins, *[The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts](https://doi.org/10.1016/S0009-2541(01)00414-4)*, Chemical Geology, 186, 151-181, 2002. [SciX](https://scixplorer.org/abs/2002ChGeo.186..151O/abstract). The IW expression of the code uses the free energy of Fe + 0.5 O$_2$ = FeO(liquid) in their Table 6, p. 163.
 [^cite-tagawa2021]: S. Tagawa, N. Sakamoto, K. Hirose, S. Yokoo, J. Hernlund, Y. Ohishi, H. Yurimoto, *[Experimental evidence for hydrogen incorporation into Earth's core](https://doi.org/10.1038/s41467-021-22035-0)*, Nature Communications, 12, 2588, 2021. [SciX](https://scixplorer.org/abs/2021NatCo..12.2588T/abstract).
-[^cite-fischer2011]: R. A. Fischer, A. J. Campbell, G. A. Shofner, O. T. Lord, P. Dera, V. B. Prakapenka, *[Equation of state and phase diagram of FeO](https://doi.org/10.1016/j.epsl.2011.02.025)*, Earth and Planetary Science Letters, 304(3), 496-502, 2011. [SciX](https://scixplorer.org/abs/2011E%26PSL.304..496F/abstract).
+[^cite-fischer2011]: R. A. Fischer, A. J. Campbell, G. A. Shofner, O. T. Lord, P. Dera, V. B. Prakapenka, *[Equation of state and phase diagram of FeO](https://doi.org/10.1016/j.epsl.2011.02.025)*, Earth and Planetary Science Letters, 304, 496-502, 2011. [SciX](https://scixplorer.org/abs/2011E%26PSL.304..496F/abstract).
 [^cite-sossi2023]: P. A. Sossi, P. M. E. Tollan, J. Badro, D. J. Bower, *[Solubility of water in peridotite liquids and the prevalence of steam atmospheres on rocky planets](https://doi.org/10.1016/j.epsl.2022.117894)*, Earth and Planetary Science Letters, 601, 117894, 2023. [SciX](https://scixplorer.org/abs/2023E%26PSL.60117894S/abstract).
 [^cite-gaillard2022]: F. Gaillard, F. Bernadou, M. Roskosz, M. A. Bouhifd, Y. Marrocchi, G. Iacono-Marziano, M. Moreira, B. Scaillet, G. Rogerie, *[Redox controls during magma ocean degassing](https://doi.org/10.1016/j.epsl.2021.117255)*, Earth and Planetary Science Letters, 577, 117255, 2022. [SciX](https://scixplorer.org/abs/2022E%26PSL.57717255G/abstract).
 [^cite-wang2018]: H. S. Wang, C. H. Lineweaver, T. R. Ireland, *[The elemental abundances (with uncertainties) of the most Earth-like planet](https://doi.org/10.1016/j.icarus.2017.08.024)*, Icarus, 299, 460-474, 2018. [SciX](https://scixplorer.org/abs/2018Icar..299..460W/abstract).

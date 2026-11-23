@@ -6,7 +6,7 @@
 [![tests](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/FormingWorlds/CALLIOPE/badges/tests-total.json)](https://proteus-framework.org/testing)
 
 This page is the practical contributor guide for adding or modifying a test in CALLIOPE.
-The conceptual framing (marker scheme, badge system, coverage gates, AST linter) lives in the [testing suite](../Explanations/testing.md) explainer; read it first if you have not yet.
+The conceptual framing (marker scheme, badge system, [coverage thresholds](../Explanations/testing.md#coverage-thresholds), AST linter) lives in the [testing suite](../Explanations/testing.md) explainer; read it first if you have not yet.
 
 ## Run the suite locally
 
@@ -18,7 +18,7 @@ pytest -m unit                              # fast unit tests
 pytest -m smoke                             # minimal-config solver tests
 pytest -m integration                       # full multi-species CHNS solves
 pytest -m slow                              # sweeps and hypothesis fuzz
-pytest -m "(unit or smoke) and not skip"    # PR-gate selection
+pytest -m "(unit or smoke) and not skip"    # PR-job selection
 ```
 
 A single test file or a single test:
@@ -43,7 +43,7 @@ CALLIOPE follows a 1:1 source-to-test mirroring rule: each file in `src/calliope
 
 The cross-cutting test files are the documented exception:
 
-- `tests/test_invariants.py`, `tests/test_invariants_hypothesis.py`: contract clauses that span multiple sources (mass closure end-to-end, partial-species behaviour, stoichiometry of an arbitrary recipe).
+- `tests/test_invariants.py`, `tests/test_invariants_hypothesis.py`: contract clauses that span multiple sources (mass closure across the full solve, partial-species behaviour, stoichiometry of an arbitrary recipe).
 - `tests/test_authoritative_O*.py`, `tests/test_equilibrium_paths.py`, `tests/test_partial_species.py`, `tests/test_stoichiometry.py`, `tests/test_targets.py`: solver-architecture tests that span `solve.py`, `chemistry.py`, and `oxygen_fugacity.py` together.
 
 Place a test in a cross-cutting file only when it genuinely cannot be expressed against a single source.
@@ -78,7 +78,7 @@ Choose the tier from the actual content of the test:
 - `integration`: full multi-species CHNS solve with mass-conservation invariants.
 - `slow`: parameter sweeps and convergence studies that exceed one minute wall.
 
-If a slower test would push the PR gate over its 10-minute budget, mark it `integration` or `slow` and rely on the nightly suite.
+If a slower test would push the PR job over its 10-minute budget, mark it `integration` or `slow` and rely on the nightly suite.
 
 ## Anti-happy-path rules
 
@@ -255,7 +255,7 @@ Avoid em-dashes and en-dashes in test prose; use commas, semicolons, colons, or 
 
 ## Marker validation
 
-`tools/validate_test_structure.sh` runs in the PR gate ahead of pytest and rejects any test file whose tests have no marker.
+`tools/validate_test_structure.sh` runs in the PR job ahead of pytest and rejects any test file whose tests have no marker.
 Run it locally before pushing:
 
 ```console
@@ -289,14 +289,14 @@ The second lists physics-source tests that assert no invariant and are not tagge
 
 ## Coverage and the ratchet
 
-The PR gate enforces a fast coverage threshold read live from `[tool.calliope.coverage_fast].fail_under` in `pyproject.toml`:
+The PR job enforces a fast coverage threshold read live from `[tool.calliope.coverage_fast].fail_under` in `pyproject.toml`:
 
 ```console
 FAST_FAIL_UNDER=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['tool']['calliope']['coverage_fast']['fail_under'])")
 pytest -m "(unit or smoke) and not skip" --cov=calliope --cov-fail-under=${FAST_FAIL_UNDER}
 ```
 
-The nightly gate enforces `[tool.coverage.report].fail_under` over the full tier set.
+The nightly run passes `--cov-fail-under=90` over the full tier set; it does not read `[tool.coverage.report].fail_under`.
 Both thresholds ratchet upward, capped at 90 % (`tools/update_coverage_threshold.py` enforces `ECOSYSTEM_CEILING = 90.0`); neither may be manually decreased.
 
 ```console
@@ -340,5 +340,5 @@ Both run on every commit via the pre-commit hook (`pre-commit install -f` after 
 
 ## See also
 
-- [Testing suite](../Explanations/testing.md): the conceptual framing of the marker scheme, badges, coverage gates, and AST linter.
+- [Testing suite](../Explanations/testing.md): the conceptual framing of the marker scheme, badges, [coverage thresholds](../Explanations/testing.md#coverage-thresholds), and AST linter.
 - [PROTEUS ecosystem testing standard](https://proteus-framework.org/PROTEUS/Explanations/ecosystem_testing_standard/): the repository-wide rules that every PROTEUS-ecosystem submodule follows.

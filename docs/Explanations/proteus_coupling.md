@@ -38,7 +38,7 @@ PROTEUS runs an iterative loop in which structure, outgassing, atmosphere radiat
    └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-CALLIOPE is the cheapest of the five (a few tens of milliseconds per call vs. seconds-to-minutes for atmosphere and interior), so it runs every iteration without gating.
+CALLIOPE is the cheapest of the five (a few tens of milliseconds per call vs. seconds-to-minutes for atmosphere and interior), so no update interval limits it. PROTEUS calls it in every iteration and skips the call in 2 cases. The first is a [crystallised or desiccated state](#crystallised-vs-desiccated-states). The second is a closed [lid seal](https://proteus-framework.org/PROTEUS/Explanations/lid_seal.html), when `outgas.lid_seal.enabled` is set.
 
 ## What the wrapper does
 
@@ -61,7 +61,7 @@ CALLIOPE is the cheapest of the five (a few tens of milliseconds per call vs. se
 
 For `volatile_mode == 'elements'`, the wrapper additionally translates the elemental-budget config:
 
-| Field | Computation | TOML knob |
+| Field | Computation | TOML key |
 |---|---|---|
 | `hydrogen_earth_oceans` | $H_\text{kg} / (N_\text{ocean} \cdot \mu_\mathrm{H_2})$ | `[planet.elements] H_mode = "oceans"\|"ppmw"\|"kg"`, `H_budget = …` |
 | `CH_ratio` | $C_\text{kg} / H_\text{kg}$ | `C_mode = "C/H"\|"ppmw"\|"kg"`, `C_budget = …` |
@@ -177,13 +177,13 @@ After the writeback, `wrapper.run_outgassing` recomputes `M_atm` from the per-sp
 
 ## Where the binodal lives
 
-If `config.outgas.h2_binodal = true`, `wrapper.run_outgassing` calls `apply_binodal_h2` *after* CALLIOPE returns. This applies the Rogers et al. (2025) [^cite-rogers2025] H$_2$-MgSiO$_3$ miscibility correction as a post-processing step on top of the CALLIOPE equilibrium. CALLIOPE itself does not know about miscibility; it produces the ideal-mixing baseline that the binodal then perturbs.
+If `config.outgas.h2_binodal = true`, `wrapper.run_outgassing` calls `apply_binodal_h2` *after* CALLIOPE returns. This applies the Rogers et al. (2025)[^cite-rogers2025] H$_2$-MgSiO$_3$ miscibility correction as a post-processing step on top of the CALLIOPE equilibrium. CALLIOPE itself does not know about miscibility; it produces the ideal-mixing baseline that the binodal then perturbs.
 
 When `config.interior_struct.zalmoxis.global_miscibility = true` (Zalmoxis radial binodal), the bulk binodal step is skipped because Zalmoxis has already done a per-radial-shell partition during the structure update. See the [Zalmoxis binodal page](https://proteus-framework.org/Zalmoxis/Explanations/binodal.html) for that mechanism.
 
 ## Crystallised vs. desiccated states
 
-`wrapper.run_crystallized` and `wrapper.run_desiccated` substitute for `run_outgassing` when the planet has either solidified ($\Phi_\mathrm{global} < \phi_\text{crit}$) or lost all volatiles. Neither calls CALLIOPE: the former preserves the existing reservoirs, the latter zeros them. The desiccation gate is inactive while any element is still above `mass_thresh`, and is additionally guarded by an escape-balance check that refuses to claim desiccation if the implied mass loss exceeds `1.5 * esc_kg_cumulative + 1000 kg`. This guard prevents an upstream module failure from silently zeroing the atmosphere via CALLIOPE: a real desiccation event must be backed by accounted-for atmospheric escape.
+`wrapper.run_crystallized` and `wrapper.run_desiccated` substitute for `run_outgassing` when the planet has either solidified ($\Phi_\mathrm{global} < \phi_\text{crit}$) or lost all volatiles. Neither calls CALLIOPE: the former preserves the existing reservoirs, the latter zeros them. The desiccation check is inactive while any element is still above `mass_thresh`, and is additionally guarded by an escape-balance check that refuses to claim desiccation if the implied mass loss exceeds `1.5 * esc_kg_cumulative + 1000 kg`. This guard prevents an upstream module failure from silently zeroing the atmosphere via CALLIOPE: a real desiccation event must be backed by accounted-for atmospheric escape.
 
 ## See also
 
@@ -192,4 +192,4 @@ When `config.interior_struct.zalmoxis.global_miscibility = true` (Zalmoxis radia
 - [Authoritative-oxygen mode](authoritative_oxygen.md) for the augmented mass balance that `from_O_budget` dispatches to.
 - The PROTEUS-side wrapper code: [`src/proteus/outgas/calliope.py`](https://github.com/FormingWorlds/PROTEUS/blob/main/src/proteus/outgas/calliope.py), [`src/proteus/outgas/wrapper.py`](https://github.com/FormingWorlds/PROTEUS/blob/main/src/proteus/outgas/wrapper.py), [`src/proteus/config/_outgas.py`](https://github.com/FormingWorlds/PROTEUS/blob/main/src/proteus/config/_outgas.py).
 
- [^cite-rogers2025]: J. G. Rogers, E. D. Young, H. E. Schlichting, *Redefining interiors and envelopes: hydrogen-silicate miscibility and its consequences for the structure and evolution of sub-Neptunes*, Monthly Notices of the Royal Astronomical Society, 544(4), 3496–3511, 2025. [SciX](https://scixplorer.org/abs/2025MNRAS.544.3496R/abstract).
+[^cite-rogers2025]: J. G. Rogers, E. D. Young, H. E. Schlichting, *[Redefining interiors and envelopes: hydrogen-silicate miscibility and its consequences for the structure and evolution of sub-Neptunes](https://doi.org/10.1093/mnras/staf1940)*, Monthly Notices of the Royal Astronomical Society, 544, 3496-3511, 2025. [SciX](https://scixplorer.org/abs/2025MNRAS.544.3496R/abstract).

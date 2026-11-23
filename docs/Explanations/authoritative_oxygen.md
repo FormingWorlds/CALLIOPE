@@ -45,9 +45,9 @@ def func_authoritative_O(x_arr, ddict, mass_target_d):
 
 $\Delta\mathrm{IW}$ enters the chemistry through the four channels listed on the [oxygen fugacity page](oxygen_fugacity.md#how-deltamathrmiw-enters-the-chemistry): the free $\mathrm{O_2}$ partial pressure, the modified equilibrium constants $G_\mathrm{eq}$, the Gaillard S$_2$ solubility, and the Dasgupta N$_2$ solubility. In the buffered mode $\Delta\mathrm{IW}$ is an input held fixed during the solve; in the authoritative-O mode it is a variable the solver adjusts in concert with the four pressures to satisfy the five-residual system.
 
-The closure mechanism is intuitive: increasing $\Delta\mathrm{IW}$ (more oxidising) drives more H$_2$O at fixed H, more CO$_2$ at fixed C, and more SO$_2$ and dissolved S at fixed S. The Dasgupta N$_2$ solubility carries an explicit $-1.6\,\Delta\mathrm{IW}$ term in its exponent, so dissolved N drops by roughly an order of magnitude per dex of oxidation, while N$_2$ in the atmosphere takes up the slack. The aggregated atmospheric + dissolved O mass therefore monotonically increases with $\Delta\mathrm{IW}$ over the physically relevant range, which gives the 5-residual system a unique root for any feasible O target. The `tests/test_authoritative_O_monotonicity.py::TestMonotonicity::test_O_kg_total_strictly_increasing_with_fO2` property test pins this monotonicity over $\Delta\mathrm{IW} \in [-4, +6]$ at two $T_\mathrm{magma}$ values, with a sibling check at $\Phi_\mathrm{global} = 0.3$ over $\Delta\mathrm{IW} \in [-2, +4]$.
+The closure mechanism is intuitive: increasing $\Delta\mathrm{IW}$ (more oxidising) drives more H$_2$O at fixed H, more CO$_2$ at fixed C, and more SO$_2$ and dissolved S at fixed S. The Dasgupta N$_2$ solubility has a factor $\exp(-1.6\,\Delta\mathrm{IW})$ in its first term. This term alone would cut dissolved N by $e^{1.6} \approx 5$ per unit of $\Delta\mathrm{IW}$. Per unit step below $\Delta\mathrm{IW} = -4$ the cut is 4.7 to 4.95; from $-3$ to $-2$ it is 2.7 to 4.7. The second term does not depend on $\Delta\mathrm{IW}$, and from $+1$ to $+2$ it limits the cut to at most 1.1. These ranges hold for the default melt, 2000 to 3000 K, $p_{\mathrm{N_2}}$ of 1 to 100 bar and $p_\mathrm{tot}$ of 10 to 1000 bar. N$_2$ in the atmosphere takes up the slack. The aggregated atmospheric + dissolved O mass therefore monotonically increases with $\Delta\mathrm{IW}$ over the physically relevant range, which gives the 5-residual system a unique root for any feasible O target. The `tests/test_authoritative_O_monotonicity.py::TestMonotonicity::test_O_kg_total_strictly_increasing_with_fO2` property test pins this monotonicity over $\Delta\mathrm{IW} \in [-4, +6]$ at two $T_\mathrm{magma}$ values, with a sibling check at $\Phi_\mathrm{global} = 0.3$ over $\Delta\mathrm{IW} \in [-2, +4]$.
 
-## Solver: per-element residual gate
+## Solver: per-element residual test
 
 `equilibrium_atmosphere_authoritative_O` uses the same hybrid `fsolve` + `trust-constr` outer loop as the buffered mode (see [Mass balance & solver](mass_balance.md#solver-hybrid-powell-trust-region-with-monte-carlo-restart)), with three differences in the acceptance test and the initial-guess generation.
 
@@ -61,13 +61,13 @@ $$
 
 is satisfied. The buffered mode never sees O in its residual vector, so the four H/C/N/S targets dominate $\max_e m_e^\mathrm{target}$. In the authoritative-O mode O is now in the residual vector, and at planet scale $m_\mathrm{O}^\mathrm{target} \sim 10^{22}\,\mathrm{kg}$ can be five orders of magnitude larger than $m_\mathrm{N}^\mathrm{target} \sim 10^{17}\,\mathrm{kg}$. A tolerance scaled to the largest target would silently admit N residuals of order $10^{17}\,\mathrm{kg}$, which is the whole N budget.
 
-The authoritative-O mode replaces the scalar bound with a per-element gate:
+The authoritative-O mode replaces the scalar bound with a per-element test:
 
 $$
 |r_e| < \max\left(r_\mathrm{tol} \cdot m_e^\mathrm{target}, \tfrac{a_\mathrm{tol}}{5}, \mathrm{TRUNC\_MASS}\right) \quad \forall e \in \{\mathrm{H}, \mathrm{C}, \mathrm{N}, \mathrm{S}, \mathrm{O}\}.
 $$
 
-The $a_\mathrm{tol}$ budget is split evenly across the five elements so the per-element floor stays in the kilogram range, and the `TRUNC_MASS` constant ($10\,\mathrm{kg}$, from `solve.py`) handles benign sub-kilogram noise that should not gate convergence.
+The $a_\mathrm{tol}$ budget is split evenly across the five elements so the per-element floor stays in the kilogram range, and the `TRUNC_MASS` constant ($10\,\mathrm{kg}$, from `solve.py`) handles benign sub-kilogram noise that should not block convergence.
 
 ### The fO2 hint and the restart redraw
 
@@ -75,7 +75,7 @@ The five-dimensional problem has a larger initial-guess space than the four-dime
 
 ### Bounds
 
-The trust-region solver uses bounds $[0, 10^7]$ bar on each pressure (same as the buffered mode) and $[-12, +12]$ on $\Delta\mathrm{IW}$. The pressure bounds are physical; the fO2 bounds are wider than the $[-6, +8]$ redraw window so the solver has slack to escape a poor cold start without immediately hitting the constraint, but tight enough to reject runaway trajectories into thermodynamically meaningless regions. `fsolve` ignores these bounds, so after each solve CALLIOPE rejects a root with $\Delta\mathrm{IW}$ outside $[-12, +12]$, a pressure above the ceiling, or a root whose negative pressures, clipped at zero, no longer pass the per-element gate (the buffered mode judges such a root by the sign check of [Mass balance & solver](mass_balance.md#solver-hybrid-powell-trust-region-with-monte-carlo-restart), step 4). An accepted root is reported with its pressures clipped at zero.
+The trust-region solver uses bounds $[0, 10^7]$ bar on each pressure (same as the buffered mode) and $[-12, +12]$ on $\Delta\mathrm{IW}$. The pressure bounds are physical; the fO2 bounds are wider than the $[-6, +8]$ redraw window so the solver has slack to escape a poor cold start without immediately hitting the constraint, but tight enough to reject runaway trajectories into thermodynamically meaningless regions. `fsolve` ignores these bounds, so after each solve CALLIOPE rejects a root with $\Delta\mathrm{IW}$ outside $[-12, +12]$, a pressure above the ceiling, or a root whose negative pressures, clipped at zero, no longer pass the per-element test (the buffered mode judges such a root by the sign check of [Mass balance & solver](mass_balance.md#solver-hybrid-powell-trust-region-with-monte-carlo-restart), step 4). An accepted root is reported with its pressures clipped at zero.
 
 ### Reproducibility
 
@@ -83,10 +83,10 @@ A `random_seed` argument (default `None`) seeds a `np.random.default_rng` for th
 
 ## Buffer convention
 
-Like the buffered mode, the authoritative-O mode references $f_{\mathrm{O}_2}$ to the iron-wüstite buffer of Hirschmann (2021) [^cite-hirschmann2021] by default, with the Fischer et al. (2011) [^cite-fischer2011] and O'Neill & Eggins (2002) [^cite-oneilleggins2002] alternatives selectable through the `fO2_model` argument (or `ddict['fO2_model']`). The returned `fO2_shift_derived` is the $\Delta\mathrm{IW}$ relative to whichever buffer was chosen.
+Like the buffered mode, the authoritative-O mode references $f_{\mathrm{O}_2}$ to the iron-wüstite buffer of Hirschmann (2021)[^cite-hirschmann2021] by default, with the Fischer et al. (2011)[^cite-fischer2011] and O'Neill & Eggins (2002)[^cite-oneilleggins2002] alternatives selectable through the `fO2_model` argument (or `ddict['fO2_model']`). The returned `fO2_shift_derived` is the $\Delta\mathrm{IW}$ relative to whichever buffer was chosen.
 
 !!! note "Cross-backend buffer divergence"
-    PROTEUS supports a second outgassing backend, [atmodeller](https://atmodeller.readthedocs.io/), whose authoritative-O implementation uses the Hirschmann combined IW buffer. Under the default Fischer buffer, the Hirschmann and Fischer parameterisations differ by $0.11$ dex at $T = 3000$ K ($0.95$ dex for the O'Neill & Eggins form). PROTEUS records both backends' derived offsets under the helpfile column `fO2_shift_IW_derived`, and the discrepancy is documented in the column's schema comment. The two backends agree on the underlying physics (same chemistry of FeO-O$_2$ equilibrium); they disagree on the numerical parameterisation of the buffer curve. Choose one backend per run and stay with it for any cross-time-step comparison.
+    PROTEUS supports a second outgassing backend, [atmodeller](https://atmodeller.readthedocs.io/), whose authoritative-O implementation uses the Hirschmann combined IW buffer. With the default Hirschmann (2021) buffer of CALLIOPE, both codes use the same IW reference at magma-ocean temperatures. With the Fischer buffer, the two parameterisations differ by $0.11$ dex at $T = 3000$ K ($0.95$ dex with the O'Neill & Eggins form). PROTEUS records the derived offset of either code under the helpfile column `fO2_shift_IW_derived`. With a buffer other than the default, the offsets of the two codes differ by the buffer difference above. Both codes use the same chemistry of FeO-O$_2$ equilibrium; only the buffer curve differs. Compare runs of one code only, unless both use the same buffer.
 
 ## When to use this mode
 
@@ -113,6 +113,6 @@ For the routine "set $\Delta\mathrm{IW}$, get a self-consistent atmosphere" work
 - [Coupling to PROTEUS (theory)](proteus_coupling.md): how the PROTEUS wrapper selects between the two modes.
 - [API reference for `calliope.solve`](../Reference/api/calliope.solve.md).
 
- [^cite-hirschmann2021]: M. M. Hirschmann, *[Iron-wüstite revisited: A revised calibration accounting for variable stoichiometry and the effects of pressure](https://doi.org/10.1016/j.gca.2021.08.039)*, Geochimica et Cosmochimica Acta, 313, 74–84, 2021.
- [^cite-oneilleggins2002]: H. St. C. O'Neill, S. M. Eggins, *[The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts](https://doi.org/10.1016/S0009-2541(01)00414-4)*, Chemical Geology, 186, 151–181, 2002. [SciX](https://scixplorer.org/abs/2002ChGeo.186..151O/abstract).
- [^cite-fischer2011]: R. A. Fischer, A. J. Campbell, G. A. Shofner, O. T. Lord, P. Dera, V. B. Prakapenka, *[Equation of state and phase diagram of FeO](https://doi.org/10.1016/j.epsl.2011.02.025)*, Earth and Planetary Science Letters, 304, 496–502, 2011. [SciX](https://scixplorer.org/abs/2011E%26PSL.304..496F/abstract).
+[^cite-hirschmann2021]: M. M. Hirschmann, *[Iron-wüstite revisited: a revised calibration accounting for variable stoichiometry and the effects of pressure](https://doi.org/10.1016/j.gca.2021.08.039)*, Geochimica et Cosmochimica Acta, 313, 74-84, 2021. [SciX](https://scixplorer.org/abs/2021GeCoA.313...74H/abstract).
+[^cite-oneilleggins2002]: H. St. C. O'Neill, S. M. Eggins, *[The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts](https://doi.org/10.1016/S0009-2541(01)00414-4)*, Chemical Geology, 186, 151-181, 2002. [SciX](https://scixplorer.org/abs/2002ChGeo.186..151O/abstract).
+[^cite-fischer2011]: R. A. Fischer, A. J. Campbell, G. A. Shofner, O. T. Lord, P. Dera, V. B. Prakapenka, *[Equation of state and phase diagram of FeO](https://doi.org/10.1016/j.epsl.2011.02.025)*, Earth and Planetary Science Letters, 304, 496-502, 2011. [SciX](https://scixplorer.org/abs/2011E%26PSL.304..496F/abstract).

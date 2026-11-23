@@ -14,7 +14,7 @@ with the dissolved concentration $X_i^\mathrm{melt}$ in ppmw, the surface partia
 
 ## Solubility constants
 
-The constants come from Jambon, Weill & Braun (1986) [^cite-jambon1986], who measured noble gas solubilities in tholeiitic basalt melt at 1 bar and 1250-1600 C. The tabulated values are Henry constants $k$ in cm$^3$ STP per gram of melt per bar. CALLIOPE converts each to ppmw per bar through
+The constants come from Jambon et al. (1986)[^cite-jambon1986], who measured noble gas solubilities in tholeiitic basalt melt at 1 bar and 1250-1600 °C. The tabulated values are Henry constants $k$ in cm$^3$ STP per gram of melt per bar. CALLIOPE converts each to ppmw per bar through
 
 $$
 \alpha_i = \frac{k_i}{V_\mathrm{STP}}\, M_i \times 10^{6},
@@ -22,7 +22,7 @@ $$
 
 where $V_\mathrm{STP} = 2.24\times10^{4}$ cm$^3$ mol$^{-1}$ is the molar volume of an ideal gas at standard temperature and pressure and $M_i$ is the molar mass in g mol$^{-1}$.
 
-| Gas | $k$ [cm$^3$ STP g$^{-1}$ bar$^{-1}$] | $\alpha$ [ppmw bar$^{-1}$] |
+| Gas | $k$ (cm$^3$ STP g$^{-1}$ bar$^{-1}$) | $\alpha$ (ppmw bar$^{-1}$) |
 |---|---:|---:|
 | He | $56\times10^{-5}$ | 0.1001 |
 | Ne | $25\times10^{-5}$ | 0.2252 |
@@ -54,7 +54,7 @@ Each of the five noble gases is run through `equilibrium_atmosphere` against a f
 
 ## Validity envelope
 
-The Jambon et al. (1986) constants are a 1 bar, tholeiitic-basalt calibration measured between 1250 and 1600 C, applied as a strictly linear Henry's law with no saturation term. At the high surface pressures of a genuinely noble-gas-rich atmosphere this is an extrapolation on two counts: the pressure lies far above the 1 bar calibration, and the linear form assumes the melt never approaches saturation. The parameterization carries no temperature dependence, so applying it at magma-ocean surface temperatures above the 1600 C calibration ceiling is a further extrapolation. CALLIOPE also applies the single tholeiite calibration to all melt compositions. Results in the high-pressure, high-temperature, noble-gas-dominated regime should be read with these limitations in mind.
+The Jambon et al. (1986) constants are a 1 bar, tholeiitic-basalt calibration measured between 1250 and 1600 °C, applied as a strictly linear Henry's law with no saturation term. At the high surface pressures of a genuinely noble-gas-rich atmosphere this is an extrapolation on two counts: the pressure lies far above the 1 bar calibration, and the linear form assumes the melt never approaches saturation. The parameterization carries no temperature dependence, so applying it at magma-ocean surface temperatures above the 1600 °C calibration ceiling is a further extrapolation. CALLIOPE also applies the single tholeiite calibration to all melt compositions. Results in the high-pressure, high-temperature, noble-gas-dominated regime should be read with these limitations in mind.
 
 ## Where the code lives
 
@@ -64,4 +64,4 @@ The Jambon et al. (1986) constants are a 1 bar, tholeiitic-basalt calibration me
 
 ## References
 
- [^cite-jambon1986]: A. Jambon, H. Weill, J. Braun, *[Solubility of He, Ne, Ar, Kr and Xe in a basalt melt in the range 1250-1600 C. Geochemical implications](https://doi.org/10.1016/0016-7037(86)90193-6)*, Geochimica et Cosmochimica Acta, 50(3), 401-408, 1986. [SciX](https://scixplorer.org/abs/1986GeCoA..50..401J/abstract).
+[^cite-jambon1986]: A. Jambon, H. Weber, O. Braun, *[Solubility of He, Ne, Ar, Kr and Xe in a basalt melt in the range 1250-1600 °C. Geochemical implications](https://doi.org/10.1016/0016-7037(86)90193-6)*, Geochimica et Cosmochimica Acta, 50, 401-408, 1986. [SciX](https://scixplorer.org/abs/1986GeCoA..50..401J/abstract).

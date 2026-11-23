@@ -53,7 +53,7 @@ The [metal reservoir page](metal.md) uses the same 2 names, and the [authoritati
 
 **What it tests.** An Earth-scale magma ocean ($T$ = 1800 K, fully molten mantle of 4.0e24 kg, gravity 9.81 m s$^{-2}$, radius 6.37e6 m) with the species H$_2$O, CO$_2$, N$_2$ and S$_2$ and the noble gases. For He, Ar and Xe the ratio of the dissolved mass to the atmospheric mass after the solve must equal the closed-form ratio to a relative 1e-6. For He the ratio must lie between 0 and 10.
 
-**How we know the right answer.** For a noble gas the dissolved mass is $10^{-6}\,M_\mathrm{mantle}\,\Phi\,k\,p$ and the atmospheric mass is $10^5\,(A/g)\,(M/\mu)\,p$. Here $p$ \[bar\] is its partial pressure, $k$ \[ppmw bar$^{-1}$\] its Henry constant of Jambon et al. (1986), $\Phi$ the melt fraction, $A = 4\pi R^2$ the surface area, $g$ the gravity, $M$ its molar mass and $\mu$ the mean molar mass of the gas. The ratio of the 2 does not depend on $p$ (an analytical limit). The test takes $\mu$ from the result of the solve, so it checks how the solve assembles the 2 masses, not the value of $\mu$. The value of $k$ itself is checked on the [solubility page](solubility.md#noble-gas-henry-constants).
+**How we know the right answer.** For a noble gas the dissolved mass is $10^{-6}\,M_\mathrm{mantle}\,\Phi\,k\,p$ and the atmospheric mass is $10^5\,(A/g)\,(M/\mu)\,p$. Here $p$ \[bar\] is its partial pressure, $k$ \[ppmw bar$^{-1}$\] its Henry constant of Jambon et al. (1986)[^cite-jambon1986], $\Phi$ the melt fraction, $A = 4\pi R^2$ the surface area, $g$ the gravity, $M$ its molar mass and $\mu$ the mean molar mass of the gas. The ratio of the 2 does not depend on $p$ (an analytical limit). The test takes $\mu$ from the result of the solve, so it checks how the solve assembles the 2 masses, not the value of $\mu$. The value of $k$ itself is checked on the [solubility page](solubility.md#noble-gas-henry-constants).
 
 **Why it matters.** This split decides how much of each noble gas the atmosphere holds, and so how much escape can remove.
 
@@ -122,3 +122,4 @@ The reference inventory is 1.55e20 kg of H, the mass of the hydrogen in one Eart
 ## References
 
 [^cite-mcbride2002]: B. J. McBride, M. J. Zehe, S. Gordon, *[NASA Glenn Coefficients for Calculating Thermodynamic Properties of Individual Species](https://ntrs.nasa.gov/citations/20020085330)*, NASA/TP-2002-211556, NASA Glenn Research Center, 2002.
+[^cite-jambon1986]: A. Jambon, H. Weber, O. Braun, *[Solubility of He, Ne, Ar, Kr and Xe in a basalt melt in the range 1250-1600 °C. Geochemical implications](https://doi.org/10.1016/0016-7037(86)90193-6)*, Geochimica et Cosmochimica Acta, 50, 401-408, 1986. [SciX](https://scixplorer.org/abs/1986GeCoA..50..401J/abstract).

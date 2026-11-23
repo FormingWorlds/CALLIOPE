@@ -1,6 +1,6 @@
 # Mars-like atmosphere
 
-CALLIOPE is not Earth-specific. Anything in the planet parameter dictionary (`M_mantle`, `gravity`, `radius`) is a knob the user can change, and the solubility laws are calibrated against terrestrial-basalt melts that extrapolate reasonably to other rocky bodies. This tutorial swaps in Mars-like planetary parameters and a mass-scaled inventory, runs the same chemistry, and reads off how the atmosphere differs.
+CALLIOPE is not Earth-specific. Anything in the planet parameter dictionary (`M_mantle`, `gravity`, `radius`) is a parameter the user can change, and the solubility laws are calibrated against terrestrial-basalt melts that extrapolate reasonably to other rocky bodies. This tutorial swaps in Mars-like planetary parameters and a mass-scaled inventory, runs the same chemistry, and reads off how the atmosphere differs.
 
 By the end of it you will:
 
@@ -11,7 +11,7 @@ By the end of it you will:
 You should already have completed [First run](firstrun.md). The other tutorials are not strictly required but make the figure easier to interpret.
 
 !!! note "On the choice of 'Mars-scaled' inventory"
-    The Mars BSE H/C/N/S inventory is much less well-constrained than Earth's. To keep this tutorial reproducible without committing to a specific Mars-petrology estimate, we scale the Krijt et al. 2023 [^cite-krijt2023] Earth BSE inventory uniformly by Mars's mass-ratio to Earth ($0.107$). The result is a "Mars-mass terrestrial body with Earth-like volatile fractions". The contrast you read off the figure is therefore primarily driven by Mars's smaller gravity and mantle mass, not by a fundamentally different chemistry. For real Mars BSE work, swap in a literature Mars-mantle composition (e.g. the classical Wänke & Dreibus 1988 [^cite-waenkedreibus1988] reduced-chondrite estimate) using the same workflow.
+    The Mars BSE H/C/N/S inventory is much less well-constrained than Earth's. To keep this tutorial reproducible without committing to a specific Mars-petrology estimate, we scale the Krijt et al. (2023)[^cite-krijt2023] Earth BSE inventory uniformly by Mars's mass-ratio to Earth ($0.107$). The result is a "Mars-mass terrestrial body with Earth-like volatile fractions". The contrast you read off the figure is therefore primarily driven by Mars's smaller gravity and mantle mass, not by a fundamentally different chemistry. For real Mars BSE work, swap in a literature Mars-mantle composition (e.g. the classical Wänke & Dreibus (1988)[^cite-waenkedreibus1988] reduced-chondrite estimate) using the same workflow.
 
 ## Step 1: define both planets
 
@@ -61,7 +61,7 @@ print(f'Earth: P_surf = {earth_out["P_surf"]:6.1f} bar, M_atm = {earth_out["M_at
 print(f'Mars : P_surf = {mars_out["P_surf"]:6.1f} bar, M_atm = {mars_out["M_atm"]:.2e} kg')
 ```
 
-You should see (default Hirschmann 2021 IW buffer):
+You should see (default Hirschmann (2021)[^cite-hirschmann2021] IW buffer):
 
 ```
 Earth: P_surf = 1448.5 bar, M_atm = 7.53e+21 kg
@@ -115,17 +115,17 @@ fig.savefig('mars_vs_earth.pdf')
 
 ![Earth vs Mars-scaled comparison](../assets/figures/tutorials/mars_fiducial.png)
 
-*Surface partial pressures at $T_\mathrm{magma} = 2500$ K, $\Delta\mathrm{IW} = +0.5$, $\Phi = 1$ on two bodies. Solid bars: Earth-BSE Krijt+2023 inventory on Earth planetary parameters. Hatched bars: same inventory scaled by Mars / Earth mass ratio (0.107) on Mars planetary parameters. Species ordered top-to-bottom by Earth partial pressure. Summary box top-right reports the three aggregate diagnostics for both bodies.*
+*Surface partial pressures at $T_\mathrm{magma} = 2500$ K, $\Delta\mathrm{IW} = +0.5$, $\Phi = 1$ on two bodies. Solid bars: Earth-BSE Krijt et al. (2023) inventory on Earth planetary parameters. Hatched bars: same inventory scaled by Mars / Earth mass ratio (0.107) on Mars planetary parameters. Species ordered top-to-bottom by Earth partial pressure. Summary box top-right reports the three aggregate diagnostics for both bodies.*
 
 The figure makes one pedagogical point cleanly: at fixed redox and temperature, the per-species partial pressures on the Mars-scaled body track Earth's by roughly the same factor across the redox-relevant species (CO, CO$_2$, N$_2$, H$_2$, H$_2$O). The dominant-species *ordering* is preserved: CO dominates on both bodies because the C / H mass ratio in the inventory is identical (we scaled uniformly). What changes is the absolute scale.
 
 This is the right intuition to carry into more sophisticated planetary work. A genuinely different *composition* (different C / H, different volatile-element fractionation, a depleted N or S budget) will shift the dominant species and break the parallel-bar pattern. A genuinely different *structure* (Mars-mass body with Earth-mass mantle, or a Venus-mass body with Mars-fraction volatiles) will shift the surface pressure without shifting the speciation. The two effects separate cleanly because CALLIOPE's chemistry depends on element budgets, not on how those budgets were divided among Earth-mass and Mars-mass bodies.
 
-A third change, and the one likely most relevant to real Mars work, would substantially break the parallel-bar pattern: *the mantle redox state*. The shergottite parent-melt estimate of Mars's upper-mantle $f_{\mathrm{O}_2}$ from Wadhwa 2001 [^cite-wadhwa2001] spans roughly $\Delta\mathrm{IW} \approx -1$ to $\Delta\mathrm{IW} \approx +2$, more reducing than the Sossi 2020 $\Delta\mathrm{IW} = +3.5$ Earth upper-mantle anchor used in this tutorial. The [Speciation phase diagram](phase_diagram.md) tutorial shows that at $\Delta\mathrm{IW} \lesssim +2$ the dominant species at this temperature flips from CO$_2$ to CO, and that H$_2$O and CO$_2$ drop sharply below the CO / H$_2$ pair. A Mars run that takes the petrologically motivated $\Delta\mathrm{IW} \sim +1$ instead of the $\Delta\mathrm{IW} = +0.5$ used here would therefore see substantially less H$_2$O and a much more reducing atmosphere overall, separately from the planetary-structure scaling explored on this page.
+A third change, and the one likely most relevant to real Mars work, would substantially break the parallel-bar pattern: *the mantle redox state*. The shergottite parent-melt estimate of Mars's upper-mantle $f_{\mathrm{O}_2}$ from Wadhwa (2001)[^cite-wadhwa2001] spans roughly $\Delta\mathrm{IW} \approx -1$ to $\Delta\mathrm{IW} \approx +2$, more reducing than the Sossi et al. (2020)[^cite-sossi2020] $\Delta\mathrm{IW} = +3.5$ Earth upper-mantle anchor used in this tutorial. The [Speciation phase diagram](phase_diagram.md) tutorial shows that at $\Delta\mathrm{IW} \lesssim +2$ the dominant species at this temperature flips from CO$_2$ to CO, and that H$_2$O and CO$_2$ drop sharply below the CO / H$_2$ pair. A Mars run that takes the petrologically motivated $\Delta\mathrm{IW} \sim +1$ instead of the $\Delta\mathrm{IW} = +0.5$ used here would therefore see substantially less H$_2$O and a much more reducing atmosphere overall, separately from the planetary-structure scaling explored on this page.
 
 ## Where to go next
 
-- Swap in a literature Mars BSE inventory (Wänke & Dreibus 1988 [^cite-waenkedreibus1988]) in the `mars['hcns']` dict and re-run; compare the per-species shift to the uniform-scaling result.
+- Swap in a literature Mars BSE inventory (Wänke & Dreibus (1988)[^cite-waenkedreibus1988]) in the `mars['hcns']` dict and re-run; compare the per-species shift to the uniform-scaling result.
 - Reduce the redox to $\Delta\mathrm{IW} = -3$ to look at a Mercury-like reducing endmember on the same Mars-mass body; the dominant species will switch.
 - Read [Equilibrium chemistry](../Explanations/equilibrium_chemistry.md) for the reactions that hold across all of these scenarios.
 
@@ -133,6 +133,8 @@ A third change, and the one likely most relevant to real Mars work, would substa
 
 Generated by [`scripts/tutorials/fig_mars_fiducial.py`](https://github.com/FormingWorlds/CALLIOPE/blob/main/scripts/tutorials/fig_mars_fiducial.py). Re-run with `python -m scripts.tutorials.fig_mars_fiducial` from the repository root.
 
- [^cite-krijt2023]: S. Krijt, M. Kama, M. McClure, J. Teske, E. A. Bergin, O. Shorttle, K. J. Walsh, S. N. Raymond, *Chemical habitability: supply and retention of life's essential elements during planet formation*, in Protostars and Planets VII, S. Inutsuka, Y. Aikawa, T. Muto, K. Tomida, M. Tamura, eds., Astronomical Society of the Pacific Conference Series, 534, 1031, 2023.
- [^cite-waenkedreibus1988]: H. Wänke, G. Dreibus, *[Chemical composition and accretion history of terrestrial planets](https://doi.org/10.1098/rsta.1988.0067)*, Philosophical Transactions of the Royal Society A, 325(1587), 545, 1988.
- [^cite-wadhwa2001]: M. Wadhwa, *[Redox state of Mars' upper mantle and crust from Eu anomalies in shergottite pyroxenes](https://doi.org/10.1126/science.1057594)*, Science, 291(5508), 1527, 2001.
+[^cite-krijt2023]: S. Krijt, M. Kama, M. McClure, J. Teske, E. A. Bergin, O. Shorttle, K. J. Walsh, S. N. Raymond, *Chemical habitability: supply and retention of life's essential elements during planet formation*, in Protostars and Planets VII, S. Inutsuka, Y. Aikawa, T. Muto, K. Tomida, M. Tamura, eds., Astronomical Society of the Pacific Conference Series, 534, 1031, 2023. [SciX](https://scixplorer.org/abs/2023ASPC..534.1031K/abstract).
+[^cite-waenkedreibus1988]: H. Wänke, G. Dreibus, *[Chemical composition and accretion history of terrestrial planets](https://doi.org/10.1098/rsta.1988.0067)*, Philosophical Transactions of the Royal Society A, 325, 545, 1988. [SciX](https://scixplorer.org/abs/1988RSPTA.325..545W/abstract).
+[^cite-wadhwa2001]: M. Wadhwa, *[Redox state of Mars' upper mantle and crust from Eu anomalies in shergottite pyroxenes](https://doi.org/10.1126/science.1057594)*, Science, 291, 1527-1530, 2001. [SciX](https://scixplorer.org/abs/2001Sci...291.1527W/abstract).
+[^cite-hirschmann2021]: M. M. Hirschmann, *[Iron-wüstite revisited: a revised calibration accounting for variable stoichiometry and the effects of pressure](https://doi.org/10.1016/j.gca.2021.08.039)*, Geochimica et Cosmochimica Acta, 313, 74-84, 2021. [SciX](https://scixplorer.org/abs/2021GeCoA.313...74H/abstract).
+[^cite-sossi2020]: P. A. Sossi, A. D. Burnham, J. Badro, A. Lanzirotti, M. Newville, H. St. C. O'Neill, *[Redox state of Earth's magma ocean and its Venus-like early atmosphere](https://doi.org/10.1126/sciadv.abd1387)*, Science Advances, 6, eabd1387, 2020. [SciX](https://scixplorer.org/abs/2020SciA....6.1387S/abstract).

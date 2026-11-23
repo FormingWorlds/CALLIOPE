@@ -1,8 +1,8 @@
 """Tests for `src/calliope/solubility.py`.
 
-Exercises the Henry's-law solubility models for H2O (Sossi 2023 default,
-Dixon 1995, Hamilton 1964 / Wilson and Head 1981, Newcombe 2017), S2
-(Gaillard 2022), and N2 (Dasgupta 2022, Libourel).
+Exercises the Henry's-law solubility models for H2O (Sossi et al. 2023 default,
+Dixon et al. 1995, Hamilton et al. 1964 / Wilson & Head 1981, Newcombe et al. 2017),
+S2 (Gaillard et al. 2022), and N2 (Dasgupta et al. 2022, Libourel et al. 2003).
 
 - Reference pins: H2O peridotite default against the Sossi et al. (2023)
   `524 * p^0.5` constant; S2 default against the Gaillard et al. (2022)
@@ -126,7 +126,7 @@ class TestSolubilityH2O:
 
     @pytest.mark.physics_invariant
     def test_basalt_wilson_uses_non_half_exponent(self):
-        """Hamilton (1964) / Wilson and Head (1981) basalt: `ppmw = 215 * p^0.7`.
+        """Hamilton et al. (1964) / Wilson & Head (1981) basalt: `ppmw = 215 * p^0.7`.
 
         Non-square-root exponent: discriminating, because a regression
         that defaults all H2O laws to the 0.5 exponent would land at
@@ -530,7 +530,7 @@ class TestSolubilityN2_meltComposition:
         values that would overflow the dasgupta exponential (e.g.
         enormous SiO2 of 10.0, well outside any physical mole fraction),
         the libourel law must still evaluate to the Henry-law output.
-        Discriminating: dasfac_2 is gated on composition='dasgupta',
+        Discriminating: dasfac_2 applies only with composition='dasgupta',
         so libourel callers must NOT pay the exp() precompute cost AND
         must NOT see any RuntimeWarning emitted at construction time.
         """
@@ -625,7 +625,7 @@ class TestBackwardCompatibility:
 
 
 # ---------------------------------------------------------------------------
-# SolubilityNobleGas :: Jambon, Weill & Braun (1986) Henry's law
+# SolubilityNobleGas :: Jambon et al. (1986) Henry's law
 # ---------------------------------------------------------------------------
 
 

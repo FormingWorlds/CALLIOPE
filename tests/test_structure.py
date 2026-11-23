@@ -5,8 +5,8 @@ Exercises the mantle-mass closure model in `calculate_mantle_mass`:
 - Conservation: `M_mantle = M_planet - M_core` for any valid input.
 - Boundedness: `0 < M_mantle <= M_planet` for any physically valid (mass, radius, core_frac).
 - Monotonicity: increasing `core_frac` at fixed `(mass, radius)` decreases `M_mantle`.
-- Reference pin: Earth-like input recovers the Wang, Lineweaver & Ireland
-  (2017) Earth core mass fraction within tolerance (the constant the source
+- Reference pin: Earth-like input recovers the Wang et al. (2018) Earth
+  core mass fraction within tolerance (the constant the source
   file cites at `src/calliope/structure.py` line 50).
 - Error contract: zero/negative mantle masses raise; missing or ambiguous
   `core_frac` raises `TypeError`; the deprecated `corefrac` alias emits
@@ -26,11 +26,11 @@ pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 @pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
 def test_calculate_mantle_mass_recovers_wang_2018_earth_core_fraction(validation_plot):
-    """Earth-like inputs recover Wang, Lineweaver & Ireland (2018) Earth
+    """Earth-like inputs recover Wang et al. (2018) Earth
     core mass fraction 0.325.
 
     The source file `src/calliope/structure.py` hard-codes `earth_fm = 0.325`
-    citing arxiv:1708.08718 (Wang, Lineweaver & Ireland 2018, "The Elemental
+    citing arxiv:1708.08718 (Wang et al. 2018, "The Elemental
     Abundances (with Uncertainties) of the Most Earth-like Planet"; the paper
     reports 32.5 +/- 0.3 wt% Earth core mass fraction). For Earth radius,
     Earth mass, and `core_frac = 0.55` (Earth-like core radius fraction), the

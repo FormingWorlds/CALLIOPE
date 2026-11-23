@@ -879,7 +879,7 @@ def equilibrium_atmosphere(
         Relative tolerance for mass conservation. An accepted state closes
         every element to ``max(rtol * budget, TRUNC_MASS)``.
     atol : float, default 1e10
-        Absolute tolerance [kg] of the scalar mass gate,
+        Absolute tolerance [kg] of the scalar mass test,
         ``rtol * max(budget) + atol + TRUNC_MASS``, that a state returned
         through the warned fallback must pass.
     xtol : float, default 1e-8

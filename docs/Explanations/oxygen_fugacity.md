@@ -18,9 +18,9 @@ $$
 
 which fixes a single curve $\log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T)$ in $T$-$f_{\mathrm{O}_2}$ space. CALLIOPE supports three parameterisations of this curve.
 
-### Hirschmann (2021), `hirschmann` (default) [^cite-hirschmann2021]
+### Hirschmann (2021)[^cite-hirschmann2021], `hirschmann` (default)
 
-An empirical fit to a thermodynamic model of iron coexisting with wüstite of equilibrium stoichiometry $\mathrm{Fe}_{1-y}\mathrm{O}$, valid from 1000 to 3000 K and from 1 bar to 100 GPa. Hirschmann (2021) [^cite-hirschmann2021] finds that the IW buffer computed from the JANAF properties of stoichiometric FeO is too reducing, by 1.1 log units at 1000 K and 0.2 log units at 3000 K. That comparison is against JANAF itself, not against the two-parameter `fischer` fit coded below: at 1 bar the Hirschmann fit sits $0.42$ dex above `fischer` at 1000 K and $0.11$ dex below it at 3000 K. The fit (their Table 1) is
+An empirical fit to a thermodynamic model of iron coexisting with wüstite of equilibrium stoichiometry $\mathrm{Fe}_{1-y}\mathrm{O}$, valid from 1000 to 3000 K and from 1 bar to 100 GPa. Hirschmann (2021)[^cite-hirschmann2021] finds that the IW buffer computed from the JANAF properties of stoichiometric FeO is too reducing, by 1.1 log units at 1000 K and 0.2 log units at 3000 K. That comparison is against JANAF itself, not against the two-parameter `fischer` fit coded below: at 1 bar the Hirschmann fit sits $0.42$ dex above `fischer` at 1000 K and $0.11$ dex below it at 3000 K. The fit (their Table 1) is
 
 $$
 \log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T, P) = a + b\,T + c\,T \ln T + \frac{d}{T},
@@ -31,9 +31,9 @@ for each parameter $m \in \{a, b, c, d\}$, with $P$ in GPa. Separate coefficient
 
 Implemented as `OxygenFugacity.hirschmann(T, P_bar=1.0)`. The `OxygenFugacity('hirschmann')` dispatcher evaluates the buffer at the 1 bar reference, like the other two buffers, so that $\Delta\mathrm{IW}$ keeps the same meaning. To get the buffer at a given pressure, call the method directly with `P_bar`. Below 1000 K and above 100 GPa the fit is an extrapolation that the paper advises against. Above 3000 K it is not calibrated, though the paper finds that it extrapolates smoothly; magma-ocean runs hotter than 3000 K use the default buffer outside its calibrated range. Above 30 to 50 GPa, the effects of FeO metallisation and low-spin Fe$^{2+}$ are not included, so the buffer there should be treated as a metastable reference.
 
-### Fischer et al. (2011), `fischer` [^cite-fischer2011]
+### Fischer et al. (2011)[^cite-fischer2011], `fischer`
 
-A simpler two-parameter fit of the 1-bar IW buffer. Fischer et al. (2011) [^cite-fischer2011] calculate the 1-bar Fe-FeO curve of their Fig. 6 from Chase (1998) [^cite-chase1998] and give a P-T polynomial in their supplement (Table S2); the source of this 2-term form is not stated in the paper body, and no independent pin of it exists in the test data. Fischer's own high-pressure measurements ($\le$200 GPa) extend the buffer to deep-mantle conditions but are not used by CALLIOPE.
+A simpler two-parameter fit of the 1-bar IW buffer. Fischer et al. (2011)[^cite-fischer2011] calculate the 1-bar Fe-FeO curve of their Fig. 6 from Chase (1998)[^cite-chase1998] and give a P-T polynomial in their supplement (Table S2); the source of this 2-term form is not stated in the paper body, and no independent pin of it exists in the test data. Fischer's own high-pressure measurements ($\le$200 GPa) extend the buffer to deep-mantle conditions but are not used by CALLIOPE.
 
 $$
 \log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T) = 6.94059 - \frac{28180.8}{T}.
@@ -41,15 +41,15 @@ $$
 
 Implemented as `OxygenFugacity.fischer(T)`.
 
-### O'Neill & Eggins (2002), `oneill` (legacy) [^cite-oneilleggins2002]
+### O'Neill & Eggins (2002)[^cite-oneilleggins2002], `oneill` (legacy)
 
-A thermochemically-constrained fit derived from low-temperature equilibrium data, expressed as Bower et al. (2022) [^cite-bower2022] Equation (7):
+A thermochemically-constrained fit derived from low-temperature equilibrium data, expressed as Bower et al. (2022)[^cite-bower2022] Equation (7):
 
 $$
 \log_{10} f_{\mathrm{O}_2}^\mathrm{IW}(T) = \frac{2\left[-244118 + 115.559\,T - 8.474\,T \ln T\right]}{\ln(10)\, R\, T},
 $$
 
-with $R = 8.31441$ J K$^{-1}$ mol$^{-1}$. Bower et al. (2022) [^cite-bower2022] adopted this as the "IW buffer to which $f_{\mathrm{O}_2}$ is referenced". CALLIOPE retains it under the model name `oneill` (function `OxygenFugacity.oneill(T)` in `oxygen_fugacity.py`); keep it as the choice when you need to reproduce results from the older literature line.
+with $R = 8.31441$ J K$^{-1}$ mol$^{-1}$. Bower et al. (2022)[^cite-bower2022] adopted this as the "IW buffer to which $f_{\mathrm{O}_2}$ is referenced". CALLIOPE retains it under the model name `oneill` (function `OxygenFugacity.oneill(T)` in `oxygen_fugacity.py`); keep it as the choice when you need to reproduce results from the older literature line.
 
 !!! note "Choice of buffer"
     CALLIOPE defaults to Hirschmann (2021) because it accounts for the variable stoichiometry of wüstite, which the JANAF-based stoichiometric-FeO fits do not, and because it is the calibration that atmodeller's Hirschmann composite uses above 1000 K. At 1 bar the three buffers differ as follows: Hirschmann is $0.23$ dex more oxidising than Fischer at $T = 1500$ K, $0.10$ dex at 2000 K, within $0.01$ dex near 2500 K, and $0.11$ dex more reducing at 3000 K. Against O'Neill, Hirschmann is $0.22$ dex more reducing at 1500 K, $0.35$ dex more oxidising at 2000 K, and $0.95$ dex more oxidising at 3000 K. The choice therefore matters at the few-tenths-of-a-dex level for inferred partial pressures across most of the magma-ocean range. Fischer and O'Neill are available as `OxygenFugacity('fischer')` and `OxygenFugacity('oneill')`, or as `fO2_model='fischer'` and `fO2_model='oneill'` on a solve. See [Backend comparison](cross_backend_comparison.md) for the cross-backend comparison.
@@ -88,15 +88,15 @@ $$
 G_\mathrm{eq}(T, f_{\mathrm{O}_2}) = 10^{\,\log_{10} K_\mathrm{eq}(T) - n_\mathrm{O_2}\,\log_{10} f_{\mathrm{O}_2}}.
 $$
 
-For the H$_2$O-H$_2$ couple ($n_\mathrm{O_2} = +0.5$), reducing conditions ($f_{\mathrm{O}_2}$ smaller, $\Delta\mathrm{IW}$ more negative) drive $G_\mathrm{eq}$ larger, which in turn drives more H$_2$O to dissociate into H$_2$. This is the redox dependence visible in the redox-sweep tutorial, and it is the mechanism behind the H$_2$-dominated, long-lived magma-ocean atmospheres found in Nicholls et al. (2024) [^cite-nicholls2024] Figure 6 at $\Delta\mathrm{IW} \le -1$.
+For the H$_2$O-H$_2$ couple ($n_\mathrm{O_2} = +0.5$), reducing conditions ($f_{\mathrm{O}_2}$ smaller, $\Delta\mathrm{IW}$ more negative) drive $G_\mathrm{eq}$ larger, which in turn drives more H$_2$O to dissociate into H$_2$. This is the redox dependence visible in the redox-sweep tutorial, and it is the mechanism behind the H$_2$-dominated, long-lived magma-ocean atmospheres found in Nicholls et al. (2024)[^cite-nicholls2024] Figure 6 at $\Delta\mathrm{IW} \le -1$.
 
 ### 3. The S$_2$ Gaillard solubility
 
-The Gaillard et al. (2022) [^cite-gaillard2022] sulfide solubility carries an explicit $\ln f_{\mathrm{O}_2}$ term, so $\Delta\mathrm{IW}$ enters the dissolved-S inventory directly. The implementation in `solubility.SolubilityS2.gaillard` calls back into `OxygenFugacity` with the buffer of the solve to compute the absolute $f_{\mathrm{O}_2}$.
+The Gaillard et al. (2022)[^cite-gaillard2022] sulfide solubility carries an explicit $\ln f_{\mathrm{O}_2}$ term, so $\Delta\mathrm{IW}$ enters the dissolved-S inventory directly. The implementation in `solubility.SolubilityS2.gaillard` calls back into `OxygenFugacity` with the buffer of the solve to compute the absolute $f_{\mathrm{O}_2}$.
 
 ### 4. The N$_2$ Dasgupta solubility
 
-Similarly, the Dasgupta et al. (2022) [^cite-dasgupta2022] N$_2$ solubility includes a $-1.6\,\Delta\mathrm{IW}$ term in its exponent, so reducing conditions sharply increase the dissolved-N inventory. `solubility.SolubilityN2.dasgupta` takes the solve's shift as this $\Delta\mathrm{IW}$ directly, on whichever buffer the solve uses. Dasgupta et al. (2022) define $\Delta\mathrm{IW}$ by the Fe-FeO activity ratio of the melt (their Eq. 2) and name no IW buffer curve, so there is no buffer to convert to. This is the one channel that the `fO2_model` setting does not reach: at a fixed absolute $f_{\mathrm{O}_2}$, switching buffers moves the shift and with it the dissolved N. This is one mechanism by which planet-scale N partitioning is tied to mantle redox; see Nicholls et al. (2026) [^cite-nicholls2026] for an application to L 98-59 d, where the inferred H$_2$-dominated atmosphere with photochemical SO$_2$ implies $\Delta\mathrm{IW}$ between IW-4 and IW-1.
+Similarly, the Dasgupta et al. (2022)[^cite-dasgupta2022] N$_2$ solubility includes a $-1.6\,\Delta\mathrm{IW}$ term in its exponent, so reducing conditions sharply increase the dissolved-N inventory. `solubility.SolubilityN2.dasgupta` takes the solve's shift as this $\Delta\mathrm{IW}$ directly, on whichever buffer the solve uses. Dasgupta et al. (2022) define $\Delta\mathrm{IW}$ by the Fe-FeO activity ratio of the melt (their Eq. 2) and name no IW buffer curve, so there is no buffer to convert to. This is the one channel that the `fO2_model` setting does not reach: at a fixed absolute $f_{\mathrm{O}_2}$, switching buffers moves the shift and with it the dissolved N. This is one mechanism by which planet-scale N partitioning is tied to mantle redox; see Nicholls et al. (2026)[^cite-nicholls2026] for an application to L 98-59 d, where the inferred H$_2$-dominated atmosphere with photochemical SO$_2$ implies $\Delta\mathrm{IW}$ between IW-4 and IW-1.
 
 ## The oxygen fugacity of the metal reservoir
 
@@ -106,22 +106,22 @@ The optional [metal reservoir](metal.md) has its own $\Delta\mathrm{IW}$, `dIW_e
 
 | Reservoir | $\Delta\mathrm{IW}$ | Source |
 |---|---|---|
-| Mercury surface | IW-2.8 to IW-5.4 (Fe-based: IW-2.8 to IW-4.5; sulphur-based: IW-5.4 via Namur et al. 2016) | Cartier & Wood (2019) [^cite-cartierwood2019] |
-| Mars upper mantle (shergottite source) | $\approx$ IW (specifically IW-1.0 to IW-0.3 for QUE 94201) | Wadhwa (2001) [^cite-wadhwa2001] |
-| Mars shergottite parent melts | IW-1.0 to IW+1.9 (variation from crust assimilation) | Wadhwa (2001) [^cite-wadhwa2001] |
+| Mercury surface | IW-2.8 to IW-5.4 (Fe-based: IW-2.8 to IW-4.5; sulphur-based: IW-5.4 via Namur et al. (2016)[^cite-namur2016]) | Cartier & Wood (2019)[^cite-cartierwood2019] |
+| Mars upper mantle (shergottite source) | $\approx$ IW (specifically IW-1.0 to IW-0.3 for QUE 94201) | Wadhwa (2001)[^cite-wadhwa2001] |
+| Mars shergottite parent melts | IW-1.0 to IW+1.9 (variation from crust assimilation) | Wadhwa (2001)[^cite-wadhwa2001] |
 | Iron-wüstite buffer | $0$ | by definition |
-| Earth's upper mantle (modern) | $\approx$ IW+3.5 | Sossi et al. (2020) [^cite-sossi2020] |
-| Earth upper mantle (range) | FMQ$\,\pm\,2$ ($\approx$ IW+1.5 to IW+5.5) | Frost & McCammon (2008) [^cite-frostmccammon2008] |
-| Earth mantle at $\sim 8$ GPa | $\approx$ FMQ$-5$ ($\approx$ IW-1.5) | Frost & McCammon (2008) [^cite-frostmccammon2008] |
-| Earth transition zone ($\sim$14-23 GPa) | just below IW | Frost & McCammon (2008) [^cite-frostmccammon2008] |
-| Earth lower mantle ($>$23 GPa) | metal-saturated ($\sim$1 wt% Fe$^0$); at or below IW | Frost & McCammon (2008) [^cite-frostmccammon2008] |
+| Earth's upper mantle (modern) | $\approx$ IW+3.5 | Sossi et al. (2020)[^cite-sossi2020] |
+| Earth upper mantle (range) | FMQ$\,\pm\,2$ ($\approx$ IW+1.5 to IW+5.5) | Frost & McCammon (2008)[^cite-frostmccammon2008] |
+| Earth mantle at $\sim 8$ GPa | $\approx$ FMQ$-5$ ($\approx$ IW-1.5) | Frost & McCammon (2008)[^cite-frostmccammon2008] |
+| Earth transition zone ($\sim$14-23 GPa) | just below IW | Frost & McCammon (2008)[^cite-frostmccammon2008] |
+| Earth lower mantle ($>$23 GPa) | metal-saturated ($\sim$1 wt% Fe$^0$); at or below IW | Frost & McCammon (2008)[^cite-frostmccammon2008] |
 
-CALLIOPE's PROTEUS-side default is `fO2_shift_IW = 4.0`, consistent with a near-surface terrestrial composition. Nicholls et al. (2024) [^cite-nicholls2024] Table 2 explored $\Delta\mathrm{IW} \in \{-5, -3, -1, 0, +1, +3, +5\}$ on a 7-point grid and demonstrated that the resulting atmospheric composition spans the full range from H$_2$-dominated reduced atmospheres (TRAPPIST-1 c-like) to H$_2$O/CO$_2$-dominated oxidised atmospheres (Earth-like).
+CALLIOPE's PROTEUS-side default is `fO2_shift_IW = 4.0`, consistent with a near-surface terrestrial composition. Nicholls et al. (2024)[^cite-nicholls2024] Table 2 explored $\Delta\mathrm{IW} \in \{-5, -3, -1, 0, +1, +3, +5\}$ on a 7-point grid and demonstrated that the resulting atmospheric composition spans the full range from H$_2$-dominated reduced atmospheres (TRAPPIST-1 c-like) to H$_2$O/CO$_2$-dominated oxidised atmospheres (Earth-like).
 
 ## Limitations
 
 - **No $f_{\mathrm{O}_2}$ evolution**: $\Delta\mathrm{IW}$ is a constant input, not a state variable. In reality the mantle $f_{\mathrm{O}_2}$ should evolve with degree of crystallisation, fractional crystallisation depth, and atmospheric escape; CALLIOPE does not capture this and the user is responsible for choosing a representative value or sweeping over a grid.
-- **No $f_{\mathrm{O}_2}$ depth profile**: the surface $f_{\mathrm{O}_2}$ alone enters the chemistry. Bower et al. (2022) [^cite-bower2022] §2.3 and Sossi et al. (2020) [^cite-sossi2020] discuss why the *interface* fugacity (rather than the deep-mantle value) is the relevant choice; this assumption is consistent with CALLIOPE's ideal-gas, single-temperature treatment but breaks down if a Fe-FeO equilibrium curve in the deep mantle differs by more than a few dex.
+- **No $f_{\mathrm{O}_2}$ depth profile**: the surface $f_{\mathrm{O}_2}$ alone enters the chemistry. Bower et al. (2022)[^cite-bower2022] §2.3 and Sossi et al. (2020)[^cite-sossi2020] discuss why the *interface* fugacity (rather than the deep-mantle value) is the relevant choice; this assumption is consistent with CALLIOPE's ideal-gas, single-temperature treatment but breaks down if a Fe-FeO equilibrium curve in the deep mantle differs by more than a few dex.
 - **No solid-FeO buffering**: when $\Phi_\mathrm{global} \to 0$, there is no melt to buffer $f_{\mathrm{O}_2}$ against the user-prescribed value. CALLIOPE keeps using the shift regardless of melt fraction, which is a reasonable bookkeeping choice but should not be over-interpreted physically.
 
 ## See also
@@ -131,16 +131,17 @@ CALLIOPE's PROTEUS-side default is `fO2_shift_IW = 4.0`, consistent with a near-
 - [Solubility laws](solubility.md): where $f_{\mathrm{O}_2}$ enters the S and N solubility paths
 - [API reference for `calliope.oxygen_fugacity`](../Reference/api/calliope.oxygen_fugacity.md)
 
- [^cite-bower2022]: D. J. Bower, K. Hakim, P. A. Sossi, P. Sanan, *[Retention of water in terrestrial magma oceans and carbon-rich early atmospheres](https://doi.org/10.3847/PSJ/ac5fb1)*, The Planetary Science Journal, 3(4), 93, 2022. [SciX](https://scixplorer.org/abs/2022PSJ.....3...93B/abstract).
- [^cite-cartierwood2019]: C. Cartier, B. J. Wood, *[The role of reducing conditions in building Mercury](https://doi.org/10.2138/gselements.15.1.39)*, Elements, 15(1), 39–45, 2019. [SciX](https://scixplorer.org/abs/2019Eleme..15...39C/abstract).
- [^cite-chase1998]: M. W. Chase, *[NIST-JANAF Thermochemical Tables, 4th edition](https://janaf.nist.gov/)*, Journal of Physical and Chemical Reference Data Monograph 9, 1998.
- [^cite-dasgupta2022]: R. Dasgupta, E. Falksen, A. Pal, C. Sun, *[The fate of nitrogen during parent body partial melting and accretion of the inner Solar System bodies at reducing conditions](https://doi.org/10.1016/j.gca.2022.09.012)*, Geochimica et Cosmochimica Acta, 336, 291–307, 2022. [SciX](https://scixplorer.org/abs/2022GeCoA.336..291D/abstract).
- [^cite-fischer2011]: R. A. Fischer, A. J. Campbell, G. A. Shofner, O. T. Lord, P. Dera, V. B. Prakapenka, *[Equation of state and phase diagram of FeO](https://doi.org/10.1016/j.epsl.2011.02.025)*, Earth and Planetary Science Letters, 304, 496–502, 2011. [SciX](https://scixplorer.org/abs/2011E%26PSL.304..496F/abstract).
- [^cite-frostmccammon2008]: D. J. Frost, C. A. McCammon, *[The redox state of Earth's mantle](https://doi.org/10.1146/annurev.earth.36.031207.124322)*, Annual Review of Earth and Planetary Sciences, 36, 389–420, 2008. [SciX](https://scixplorer.org/abs/2008AREPS..36..389F/abstract).
- [^cite-gaillard2022]: F. Gaillard, F. Bernadou, M. Roskosz, M. A. Bouhifd, Y. Marrocchi, G. Iacono-Marziano, M. Moreira, B. Scaillet, G. Rogerie, *[Redox controls during magma ocean degassing](https://doi.org/10.1016/j.epsl.2021.117255)*, Earth and Planetary Science Letters, 577, 117255, 2022. [SciX](https://scixplorer.org/abs/2022E%26PSL.57717255G/abstract).
- [^cite-hirschmann2021]: M. M. Hirschmann, *[Iron-wüstite revisited: A revised calibration accounting for variable stoichiometry and the effects of pressure](https://doi.org/10.1016/j.gca.2021.08.039)*, Geochimica et Cosmochimica Acta, 313, 74–84, 2021.
- [^cite-nicholls2024]: H. Nicholls, T. Lichtenberg, D. J. Bower, R. Pierrehumbert, *[Magma ocean evolution at arbitrary redox state](https://doi.org/10.1029/2024JE008576)*, Journal of Geophysical Research: Planets, 129, e2024JE008576, 2024. [SciX](https://scixplorer.org/abs/2024JGRE..12908576N/abstract).
- [^cite-nicholls2026]: H. Nicholls, T. Lichtenberg, R. D. Chatterjee, C. M. Guimond, E. Postolec, R. T. Pierrehumbert, *[Volatile-rich evolution of molten super-Earth L 98-59 d](https://doi.org/10.1038/s41550-026-02815-8)*, Nature Astronomy, 2026. [SciX](https://scixplorer.org/abs/2026NatAs.tmp...61N/abstract). [arXiv](https://arxiv.org/abs/2507.02656).
- [^cite-oneilleggins2002]: H. St. C. O'Neill, S. M. Eggins, *[The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts](https://doi.org/10.1016/S0009-2541(01)00414-4)*, Chemical Geology, 186, 151–181, 2002. [SciX](https://scixplorer.org/abs/2002ChGeo.186..151O/abstract).
- [^cite-sossi2020]: P. A. Sossi, A. D. Burnham, J. Badro, A. Lanzirotti, M. Newville, H. St. C. O'Neill, *[Redox state of Earth's magma ocean and its Venus-like early atmosphere](https://doi.org/10.1126/sciadv.abd1387)*, Science Advances, 6, eabd1387, 2020. [SciX](https://scixplorer.org/abs/2020SciA....6.1387S/abstract).
- [^cite-wadhwa2001]: M. Wadhwa, *[Redox state of Mars' upper mantle and crust from Eu anomalies in shergottite pyroxenes](https://doi.org/10.1126/science.1057594)*, Science, 291, 1527–1530, 2001. [SciX](https://scixplorer.org/abs/2001Sci...291.1527W/abstract).
+[^cite-bower2022]: D. J. Bower, K. Hakim, P. A. Sossi, P. Sanan, *[Retention of water in terrestrial magma oceans and carbon-rich early atmospheres](https://doi.org/10.3847/PSJ/ac5fb1)*, The Planetary Science Journal, 3, 93, 2022. [SciX](https://scixplorer.org/abs/2022PSJ.....3...93B/abstract).
+[^cite-cartierwood2019]: C. Cartier, B. J. Wood, *[The role of reducing conditions in building Mercury](https://doi.org/10.2138/gselements.15.1.39)*, Elements, 15, 39-45, 2019. [SciX](https://scixplorer.org/abs/2019Eleme..15...39C/abstract).
+[^cite-chase1998]: M. W. Chase, *[NIST-JANAF Thermochemical Tables, 4th edition](https://janaf.nist.gov/)*, Journal of Physical and Chemical Reference Data Monograph 9, 1998.
+[^cite-dasgupta2022]: R. Dasgupta, E. Falksen, A. Pal, C. Sun, *[The fate of nitrogen during parent body partial melting and accretion of the inner Solar System bodies at reducing conditions](https://doi.org/10.1016/j.gca.2022.09.012)*, Geochimica et Cosmochimica Acta, 336, 291-307, 2022. [SciX](https://scixplorer.org/abs/2022GeCoA.336..291D/abstract).
+[^cite-fischer2011]: R. A. Fischer, A. J. Campbell, G. A. Shofner, O. T. Lord, P. Dera, V. B. Prakapenka, *[Equation of state and phase diagram of FeO](https://doi.org/10.1016/j.epsl.2011.02.025)*, Earth and Planetary Science Letters, 304, 496-502, 2011. [SciX](https://scixplorer.org/abs/2011E%26PSL.304..496F/abstract).
+[^cite-frostmccammon2008]: D. J. Frost, C. A. McCammon, *[The redox state of Earth's mantle](https://doi.org/10.1146/annurev.earth.36.031207.124322)*, Annual Review of Earth and Planetary Sciences, 36, 389-420, 2008. [SciX](https://scixplorer.org/abs/2008AREPS..36..389F/abstract).
+[^cite-gaillard2022]: F. Gaillard, F. Bernadou, M. Roskosz, M. A. Bouhifd, Y. Marrocchi, G. Iacono-Marziano, M. Moreira, B. Scaillet, G. Rogerie, *[Redox controls during magma ocean degassing](https://doi.org/10.1016/j.epsl.2021.117255)*, Earth and Planetary Science Letters, 577, 117255, 2022. [SciX](https://scixplorer.org/abs/2022E%26PSL.57717255G/abstract).
+[^cite-hirschmann2021]: M. M. Hirschmann, *[Iron-wüstite revisited: a revised calibration accounting for variable stoichiometry and the effects of pressure](https://doi.org/10.1016/j.gca.2021.08.039)*, Geochimica et Cosmochimica Acta, 313, 74-84, 2021. [SciX](https://scixplorer.org/abs/2021GeCoA.313...74H/abstract).
+[^cite-namur2016]: O. Namur, B. Charlier, F. Holtz, C. Cartier, C. McCammon, *[Sulfur solubility in reduced mafic silicate melts: implications for the speciation and distribution of sulfur on Mercury](https://doi.org/10.1016/j.epsl.2016.05.024)*, Earth and Planetary Science Letters, 448, 102-114, 2016. [SciX](https://scixplorer.org/abs/2016E%26PSL.448..102N/abstract).
+[^cite-nicholls2024]: H. Nicholls, T. Lichtenberg, D. J. Bower, R. Pierrehumbert, *[Magma ocean evolution at arbitrary redox state](https://doi.org/10.1029/2024JE008576)*, Journal of Geophysical Research: Planets, 129, e2024JE008576, 2024. [SciX](https://scixplorer.org/abs/2024JGRE..12908576N/abstract).
+[^cite-nicholls2026]: H. Nicholls, T. Lichtenberg, R. D. Chatterjee, C. M. Guimond, E. Postolec, R. T. Pierrehumbert, *[Volatile-rich evolution of molten super-Earth L 98-59 d](https://doi.org/10.1038/s41550-026-02815-8)*, Nature Astronomy, 10, 809-817, 2026. [SciX](https://scixplorer.org/abs/2026NatAs..10..809N/abstract).
+[^cite-oneilleggins2002]: H. St. C. O'Neill, S. M. Eggins, *[The effect of melt composition on trace element partitioning: an experimental investigation of the activity coefficients of FeO, NiO, CoO, MoO$_2$ and MoO$_3$ in silicate melts](https://doi.org/10.1016/S0009-2541(01)00414-4)*, Chemical Geology, 186, 151-181, 2002. [SciX](https://scixplorer.org/abs/2002ChGeo.186..151O/abstract).
+[^cite-sossi2020]: P. A. Sossi, A. D. Burnham, J. Badro, A. Lanzirotti, M. Newville, H. St. C. O'Neill, *[Redox state of Earth's magma ocean and its Venus-like early atmosphere](https://doi.org/10.1126/sciadv.abd1387)*, Science Advances, 6, eabd1387, 2020. [SciX](https://scixplorer.org/abs/2020SciA....6.1387S/abstract).
+[^cite-wadhwa2001]: M. Wadhwa, *[Redox state of Mars' upper mantle and crust from Eu anomalies in shergottite pyroxenes](https://doi.org/10.1126/science.1057594)*, Science, 291, 1527-1530, 2001. [SciX](https://scixplorer.org/abs/2001Sci...291.1527W/abstract).
